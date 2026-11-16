@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Image, AlignLeft, AlignRight,
   LayoutGrid, Minus, Type, X, Upload, Loader2, GripVertical, Crop
@@ -14,18 +15,13 @@ let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
 
 // Hook: resolves a local-image:// src to a displayable data URL
+// Both local forms need resolving — the /local-image/ SW path 404s on iOS
+// native (no service worker there), so never render it raw. Through the
+// shared hook so a picture that goes dead mid-session reads again.
 function useResolvedSrc(src) {
-  const [resolved, setResolved] = useState(null);
-  useEffect(() => {
-    if (!src) { setResolved(null); return; }
-    // Both local forms need resolving — the /local-image/ SW path 404s on
-    // iOS native (no service worker there), so never render it raw.
-    if (!src.startsWith("local-image://") && !src.startsWith("/local-image/")) { setResolved(src); return; }
-    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
-      resolveImageUrl(src).then(r => setResolved(r || null)).catch(() => setResolved(null));
-    });
-  }, [src]);
-  return resolved || src || "";
+  const isLocal = !!src && (src.startsWith("local-image://") || src.startsWith("/local-image/"));
+  const resolved = useResolvedAvatarUrl(isLocal ? src : null);
+  return isLocal ? (resolved || src) : (src || "");
 }
 
 export function blocksToHTML(blocks) {
@@ -300,7 +296,7 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
         </div>
         {src && (
           <div className="rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center overflow-hidden" style={{ minHeight: 80 }}>
-            <img src={resolvedSrc || src} alt={alt} className="max-h-32 max-w-full object-contain rounded" onError={e => e.target.style.display = "none"} />
+            <img key={resolvedSrc || src} src={resolvedSrc || src} alt={alt} className="max-h-32 max-w-full object-contain rounded" onError={e => e.target.style.display = "none"} />
           </div>
         )}
         <div className="space-y-1">
@@ -424,7 +420,7 @@ function ImgTextBlock({ block, onChange, onInsertLink }) {
       <button type="button" onClick={() => setImgModal(true)}
         className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center" style={{ minHeight: 80 }}>
         {block.src ? (
-          <img src={resolvedSrc} alt={block.alt || ""} style={block.cropped ? { width: "100%", height: block.size || 120, objectFit: "cover" } : { width: "100%", height: "auto" }} onError={e => e.target.style.display = "none"} />
+          <img key={resolvedSrc} src={resolvedSrc} alt={block.alt || ""} style={block.cropped ? { width: "100%", height: block.size || 120, objectFit: "cover" } : { width: "100%", height: "auto" }} onError={e => e.target.style.display = "none"} />
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground py-4"><Image className="w-5 h-5" /><span className="text-xs">Add image</span></div>
         )}
@@ -472,7 +468,7 @@ function ImgSoloBlock({ block, onChange }) {
           }}>
           <button type="button" onClick={() => setImgModal(true)} className="contents">
             {block.src ? (
-              <img src={resolvedSrc} alt={block.alt || ""}
+              <img key={resolvedSrc} src={resolvedSrc} alt={block.alt || ""}
                 style={block.cropped
                   ? { width: "100%", maxWidth: block.size || 240, height: block.size || 240, objectFit: "cover" }
                   : { maxWidth: "100%", height: "auto", maxHeight: 240 }}
@@ -520,7 +516,7 @@ function GalleryImageThumb({ img, index, maxHeight, onEdit, onToggleCrop, onRemo
         className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
         style={img.src ? (img.cropped ? { width: maxHeight, height: maxHeight } : { maxWidth: 200, minWidth: 40 }) : { width: 72, height: 72 }}>
         {img.src ? (
-          <img src={resolvedSrc} alt={img.alt || ""} style={img.cropped ? { width: maxHeight, height: maxHeight, objectFit: "cover" } : { maxHeight, width: "auto", height: "auto", maxWidth: 200 }} onError={e => e.target.style.display = "none"} />
+          <img key={resolvedSrc} src={resolvedSrc} alt={img.alt || ""} style={img.cropped ? { width: maxHeight, height: maxHeight, objectFit: "cover" } : { maxHeight, width: "auto", height: "auto", maxWidth: 200 }} onError={e => e.target.style.display = "none"} />
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground p-3"><Image className="w-4 h-4" /><span className="text-xs">{index + 1}</span></div>
         )}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { ChevronDown, ChevronRight, Folder, FolderTree, Plus, ArrowLeft, Settings2 } from "lucide-react";
 import AlterCard from "./AlterCard";
 import SubsystemActionMenu from "./SubsystemActionMenu";
 import GroupIcon from "@/components/shared/GroupIcon";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import useLongPress from "@/hooks/useLongPress";
 import { useTerms } from "@/lib/useTerms";
 import { groupNameColor } from "@/lib/contrast";
@@ -42,14 +42,9 @@ function brighten(hex, amt = 0.45) {
 }
 
 function SubsystemAccessory({ group, count = 1, tint, iconUrl, expanded, inlineExpandable, onToggle, onOpen, onMenu }) {
-  const [resolved, setResolved] = useState(null);
   // Single: the subsystem's own avatar. Multi: the alter's optional
   // "subsystems icon" (set on their profile, picked from assets).
-  useEffect(() => {
-    const src = count > 1 ? iconUrl : group?.avatar_url;
-    if (!src) { setResolved(null); return; }
-    resolveImageUrl(src).then(setResolved).catch(() => setResolved(null));
-  }, [group?.avatar_url, iconUrl, count]);
+  const resolved = useResolvedAvatarUrl((count > 1 ? iconUrl : group?.avatar_url) || null);
   const color = group?.color || tint || undefined;
   const ring = brighten(color) || "#a5b4fc";
   const showImg = !!resolved;

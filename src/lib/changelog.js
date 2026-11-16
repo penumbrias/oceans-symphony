@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 16, 2026",
     changes: [
+      { type: "fix", text: "Pictures no longer all disappear after using the app for a while; any that stop showing now load again on their own." },
       { type: "improve", text: "Nature sounds: report a startling noise in a recording (the flag on the player), and sounds known to have barking or sirens now say so." },
       { type: "feature", text: "Template commands: type ~template:load: to pick a template and paste it in place, or ~template:new:title:text to save what you wrote as a template." },
       { type: "feature", text: "Text templates: save any text as a template, formatting and all, and paste it into any box from the new templates button on the formatting bar. Keep them in folders under Settings → Text templates (they're in backups too)." },

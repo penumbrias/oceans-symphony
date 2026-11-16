@@ -6,16 +6,12 @@
 // image, the colour is painted as a SOLID base layer UNDER it so lowering
 // the image opacity reveals the colour (and the profile's bg colour wins
 // over the app page bg here). The surfaces are tinted via profileSurfaceCss.
-import React, { useState, useEffect } from "react";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import React from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 import { framedBackgroundStyle } from "@/lib/imageFraming";
 export default function PageBackground({ bgColor, bgImage, bgOpacity, bgFraming = null }) {
-  const [resolvedBg, setResolvedBg] = useState(null);
-  useEffect(() => {
-    if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null));
-    else setResolvedBg(null);
-  }, [bgImage]);
+  const resolvedBg = useResolvedAvatarUrl(bgImage || null);
   if (!bgColor && !bgImage) return null;
   const hasImage = !!(bgImage && resolvedBg);
   return (
