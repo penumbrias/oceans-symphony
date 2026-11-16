@@ -400,6 +400,23 @@ export function buildTherapyNoteRecords({ items = [] }) {
   }));
 }
 
+// Text templates (v0.374.0) — open on their own page in Settings.
+export function buildTextTemplateRecords({ items = [], folders = [] }) {
+  const names = new Map((folders || []).map((f) => [f.id, f.name || ""]));
+  return items.map((t) => {
+    const title = (t.title || "").trim() || snippet(t.content, 60) || "Template";
+    return {
+      type: "template",
+      id: t.id,
+      title,
+      subtitle: [names.get(t.folder_id), snippet(t.content)].filter(Boolean).join(" · "),
+      path: `/Settings?tt=${encodeURIComponent(`template:${t.id}`)}#text-templates`,
+      searchableText: joinNonEmpty([title, stripHtml(t.content), names.get(t.folder_id), "template"]).toLowerCase(),
+      sortDate: t.updated_date || t.created_date,
+    };
+  });
+}
+
 export function buildEmotionCheckInRecords({ items = [] }) {
   const records = [];
   for (const e of items) {
@@ -1176,6 +1193,7 @@ export function buildSearchIndex(sources = {}) {
     tasks, dailyTaskTemplates,
     statusNotes, emotionCheckIns,
     therapyNotes,
+    textTemplates, textTemplateFolders,
     symptoms, symptomCheckIns,
     groups,
     diaryCards,
@@ -1219,6 +1237,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildDailyTaskTemplateRecords({ items: dailyTaskTemplates || [] }));
   records.push(...buildStatusNoteRecords({ items: statusNotes || [] }));
   records.push(...buildTherapyNoteRecords({ items: therapyNotes || [] }));
+  records.push(...buildTextTemplateRecords({ items: textTemplates || [], folders: textTemplateFolders || [] }));
   records.push(...buildEmotionCheckInRecords({ items: emotionCheckIns || [] }));
   records.push(...buildSymptomRecords({ items: symptoms || [] }));
   records.push(...buildSymptomCheckInRecords({ items: symptomCheckIns || [], symptoms: symptoms || [] }));
