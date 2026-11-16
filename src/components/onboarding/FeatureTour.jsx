@@ -450,7 +450,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("profile", {
       emoji: "🏷️", title: "Custom fields",
-      body: `Custom fields can be short or long text, lists, dates, numbers or yes/no, for one ${t.alter} or everyone. A field's ⋯ renames it, changes its kind, hides it or deletes it.`,
+      body: `Custom fields can be short or long text, lists, dates, numbers or yes/no, for one ${t.alter} or everyone. A field's ⋯ renames it, changes its kind, hides it or deletes it. In Settings, a title can have fancy text and pictures.`,
       route: profile("fields"), target: onProfile("alter-profile-tabs"),
       look: `Info → Custom fields, or the Custom fields page`,
     }),

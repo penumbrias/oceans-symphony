@@ -15,6 +15,7 @@
 import { base44 } from "@/api/base44Client";
 import { extractYear, firstAppearanceOf, patchAlterCustomFields } from "@/lib/alterEntry";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { richTitleOf } from "@/lib/fieldTitle";
 
 export const FIELD_ORDER_KEY = "_field_order";
 
@@ -48,7 +49,7 @@ export function infoEntriesFor(alter, systemFields = []) {
   return [
     BIO_ENTRY,
     ...BASIC_ENTRIES,
-    ...orderedSystemFields(alter, systemFields).map((f) => ({ id: `field:${f.id}`, label: f.name, kind: f.field_type || "text", fieldId: f.id })),
+    ...orderedSystemFields(alter, systemFields).map((f) => ({ id: `field:${f.id}`, label: f.name, richLabel: richTitleOf(f), kind: f.field_type || "text", fieldId: f.id })),
     ...own,
   ];
 }
@@ -131,13 +132,14 @@ const sameName = (a, b) => String(a || "").trim().toLowerCase() === String(b || 
 
 // A new entry every alter has (a custom field), made from a widget. Returns
 // its id. A field with the same name is reused, never duplicated.
-export async function addSharedEntry({ name, kind = "text" }) {
+// `nameRich` (v0.372.2) is the formatted title (see fieldTitle.js), or null.
+export async function addSharedEntry({ name, kind = "text", nameRich = null }) {
   const clean = String(name || "").trim();
   if (!clean) throw new Error("The custom field needs a name");
   const fields = (await base44.entities.CustomField.list("order")) || [];
   const same = fields.find((f) => sameName(f?.name, clean));
   if (same) return `field:${same.id}`;
-  const created = await base44.entities.CustomField.create({ name: clean, field_type: kind, order: fields.length });
+  const created = await base44.entities.CustomField.create({ name: clean, field_type: kind, order: fields.length, ...(nameRich ? { name_rich: nameRich } : {}) });
   return `field:${created.id}`;
 }
 
@@ -160,13 +162,15 @@ export async function setSharedEntryHidden(fieldId, hidden) {
 }
 
 // Rename a shared entry or change its kind, for every alter. Values are
-// kept by the field's id, so nothing moves.
-export async function updateSharedEntry(fieldId, { name, kind }) {
+// kept by the field's id, so nothing moves. `nameRich` (v0.372.2): a
+// string or null sets the formatted title; left out, it is kept as it is
+// (and shows again only while it still reads as the name — fieldTitle.js).
+export async function updateSharedEntry(fieldId, { name, kind, nameRich }) {
   const clean = String(name || "").trim();
   if (!fieldId || !clean) throw new Error("The custom field needs a name");
   const fields = (await base44.entities.CustomField.list("order")) || [];
   if (fields.some((f) => f.id !== fieldId && sameName(f?.name, clean))) throw new Error(`There's already a custom field called “${clean}”`);
-  return base44.entities.CustomField.update(fieldId, { name: clean, ...(kind ? { field_type: kind } : {}) });
+  return base44.entities.CustomField.update(fieldId, { name: clean, ...(kind ? { field_type: kind } : {}), ...(nameRich !== undefined ? { name_rich: nameRich || null } : {}) });
 }
 
 // Rename one of this alter's own entries or change its kind, keeping its

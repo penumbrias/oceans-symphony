@@ -1301,3 +1301,14 @@ img.ink-drawing { display: inline-block; vertical-align: middle; border-radius: 
 html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-feeling-row { flex-direction: column; }
 html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-side-rating { border-left: 0; padding-left: 0; border-top: 1px solid hsl(var(--border) / 0.4); padding-top: 0.5rem; }
 html:is(.a11y-text-xl3, .a11y-text-xl4, .a11y-text-xl5) .os-side-rating > button { max-width: none; }
+
+/* A custom field's formatted title (FieldTitle.jsx, v0.372.2) sits in a
+   label, heading or tab: the editor's line wrappers flow inline there, and
+   a picture lines up with the words around it. */
+.field-title-rich > div,
+.field-title-rich > p { display: inline; margin: 0; }
+.field-title-rich > div + div::before,
+.field-title-rich > p + p::before { content: " "; }
+.field-title-rich img { display: inline-block; vertical-align: middle; max-width: 100%; }
+/* In a tab a picture shrinks to the height of the words beside it. */
+.field-title-compact img { display: inline-block !important; height: 1.5em !important; width: auto !important; max-width: none; margin: 0 0.15em !important; }

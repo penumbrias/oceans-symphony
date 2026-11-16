@@ -37,6 +37,7 @@ import { barPictureFor } from "@/lib/barPicture";
 import { showsOther } from "@/components/v2/WhosePicker";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { sharedList } from "@/lib/sharedLists";
+import FieldTitle from "@/components/shared/FieldTitle";
 
 const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
@@ -214,7 +215,7 @@ export function EditableValue({ alter, entry, value, editable: editableSetting, 
         {shown}
         <Dialog open={editing} onOpenChange={setEditing}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogTitle>{entry.label}</DialogTitle>
+            <DialogTitle><FieldTitle label={entry.label} rich={entry.richLabel || null} /></DialogTitle>
             {entry.kind === "bio"
               ? <BioEntry k={`${alter.id}:bio`} value={value} onChange={commit} />
               : <EntryInput k={`${alter.id}:${entry.id}`} type="richtext" label={entry.label} value={value} onCommit={commit} />}
@@ -286,7 +287,7 @@ export function InfoPages({ rows, renderPage, label = "Pages" }) {
               onClick={() => go(i)}
               className="flex-shrink-0 min-h-[44px] px-[0.75em] text-[0.8125em] font-medium whitespace-nowrap border-b-2 transition-opacity"
               style={{ borderColor: on ? "var(--v2-accent)" : "transparent", opacity: on ? 1 : 0.65 }}>
-              {r.entry.label}
+              <FieldTitle label={r.entry.label} rich={r.entry.richLabel || null} className="field-title-compact" />
             </button>
           );
         })}
@@ -365,7 +366,7 @@ export function InfoWidget({ settings, mode = "normal" }) {
           {rows.map((r) => (
             <div key={r.entry.id}>
               <div className="flex gap-1.5 flex-wrap">
-                <dt className="font-semibold">{r.entry.label}:</dt>
+                <dt className="font-semibold"><FieldTitle label={r.entry.label} rich={r.entry.richLabel || null} />:</dt>
                 <dd className="min-w-0 flex-1">{valueOf(r)}</dd>
               </div>
               {meta(r.entry)}
@@ -377,7 +378,7 @@ export function InfoWidget({ settings, mode = "normal" }) {
           {rows.map((r) => (
             <section key={r.entry.id} aria-label={layout === "plain" ? r.entry.label : undefined}>
               {layout === "labelled" && !(one && r.entry.kind === "bio" && !expanded) && (
-                <h3 className="text-[0.75em] font-semibold uppercase tracking-wide opacity-70 mb-0.5">{r.entry.label}</h3>
+                <FieldTitle as="h3" label={r.entry.label} rich={r.entry.richLabel || null} className="text-[0.75em] font-semibold uppercase tracking-wide opacity-70 mb-0.5" />
               )}
               {valueOf(r)}
               {meta(r.entry)}
