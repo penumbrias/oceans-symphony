@@ -1746,7 +1746,14 @@ export default function ExperimentalDashboard({
           // Collapsed (empty, view mode) or open right now: not its size.
           if (node.offsetWidth === 0 || grownRef.current.has(wid)) continue;
           const keep = [node.style.height, node.style.alignSelf, node.style.minHeight];
-          node.style.height = "max-content";
+          // "auto", not "max-content": Safari (WebKit) measures a widget
+          // placed between grid lines (absolutely positioned) at
+          // max-content as 0 tall. The fit then shrank it to one row, which
+          // put it back on the grid lines, where it measured its real
+          // height and grew again: the header flipped between two sizes
+          // several times a second and everything below it jumped
+          // (v0.371.12). Auto is the content height in every engine.
+          node.style.height = "auto";
           node.style.alignSelf = "start";
           node.style.minHeight = "0";
           const natural = node.offsetHeight;
