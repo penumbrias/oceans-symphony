@@ -48,7 +48,7 @@ export default function MemberSharingPanel() {
       <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-2.5 p-3 text-left hover:bg-muted/20 transition-colors">
         <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">Member sharing &amp; privacy levels</p>
+          <p className="text-sm font-medium text-foreground">{terms.Alter} sharing &amp; privacy levels</p>
           <p className="text-xs text-muted-foreground">
             {levels.length === 0 ? "Set up levels to share members with friends" : `${sharedCount} ${sharedCount === 1 ? terms.alter : terms.alters} in a sharing level`}
           </p>
