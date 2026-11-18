@@ -737,7 +737,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             <button
               onClick={() => setPanelOpen((v) => !v)}
               aria-expanded={panelOpen}
-              title={panelOpen ? "Hide layers & alters" : "Show layers & alters"}
+              title={panelOpen ? `Hide layers & ${terms.alters}` : `Show layers & ${terms.alters}`}
               className="px-2.5 py-1 min-h-[32px] rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
             >
               {effectiveSolo ? <Eye className="w-3 h-3 text-amber-500 flex-shrink-0" /> : viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}

@@ -390,13 +390,13 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
         >
           <DialogHeader>
             <div className="flex items-center justify-between gap-2 pr-14">
-              <DialogTitle>Set {terms.Front}ers</DialogTitle>
+              <DialogTitle>Set {terms.Fronters}</DialogTitle>
               <AlterLabelToggle size="xs" />
             </div>
           </DialogHeader>
 
           <div className="flex gap-1 bg-muted/50 rounded-lg p-1" role="tablist">
-            {[["fronters", `Set ${terms.Front}ers`], ["presence", "New presence"]].map(([id, label]) => (
+            {[["fronters", `Set ${terms.Fronters}`], ["presence", "New presence"]].map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={tab === id}
                 onClick={() => setTab(id)}
                 className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === id ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}>
@@ -539,7 +539,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                     <HelpCircle className="w-3.5 h-3.5" /> {isUnsure ? "Not unsure" : "Unsure"}
                   </Button>
                   <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                    {saving ? "Saving..." : isUnsure ? `Clear ${terms.front}` : `Set ${terms.Front}ers`}
+                    {saving ? "Saving..." : isUnsure ? `Clear ${terms.front}` : `Set ${terms.Fronters}`}
                   </Button>
                 </div>
               </div>
