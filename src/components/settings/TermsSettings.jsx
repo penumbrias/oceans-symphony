@@ -261,7 +261,7 @@ export default function TermsSettings({ embedded = false } = {}) {
           </p>
           <p>
             <span className="font-medium">Switch:</span>{" "}
-            <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{vals.switches || pluralize(vals.switch)}</span> · <span className="text-foreground font-medium">{gerund(vals.switch)}</span>
+            <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{vals.switches || pluralize(vals.switch)}</span> · <span className="text-foreground font-medium">{vals.switching || gerund(vals.switch)}</span>
           </p>
           <p>
             <span className="font-medium">Front:</span>{" "}

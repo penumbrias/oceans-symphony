@@ -85,7 +85,7 @@ export default function SystemMapPage() {
         <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Structure Map</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           {tab === "analytics"
-            ? `Shows every ${terms.alter} sized by fronting time. Select one to reposition others by how often they co-fronted — closer means more overlap.`
+            ? `Shows every ${terms.alter} sized by ${terms.fronting} time. Select one to reposition others by how much ${terms.cofronting} time they shared — closer means more overlap.`
             : `Freeform inner world canvas. Drag ${terms.alters} to place them, double-click to create relationships.`}
         </p>
       </div>
@@ -126,6 +126,7 @@ export default function SystemMapPage() {
             fallback={
               <AnalyticsMapTooLargeFallback
                 systemTerm={terms.system}
+                altersTerm={terms.alters}
                 alterCount={alters.length}
                 onUseInnerWorld={() => setTab("inner")}
               />
@@ -187,7 +188,7 @@ class AnalyticsMapErrorBoundary extends React.Component {
   }
 }
 
-function AnalyticsMapTooLargeFallback({ systemTerm, alterCount, onUseInnerWorld }) {
+function AnalyticsMapTooLargeFallback({ systemTerm, altersTerm, alterCount, onUseInnerWorld }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12 rounded-xl border border-dashed border-border/60 bg-muted/15">
       <Map className="w-10 h-10 text-muted-foreground/50 mb-3" />
@@ -195,7 +196,7 @@ function AnalyticsMapTooLargeFallback({ systemTerm, alterCount, onUseInnerWorld 
         Analytics map is taking a breather
       </p>
       <p className="text-sm text-muted-foreground max-w-md mb-5">
-        Something went wrong drawing your {systemTerm}'s map{typeof alterCount === "number" && alterCount > 0 ? ` (${alterCount} active alters)` : ""}. Reloading usually fixes it — if it keeps happening, please send a bug report.
+        Something went wrong drawing your {systemTerm}'s map{typeof alterCount === "number" && alterCount > 0 ? ` (${alterCount} active ${altersTerm})` : ""}. Reloading usually fixes it — if it keeps happening, please send a bug report.
       </p>
       <button
         onClick={onUseInnerWorld}

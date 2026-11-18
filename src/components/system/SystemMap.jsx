@@ -599,14 +599,14 @@ const SystemMap = ({ relationships = [] }) => {
               </button>
             </span>
           )}
-          {!selectedAlter && <span>Click an alter to center it</span>}
+          {!selectedAlter && <span>Click {t.an(t.alter)} to center it</span>}
         </div>
         <button
           onClick={cycleTimeMode}
           className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
           title="Cycle time mode"
         >
-          {currentTimeMode?.label}
+          {currentTimeMode?.id === 'cofronting' ? `👥 Co-${t.front}` : currentTimeMode?.label}
         </button>
       </div>
 
@@ -827,7 +827,7 @@ const SystemMap = ({ relationships = [] }) => {
                     <text x={node.x} y={node.y + (node.type === "group" ? r - 8 : 25)}
                       textAnchor="middle" fontSize="10"
                       fill="white" opacity="0.6" pointerEvents="none">
-                      {node.collapsedCount ? `${node.collapsedCount} inside` : node.type === "group" ? "Group" : "Alter"}
+                      {node.collapsedCount ? `${node.collapsedCount} inside` : node.type === "group" ? "Group" : t.Alter}
                     </text>
                   )}
                 </g>
@@ -879,13 +879,13 @@ const SystemMap = ({ relationships = [] }) => {
           </button>
           {legendOpen && (
             <div className="mt-1 bg-card/95 backdrop-blur border border-border rounded-lg p-3 text-xs space-y-1.5">
-              <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-purple-500"/><span className="text-muted-foreground">Alters</span></div>
+              <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-purple-500"/><span className="text-muted-foreground">{t.Alters}</span></div>
               {showGroups && <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-indigo-500"/><span className="text-muted-foreground">Groups</span></div>}
               {showGroups && <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2 border-dashed border-muted-foreground/50"/><span className="text-muted-foreground">Membership</span></div>}
-              <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2" style={{borderColor:"hsl(var(--accent))"}}/><span className="text-muted-foreground">Co-fronting</span></div>
+              <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2" style={{borderColor:"hsl(var(--accent))"}}/><span className="text-muted-foreground">{t.Cofronting}</span></div>
               {relDisplayMode !== 'none' && <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2 border-dashed border-muted-foreground"/><span className="text-muted-foreground">Relationship</span></div>}
               <div className="pt-1 border-t border-border text-muted-foreground">
-                {alterNodeCount} alters{showGroups ? ` · ${groupNodeCount} groups` : ''}
+                {alterNodeCount} {alterNodeCount === 1 ? t.alter : t.alters}{showGroups ? ` · ${groupNodeCount} groups` : ''}
               </div>
             </div>
           )}
@@ -908,7 +908,7 @@ const SystemMap = ({ relationships = [] }) => {
                     variant={displaySelectMode === m.id ? "default" : "outline"}
                     className="cursor-pointer text-xs"
                     onClick={() => setDisplaySelectMode(m.id)}>
-                    {m.id === 'top_front' ? `Top ${t.fronting} time` : m.id === 'top_cofront' ? `Top ${t.cofronting || "co-fronting"} time` : m.label}
+                    {m.id === 'top_front' ? `Top ${t.fronting} time` : m.id === 'top_cofront' ? `Top ${t.cofronting} time` : m.label}
                   </Badge>
                 ))}
               </div>
@@ -972,7 +972,7 @@ const SystemMap = ({ relationships = [] }) => {
 
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Show Archived</label>
-              <button type="button" role="switch" aria-checked={showArchived} aria-label="Show archived alters" onClick={() => setShowArchived(v => !v)}
+              <button type="button" role="switch" aria-checked={showArchived} aria-label={`Show archived ${t.alters}`} onClick={() => setShowArchived(v => !v)}
                 className={`w-10 h-5 rounded-full transition-colors ${showArchived ? "bg-primary" : "bg-muted"} relative flex-shrink-0`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showArchived ? "left-5" : "left-0.5"}`} />
               </button>
@@ -1029,7 +1029,7 @@ const SystemMap = ({ relationships = [] }) => {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Co-fronters: {selectedAlter.name}
+                    {t.Cofronters}: {selectedAlter.name}
                   </label>
                   <button onClick={() => setSelectedAlter(null)} className="text-muted-foreground hover:text-foreground">
                     <X className="w-4 h-4" />

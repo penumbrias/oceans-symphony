@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "November 18, 2026",
+    changes: [
+      { type: "fix", text: "Terminology: a custom switching form (like \"Changing over\") now shows and sticks instead of being replaced by an automatic \"-ing\" word." },
+      { type: "fix", text: "System map: names, legend and labels now use your own words instead of \"alter\" and \"co-fronting\"." },
+    ],
+  },
+  {
     date: "November 16, 2026",
+    version: "0.374.5",
     changes: [
       { type: "feature", text: "Activity commands: ~activity:new:name makes a new activity, and ~activity:new: lets you pick where it goes, one level at a time. Logging an activity you don't have yet now asks to create it instead of failing." },
       { type: "fix", text: "Nature sounds: Up next now moves on when a sound ends with the screen off, and pressing play on a finished sound plays the next one instead of starting it over." },

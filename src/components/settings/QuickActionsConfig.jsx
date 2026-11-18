@@ -311,7 +311,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
 
   const actionTypes = [
     { id: "open_checkin_section", label: "Open Check-In at a specific section" },
-    { id: "open_set_front", label: `Open Set ${terms.Front}ers modal` },
+    { id: "open_set_front", label: `Open Set ${terms.Fronters} modal` },
     { id: "set_front_alter", label: `Set a specific ${terms.alter} as ${terms.front} (replaces current)` },
     { id: "add_to_front_alter", label: `Add a specific ${terms.alter} to ${terms.front} (keeps current)` },
     { id: "log_activity", label: "Log an activity" },
@@ -365,7 +365,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
       const cat = LOCATION_CATEGORIES.find(c => c.id === data.config?.default_category);
       return cat ? `${cat.emoji} ${cat.label}` : "Location";
     }
-    if (data.type === "open_set_front") return `Set ${terms.Front}ers`;
+    if (data.type === "open_set_front") return `Set ${terms.Fronters}`;
     if (data.type === "toggle_daily_task") {
       const t = dailyTaskTemplates?.find(t => t.id === data.config?.task_id);
       return t ? applyTerms(t.title, terms) : "Daily task";
@@ -637,7 +637,7 @@ export default function QuickActionsConfig() {
     log_emotion: "Log emotion",
     log_diary: "Log diary entry",
     log_location: "Log location",
-    open_set_front: `Open Set ${terms.Front}ers`,
+    open_set_front: `Open Set ${terms.Fronters}`,
     toggle_daily_task: "Toggle daily task",
     view_grocery_list: "Grocery list",
     add_grocery_item: "Add to grocery list",

@@ -9,8 +9,8 @@ function buildThresholdLabels(t) {
     urge_min: "Urge rating ≥",
     symptom_severity_min: "Symptom severity ≥",
     symptom_session_min_minutes: "Active symptom session ≥ (minutes)",
-    rapid_switch_count: `Rapid ${t.switching || `${t.switch}ing`} (N ${t.switches} in window)`,
-    rapid_switch_window_minutes: `Rapid ${t.switching || `${t.switch}ing`} window (minutes)`,
+    rapid_switch_count: `Rapid ${t.switching} (N ${t.switches} in window)`,
+    rapid_switch_window_minutes: `Rapid ${t.switching} window (minutes)`,
     mood_avg_below: "Daily mood average below",
   };
 }
