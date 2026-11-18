@@ -15,7 +15,7 @@
 import { base44 } from "@/api/base44Client";
 import { getSessionLevel } from "@/lib/frontLevels";
 import { recomputePrimaryFromLevels } from "@/lib/setFront";
-import { levelChangesOf, levelAt, changesAfter } from "@/lib/frontLevelSpans";
+import { levelChangesOf, levelAt, changesAfter, isJoinSettle } from "@/lib/frontLevelSpans";
 
 const membersOf = (s) => [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
 const ms = (iso) => (iso ? new Date(iso).getTime() : NaN);
@@ -55,8 +55,10 @@ export async function ownSessionFor(session, alterId, levelCfg = null) {
 }
 
 // Times and level. `end` left empty keeps the recorded end (an edit never
-// quietly reopens a finished session).
-export async function editFrontSession({ session, alterId, start, end, levelId, levelCfg = null }) {
+// quietly reopens a finished session). `wholeSession`: the level holds for
+// the whole session — the recorded level changes stay in their log (sync
+// keeps every entry) but stop counting (`levels_reset_at`, frontLevelSpans).
+export async function editFrontSession({ session, alterId, start, end, levelId, levelCfg = null, wholeSession = false }) {
   const startIso = start || session.start_time;
   const endIso = end || session.end_time || null;
   if (Number.isNaN(ms(startIso))) throw new SessionEditError("Pick a start time.");
@@ -67,6 +69,20 @@ export async function editFrontSession({ session, alterId, start, end, levelId, 
   if (levelId) {
     patch.front_level = levelId;
     patch.is_primary = levelId === topLevel;
+    if (wholeSession && levelChangesOf(own).length) patch.levels_reset_at = new Date().toISOString();
+  }
+  // Moving the start must not turn the level they joined at back into a
+  // change: settle entries (isJoinSettle, judged on the row as it was) are
+  // superseded for good before the start moves.
+  if (!patch.levels_reset_at && startIso !== own.start_time && Array.isArray(own.level_changes)) {
+    const settled = own.level_changes
+      .map((c) => ms(c?.timestamp))
+      .filter((t) => Number.isFinite(t) && isJoinSettle(own, t));
+    const reset = ms(own.levels_reset_at);
+    if (settled.length) {
+      const last = Math.max(...settled);
+      if (!(Number.isFinite(reset) && reset >= last)) patch.levels_reset_at = new Date(last).toISOString();
+    }
   }
   const saved = await base44.entities.FrontingSession.update(own.id, patch);
   if (!endIso) await recomputePrimaryFromLevels({ cfg: levelCfg, queryClient: null });
