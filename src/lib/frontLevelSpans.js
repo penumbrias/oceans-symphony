@@ -11,16 +11,41 @@
 // both devices' entries (LOG_FIELDS in syncMerge.js). Rows from before
 // v0.282.2 have none and read as one level for their whole length.
 //
+// Two things make a recorded change NOT count (v0.374.6) — the log itself
+// is never edited, because sync keeps every entry from both devices:
+//   • A change made within JOIN_SETTLE_MS of the row being created is the
+//     person settling the level they joined at (older builds added someone
+//     to front and set their level in two writes, which logged "Co-fronting
+//     at 8:13, Nearby at 8:13" for a solo front). It reads as the level the
+//     session STARTED at. Only for a row created live as someone joined
+//     (created within the same window as its start) — a row made by a
+//     split or a past entry starts long before it was created.
+//   • `levels_reset_at`: the person set one level for the whole session in
+//     the session editor. Every change recorded up to then is superseded.
+//
 // Pure helpers; no storage access.
 
 const ms = (iso) => (iso ? new Date(iso).getTime() : NaN);
 
-// The recorded changes, cleaned and oldest first. Tolerates junk.
+export const JOIN_SETTLE_MS = 60 * 1000;
+
+// True when a change at `atMs` would only be settling the starting level.
+export function isJoinSettle(session, atMs) {
+  const created = ms(session?.created_date);
+  const start = ms(session?.start_time);
+  if (!Number.isFinite(created) || !Number.isFinite(atMs) || !Number.isFinite(start)) return false;
+  return Math.abs(created - start) <= JOIN_SETTLE_MS && atMs - start <= JOIN_SETTLE_MS;
+}
+
+// The recorded changes that count, cleaned and oldest first. Tolerates junk.
 export function levelChangesOf(session) {
   const raw = session?.level_changes;
   if (!Array.isArray(raw)) return [];
+  const resetMs = ms(session?.levels_reset_at);
   return raw
     .filter((c) => c && typeof c === "object" && Number.isFinite(ms(c.timestamp)))
+    .filter((c) => !isJoinSettle(session, ms(c.timestamp)))
+    .filter((c) => !(Number.isFinite(resetMs) && ms(c.timestamp) <= resetMs))
     .sort((a, b) => ms(a.timestamp) - ms(b.timestamp));
 }
 

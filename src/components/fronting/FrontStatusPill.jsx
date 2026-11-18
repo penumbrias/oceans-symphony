@@ -27,7 +27,8 @@ export default function FrontStatusPill({ alter, session = null, className = "" 
   const cfg = gesture.cfg;
 
   const isFronting = !!session;
-  const levelId = isFronting ? getSessionLevel(session, cfg) : null;
+  // getSessionLevel returns the level itself; we work with its id.
+  const levelId = isFronting ? (getSessionLevel(session, cfg)?.id || null) : null;
   const level = levelId ? cfg.levels.find((l) => l.id === levelId) : null;
   const label = isFronting
     ? (level ? frontLevelLabel(level, t) : t.Fronting)
@@ -35,10 +36,13 @@ export default function FrontStatusPill({ alter, session = null, className = "" 
 
   const stepLevelUp = async () => {
     if (!isFronting) {
-      // Joining via "level up" starts at the OUTERMOST level and walks in.
+      // Joining via "level up" starts at the OUTERMOST level and walks in —
+      // joined AT that level in one write, so no level change is logged.
       const outer = cfg.levels[cfg.levels.length - 1];
-      await toggleFrontFor(alter, [], base44, qc, toast, t);
-      if (outer) await commitFrontLevel({ alterId: alter.id, levelId: outer.id, queryClient: qc, cfg });
+      if (!outer) { await toggleFrontFor(alter, [], base44, qc, toast, t); return; }
+      if (await commitFrontLevel({ alterId: alter.id, levelId: outer.id, queryClient: qc, cfg, join: true })) {
+        toast.success(`${alter.name} added to ${t.front}`);
+      }
       return;
     }
     const idx = cfg.levels.findIndex((l) => l.id === levelId);
@@ -49,9 +53,11 @@ export default function FrontStatusPill({ alter, session = null, className = "" 
   const jumpToTop = async () => {
     const top = cfg.levels[0];
     if (!isFronting) {
-      // Joining with no level set IS the top — full fronting, exactly the
-      // pre-levels semantics.
-      await toggleFrontFor(alter, [], base44, qc, toast, t);
+      // Joining straight at the top level, in one write.
+      if (!top) { await toggleFrontFor(alter, [], base44, qc, toast, t); return; }
+      if (await commitFrontLevel({ alterId: alter.id, levelId: top.id, queryClient: qc, cfg, join: true })) {
+        toast.success(`${alter.name} added to ${t.front}`);
+      }
       return;
     }
     if (top && levelId !== top.id) {

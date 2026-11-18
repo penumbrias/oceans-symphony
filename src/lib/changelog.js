@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 18, 2026",
     changes: [
+      { type: "fix", text: "Fronting levels: joining at a level no longer also logs a moment of Co-fronting in the timeline, and sessions that already show one are fixed. Editing a session can now set its level for the whole session." },
       { type: "fix", text: "Terminology: a custom switching form (like \"Changing over\") now shows and sticks instead of being replaced by an automatic \"-ing\" word." },
       { type: "fix", text: "System map: names, legend and labels now use your own words instead of \"alter\" and \"co-fronting\"." },
     ],

@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, AlertTriangle, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -327,6 +328,9 @@ export function AlterSessionEdit({ session, alter, onClose }) {
     : { ...session, is_primary: session?.primary_alter_id === alter?.id };
   const [editLevel, setEditLevel] = useState(getSessionLevel(seedSession, editLevelCfg)?.id || editLevelCfg.levels[0]?.id);
   const editLastChange = levelChangesOf(session).slice(-1)[0] || null;
+  // A session whose level changed while it ran: the picked level can hold
+  // for the whole session instead of only since the last change.
+  const [wholeSession, setWholeSession] = useState(false);
 
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
@@ -355,6 +359,7 @@ const handleSave = async () => {
       end: localDatetimeToISO(endVal),
       levelId: editLevel,
       levelCfg: editLevelCfg,
+      wholeSession,
     });
 
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
@@ -404,7 +409,7 @@ const handleSave = async () => {
           </div>
           <div className="py-1 border-t border-border/40">
             <p className="text-xs text-muted-foreground mb-1">
-              {editLastChange
+              {editLastChange && !wholeSession
                 ? `${terms.Fronting} level since ${format(parseDate(editLastChange.timestamp), clockPattern("h:mm a"))} (earlier parts keep their level)`
                 : `${terms.Fronting} level during this session`}
             </p>
@@ -416,6 +421,12 @@ const handleSave = async () => {
               searchPlaceholder="Search levels..."
               zIndex={70}
             />
+            {editLastChange && (
+              <label className="mt-2 flex items-start gap-2 text-xs text-foreground cursor-pointer">
+                <Checkbox checked={wholeSession} onCheckedChange={(v) => setWholeSession(v === true)} className="mt-0.5" />
+                <span>Use this level for the whole session (replaces the earlier levels)</span>
+              </label>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>Cancel</Button>

@@ -25,7 +25,7 @@ import { withBatch } from "@/lib/localDb";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import { pushCurrentFront } from "@/lib/friendsApi";
 import { getSessionLevel } from "@/lib/frontLevels";
-import { levelChangeEntry, levelChangesOf } from "@/lib/frontLevelSpans";
+import { levelChangeEntry, isJoinSettle } from "@/lib/frontLevelSpans";
 
 // ISO string in the user's detected local timezone (not hardcoded).
 export function nowLocalIso() {
@@ -247,10 +247,15 @@ async function applyFrontSelectionInner({
     if (single && !hasDuplicates && !statusUnchanged) {
       // A level change on a running session is recorded, so the timeline
       // can draw the time before it at the old level (frontLevelSpans.js).
-      if (levelPatch.front_level) {
+      // A level set moments after joining is the level they joined at,
+      // not a change (isJoinSettle) — logging it drew "Co-fronting at 8:13,
+      // Nearby at 8:13" for a solo front.
+      if (levelPatch.front_level && !isJoinSettle(single, new Date(now).getTime())) {
         const from = single.front_level || getSessionLevel(single, levelCfg)?.id || null;
         const entry = levelChangeEntry({ from, to: levelPatch.front_level, at: now });
-        if (entry) levelPatch.level_changes = [...levelChangesOf(single), entry];
+        // Append to the raw log: entries are never dropped (sync keeps them).
+        const raw = Array.isArray(single.level_changes) ? single.level_changes : [];
+        if (entry) levelPatch.level_changes = [...raw, entry];
       }
       await base44.entities.FrontingSession.update(single.id, { is_primary: want.isPrimary, ...levelPatch });
       if (!firstSessionId) firstSessionId = single.id;

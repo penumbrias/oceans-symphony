@@ -25,7 +25,7 @@ import { useTerms } from "@/lib/useTerms";
 import { frontLevelLabel, useFrontLevels, swipeDistanceScale } from "@/lib/frontLevels";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { changeFront } from "@/lib/setFront";
-import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
+import { removeFrontFor } from "@/hooks/useSwipeActions";
 import { beginHoldGesture } from "@/lib/holdGesture";
 
 // Lazy: AlterActionMenu's module imports FrontStatusPill, which imports
@@ -64,11 +64,19 @@ const reachable = (want, room) => Math.max(SOLO_MIN_PX, Math.min(want, room * 0.
 // Writes through the one set-front path (setFront.js): fresh read, and the
 // derived lead follows the spectrum. Returns false when the alter isn't in
 // front (callers add them first).
-export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = null, solo = false }) {
+//
+// join: true adds the alter at `levelId` when they aren't in front, in the
+// SAME write. Adding first and setting the level after logged a level
+// change at the moment they joined ("Co-fronting at 8:13, Nearby at 8:13"
+// for a solo front) — always join through here.
+export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = null, solo = false, join = false }) {
   try {
     const { changed } = await changeFront((cur) => {
-      if (!cur.some((s) => s.alterId === alterId)) return null;
-      let next = cur.map((s) => (s.alterId === alterId ? { ...s, level: levelId } : s));
+      const present = cur.some((s) => s.alterId === alterId);
+      if (!present && !join) return null;
+      let next = present
+        ? cur.map((s) => (s.alterId === alterId ? { ...s, level: levelId } : s))
+        : [...cur, { alterId, isPrimary: false, level: levelId }];
       // "Sole" (the rail's sideways slide): clear the picked level — or the
       // whole front — of everyone else. Scope comes from the level config.
       if (solo && cfg) {
@@ -554,14 +562,13 @@ export function useFrontGesture() {
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
 
+  // Joining and picking the level are one write (commitFrontLevel join).
   const addOrLevel = async (alterId, levelId, extras = {}) => {
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
     const existing = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
-    if (!existing) {
-      const alter = altersRef.current[alterId];
-      if (alter) await toggleFrontFor(alter, fresh, base44, queryClient, toast, terms);
-    }
-    await commitFrontLevel({ alterId, levelId, queryClient, cfg, solo: !!extras.solo });
+    const ok = await commitFrontLevel({ alterId, levelId, queryClient, cfg, solo: !!extras.solo, join: true });
+    const alter = altersRef.current[alterId];
+    if (ok && !existing && alter) toast.success(`${alter.name} added to ${terms.front || "front"}`);
   };
 
   const { rail, getHoldProps: rawHoldProps, startRailAt: rawStartRailAt } = useHoldDragLevel({
