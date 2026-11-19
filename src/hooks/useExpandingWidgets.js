@@ -20,6 +20,7 @@
 // restoring all happen in one frame, so nothing flickers.
 
 import { useEffect, useRef, useState } from "react";
+import { keepScroll } from "@/lib/keepScroll";
 
 const ARM_MS = 4000; // how long after a press growth still counts as "opened"
 const SLACK = 8; // px of change that isn't worth moving the page for
@@ -41,10 +42,15 @@ function measureNeed(host) {
   const base = Number(host.getAttribute("data-base-h"));
   const content = host.querySelector("[data-widget-content]");
   if (!base || !content) return null;
-  const prev = host.style.height;
-  host.style.height = `${base}px`;
-  const hidden = hiddenBelow(content);
-  host.style.height = prev;
+  // keepScroll: the brief shrink must not move the page (#634).
+  const hidden = keepScroll(host, () => {
+    const prev = host.style.height;
+    host.style.height = `${base}px`;
+    try { return hiddenBelow(content); } finally {
+      host.style.height = prev;
+      void host.offsetHeight; // settle the layout before the scroll is put back
+    }
+  });
   return { base, hidden };
 }
 
