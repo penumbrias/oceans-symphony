@@ -29,6 +29,7 @@ import { useGroupContext, useSubTerm } from "@/components/groups/GroupSections";
 import { getMemberAlters, getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import { childGroups as childGroupsOf, byGroupOrder } from "@/lib/groupTree";
 import { groupNotesKey, listGroupNotes, saveGroupNote, deleteGroupNote } from "@/lib/groupNotes";
+import { hasShownContent } from "@/lib/htmlContent";
 import {
   GardenBox, Heading, chipCls, chipStyle, MODES, NotesList, Sparkline,
   frontingStats, dailyMinutes, formatSpan, RANGE_DAYS, textBtnCls,
@@ -128,7 +129,7 @@ export function GroupAboutWidget({ mode = "normal" }) {
   const html = group.description || "";
   const text = plain(html);
   return (
-    <GardenBox empty={!text} name="About" data-group-about-widget="">
+    <GardenBox empty={!hasShownContent(html)} name="About" data-group-about-widget="">
       {mode === "minimal"
         ? <p className="line-clamp-3 break-words">{text}</p>
         : <SimplePreview blocks={htmlToBlocks(html)} onBlockChange={() => {}} readOnly scopeId={group.id} />}

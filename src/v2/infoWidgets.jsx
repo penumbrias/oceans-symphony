@@ -38,6 +38,7 @@ import { showsOther } from "@/components/v2/WhosePicker";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { sharedList } from "@/lib/sharedLists";
 import FieldTitle from "@/components/shared/FieldTitle";
+import { isBlankValue, looksLikeHtml } from "@/lib/htmlContent";
 
 const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 
@@ -126,12 +127,15 @@ export function useInfoRecord(settings) {
   }, [type, source, record, wantedId, systemFields, qc]);
 }
 
-const isEmpty = (v) => v === undefined || v === null || (typeof v === "string" && !v.replace(/<[^>]*>/g, "").trim());
+// A value that is only a picture still counts (v0.374.9).
+const isEmpty = isBlankValue;
 
 function EntryShown({ alter, entry, value }) {
   // Long text (the bio, and parts of a bio a conversion split out) shows
   // the same way the bio always has, HTML and all.
-  if (entry.kind === "bio" || entry.kind === "richtext") {
+  // A long-text field holding plain or Markdown text (older values, imports)
+  // reads like the old profile did instead of as raw text.
+  if (entry.kind === "bio" || (entry.kind === "richtext" && looksLikeHtml(value))) {
     return <BioShown alter={alter} html={value} />;
   }
   if (entry.id.startsWith("basic:")) return <span className="whitespace-pre-wrap break-words">{value}</span>;

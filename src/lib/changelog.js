@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 19, 2026",
     changes: [
+      { type: "fix", text: "Custom fields that hold only a photo now show on the new profile, like they did on the old one." },
       { type: "fix", text: "Picking feelings in the fronting panel no longer makes the page jump to the bottom while you scroll (#634)." },
     ],
   },

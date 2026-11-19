@@ -25,6 +25,7 @@ import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { useLocationContext } from "@/components/systemmap/LocationSections";
 import { GardenBox, Heading, chipCls, chipStyle, MODES, textBtnCls } from "@/v2/gardenProfileWidgets";
+import { hasShownContent } from "@/lib/htmlContent";
 
 import { pictureStyle } from "@/lib/imageFraming";
 // The location whose page this is. Same ["innerWorldLocations"] query
@@ -114,7 +115,7 @@ export function LocationAboutWidget({ mode = "normal" }) {
   const html = location.description || "";
   const text = plain(html);
   return (
-    <GardenBox empty={!text} name="About" data-location-about-widget="">
+    <GardenBox empty={!hasShownContent(html)} name="About" data-location-about-widget="">
       {mode === "minimal"
         ? <p className="line-clamp-3 break-words">{text}</p>
         : <SimplePreview blocks={htmlToBlocks(html)} onBlockChange={() => {}} readOnly scopeId={location.id} />}
