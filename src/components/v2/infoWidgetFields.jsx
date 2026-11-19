@@ -35,6 +35,7 @@ import { setAlterFields } from "@/lib/alterEntry";
 import { barPictureOverride, setBarPicture } from "@/lib/barPicture";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { An, an } from "@/lib/articles";
+import { isBlankValue } from "@/lib/htmlContent";
 
 function MoveRemove({ index, count, onMove, onRemove, label }) {
   return (
@@ -146,7 +147,7 @@ function AddPageRow({ info, ids, onAdded }) {
   );
 }
 
-const isBlank = (v) => v === undefined || v === null || (typeof v === "string" && !v.replace(/<[^>]*>/g, "").trim());
+const isBlank = isBlankValue; // a picture-only value counts as filled (v0.374.9)
 
 // ── "Every other field" on a Field widget ────────────────────────────
 // It stands for every custom field not listed on its own, so its Content
