@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect } from "react";
+import { keepScroll } from "@/lib/keepScroll";
 
 // A writing box that grows with what's written, up to a share of the
 // screen, then scrolls. A fixed one- or three-line strip read as a thin
@@ -10,10 +11,13 @@ import { useEffect, useLayoutEffect } from "react";
 // finishes loading — otherwise the last lines could be cut off until
 // the next keystroke.
 function fit(el, min, maxScreen) {
-  el.style.height = "auto";
-  const cap = Math.round(window.innerHeight * maxScreen);
-  el.style.height = `${Math.min(cap, Math.max(el.scrollHeight + 2, min))}px`;
-  el.style.overflowY = el.scrollHeight + 2 > cap ? "auto" : "hidden";
+  // keepScroll: the brief "auto" must not move the page (#634).
+  keepScroll(el, () => {
+    el.style.height = "auto";
+    const cap = Math.round(window.innerHeight * maxScreen);
+    el.style.height = `${Math.min(cap, Math.max(el.scrollHeight + 2, min))}px`;
+    el.style.overflowY = el.scrollHeight + 2 > cap ? "auto" : "hidden";
+  });
 }
 
 export default function useAutoGrowTextarea(ref, value, { min = 128, maxScreen = 0.5 } = {}) {

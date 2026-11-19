@@ -90,6 +90,7 @@ import { BoardFieldContext } from "@/lib/boardWriter";
 import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
 import { startHoldTimer } from "@/lib/holdTimer";
 import { WidgetSuspense } from "@/lib/lazyNamed";
+import { keepScroll } from "@/lib/keepScroll";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -1753,11 +1754,16 @@ export default function ExperimentalDashboard({
           // height and grew again: the header flipped between two sizes
           // several times a second and everything below it jumped
           // (v0.371.12). Auto is the content height in every engine.
-          node.style.height = "auto";
-          node.style.alignSelf = "start";
-          node.style.minHeight = "0";
-          const natural = node.offsetHeight;
-          [node.style.height, node.style.alignSelf, node.style.minHeight] = keep;
+          // keepScroll: the brief resize must not move the page (#634).
+          const natural = keepScroll(node, () => {
+            node.style.height = "auto";
+            node.style.alignSelf = "start";
+            node.style.minHeight = "0";
+            const h = node.offsetHeight;
+            [node.style.height, node.style.alignSelf, node.style.minHeight] = keep;
+            void node.offsetHeight;
+            return h;
+          });
           const w = page.widgets.find((x) => x.instanceId === wid);
           const def = w && registry[w.widgetId];
           if (!def) continue;
