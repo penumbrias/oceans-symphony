@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 20, 2026",
     changes: [
+      { type: "feature", text: "File a note, list or flash-card deck inside any Notebook page from its ⋯ menu. It shows in that page and under it in the Pages menu." },
       { type: "improve", text: "Notes & lists are part of the Notebook now, under Notes & lists in its Pages menu. Nothing you wrote moved, and old links still work." },
       { type: "improve", text: "Desktop app: \"Check for updates\" is now in the ⚙ menu on every page, and .deb installs get a \"Get the newest version\" button in Settings instead of nothing." },
       { type: "fix", text: "Notebook pages: the Outline, Board and Map switch is back on the page, and you can rename a page, pick its icon, status and day, and add tags right where they are again." },

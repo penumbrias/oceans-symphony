@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { flattenPages, wouldNest } from "@/lib/goalTree";
 import { useWorkspace, inputCls } from "./WorkspaceContext";
 
-export default function MovePageDialog({ open, onClose, title = "Move to…", movingPageId = null, allowTop = false, currentId = null, onPick }) {
+export default function MovePageDialog({ open, onClose, title = "Move to…", movingPageId = null, allowTop = false, topLabel = "Top level (its own goal)", currentId = null, onPick }) {
   const { index } = useWorkspace();
   const [q, setQ] = useState("");
   const rows = useMemo(() => flattenPages(index), [index]);
@@ -22,7 +22,7 @@ export default function MovePageDialog({ open, onClose, title = "Move to…", mo
             <button type="button" role="option" aria-selected={false} disabled={currentId === null}
               onClick={() => { onPick(null); setQ(""); }}
               className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted/50 disabled:opacity-40">
-              Top level (its own goal)
+              {topLabel}
             </button>
           )}
           {shown.map(({ page, depth }) => {
