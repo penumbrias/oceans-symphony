@@ -849,7 +849,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🗺️", title: "Board and map",
-      body: `In the Page widget's options, Show as Board puts the sections in columns, and Map shows how everything connects. The Pages menu shows the whole tree.`,
+      body: `The switch in the Page widget's corner shows the page as an outline, a board with sections in columns, or a map of how everything connects. The Pages menu shows the whole tree.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
@@ -859,7 +859,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🪪", title: "Page info",
-      body: `Info holds everything about a page: its title, icon, status, the day you're aiming for, tags, word target and chapters. It saves as you go; Pin, Move and Delete are under its ⋯.`,
+      body: `Tap a page's title, icon, status or day to change it right there. Info holds everything about the page, word target and chapters too; Pin, Move and Delete are under its ⋯.`,
       route: "/goals", target: ["goals-info-btn", "goals-page"],
     }),
     s("activities", {

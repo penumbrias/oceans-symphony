@@ -1,10 +1,13 @@
 // One page of the Notebook: breadcrumbs, title and where it stands, above
 // the page's widget board. Also the page note and connections pieces the
 // goal widgets draw (goalPageWidgets.jsx).
-import React, { useEffect, useState } from "react";
-import { Pin, Link2 } from "lucide-react";
-import { confirm } from "@/components/shared/ConfirmDialog";
-import { goalStatusLabel } from "@/lib/goals";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Pin, Link2, ChevronDown } from "lucide-react";
+import { confirm, promptText } from "@/components/shared/ConfirmDialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { GOAL_STATUSES, goalStatusLabel, setGoalStatus } from "@/lib/goals";
 import { useTerms } from "@/lib/useTerms";
 import {
   ancestorsOf, updatePage, deletePage, descendantIds, movePage, pageEntries, orderAfter, connectionsOf,
@@ -37,8 +40,11 @@ export function PageNote({ page, editing, setEditing, emptyPrompt = false }) {
   }
   if (editing) {
     return (
-      <div className="space-y-1.5">
-        <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts autoFocus className="min-h-[70px] text-sm" />
+      // mb-auto: the editor sits at the TOP of the widget's box (the box
+      // centres its rows by default), so dragging its corner grows it down.
+      <div className="space-y-1.5 mb-auto">
+        <MentionTextarea toolbar value={text} onChange={setText} alters={alters} signposts autoFocus
+          className="min-h-[12em] text-sm leading-relaxed resize-y" />
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
           <Button size="sm" disabled={busy} onClick={() => run(async () => {
@@ -101,17 +107,51 @@ export function Connections({ page, emptyText = null, bare = false }) {
   );
 }
 
-// The page's own chrome — where it is, its title and a line about where
-// it stands — above `body`: the page's widget board (Goals.jsx). Everything
-// about the page (title, icon, status, tags, word target, chapters; pin,
-// move, delete) is entered on its Info sheet (PageInfoSheet, v0.359.0);
-// how the lines show (outline, board, map) is the Page widget's option.
+// The page's title, renamed right where it is (as before v0.359.0; the
+// Info sheet has it too). Enter or leaving the box saves; empty puts it back.
+function TitleField({ page }) {
+  const { run } = useWorkspace();
+  const [title, setTitle] = useState(page.title || "");
+  const ref = useRef(null);
+  useEffect(() => { setTitle(page.title || ""); }, [page.id, page.title]);
+  // A long title wraps onto more lines, like the heading it replaces.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [title]);
+  const save = () => {
+    const v = title.trim();
+    if (!v) { setTitle(page.title || ""); return; }
+    if (v !== page.title) run(() => updatePage(page.id, { title: v }));
+  };
+  return (
+    <textarea ref={ref} rows={1} value={title} onChange={(e) => setTitle(e.target.value.replace(/\n/g, " "))} onBlur={save}
+      aria-label="Page title" placeholder="Untitled" title="Tap to rename"
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+        if (e.key === "Escape") { setTitle(page.title || ""); e.currentTarget.blur(); }
+      }}
+      style={{ font: "inherit", lineHeight: "inherit" }}
+      className="block w-full resize-none overflow-hidden bg-transparent text-foreground rounded px-1 -mx-1 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+  );
+}
+
+// The page's own chrome — where it is, its title and where it stands —
+// above `body`: the page's widget board (Goals.jsx). The title, icon,
+// status, aiming-for day and tags are changed right here; everything about
+// the page (and pin, move, delete) is on its Info sheet too (PageInfoSheet).
+// How the lines show (outline, board, map) is switched on the Page widget.
 export default function PageView({ page, body, onEditLayout = null, layoutEditing = false }) {
   const ws = useWorkspace();
   const { index, steps, run, open } = ws;
   const [moving, setMoving] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [infoTab, setInfoTab] = useState("info");
   useEffect(() => { setInfoOpen(false); }, [page.id]);
+  const openInfo = (tab = "info") => { setInfoTab(tab); setInfoOpen(true); };
+  const isTop = !index.parent.get(page.id);
   const crumbs = ancestorsOf(index, page.id).reverse();
   const { done, total } = useSubtreeProgress(page.id);
   const heading = sectionHeading(index, page);
@@ -132,12 +172,10 @@ export default function PageView({ page, body, onEditLayout = null, layoutEditin
     open(parent);
   };
 
-  const facts = [
-    page.status ? goalStatusLabel(page.status) : null,
-    page.target_date ? `by ${new Date(`${page.target_date}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : null,
-    total > 0 ? `${done} of ${total} done` : null,
-    words > 0 || wordTarget ? wordProgressLabel(words, wordTarget) : null,
-  ].filter(Boolean);
+  const pickIcon = async () => {
+    const v = await promptText({ title: "Icon", body: "An emoji for this page (leave it empty for none).", defaultValue: page.icon || "" });
+    if (v !== null) run(() => updatePage(page.id, { icon: String(v).trim().slice(0, 8) || null }));
+  };
 
   return (
     <article className="space-y-4" data-highlight-id={page.id}>
@@ -154,22 +192,51 @@ export default function PageView({ page, body, onEditLayout = null, layoutEditin
       <BoardPageHeader title={page.title || "Untitled"} icon={page.icon || null} size="md"
         before={heading ? <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">{heading}</p> : null}
         layoutEditing={layoutEditing} onEditLayout={onEditLayout} tourId="goals-layout-btn"
-        info={{ open: infoOpen, onToggle: () => setInfoOpen((v) => !v), "data-tour": "goals-info-btn",
+        info={{ open: infoOpen, onToggle: () => (infoOpen ? setInfoOpen(false) : openInfo("info")), "data-tour": "goals-info-btn",
           title: "Everything about this page: title, icon, status, tags, word target, chapters" }}
-        after={<>
-        {(facts.length > 0 || page.pinned) && (
-          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 tabular-nums">
-            {facts.map((f) => <span key={f}>{f}</span>)}
-            {page.pinned && <Pin className="w-3 h-3" aria-label="Pinned" />}
-          </p>
+        iconSlot={(
+          <button type="button" onClick={pickIcon} aria-label={page.icon ? "Change the icon" : "Choose an icon"} title="Icon"
+            className="text-2xl leading-none mt-0.5 w-9 h-9 rounded-lg hover:bg-muted/50 flex items-center justify-center flex-shrink-0">
+            {page.icon || <span className="text-base text-muted-foreground" aria-hidden="true">＋</span>}
+          </button>
         )}
+        titleSlot={layoutEditing ? null : <TitleField page={page} />}
+        after={<>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground tabular-nums">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="px-2 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-0.5 min-h-[1.75rem]"
+                aria-label={`Status: ${page.status ? goalStatusLabel(page.status) : "no status"}`}>
+                {page.status ? goalStatusLabel(page.status) : "No status"} <ChevronDown className="w-3 h-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {GOAL_STATUSES.map((st) => (
+                <DropdownMenuItem key={st.id} onSelect={() => run(() => setGoalStatus(page, st.id), st.id === "done" ? "Reached 🎉" : null)}>{st.label}</DropdownMenuItem>
+              ))}
+              {!isTop && <DropdownMenuItem onSelect={() => run(() => updatePage(page.id, { status: null }))}>No status</DropdownMenuItem>}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <label className="flex items-center gap-1">
+            by
+            <input type="date" value={page.target_date || ""} aria-label="Aiming for"
+              onChange={(e) => run(() => updatePage(page.id, { target_date: e.target.value || null }))}
+              className="bg-transparent border border-border/60 rounded px-1 py-0.5 text-xs" />
+          </label>
+          {total > 0 && <span>{done} of {total} done</span>}
+          {(words > 0 || wordTarget) && (
+            <button type="button" onClick={() => openInfo("writing")} title="Word target"
+              className="hover:text-foreground min-h-[1.75rem]">{wordProgressLabel(words, wordTarget)}</button>
+          )}
+          {page.pinned && <Pin className="w-3 h-3" aria-label="Pinned" />}
+        </div>
         {wordTarget && (
           <div className="h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-label="Words written"
             aria-valuemin={0} aria-valuemax={wordTarget} aria-valuenow={Math.min(words, wordTarget)}>
             <div className="h-full bg-primary/60 transition-all" style={{ width: `${Math.min(100, (words / wordTarget) * 100)}%` }} />
           </div>
         )}
-        <TagChips page={page} />
+        <TagChips page={page} onAdd={() => openInfo("info")} />
         {total > 0 && (
           <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
             <div className="h-full bg-primary transition-all" style={{ width: `${(done / total) * 100}%` }} />
@@ -179,7 +246,7 @@ export default function PageView({ page, body, onEditLayout = null, layoutEditin
 
       {body}
 
-      <PageInfoSheet page={page} open={infoOpen && !layoutEditing} onClose={() => setInfoOpen(false)}
+      <PageInfoSheet page={page} open={infoOpen && !layoutEditing} initialTab={infoTab} onClose={() => setInfoOpen(false)}
         onMove={() => { setInfoOpen(false); setMoving(true); }} onDelete={remove} />
       {moving && (
         <MovePageDialog open title={`Move "${page.title || "page"}" to…`} movingPageId={page.id} allowTop
