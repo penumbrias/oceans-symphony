@@ -83,6 +83,7 @@ import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import PageAudienceSheet from "@/components/v2/PageAudienceSheet";
 import { holdGestureLive } from "@/lib/holdGesture";
 import { settingsBoardStore } from "@/lib/boardStore";
+import { libraryPageOf } from "@/lib/widgetMenuGroups";
 import { keepLayoutRestorePoint } from "@/lib/localDb";
 import { applyLayoutToAll, setDefaultLayout, resetLayout } from "@/lib/profileBoardBulk";
 import { confirm } from "@/components/shared/ConfirmDialog";
@@ -852,6 +853,9 @@ export default function ExperimentalDashboard({
   // null | "wallpaper" | { icon: instanceId }
   const [assetPickerFor, setAssetPickerFor] = useState(null);
   const [configId, setConfigId] = useState(null);
+  // The drawer was opened from the "Add to this page" line under a page
+  // board: a widget added from it lands without switching to edit mode.
+  const [quickAdd, setQuickAdd] = useState(false);
   // Which bar Display options was opened for (openBarsEditor) — that bar
   // is shown and lifted over the edit toolbar while its section is open.
   const [barFocus, setBarFocus] = useState(null);
@@ -1155,6 +1159,10 @@ export default function ExperimentalDashboard({
   // An app page laid out as a board (the Needs page) has one layout of its
   // own: no "for all" or default layouts to copy it to.
   const pageBoard = boardStore?.ownerType === "page";
+  // The page this board is, for the library's "this page's widgets first".
+  const libraryHome = !boardStore ? null
+    : pageBoard ? libraryPageOf(boardStore.recordId ?? boardStore.ownerId)
+    : "profile";
   const runBulk = async (fn, done) => {
     setSaveMenuOpen(false);
     try {
@@ -2644,6 +2652,17 @@ export default function ExperimentalDashboard({
         </DndContext>
       )}
 
+      {/* The empty line under an app page's board (v0.375.0): tap it to add
+          something to the page — the library opens on this page's own
+          widgets — without going through Edit page first. */}
+      {pageBoard && !editMode && widgets.length > 0 && (
+        <button type="button" data-tour="page-add-line"
+          onClick={() => { closeEditSurfaces(); setQuickAdd(true); setDrawerTabRequest("widgets"); setDrawerOpen(true); }}
+          className="w-full mt-2 min-h-[2.75rem] rounded-xl border border-dashed border-border/60 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5">
+          <Plus className="w-4 h-4" /> Add to this page
+        </button>
+      )}
+
       {/* Persistent bottom stack — pinned-alters bar (bottom position) above
           the quick-action bar; both float above the bottom nav and stay put
           while swiping between pages. */}
@@ -2746,12 +2765,16 @@ export default function ExperimentalDashboard({
 
       <AppDrawer
         open={drawerOpen}
-        onClose={() => { setDrawerOpen(false); setDrawerTabRequest(null); }}
+        onClose={() => { setDrawerOpen(false); setDrawerTabRequest(null); setQuickAdd(false); }}
         initialTab={drawerTabRequest}
         widgetsOnly={profileBoard}
+        homePage={libraryHome}
         placedWidgetIds={page.widgets.map((w) => w.widgetId)}
         registry={registry}
-        onAddWidget={handleAddWidget}
+        onAddWidget={(id, settings, opts) => {
+          handleAddWidget(id, settings, { ...opts, edit: !quickAdd });
+          if (quickAdd) { setDrawerOpen(false); setQuickAdd(false); }
+        }}
         onDropWidget={handleDropWidget}
         api={widgetApi}
         userStyles={userStyles}

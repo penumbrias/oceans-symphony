@@ -858,6 +858,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: ["goals-layout-btn", "goals-page"],
     }),
     s("activities", {
+      emoji: "➕", title: "Add to a page",
+      body: `Tap "Add to this page" under a page to add a widget without Edit page. The library opens on the page's own widgets first; See more widgets has the rest, sorted by what they're for or by page.`,
+      route: "/goals", target: ["page-add-line", "goals-page"],
+    }),
+    s("activities", {
       emoji: "🪪", title: "Page info",
       body: `Tap a page's title, icon, status or day to change it right there. Info holds everything about the page, word target and chapters too; Pin, Move and Delete are under its ⋯.`,
       route: "/goals", target: ["goals-info-btn", "goals-page"],
