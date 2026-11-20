@@ -27,6 +27,10 @@
 @import '@fontsource/atkinson-hyperlegible/latin-ext-400.css';
 @import '@fontsource/atkinson-hyperlegible/latin-700.css';
 @import '@fontsource/atkinson-hyperlegible/latin-ext-700.css';
+/* OpenDyslexic (SIL OFL) — the dyslexia-friendly font. Latin only; other
+   scripts fall back to Atkinson Hyperlegible in the font stack. */
+@import '@fontsource/opendyslexic/latin-400.css';
+@import '@fontsource/opendyslexic/latin-700.css';
 @import '@fontsource/nunito/latin-400.css';
 @import '@fontsource/nunito/latin-ext-400.css';
 @import '@fontsource/nunito/latin-500.css';

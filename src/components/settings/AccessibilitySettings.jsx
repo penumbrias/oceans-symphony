@@ -6,6 +6,8 @@ import {
   setAccessibilityHighContrast,
   setAccessibilityMode,
   setAccessibilityPlayInsideOnly,
+  isDyslexiaFont,
+  setDyslexiaFont,
 } from "@/lib/useAccessibility";
 import { useInspectorStacked, setInspectorStacked } from "@/lib/motionPrefs";
 import { DisplayOptionsButton } from "@/components/settings/AppearanceSection";
@@ -60,6 +62,19 @@ export default function AccessibilitySettings() {
 
       {/* Toggles */}
       <div className="space-y-4">
+        {/* ui-ok: matches the hand rows around it until this page moves to SettingRows */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Dyslexia-friendly font</p>
+            <p className="text-xs text-muted-foreground">Switches the app to OpenDyslexic. Turning it off puts your own font back. Other fonts are in Display options → Text.</p>
+          </div>
+          <Switch
+            checked={isDyslexiaFont(settings.fontFamily)}
+            onCheckedChange={v => { setDyslexiaFont(v); setSettings(getAccessibilitySettings()); }}
+            aria-label="Dyslexia-friendly font"
+          />
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">Reduce motion</p>

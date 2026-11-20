@@ -67,7 +67,7 @@ import {
   getAccessibilitySettings, setAccessibilityFontSize,
   setAccessibilityFontFamily, setAccessibilityHeadingFont,
   setAccessibilityLargeTouch, setAccessibilityNavHeight, A11Y_CHANGED_EVENT,
-  APP_FONT_OPTIONS,
+  APP_FONT_OPTIONS, isDyslexiaFont, setDyslexiaFont,
 } from "@/lib/useAccessibility";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveBackground } from "@/components/v2/PageBackground";
@@ -281,6 +281,9 @@ function TextTab({ v2 }) {
         options={[{ value: "body", label: tr("editSheet.textBody") }, { value: "headings", label: tr("editSheet.textHeadings") }]} />
       {kind === "body" ? (
         <div className="pt-1">
+          <SwitchRow label={tr("editSheet.dyslexiaFont")} hint={tr("editSheet.dyslexiaFontHint")}
+            checked={isDyslexiaFont(a11y.fontFamily)}
+            onChange={(on) => { setDyslexiaFont(on); refresh(); }} />
           <Row label={tr("editSheet.font")} align="start">
             <span className="flex items-center gap-1.5 w-[11.5rem] max-w-full">
               <span className="flex-1 min-w-0">

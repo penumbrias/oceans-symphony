@@ -864,15 +864,15 @@ export default function DailyTasks() {
           <button
             key={f}
             onClick={() => { setActiveFreq(f); setShowReview(false); }}
-            className={`flex-1 py-2 px-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-0 py-2 px-1 rounded-lg text-sm font-medium transition-all flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 ${
               activeFreq === f
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="capitalize">{f}</span>
+            <span className="capitalize whitespace-nowrap">{f}</span>
             {freqCounts[f] > 0 && (
-              <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${activeFreq === f ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeFreq === f ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
                 {freqCounts[f]}
               </span>
             )}

@@ -1252,7 +1252,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "🎨", title: "Appearance",
-      body: `Every look setting lives in Display options: fonts and text size, shape, bars, colours, themes and presets. This row under Look opens it; the New UI and language switches are under General.`,
+      body: `Every look setting lives in Display options: fonts (with a dyslexia-friendly switch) and text size, shape, bars, colours, themes and presets. This row under Look opens it; the New UI and language switches are under General.`,
       route: "/settings", target: ["settings-display-options", "settings-appearance"], look: `the Display options row, under Look`,
     }),
     s("settings", {

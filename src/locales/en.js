@@ -743,6 +743,8 @@ export default {
   "editSheet.fontBody": "Font — body",
   "editSheet.fontHeader": "Font — header",
   "editSheet.fontSameAsBody": "Same as body",
+  "editSheet.dyslexiaFont": "Dyslexia-friendly font",
+  "editSheet.dyslexiaFontHint": "OpenDyslexic: heavier letter bottoms help some readers. Off puts your font back.",
   "editSheet.fontSizeBody": "Font size — body",
   "editSheet.styleBody": "Style — body",
   "editSheet.styleHeader": "Style — header",

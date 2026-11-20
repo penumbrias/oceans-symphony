@@ -39,6 +39,7 @@ export const BACKUP_LS_KEYS = [
   "symphony_alterThemeLinks",
   "symphony_a11y_fontSize",
   "symphony_a11y_fontFamily",
+  "symphony_a11y_fontBeforeEasyRead",
   "symphony_a11y_headingFont",
   "symphony_a11y_reduceMotion",
   "symphony_a11y_highContrast",
