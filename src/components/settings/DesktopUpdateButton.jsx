@@ -1,23 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { Download, Loader2, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Download, Loader2, RefreshCw, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   desktopUpdatesSupported, getDesktopUpdateStatus, checkForDesktopUpdate,
-  onDesktopUpdateStatus, installDesktopUpdate,
+  onDesktopUpdateStatus, installDesktopUpdate, openDesktopReleasesPage,
 } from "@/lib/desktopUpdates";
+import { isDesktop } from "@/lib/platform";
 
 // Settings → "Check for updates" (desktop app only). Checks the app's
 // GitHub releases, downloads a newer version, then saves everything and
-// restarts into it. Renders nothing in the browser, on phones, and in
-// desktop builds that can't replace themselves (.deb, dev runs).
+// restarts into it. Renders nothing in the browser or on phones. A desktop
+// build that can't replace itself (.deb) gets a link to the release page
+// instead, so the way to update is never hidden.
 export default function DesktopUpdateButton() {
   const [supported, setSupported] = useState(false);
+  const [checked, setChecked] = useState(false);
   const [status, setStatus] = useState({ state: "idle" });
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
     let alive = true;
     desktopUpdatesSupported().then((ok) => {
+      if (alive) setChecked(true);
       if (!alive || !ok) return;
       setSupported(true);
       getDesktopUpdateStatus().then((s) => { if (alive && s) setStatus(s); });
@@ -33,7 +37,19 @@ export default function DesktopUpdateButton() {
     installDesktopUpdate().catch(() => setInstalling(false));
   }, [status, installing]);
 
-  if (!supported) return null;
+  if (!supported) {
+    if (!checked || !isDesktop()) return null;
+    return (
+      <div className="space-y-1" data-tour="settings-desktop-update">
+        <Button type="button" size="sm" variant="outline" onClick={() => openDesktopReleasesPage()} className="gap-1.5">
+          <ExternalLink className="w-3.5 h-3.5" /> Get the newest version
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          This install (.deb) can&apos;t update itself. Download the newest .deb and install it over this one. Your data stays as it is.
+        </p>
+      </div>
+    );
+  }
 
   const check = async () => {
     setStatus({ state: "checking" });

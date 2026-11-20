@@ -1377,7 +1377,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "⬇️", title: "Check for updates", desktopOnly: true,
-      body: `On the desktop app, "Check for updates" at the top of Settings downloads a newer version, saves everything, and restarts on it.`,
+      body: `On the desktop app, "Check for updates" at the top of Settings (or in the ⚙ menu) downloads a newer version, saves everything, and restarts on it. A .deb install links to the newest download instead.`,
       route: "/settings", target: "settings-desktop-update", look: `the highlighted "Check for updates" button`,
     }),
     s("settings", {

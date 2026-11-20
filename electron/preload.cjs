@@ -55,7 +55,7 @@ contextBridge.exposeInMainWorld('symphonyDesktop', Object.freeze({
   updates: Object.freeze({
     supported: () => ipcRenderer.invoke('symphony:update:supported'),
     status: () => ipcRenderer.invoke('symphony:update:status'),
-    check: () => ipcRenderer.invoke('symphony:update:check'),
+    check: (opts) => ipcRenderer.invoke('symphony:update:check', { fromMenu: !!opts?.fromMenu }),
     install: () => ipcRenderer.invoke('symphony:update:install'),
     onStatus: (cb) => {
       const listener = (_e, status) => { try { cb(status); } catch { /* renderer handler */ } };

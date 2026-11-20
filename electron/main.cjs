@@ -705,7 +705,7 @@ if (!app.requestSingleInstanceLock()) {
     // Manual update check + install (Settings → "Check for updates").
     ipcMain.handle('symphony:update:supported', () => canSelfUpdate());
     ipcMain.handle('symphony:update:status', () => _updateStatus);
-    ipcMain.handle('symphony:update:check', () => checkForUpdatesNow());
+    ipcMain.handle('symphony:update:check', (_e, opts) => checkForUpdatesNow({ fromMenu: !!opts?.fromMenu }));
     ipcMain.handle('symphony:update:install', () => installDownloadedUpdate());
 
     // ── Private-file copy (src/lib/nativeMirror.js) ──
