@@ -8,12 +8,14 @@ import {
   setAccessibilityFontSize,
   setAccessibilityHighContrast,
   setAccessibilityReduceMotion,
+  isDyslexiaFont,
+  setDyslexiaFont,
 } from "@/lib/useAccessibility";
 
 // Compact, self-contained accessibility quick-access used during onboarding
 // and the feature tour — before Settings is reachable. A floating ♿ button
 // opens a popup with the highest-impact controls (accessibility mode, text
-// size, high contrast, reduce motion). Everything writes the same localStorage-
+// size, dyslexia-friendly font, high contrast, reduce motion). Everything writes the same localStorage-
 // backed preferences as Settings → Accessibility and applies instantly, so it
 // works even before the database / settings record exists.
 
@@ -119,6 +121,16 @@ export default function AccessibilityFab({ position = "bottom-left", zIndex = 60
                 <span>Smaller</span><span>Larger</span>
               </div>
             </div>
+
+            {/* Dyslexia-friendly font */}
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">Dyslexia-friendly font</p>
+                <p className="text-xs text-muted-foreground">Switches to OpenDyslexic, a font some readers with dyslexia find easier.</p>
+              </div>
+              <Switch checked={isDyslexiaFont(settings.fontFamily)} aria-label="Dyslexia-friendly font"
+                onCheckedChange={(v) => { setDyslexiaFont(v); setSettings(getAccessibilitySettings()); }} />
+            </label>
 
             {/* High contrast */}
             <label className="flex items-center justify-between gap-3 cursor-pointer">

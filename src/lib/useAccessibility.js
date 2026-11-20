@@ -7,6 +7,9 @@ const LS_LARGE_TOUCH   = "symphony_a11y_largeTouch";
 const LS_NAV_HEIGHT    = "symphony_a11y_navHeight";
 const LS_FONT_FAMILY   = "symphony_a11y_fontFamily";
 const LS_HEADING_FONT  = "symphony_a11y_headingFont";
+// The body font the person had before turning on the dyslexia-friendly
+// font, so turning it off puts their own choice back.
+const LS_FONT_BEFORE_EASY_READ = "symphony_a11y_fontBeforeEasyRead";
 // Master "Accessibility mode" — a low-vision LAYOUT reconfiguration (single-
 // column reflow, larger targets, wrap-don't-truncate, condensed chrome), gated
 // in CSS by `html.a11y-mode`. Independent of the text-size slider.
@@ -30,6 +33,7 @@ const LEGACY_FONT_MAP = {
   inter:    "'Inter', sans-serif",
   system:   "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   atkinson: "'Atkinson Hyperlegible', sans-serif",
+  opendyslexic: "OpenDyslexic, 'Atkinson Hyperlegible', sans-serif",
   nunito:   "'Nunito', sans-serif",
 };
 
@@ -38,6 +42,9 @@ export const APP_FONT_OPTIONS = [
   { label: "Inter",                  value: "'Inter', sans-serif",                          legacy: "inter",    category: "ui" },
   { label: "System font",            value: "system-ui, -apple-system, sans-serif",         legacy: "system",   category: "ui" },
   { label: "Atkinson Hyperlegible",  value: "'Atkinson Hyperlegible', sans-serif",          legacy: "atkinson", category: "ui" },
+  // Bundled (SIL OFL) — the dyslexia-friendly choice. Weighted letter
+  // bottoms help some readers keep letters from flipping or swimming.
+  { label: "OpenDyslexic (dyslexia-friendly)", value: "OpenDyslexic, 'Atkinson Hyperlegible', sans-serif", legacy: "opendyslexic", category: "ui" },
   { label: "Nunito",                 value: "'Nunito', sans-serif",                         legacy: "nunito",   category: "ui" },
   { label: "Poppins",                value: "Poppins, sans-serif",                                              category: "ui" },
   { label: "Raleway",                value: "Raleway, sans-serif",                                              category: "ui" },
@@ -174,6 +181,7 @@ export const HEADING_FONT_OPTIONS = [
   { label: "Inter",                 value: "'Inter', sans-serif",                        category: "ui" },
   { label: "System font",           value: "system-ui, -apple-system, sans-serif",       category: "ui" },
   { label: "Atkinson Hyperlegible", value: "'Atkinson Hyperlegible', sans-serif",        category: "ui" },
+  { label: "OpenDyslexic (dyslexia-friendly)", value: "OpenDyslexic, 'Atkinson Hyperlegible', sans-serif", category: "ui" },
   { label: "Nunito",                value: "'Nunito', sans-serif",                       category: "ui" },
   { label: "Poppins",               value: "Poppins, sans-serif",                        category: "ui" },
   { label: "Raleway",               value: "Raleway, sans-serif",                        category: "ui" },
@@ -314,4 +322,34 @@ export function setAccessibilityFontFamily(value) {
   localStorage.setItem(LS_FONT_FAMILY, value);
   applyFontFamily(value);
   announce();
+}
+
+// ── Dyslexia-friendly font ─────────────────────────────────────────────
+// One switch (Display options → Text, Settings → Accessibility and the ♿
+// button on the welcome screens) that sets the body font to OpenDyslexic
+// and, when turned off, puts back whatever font the person had before.
+// Never switched on for anyone automatically.
+export const DYSLEXIA_FONT = "OpenDyslexic, 'Atkinson Hyperlegible', sans-serif";
+
+export function isDyslexiaFont(value) {
+  const v = value ?? (typeof localStorage !== "undefined" ? localStorage.getItem(LS_FONT_FAMILY) : null);
+  return v === DYSLEXIA_FONT || v === "opendyslexic";
+}
+
+export function setDyslexiaFont(on) {
+  let current = null;
+  try { current = localStorage.getItem(LS_FONT_FAMILY); } catch { /* storage off */ }
+  if (on) {
+    if (isDyslexiaFont(current)) return;
+    try {
+      if (current) localStorage.setItem(LS_FONT_BEFORE_EASY_READ, current);
+      else localStorage.removeItem(LS_FONT_BEFORE_EASY_READ);
+    } catch { /* storage off */ }
+    setAccessibilityFontFamily(DYSLEXIA_FONT);
+    return;
+  }
+  if (!isDyslexiaFont(current)) return;
+  let before = null;
+  try { before = localStorage.getItem(LS_FONT_BEFORE_EASY_READ); } catch { /* storage off */ }
+  setAccessibilityFontFamily(before && !isDyslexiaFont(before) ? before : APP_FONT_OPTIONS[0].value);
 }

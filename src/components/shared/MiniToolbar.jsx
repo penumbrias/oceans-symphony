@@ -40,6 +40,7 @@ export const FONTS = [
   { label: "Poppins", value: "Poppins, sans-serif" },
   { label: "Nunito", value: "Nunito, sans-serif" },
   { label: "Raleway", value: "Raleway, sans-serif" },
+  { label: "OpenDyslexic", value: "OpenDyslexic, sans-serif" },
   // Serif
   { label: "Playfair", value: "Playfair Display, serif" },
   { label: "Lora", value: "Lora, serif" },
