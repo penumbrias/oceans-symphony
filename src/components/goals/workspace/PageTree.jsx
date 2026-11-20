@@ -6,18 +6,22 @@
 import React, { useMemo, useState } from "react";
 import { ChevronRight, ChevronDown, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { useNoteLists, useNoteListWriters, listLabel } from "@/lib/noteLists";
+import { useNoteLists, useNoteListWriters, listLabel, notesFiledIn, filedPageOf } from "@/lib/noteLists";
+import { NoteMenu } from "./FiledNotes";
 import { rootPages, childPages, ancestorsOf, flattenPages, createPage, orderAfter, MAX_PAGE_DEPTH } from "@/lib/goalTree";
 import { isOpenGoal } from "@/lib/goals";
 import { allPageTags, pageHasTag, pageTags, sectionHeading } from "@/lib/goalWriting";
 import { promptText } from "@/components/shared/ConfirmDialog";
 import { useWorkspace, inputCls } from "./WorkspaceContext";
 
-function Node({ page, depth, currentId, expanded, toggle, onOpen, seen }) {
+function Node({ page, depth, currentId, expanded, toggle, onOpen, seen, noteLists = [], onOpenList = null }) {
   const { index } = useWorkspace();
   if (seen.has(page.id) || depth > MAX_PAGE_DEPTH) return null;
   const nextSeen = new Set(seen); nextSeen.add(page.id);
-  const kids = childPages(index, page.id);
+  const pageKids = childPages(index, page.id);
+  // Notes, lists and decks filed in this page sit after its sections.
+  const notesHere = onOpenList ? notesFiledIn(noteLists, page.id, index) : [];
+  const kids = [...pageKids, ...notesHere];
   const isOpen = expanded.has(page.id);
   const here = page.id === currentId;
   return (
@@ -38,7 +42,14 @@ function Node({ page, depth, currentId, expanded, toggle, onOpen, seen }) {
       </div>
       {isOpen && kids.length > 0 && (
         <ul>
-          {kids.map((k) => <Node key={k.id} page={k} depth={depth + 1} currentId={currentId} expanded={expanded} toggle={toggle} onOpen={onOpen} seen={nextSeen} />)}
+          {pageKids.map((k) => <Node key={k.id} page={k} depth={depth + 1} currentId={currentId} expanded={expanded} toggle={toggle} onOpen={onOpen} seen={nextSeen} noteLists={noteLists} onOpenList={onOpenList} />)}
+          {notesHere.length > 0 && (
+            <li style={{ paddingLeft: (depth + 1) * 12 + 18 }}>
+              <ul className="space-y-0.5">
+                {notesHere.map((l) => <NoteRow key={`f-${l.id}`} list={l} onOpenList={onOpenList} />)}
+              </ul>
+            </li>
+          )}
         </ul>
       )}
     </li>
@@ -48,19 +59,23 @@ function Node({ page, depth, currentId, expanded, toggle, onOpen, seen }) {
 const newestFirst = (a, b) => String(b.updated_date || b.created_date || "").localeCompare(String(a.updated_date || a.created_date || ""));
 const NOTES_SHOWN = 8;
 
-function NoteRow({ list, onOpenList }) {
+function NoteRow({ list, onOpenList, menu = true }) {
   return (
-    <li>
+    <li className="flex items-center gap-0.5 min-w-0">
       <button type="button" onClick={() => onOpenList(list.id)}
-        className="w-full text-left text-sm px-2 py-1 rounded-md hover:bg-muted/40 flex items-center gap-1.5 min-w-0">
+        className="flex-1 min-w-0 text-left text-sm px-2 py-1 rounded-md hover:bg-muted/40 flex items-center gap-1.5">
         <span className="truncate">{listLabel(list)}</span>
       </button>
+      {menu && <NoteMenu list={list} />}
     </li>
   );
 }
 
 function NotesSection({ notesOpen, onOpenNotes, onOpenList }) {
-  const { lists } = useNoteLists();
+  const { index } = useWorkspace();
+  const { lists: all } = useNoteLists();
+  // Filed ones show inside their page in the tree; the rest are here.
+  const lists = useMemo(() => all.filter((l) => !filedPageOf(l, index)), [all, index]);
   const { createNote } = useNoteListWriters();
   const [open, setOpen] = useState(true);
   const sorted = useMemo(() => [...lists].sort(newestFirst), [lists]);
@@ -88,7 +103,7 @@ function NotesSection({ notesOpen, onOpenNotes, onOpenList }) {
       </div>
       {open && (
         sorted.length === 0
-          ? <p className="text-xs text-muted-foreground px-2">No notes or lists yet.</p>
+          ? <p className="text-xs text-muted-foreground px-2">{all.length ? "Every note is filed in a page." : "No notes or lists yet."}</p>
           : (
             <ul className="space-y-0.5 pl-3">
               {sorted.slice(0, NOTES_SHOWN).map((l) => <NoteRow key={`${l.source || "db"}-${l.id}`} list={l} onOpenList={onOpenList} />)}
@@ -142,7 +157,8 @@ export default function PageTree({ currentId, onOpen }) {
 
   const list = (pages) => (
     <ul className="space-y-0.5">
-      {pages.map((p) => <Node key={p.id} page={p} depth={0} currentId={currentId} expanded={expanded} toggle={toggle} onOpen={onOpen} seen={new Set()} />)}
+      {pages.map((p) => <Node key={p.id} page={p} depth={0} currentId={currentId} expanded={expanded} toggle={toggle} onOpen={onOpen} seen={new Set()}
+        noteLists={noteLists} onOpenList={openList || null} />)}
     </ul>
   );
 

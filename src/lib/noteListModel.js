@@ -82,3 +82,13 @@ export function deckStudyMinutes(step, activities = [], now = new Date()) {
     .reduce((n, s) => n + (Number(s.minutes) || 0), 0));
 }
 
+
+// Notes filed inside a Notebook page (v0.376.1): the page id when that page
+// is still there, else null (filed under a page since deleted = back in
+// Notes & lists). `index` is goalTree's indexPages.
+export const filedPageOf = (list, index) => {
+  const id = list?.notebook_page_id;
+  return id && index?.byId?.has(id) ? id : null;
+};
+export const notesFiledIn = (lists, pageId, index) =>
+  (lists || []).filter((l) => filedPageOf(l, index) === pageId);

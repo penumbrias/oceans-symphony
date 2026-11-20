@@ -6,6 +6,7 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 import { pageEntries, updatePage, subtreeProgress } from "@/lib/goalTree";
 import ItemRow, { EntryMenu } from "./ItemRow";
 import AddLine from "./AddLine";
+import { FiledNotesList } from "./FiledNotes";
 import { TagChips } from "./TagEditor";
 import { sectionHeading, pageWordCount, wordTargetOf, wordProgressLabel } from "@/lib/goalWriting";
 import { useWorkspace } from "./WorkspaceContext";
@@ -77,6 +78,7 @@ export function EntryList({ pageId, page, depth = 0, compactAdd = false }) {
             : <ItemRow key={e.rec.id} item={e.rec} pageId={pageId} page={page} />)}
         </ul>
       )}
+      <FiledNotesList pageId={pageId} />
       <AddLine pageId={pageId} page={page} compact={compactAdd} />
     </div>
   );

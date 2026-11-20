@@ -78,6 +78,15 @@ export function useNoteListWriters() {
       if (list.source === "local") updateUnlockedList(list.id, { note_content: patch.note_content });
       else { await localEntities.GroceryList.update(list.id, patch); refresh(); }
     },
+    // File a note, list or deck inside a Notebook page, or take it out
+    // (pageId null) — v0.376.1. Only the extra `notebook_page_id` field
+    // changes; the list itself stays where it is. Lists kept "available
+    // when locked" aren't filed (that store keeps a fixed set of fields).
+    async fileInPage(list, pageId) {
+      if (list.source === "local") throw new Error("Lists available when locked stay in Notes & lists.");
+      await localEntities.GroceryList.update(list.id, { notebook_page_id: pageId || null });
+      refresh();
+    },
     // Tick / untick an item the way the lists panel's two-state lists do.
     async setChecked(list, item, checked) {
       const patch = checked
