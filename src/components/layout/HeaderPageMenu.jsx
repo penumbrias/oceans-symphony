@@ -1,11 +1,13 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw, RefreshCw, Usb, Palette, Compass } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList, RotateCcw, RefreshCw, Usb, Palette, Compass, Download } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSyncAdapter } from "@/lib/syncAdapters";
 import { getSyncFolder, runSync } from "@/lib/deviceSyncRunner";
 import { cn } from "@/lib/utils";
+import { isDesktop } from "@/lib/platform";
+import { checkForDesktopUpdateFromMenu } from "@/lib/desktopUpdates";
 import { useTerms } from "@/lib/useTerms";
 import { useLookSubject } from "@/lib/lookSubject";
 import { loadTourRoutes, tourRoutesIfLoaded, tutorialRouteKey, openPageTour } from "@/lib/pageTutorials";
@@ -283,6 +285,15 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
           <DropdownMenuItem onSelect={handleSyncNow} className="gap-2 cursor-pointer">
             <Usb className="w-4 h-4" />
             {syncing ? "Syncing…" : "Sync with another device"}
+          </DropdownMenuItem>
+        )}
+        {isDesktop() && (
+          <DropdownMenuItem
+            onSelect={() => { checkForDesktopUpdateFromMenu().catch(() => toast.error("Couldn't check for updates.")); }}
+            className="gap-2 cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            Check for updates
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

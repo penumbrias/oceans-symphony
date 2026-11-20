@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 20, 2026",
     changes: [
+      { type: "improve", text: "Desktop app: \"Check for updates\" is now in the ⚙ menu on every page, and .deb installs get a \"Get the newest version\" button in Settings instead of nothing." },
       { type: "fix", text: "Notebook pages: the Outline, Board and Map switch is back on the page, and you can rename a page, pick its icon, status and day, and add tags right where they are again." },
       { type: "fix", text: "Notebook notes open at the top of their box with room to write, and grow downwards when you drag them bigger." },
       { type: "feature", text: "Tap \"Add to this page\" under a Notebook, Needs or Notes page to add a widget without opening Edit page." },
