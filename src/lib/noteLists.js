@@ -88,9 +88,12 @@ export function useNoteListWriters() {
     },
     // A new note in the normal (encrypted) store — the same record the
     // lists panel's "New note" makes there (v0.363.0).
-    async createNote(name) {
+    // `type` "flashcards" makes a deck (v0.376.0, the Notebook's New deck).
+    async createNote(name, type = "note") {
+      const deck = type === "flashcards";
       const made = await localEntities.GroceryList.create({
-        name: String(name || "").trim() || `Note — ${format(new Date(), clockPattern("MMM d, h:mm a"))}`, list_type: "note", created_date: new Date().toISOString(),
+        name: String(name || "").trim() || `${deck ? "Deck" : "Note"} — ${format(new Date(), clockPattern("MMM d, h:mm a"))}`,
+        list_type: deck ? "flashcards" : "note", created_date: new Date().toISOString(),
       });
       refresh();
       return made;
@@ -109,7 +112,9 @@ export function useNoteListWriters() {
 }
 
 // Where a list, note or deck opens: the Notes & lists page.
-export const notesPath = (listId) => (listId ? `/notes?list=${encodeURIComponent(listId)}` : "/notes");
+// Notes & lists open inside the Notebook (v0.376.0): the board at
+// /goals?notes=1, one list in the list sheet on top.
+export const notesPath = (listId) => (listId ? `/goals?notes=1&list=${encodeURIComponent(listId)}` : "/goals?notes=1");
 
 // ── Writing a note: the app's full text grammar (v0.347.1) ────────────
 //

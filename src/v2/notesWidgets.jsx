@@ -60,7 +60,7 @@ export function NotesIndexWidget({ settings }) {
           onClick={() => navigate(notesPath(l.id))} />
       ))}
       {mode !== "expanded" && rows.length > shown.length && (
-        <TextAction onClick={() => navigate("/notes")}>{`All ${rows.length}`}</TextAction>
+        <TextAction onClick={() => navigate(notesPath())}>{`All ${rows.length}`}</TextAction>
       )}
     </Section>
   );

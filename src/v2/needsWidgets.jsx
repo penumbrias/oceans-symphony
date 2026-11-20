@@ -4,7 +4,8 @@
 // Needs and Goals pages use, so the numbers always agree.
 
 import React, { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, BookOpen, StickyNote, Layers } from "lucide-react";
+import { useNoteListWriters, notesPath } from "@/lib/noteLists";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -342,7 +343,7 @@ function GoalCards({ goals, steps, ctx, rootFilter = null }) {
   return (
     <Section label={tr("widget.goals.label")}>
       {roots.length === 0 && (
-        <Muted>No goals yet. Start one with Add a goal: inside it you can add sections, notes, to-dos, checkboxes, links to other pages and the activities that go with it.</Muted>
+        <Muted>No goals yet. Start one with Add to the Notebook: inside it you can add sections, notes, to-dos, checkboxes, links to other pages and the activities that go with it.</Muted>
       )}
       {active.length > 0 && <div className="space-y-[0.5em]">{active.map(card)}</div>}
       {paused.length > 0 && (
@@ -366,7 +367,9 @@ function GoalCards({ goals, steps, ctx, rootFilter = null }) {
 }
 
 // Add a goal (v0.358.0): a title and Add, or Start a story (chapters,
-// characters, places). The new goal opens as its own Notebook page.
+// characters, places). The new goal opens as its own Notebook page. Since
+// Notes & lists joined the Notebook (v0.376.0) it also starts a note (or
+// list) or a flash-card deck, named with what's typed, opened in its sheet.
 export function GoalAddWidget({ settings }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -390,9 +393,21 @@ export function GoalAddWidget({ settings }) {
   };
   const v = title.trim();
   const add = () => { if (v) make((order) => createPage({ title: v, order })); };
+  const { createNote } = useNoteListWriters();
+  const newList = async (type) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const made = await createNote(v, type);
+      setTitle("");
+      if (made?.id) navigate(notesPath(made.id));
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save that.");
+    } finally { setBusy(false); }
+  };
   const story = () => make((order) => createStoryPage({ title: v || "My story", order }));
   return (
-    <Section label="Add a goal">
+    <Section label="Add to the Notebook">
       <div className="flex gap-[0.4em]">
         <input ref={inputRef} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="New goal"
           placeholder="A goal, a project, a story…" onKeyDown={(e) => { if (e.key === "Enter") add(); }}
@@ -410,6 +425,20 @@ export function GoalAddWidget({ settings }) {
           style={{ color: "var(--v2-accent)" }}>
           <BookOpen className="w-[1.1em] h-[1.1em]" /> {v ? `Start "${v}" as a story` : "Start a story"}: chapters, characters, places
         </button>
+      )}
+      {settings?.notes !== false && (
+        <div className="flex flex-wrap gap-x-[1em]">
+          <button type="button" onClick={() => newList("note")} disabled={busy} data-tour="goals-new-note-btn"
+            className="min-h-[2.75em] text-[0.75em] flex items-center gap-[0.3em] hover:underline disabled:opacity-50"
+            style={{ color: "var(--v2-accent)" }}>
+            <StickyNote className="w-[1.1em] h-[1.1em]" /> {v ? `Make "${v}" a note or list` : "New note or list"}
+          </button>
+          <button type="button" onClick={() => newList("flashcards")} disabled={busy}
+            className="min-h-[2.75em] text-[0.75em] flex items-center gap-[0.3em] hover:underline disabled:opacity-50"
+            style={{ color: "var(--v2-accent)" }}>
+            <Layers className="w-[1.1em] h-[1.1em]" /> New flash-card deck
+          </button>
+        </div>
       )}
     </Section>
   );

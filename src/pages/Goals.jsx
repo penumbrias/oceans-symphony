@@ -6,6 +6,10 @@
 //
 // ?page=<id> opens a page (?highlight=<id> from older links does too);
 // ?new=1 starts a new goal; ?fromWish=<id> makes a goal from a wish.
+//
+// Notes & lists live here too (v0.376.0): ?notes=1 shows their board
+// (NotesView), ?list=<id> opens a note, list or deck in the list sheet on
+// top of whatever is showing. They stay stored in the lists panel's stores.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -34,6 +38,8 @@ import { GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
 import { goalWidgetDefs } from "@/v2/goalWidgetDefs";
 import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
+import ListSheet from "@/components/notes/ListSheet";
+import { NotesView } from "@/pages/Notes";
 
 const list = (entity, ...args) => () => base44.entities[entity].list(...args).catch(() => []);
 
@@ -45,6 +51,8 @@ export const NOTEBOOK_PAGES = [
   { tab: "goals", label: "Goals", widgets: [
     { widgetId: "goal_add" },
     { widgetId: "goals", settings: { view: "cards" } },
+    // Notes & lists joined the Notebook (v0.376.0).
+    { widgetId: "notes_index" },
   ] },
 ];
 const NOTEBOOK_ICONS = { [profilePageId("goals")]: Target };
@@ -112,6 +120,19 @@ export default function Goals() {
     if (t && !wide) setTreeOpen(true);
   }, []);
   const pageId = params.get("page") || params.get("highlight") || null;
+  const notesOpen = !pageId && params.get("notes") === "1";
+  const listId = params.get("list") || null;
+  const openList = useCallback((id) => {
+    if (id) setTreeOpen(false);
+    const next = new URLSearchParams(params);
+    if (id) next.set("list", id); else next.delete("list");
+    setParams(next, !id ? { replace: true } : undefined);
+  }, [params, setParams]);
+  const openNotes = useCallback(() => {
+    setTreeOpen(false);
+    setParams(new URLSearchParams({ notes: "1" }));
+    try { window.scrollTo({ top: 0 }); } catch { /* fine */ }
+  }, [setParams]);
 
   const { data: goals = [], isFetched } = useQuery({ queryKey: GOALS_QUERY_KEY, queryFn: list("Goal") });
   const { data: steps = [] } = useQuery({ queryKey: GOAL_STEPS_QUERY_KEY, queryFn: list("GoalStep") });
@@ -184,7 +205,7 @@ export default function Goals() {
     }
   };
 
-  const value = { goals, steps, index, ctx, alters, settings, refresh, open, isFetched, tag, showTag };
+  const value = { goals, steps, index, ctx, alters, settings, refresh, open, isFetched, tag, showTag, openList, openNotes, notesOpen };
 
   return (
     <WorkspaceProvider value={value}>
@@ -200,7 +221,7 @@ export default function Goals() {
                 <Menu className="w-4 h-4" /> Pages
               </button>
             </div>
-            {page ? <GoalPage key={page.id} page={page} /> : (
+            {page ? <GoalPage key={page.id} page={page} /> : notesOpen ? <NotesView onOpenNotebook={() => open(null)} /> : (
               <>
                 {pageId && isFetched && <p className="text-sm text-muted-foreground">That page isn't here any more. It may be in the trash.</p>}
                 <Home toCarry={toCarry} onCarry={carry} carrying={carrying} />
@@ -209,6 +230,7 @@ export default function Goals() {
           </main>
         </div>
       </div>
+      <ListSheet listId={listId} onClose={() => openList(null)} />
       <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
         <SheetContent side="left" className="w-[85vw] max-w-xs overflow-y-auto pt-12">
           <SheetTitle className="sr-only">Notebook pages</SheetTitle>

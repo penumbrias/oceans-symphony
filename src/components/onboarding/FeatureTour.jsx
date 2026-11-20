@@ -276,13 +276,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("dashboard", {
       emoji: "📝", title: "Notes & lists",
-      body: `Notes and lists are one thing: every page has writing on top and tick-off items under it. Flash-card decks live here too, and goals can count them.`,
-      route: "/notes", target: "notes-page", look: `the Notes & lists page`,
+      body: `Notes, lists and flash-card decks live in the Notebook, under Notes & lists in its Pages menu. Every note has writing on top and tick-off items under it, and goals can count them.`,
+      route: "/goals?notes=1", target: "notes-page", look: `Notes & lists in the Notebook`,
     }),
     s("dashboard", {
       emoji: "✏️", title: "Lay out your notes",
       body: `Notes & lists is made of widgets. Tap one to open it in a sheet. The pencil (Edit page) adds a List, Note or Flash-card deck widget beside them, and the same widgets can go on home or a profile.`,
-      route: "/notes", target: ["notes-layout-btn", "notes-page"],
+      route: "/goals?notes=1", target: ["notes-layout-btn", "notes-page"],
     }),
     s("dashboard", {
       emoji: "🛒", title: "The grocery list",
@@ -839,7 +839,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🧩", title: "Lay out the Notebook",
-      body: `The Notebook's front page is made of widgets too: Add a goal and your goal cards. Tap the pencil (Edit page) to move them, or add pictures, notes or anything else beside them.`,
+      body: `The Notebook's front page is made of widgets too: Add to the Notebook and your goal cards. Tap the pencil (Edit page) to move them, or add pictures, notes or anything else beside them.`,
       route: "/goals", target: ["notebook-layout-btn", "notebook-tabs", "goals-page"],
     }),
     s("activities", {
@@ -861,6 +861,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "➕", title: "Add to a page",
       body: `Tap "Add to this page" under a page to add a widget without Edit page. The library opens on the page's own widgets first; See more widgets has the rest, sorted by what they're for or by page.`,
       route: "/goals", target: ["page-add-line", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "📝", title: "Notes in the Notebook",
+      body: `Notes, lists and flash-card decks are part of the Notebook now. Start one from Add to the Notebook, or find them all under Notes & lists in the Pages menu.`,
+      route: "/goals", target: ["goals-new-note-btn", "goals-page"],
     }),
     s("activities", {
       emoji: "🪪", title: "Page info",

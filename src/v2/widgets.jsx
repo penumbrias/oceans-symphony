@@ -3464,12 +3464,15 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   goal_add: {
-    label: "Add a goal", description: "Start a new goal, project or story in one go. It opens as its own Notebook page.",
+    label: "Add to the Notebook", description: "Start a new goal, project or story, a note or list, or a flash-card deck, in one go.",
     icon: Target, category: "needs",
     render: sized(({ settings }) => <GoalAddWidget settings={settings} />),
     supportsModes: ["normal"], supportsMultiInstance: true,
-    configFields: [{ key: "story", type: "toggle", label: "Show Start a story", default: true }],
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+    configFields: [
+      { key: "story", type: "toggle", label: "Show Start a story", default: true },
+      { key: "notes", type: "toggle", label: "Show New note and New deck", default: true },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   // The setup card (v0.369.0): src/v2/setupWidgets.jsx. Reads the one step
   // list in src/lib/setupSteps.js; every row opens the page where it's done.
