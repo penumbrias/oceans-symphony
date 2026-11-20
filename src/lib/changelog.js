@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "November 20, 2026",
+    changes: [
+      { type: "fix", text: "Notebook pages: the Outline, Board and Map switch is back on the page, and you can rename a page, pick its icon, status and day, and add tags right where they are again." },
+      { type: "fix", text: "Notebook notes open at the top of their box with room to write, and grow downwards when you drag them bigger." },
+      { type: "feature", text: "Tap \"Add to this page\" under a Notebook, Needs or Notes page to add a widget without opening Edit page." },
+      { type: "improve", text: "The widget library opens on the widgets that belong to the page you're on, with See more for the rest, and can sort widgets by page." },
+    ],
+  },
+  {
     date: "November 19, 2026",
+    version: "0.374.9",
     changes: [
       { type: "fix", text: "Custom fields that hold only a photo now show on the new profile, like they did on the old one." },
       { type: "fix", text: "Picking feelings in the fronting panel no longer makes the page jump to the bottom while you scroll (#634)." },

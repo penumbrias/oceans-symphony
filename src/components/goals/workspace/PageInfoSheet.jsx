@@ -110,11 +110,11 @@ function WritingTab({ page, isTop }) {
   );
 }
 
-export default function PageInfoSheet({ page, open, onClose, onMove, onDelete }) {
+export default function PageInfoSheet({ page, open, onClose, onMove, onDelete, initialTab = "info" }) {
   const { run, index } = useWorkspace();
   const peek = usePeekHeight("symphony_goal_info_peek_h", 55);
-  const [tab, setTab] = useState("info");
-  useEffect(() => { if (!open) setTab("info"); }, [open]);
+  const [tab, setTab] = useState(initialTab);
+  useEffect(() => { setTab(open ? initialTab : "info"); }, [open, initialTab]);
   const isTop = !index.parent.get(page.id);
   const tabs = [
     { id: "info", label: "Info", icon: Info },

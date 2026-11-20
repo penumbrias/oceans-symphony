@@ -9,12 +9,12 @@
 
 import { useNavigate } from "react-router-dom";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, ListTree, Columns3, Network } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { GOALS_QUERY_KEY, GOAL_STEPS_QUERY_KEY } from "@/lib/goals";
-import { indexPages } from "@/lib/goalTree";
+import { indexPages, updatePage } from "@/lib/goalTree";
 import { useGoalCtx } from "@/lib/useGoalCtx";
 import { Section, Muted, TextAction } from "@/v2/primitives";
 import StudyDeckButton from "@/components/goals/StudyDeckButton";
@@ -131,10 +131,10 @@ function SharedNote({ list }) {
   };
   if (editing) {
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 mb-auto">
         <MentionTextarea toolbar value={text} onChange={setText} autoFocus aria-label={list.name || "Note"}
           alters={grammar ? alters : []} signposts={grammar} commands={grammar}
-          className="w-full min-h-[8em] bg-transparent text-sm" style={{ borderColor: "var(--v2-accent)" }} />
+          className="w-full min-h-[12em] bg-transparent text-sm leading-relaxed resize-y" style={{ borderColor: "var(--v2-accent)" }} />
         <div className="flex justify-end gap-3">
           <TextAction onClick={() => { setText(list.note_content || ""); setEditing(false); }}>Cancel</TextAction>
           <TextAction onClick={saving ? undefined : save}>{saving ? "Saving…" : "Save"}</TextAction>
@@ -253,15 +253,40 @@ function PageNoteWidget({ page, ws }) {
 }
 
 // The page's lines and sections. "Show as" is the widget's option; left on
-// "The page's choice" it follows the view the page was set to before.
+// "The page's choice" it follows the page's own view, which the switch in
+// the widget's corner changes (Outline · Board · Map — the switch the page
+// header had before v0.359.0, back in v0.375.0).
+const LINE_VIEWS = [
+  { id: "outline", label: "Outline", Icon: ListTree },
+  { id: "board", label: "Board: sections as columns", Icon: Columns3 },
+  { id: "map", label: "Map: how it connects", Icon: Network },
+];
+
+function ViewSwitch({ page, view }) {
+  const { run, busy } = useWorkspace();
+  return (
+    <span role="radiogroup" aria-label="Show the page as" className="flex items-center gap-0.5">
+      {LINE_VIEWS.map(({ id, label, Icon }) => (
+        <button key={id} type="button" role="radio" aria-checked={view === id} aria-label={label} title={label}
+          disabled={busy} onClick={() => { if (view !== id) run(() => updatePage(page.id, { view: id })); }}
+          className={`w-8 h-8 rounded-md flex items-center justify-center ${view === id ? "" : "opacity-60 hover:opacity-100"}`}
+          style={view === id ? { background: "color-mix(in srgb, var(--v2-accent) 18%, transparent)", color: "var(--v2-accent)" } : undefined}>
+          <Icon className="w-4 h-4" />
+        </button>
+      ))}
+    </span>
+  );
+}
+
 function GoalLinesBody({ settings }) {
   const page = useGoalPage();
   const ws = useWorkspace();
   if (!page || !ws) return <Section label="Page"><NoPage /></Section>;
-  const pick = settings?.view && settings.view !== "page" ? settings.view : page.view;
+  const followsPage = !settings?.view || settings.view === "page";
+  const pick = followsPage ? page.view : settings.view;
   const view = ["outline", "board", "map"].includes(pick) ? pick : "outline";
   return (
-    <Section label="Page">
+    <Section label="Page" action={followsPage ? <ViewSwitch page={page} view={view} /> : undefined}>
       {view === "outline" && <EntryList pageId={page.id} page={page} />}
       {view === "board" && <BoardView page={page} />}
       {view === "map" && <MapView page={page} />}

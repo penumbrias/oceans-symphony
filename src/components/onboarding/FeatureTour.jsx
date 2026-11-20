@@ -849,7 +849,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🗺️", title: "Board and map",
-      body: `In the Page widget's options, Show as Board puts the sections in columns, and Map shows how everything connects. The Pages menu shows the whole tree.`,
+      body: `The switch in the Page widget's corner shows the page as an outline, a board with sections in columns, or a map of how everything connects. The Pages menu shows the whole tree.`,
       route: "/goals", target: "goals-page",
     }),
     s("activities", {
@@ -858,8 +858,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: ["goals-layout-btn", "goals-page"],
     }),
     s("activities", {
+      emoji: "➕", title: "Add to a page",
+      body: `Tap "Add to this page" under a page to add a widget without Edit page. The library opens on the page's own widgets first; See more widgets has the rest, sorted by what they're for or by page.`,
+      route: "/goals", target: ["page-add-line", "goals-page"],
+    }),
+    s("activities", {
       emoji: "🪪", title: "Page info",
-      body: `Info holds everything about a page: its title, icon, status, the day you're aiming for, tags, word target and chapters. It saves as you go; Pin, Move and Delete are under its ⋯.`,
+      body: `Tap a page's title, icon, status or day to change it right there. Info holds everything about the page, word target and chapters too; Pin, Move and Delete are under its ⋯.`,
       route: "/goals", target: ["goals-info-btn", "goals-page"],
     }),
     s("activities", {

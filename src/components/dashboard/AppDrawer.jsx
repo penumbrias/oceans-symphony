@@ -21,12 +21,14 @@ import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
 import { useModPagesVersion } from "@/lib/mods/registry";
 import { WIDGET_REGISTRY, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
-import { groupWidgetEntries, widgetEntryMatches } from "@/lib/widgetMenuGroups";
+import {
+  groupWidgetEntries, groupWidgetEntriesByPage, pageWidgetEntries, widgetPageMeta, widgetEntryMatches,
+} from "@/lib/widgetMenuGroups";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { effectiveMode, HOME_MODES } from "@/lib/experimentalHome";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { lookToStyle, USER_STYLE_PREFIX } from "@/lib/widgetLook";
-import { ChoiceRow, Chips, StackedRow } from "@/components/shared/SettingRows";
+import { ChoiceRow, Chips, StackedRow, Segmented } from "@/components/shared/SettingRows";
 import { WidgetSubject } from "@/lib/boardSubject";
 import { WidgetSuspense } from "@/lib/lazyNamed";
 import { useLinkedPreviewSettings } from "@/v2/linkedProfileWidgets";
@@ -260,6 +262,8 @@ function AppTile({ app, pinOnTap, onAddShortcut, onOpen }) {
 // Apps tab PINS it to the page instead of navigating (the little + does the
 // same either way). The drawer stays open so several apps can be pinned in
 // a row. Folders come from experimental_home.drawer.folders via props.
+const LIBRARY_GROUP_BY_KEY = "symphony_widget_library_group_by_v1";
+
 export default function AppDrawer({
   open, onClose, placedWidgetIds = [], onAddWidget, onAddShortcut, pinOnTap = false,
   registry = WIDGET_REGISTRY,
@@ -270,6 +274,10 @@ export default function AppDrawer({
   onDropWidget = null,   // (widgetId, {x, y}) — hold a widget card, drag, drop it on a spot
   // A profile board (v0.290.0) has no app shortcuts: only the widget tab.
   widgetsOnly = false,
+  // The page this board is (v0.375.0): "profile", or an app page id from
+  // WIDGET_PAGES ("notebook", "needs"…). The library opens on that page's
+  // own widgets, with "See more widgets" for the rest.
+  homePage = null,
 }) {
   const t = useTerms();
   const navigate = useNavigate();
@@ -289,6 +297,18 @@ export default function AppDrawer({
   const [widgetSearch, setWidgetSearch] = useState("");
   // Which group is open; null = the group tiles the library opens on.
   const [widgetGroup, setWidgetGroup] = useState(null);
+  // Past this page's own widgets to the whole library.
+  const [seeMore, setSeeMore] = useState(false);
+  useEffect(() => { if (open) { setSeeMore(false); setWidgetGroup(null); } }, [open]);
+  // What the library's groups are: what a widget is for, or the app page
+  // it comes from (v0.375.0). Remembered on this device.
+  const [groupBy, setGroupByState] = useState(() => {
+    try { return localStorage.getItem(LIBRARY_GROUP_BY_KEY) === "page" ? "page" : "purpose"; } catch { return "purpose"; }
+  });
+  const setGroupBy = (v) => {
+    setGroupByState(v); setWidgetGroup(null);
+    try { localStorage.setItem(LIBRARY_GROUP_BY_KEY, v); } catch { /* fine */ }
+  };
 
   const modNavV = useModPagesVersion();
   const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System, modNavV]);
@@ -323,11 +343,21 @@ export default function AppDrawer({
   const entryLabel = (e) => (e.family?.label ? applyTerms(e.family.label, t) : widgetLabel(e.def, t));
   const placedFor = (e) => (e.variants || [e]).reduce((n, v) => n + (placedCount.get(v.id) || 0), 0);
   const widgetQuery = widgetSearch.trim().toLowerCase();
-  const widgetGroups = useMemo(() => {
-    const entries = Object.entries(registry).filter(([, d]) =>
-      d && !d.hiddenFromDrawer);
-    return groupWidgetEntries(entries, entryLabel);
-  }, [registry, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  const libraryEntries = useMemo(
+    () => Object.entries(registry).filter(([, d]) => d && !d.hiddenFromDrawer),
+    [registry],
+  );
+  const widgetGroups = useMemo(
+    () => (groupBy === "page" ? groupWidgetEntriesByPage : groupWidgetEntries)(libraryEntries, entryLabel),
+    [libraryEntries, groupBy, t], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  // This page's own widgets, shown first.
+  const ownItems = useMemo(() => {
+    if (!homePage) return [];
+    if (homePage === "profile") return groupWidgetEntries(libraryEntries, entryLabel).find((g) => g.group.id === "profile")?.items || [];
+    return pageWidgetEntries(libraryEntries, homePage);
+  }, [libraryEntries, homePage, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ownTitle = homePage === "profile" ? "This profile" : widgetPageMeta(homePage)?.label || "This page";
   const shownWidgetGroups = useMemo(() => {
     if (widgetQuery) {
       const matches = (e) => widgetEntryMatches(e, widgetQuery, (d) => widgetLabel(d, t), (d) => widgetDescription(d, t))
@@ -344,12 +374,14 @@ export default function AppDrawer({
   }, [widgetGroups, widgetGroup, widgetQuery, t]); // eslint-disable-line react-hooks/exhaustive-deps
   const detailEntry = useMemo(() => {
     if (!detailId) return null;
+    const own = ownItems.find((e) => e.id === detailId);
+    if (own) return own;
     for (const g of widgetGroups) {
       const hit = g.items.find((e) => e.id === detailId);
       if (hit) return hit;
     }
     return registry[detailId] ? { id: detailId, def: registry[detailId] } : null;
-  }, [detailId, widgetGroups, registry]);
+  }, [detailId, widgetGroups, ownItems, registry]);
 
   // Hooks stay ABOVE the early return — a hook after `if (!open) return`
   // shifts the hook order the moment the drawer opens, which is exactly the
@@ -404,6 +436,53 @@ export default function AppDrawer({
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } })
   );
+
+  // One widget card: live preview, name, what it does, a labelled Add.
+  // `secGroup` is the heading it sits under (a profile kind), if any.
+  const renderCard = (entry, secGroup = null) => {
+    const sec = { group: secGroup };
+    // Under its kind's heading a profile widget
+    // needs no "Group:" in front of its name.
+    const label = (sec.group && entry.def.menuLabel) ? applyTerms(entry.def.menuLabel, t) : entryLabel(entry);
+    const n = placedFor(entry);
+    const description = entry.family?.description
+      ? applyTerms(entry.family.description, t) : widgetDescription(entry.def, t);
+    return (
+      <div key={entry.id}
+        onPointerDown={(e) => startWidgetHold(e, entry.id, label)}
+        className="rounded-xl border border-border/50 bg-background p-1.5 flex flex-col gap-1.5">
+        <button type="button" onClick={() => setDetailId(entry.id)}
+          aria-label={`${label}: preview and options`}
+          className="text-left flex flex-col gap-1.5 min-w-0">
+          <WidgetThumb def={entry.def} api={api} />
+          <span className="px-0.5 min-w-0">
+            <span className="flex items-center gap-1 min-w-0">
+              <span className="text-sm font-medium truncate">{label}</span>
+              {n > 0 && (
+                <span className="text-xs text-muted-foreground flex items-center gap-0.5 flex-shrink-0 tabular-nums" title="On this page">
+                  <Check className="w-3 h-3" />{n > 1 ? `×${n}` : ""}
+                </span>
+              )}
+            </span>
+            <span className="text-xs text-muted-foreground leading-snug line-clamp-2">{description}</span>
+          </span>
+        </button>
+        <div className="flex items-center gap-1 mt-auto px-0.5">
+          {entry.variants ? (
+            <button type="button" onClick={() => setDetailId(entry.id)}
+              className="text-xs text-muted-foreground flex items-center gap-0.5 min-w-0 truncate">
+              <Layers className="w-3 h-3 flex-shrink-0" /> {entry.variants.length} versions
+            </button>
+          ) : <span />}
+          <button type="button" onClick={() => onAddWidget?.(entry.id)}
+            aria-label={`Add ${label}`} title={`Add ${label}`}
+            className="ml-auto h-7 px-2.5 rounded-full border border-primary/60 text-primary text-xs font-medium flex items-center gap-1 flex-shrink-0">
+            <Plus className="w-3.5 h-3.5" /> Add
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   if (!open) return null;
 
@@ -460,7 +539,7 @@ export default function AppDrawer({
       >
         <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border/40">
           {/* Outside edit mode this is a plain app drawer — no widget tab. */}
-          {pinOnTap && widgetsOnly ? (
+          {widgetsOnly ? (
             <div className="flex-1 py-1.5 text-sm font-medium flex items-center gap-1.5">
               <PlusSquare className="w-4 h-4" /> Add widget
             </div>
@@ -687,8 +766,35 @@ export default function AppDrawer({
                 )}
               </div>
 
-              {!widgetQuery && !widgetGroup ? (
+              {!widgetQuery && !widgetGroup && ownItems.length > 0 && !seeMore ? (
+                // A board that is an app page opens on that page's own
+                // widgets; the rest of the library is one tap away.
+                <div className="space-y-2 pt-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {applyTerms(ownTitle, t)}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ownItems.map((entry) => renderCard(entry))}
+                  </div>
+                  <button type="button" onClick={() => setSeeMore(true)}
+                    className="w-full h-11 mt-1 rounded-xl border border-border/60 text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-muted/40">
+                    <PlusSquare className="w-4 h-4" /> See more widgets
+                  </button>
+                </div>
+              ) : !widgetQuery && !widgetGroup ? (
                 // The groups as tiles: what each holds, and how many.
+                <>
+                {ownItems.length > 0 && (
+                  <button type="button" onClick={() => setSeeMore(false)}
+                    className="mb-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 min-h-[2rem]">
+                    <ChevronLeft className="w-3.5 h-3.5" /> {applyTerms(ownTitle, t)}
+                  </button>
+                )}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">Sort by</span>
+                  <Segmented label="Sort widgets by" value={groupBy} onChange={setGroupBy} className="flex-1"
+                    options={[{ value: "purpose", label: "What it's for" }, { value: "page", label: "Page" }]} />
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                   {widgetGroups.map(({ group, items }) => {
                     const Icon = group.icon || PlusSquare;
@@ -709,6 +815,7 @@ export default function AppDrawer({
                     );
                   })}
                 </div>
+                </>
               ) : (
                 <>
                   {shownWidgetGroups.length === 0 && (
@@ -734,49 +841,7 @@ export default function AppDrawer({
                               phone: picture, name, what it does, a labelled
                               Add (full words, never a bare +). */}
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {sec.items.map((entry) => {
-                              // Under its kind's heading a profile widget
-                              // needs no "Group:" in front of its name.
-                              const label = (sec.group && entry.def.menuLabel) ? applyTerms(entry.def.menuLabel, t) : entryLabel(entry);
-                              const n = placedFor(entry);
-                              const description = entry.family?.description
-                                ? applyTerms(entry.family.description, t) : widgetDescription(entry.def, t);
-                              return (
-                                <div key={entry.id}
-                                  onPointerDown={(e) => startWidgetHold(e, entry.id, label)}
-                                  className="rounded-xl border border-border/50 bg-background p-1.5 flex flex-col gap-1.5">
-                                  <button type="button" onClick={() => setDetailId(entry.id)}
-                                    aria-label={`${label}: preview and options`}
-                                    className="text-left flex flex-col gap-1.5 min-w-0">
-                                    <WidgetThumb def={entry.def} api={api} />
-                                    <span className="px-0.5 min-w-0">
-                                      <span className="flex items-center gap-1 min-w-0">
-                                        <span className="text-[0.8125rem] font-medium truncate">{label}</span>
-                                        {n > 0 && (
-                                          <span className="text-[0.625rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0 tabular-nums" title="On this page">
-                                            <Check className="w-3 h-3" />{n > 1 ? `×${n}` : ""}
-                                          </span>
-                                        )}
-                                      </span>
-                                      <span className="text-[0.6875rem] text-muted-foreground leading-snug line-clamp-2">{description}</span>
-                                    </span>
-                                  </button>
-                                  <div className="flex items-center gap-1 mt-auto px-0.5">
-                                    {entry.variants ? (
-                                      <button type="button" onClick={() => setDetailId(entry.id)}
-                                        className="text-[0.6875rem] text-muted-foreground flex items-center gap-0.5 min-w-0 truncate">
-                                        <Layers className="w-3 h-3 flex-shrink-0" /> {entry.variants.length} versions
-                                      </button>
-                                    ) : <span />}
-                                    <button type="button" onClick={() => onAddWidget?.(entry.id)}
-                                      aria-label={`Add ${label}`} title={`Add ${label}`}
-                                      className="ml-auto h-7 px-2.5 rounded-full border border-primary/60 text-primary text-xs font-medium flex items-center gap-1 flex-shrink-0">
-                                      <Plus className="w-3.5 h-3.5" /> Add
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                            {sec.items.map((entry) => renderCard(entry, sec.group))}
                           </div>
                         </div>
                       ))}

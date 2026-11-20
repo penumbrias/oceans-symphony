@@ -9,6 +9,9 @@
 // ({ open, onToggle, title, "data-tour" }). A collection page has none: each
 // item opens its own sheet. While the layout is being edited the buttons
 // step aside — the canvas has its own edit bar.
+//
+// `titleSlot` / `iconSlot` replace the plain title and icon when the page
+// lets its record be edited right there (a Notebook page's title, v0.375.0).
 
 import React from "react";
 import { IdCard, Pencil } from "lucide-react";
@@ -16,7 +19,7 @@ import { Button } from "@/components/ui/button";
 
 export default function BoardPageHeader({
   title, icon = null, size = "lg", layoutEditing = false, onEditLayout = null,
-  tourId = null, info = null, before = null, after = null,
+  tourId = null, info = null, before = null, after = null, titleSlot = null, iconSlot = null,
 }) {
   const h1 = size === "lg"
     ? "font-display text-3xl font-semibold text-foreground flex-1 min-w-0 break-words"
@@ -25,8 +28,8 @@ export default function BoardPageHeader({
     <header className="space-y-2">
       {before}
       <div className="flex items-start gap-2">
-        {icon && <span className="text-2xl leading-none mt-1" aria-hidden="true">{icon}</span>}
-        <h1 className={h1}>{title}</h1>
+        {iconSlot || (icon && <span className="text-2xl leading-none mt-1" aria-hidden="true">{icon}</span>)}
+        {titleSlot ? <h1 className={h1}>{titleSlot}</h1> : <h1 className={h1}>{title}</h1>}
         {!layoutEditing && info && (
           <Button variant={info.open ? "default" : "outline"} size="sm" className="h-9 px-2.5 gap-1.5 flex-shrink-0"
             data-tour={info["data-tour"] || undefined} aria-pressed={!!info.open} onClick={info.onToggle}

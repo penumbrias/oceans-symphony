@@ -16,6 +16,7 @@
 
 import {
   Zap, PenLine, CalendarDays, BookOpen, Users, Leaf, BarChart3, Shapes, IdCard, UserCircle, Puzzle,
+  NotebookTabs, StickyNote, HeartHandshake, Pill, Home, ListChecks, MessagesSquare, Megaphone, Map as MapIcon, Moon, History,
 } from "lucide-react";
 
 export const WIDGET_MENU_GROUPS = [
@@ -211,5 +212,100 @@ export function groupWidgetEntries(entries, labelOf = (id) => id) {
       const sections = children.map((g) => ({ group: g, items: sorted(g) })).filter((s) => s.items.length > 0);
       return { group, items: [...sorted(group), ...sections.flatMap((s) => s.items)], sections };
     })
+    .filter((g) => g.items.length > 0);
+}
+
+// ── By page (v0.375.0) ──────────────────────────────────────────────
+// The library can also be sorted by the app page a widget comes from, and
+// a board that IS an app page (a Notebook page, Needs, Notes & lists…)
+// opens the library on that page's own widgets first, "See more" for the
+// rest (owner ask, 2026-11-20). A widget can belong to more than one page
+// (a list is Notes & lists' and the Notebook's). Widgets no page claims
+// sit under "Anywhere" (page pieces) or "More".
+export const WIDGET_PAGES = [
+  { id: "home", label: "Home", hint: "Who's here, today, statuses", icon: Home,
+    ids: ["presence", "fronting_panel", "current_fronters", "status", "status_note", "today", "running", "active_now", "current_focus", "dashboard_pins", "setup_card", "capture", "quick_checkin"] },
+  { id: "notebook", label: "Notebook", hint: "Goals and pages: sections, notes, to-dos, activities", icon: NotebookTabs,
+    ids: ["goal_lines", "goal_note", "goal_activities", "goal_connections", "goal_list", "goal_deck", "goal_add", "goals", "heading", "text", "media"] },
+  { id: "notes", label: "Notes & lists", hint: "Notes, lists and flash cards", icon: StickyNote,
+    ids: ["notes_index", "goal_note", "goal_list", "goal_deck", "scratch_pad"] },
+  { id: "needs", label: "Needs", hint: "Needs, wishes and turns", icon: HeartHandshake,
+    ids: ["needs_balance", "wishes", "wish_add", "turns", "turn_add"] },
+  { id: "planner", label: "Activities & planner", hint: "Planner views, plans and what's running", icon: CalendarDays,
+    ids: ["activity_dayview", "activity_day", "activity_week", "activity_month", "activity_year", "plan_tracker", "recent_activities", "current_activities", "upcoming_top", "upcoming_bottom", "day_summary"] },
+  { id: "routines", label: "Routines & reminders", hint: "Daily tasks and reminders", icon: ListChecks,
+    ids: ["daily_tasks", "pinned_daily_tasks", "reminders"] },
+  { id: "medications", label: "Medications", hint: "Today's doses and refills", icon: Pill,
+    ids: ["meds_today", "medications", "med_refills"] },
+  { id: "checkins", label: "Check-ins", hint: "Feelings, symptoms, diary cards", icon: PenLine,
+    ids: ["log_emotion", "log_symptom", "diary_card", "quick_checkin", "checkin_log", "current_symptoms"] },
+  { id: "sleep", label: "Sleep", hint: "", icon: Moon, ids: ["sleep"] },
+  { id: "journals", label: "Journals", hint: "Entries, a journal page, a book", icon: BookOpen,
+    ids: ["journal", "notebook", "journal_book"] },
+  { id: "chat", label: "{{System}} chat", hint: "", icon: MessagesSquare, ids: ["chat_channel", "chat_channels"] },
+  { id: "bulletins", label: "Bulletins & polls", hint: "", icon: Megaphone, ids: ["bulletin_board", "polls"] },
+  { id: "alters", label: "{{Alters}}", hint: "Lists, pinned {{alters}}, your {{system}}", icon: Users,
+    ids: ["alters_list", "pinned_alters", "system_identity", "system_header", "fronting_leaders", "alter_fronting_stats"] },
+  { id: "map", label: "Inner world", hint: "", icon: MapIcon, ids: ["inner_map", "inner_locations"] },
+  { id: "support", label: "Quick support", hint: "Grounding, breathing, emergency info, sounds", icon: Leaf,
+    ids: ["grounding_techniques", "breathing", "emergency_card", "learn_modules", "soundscape", "song"] },
+  { id: "lookback", label: "Analytics & timeline", hint: "", icon: History,
+    ids: ["emotion_analytics", "symptom_analytics", "insight_spotlight", "timeline_days"] },
+];
+const PAGE_ONLY_GROUPS = [
+  { id: "profile", label: "This profile", hint: "The parts of this page", icon: UserCircle },
+  { id: "profiles", label: "Profiles", hint: "One {{alter}}, group, contact or location — pick which in the widget's options", icon: IdCard },
+  { id: "anywhere", label: "Anywhere", hint: "Headings, text, pictures, spacing, links", icon: Shapes },
+  { id: "more", label: "More", hint: "Everything else, mods' widgets too", icon: Puzzle },
+];
+
+// Which page a board belongs to, for "this page's widgets first".
+// Notebook pages ("goal:<id>") are the Notebook's.
+export function libraryPageOf(pageId) {
+  if (!pageId) return null;
+  const id = String(pageId);
+  if (id.startsWith("goal:")) return "notebook";
+  return WIDGET_PAGES.some((p) => p.id === id) ? id : null;
+}
+
+export const widgetPageMeta = (id) => WIDGET_PAGES.find((p) => p.id === id) || null;
+
+// The menu entries (families folded) that belong to one page, in its order.
+export function pageWidgetEntries(entries, pageId) {
+  const meta = widgetPageMeta(pageId);
+  if (!meta) return [];
+  const folded = foldFamilies(entries);
+  const out = [];
+  for (const id of meta.ids) {
+    const hit = folded.find((e) => e.id === id || e.variants?.some((v) => v.id === id));
+    if (hit && !out.includes(hit)) out.push(hit);
+  }
+  return out;
+}
+
+// Same shape as groupWidgetEntries, grouped by app page instead.
+export function groupWidgetEntriesByPage(entries, labelOf = (id) => id) {
+  const groups = [...WIDGET_PAGES, ...PAGE_ONLY_GROUPS];
+  const buckets = new Map(groups.map((g) => [g.id, []]));
+  for (const entry of foldFamilies(entries)) {
+    const ids = entry.variants ? entry.variants.map((v) => v.id) : [entry.id];
+    const pages = WIDGET_PAGES.filter((p) => ids.some((id) => p.ids.includes(id)));
+    if (pages.length) { pages.forEach((p) => buckets.get(p.id).push(entry)); continue; }
+    const purpose = widgetMenuGroup(entry.id, entry.def);
+    const parent = WIDGET_MENU_GROUPS.find((g) => g.id === purpose)?.parent;
+    const where = purpose === "profile" ? "profile"
+      : (purpose === "profiles" || parent === "profiles") ? "profiles"
+      : purpose === "pieces" ? "anywhere" : "more";
+    buckets.get(where).push(entry);
+  }
+  const rank = (g, e) => {
+    const i = (g.ids || []).indexOf(e.id);
+    return i === -1 ? 1e3 : i;
+  };
+  return groups
+    .map((group) => ({
+      group,
+      items: buckets.get(group.id).sort((a, b) => rank(group, a) - rank(group, b) || String(labelOf(a)).localeCompare(String(labelOf(b)))),
+    }))
     .filter((g) => g.items.length > 0);
 }
