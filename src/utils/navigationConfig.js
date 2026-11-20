@@ -27,7 +27,10 @@ export const ALL_PAGES = [
   { id: "friends", label: "Friends", path: "/friends", icon: UserRound },
   { id: "planner", label: "Planner", path: "/planner", icon: CalendarRange },
   { id: "goals", label: "Notebook", path: "/goals", icon: NotebookTabs },
-  { id: "notes", label: "Notes & lists", path: "/notes", icon: NotebookPen },
+  // Notes & lists live inside the Notebook (v0.376.0): kept here so saved
+  // bars, grids and shortcuts that hold "notes" still work, but `folded` keeps
+  // it out of the menus' areas — the Notebook entry is the way in.
+  { id: "notes", label: "Notes & lists", path: "/goals?notes=1", icon: NotebookPen, folded: true },
   { id: "needs", label: "Needs", path: "/needs", icon: HeartHandshake },
   { id: "medications", label: "Medications", path: "/medications", icon: Pill },
   { id: "emergency", label: "Emergency info", path: "/emergency", icon: Siren },
@@ -74,7 +77,7 @@ export const NAV_AREAS = [
   { id: "today",   label: "Today",       pages: ["home", "reminders", "bulletins", "polls", "friends"] },
   { id: "us",      label: "{System}",    pages: ["alters", "checkin", "groups", "chat", "presences", "contacts", "get-to-know-me", "system-map", "system-history", "assets"] },
   { id: "plan",    label: "Plan & do",   pages: ["planner", "tasks", "todo", "activities", "needs", "medications", "sleep"] },
-  { id: "write",   label: "Write",       pages: ["journals", "goals", "notes"] },
+  { id: "write",   label: "Write",       pages: ["journals", "goals"] },
   { id: "support", label: "Support",     pages: ["support", "unblend", "safety-plan", "emergency"] },
   { id: "back",    label: "Look back",   pages: ["timeline", "checkin-log", "analytics", "location-history", "therapy-report", "history-archive"] },
   { id: "more",    label: "More",        pages: ["settings", "mods"] },
@@ -90,7 +93,7 @@ export function navAreaGroups(terms, { omit = [] } = {}) {
     label: a.label === "{System}" ? (terms?.System || "System") : a.label,
     items: a.pages.filter((id) => !skip.has(id)).map((id) => ALL_PAGES.find((p) => p.id === id)).filter(Boolean).map(item),
   }));
-  const strays = ALL_PAGES.filter((p) => !p.isMod && !listed.has(p.id) && !skip.has(p.id)).map(item);
+  const strays = ALL_PAGES.filter((p) => !p.isMod && !p.folded && !listed.has(p.id) && !skip.has(p.id)).map(item);
   if (strays.length) groups.find((g) => g.id === "more").items.push(...strays);
   const mods = ALL_PAGES.filter((p) => p.isMod).map(item);
   if (mods.length) groups.push({ id: "mods", label: "Mods", items: mods });
@@ -134,7 +137,6 @@ export const DEFAULT_CONFIG = {
     "journals",
     "tasks",
     "todo",
-    "notes",
     "goals",
     "needs",
     "medications",

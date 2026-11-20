@@ -57,7 +57,7 @@ function allGridItems(altersLabel, systemLabel) {
     { id: "journals",        label: "Journals",               icon: BookOpen,      path: "/journals",         color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
     { id: "tasks",           label: "Daily Tasks",            icon: CheckSquare,   path: "/tasks",            color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
     { id: "todo",            label: "To-Do List",             icon: ClipboardList, path: "/todo",             color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-    { id: "notes",           label: "Notes & lists",          icon: NotebookPen,   path: "/notes",            color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
+    { id: "notes",           label: "Notes & lists",          icon: NotebookPen,   path: "/goals?notes=1",    color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
     { id: "goals",           label: "Notebook",               icon: NotebookTabs,        path: "/goals",            color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
     { id: "needs",           label: "Needs",                  icon: HeartHandshake, path: "/needs",           color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
     { id: "medications",     label: "Medications",            icon: Pill,          path: "/medications",      color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },

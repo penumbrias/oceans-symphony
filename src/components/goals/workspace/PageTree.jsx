@@ -1,7 +1,12 @@
 // The sidebar: every page as a tree that folds, a search box, pinned pages
-// first and finished goals in their own group at the bottom.
+// first and finished goals in their own group at the bottom. Since v0.376.0
+// the person's notes, lists and flash-card decks are here too (Notes &
+// lists, below the goals); search finds them, and one opens in the list
+// sheet. They stay stored in the lists panel's stores (noteLists.js).
 import React, { useMemo, useState } from "react";
 import { ChevronRight, ChevronDown, Plus, Search, X } from "lucide-react";
+import { toast } from "sonner";
+import { useNoteLists, useNoteListWriters, listLabel } from "@/lib/noteLists";
 import { rootPages, childPages, ancestorsOf, flattenPages, createPage, orderAfter, MAX_PAGE_DEPTH } from "@/lib/goalTree";
 import { isOpenGoal } from "@/lib/goals";
 import { allPageTags, pageHasTag, pageTags, sectionHeading } from "@/lib/goalWriting";
@@ -40,8 +45,66 @@ function Node({ page, depth, currentId, expanded, toggle, onOpen, seen }) {
   );
 }
 
+const newestFirst = (a, b) => String(b.updated_date || b.created_date || "").localeCompare(String(a.updated_date || a.created_date || ""));
+const NOTES_SHOWN = 8;
+
+function NoteRow({ list, onOpenList }) {
+  return (
+    <li>
+      <button type="button" onClick={() => onOpenList(list.id)}
+        className="w-full text-left text-sm px-2 py-1 rounded-md hover:bg-muted/40 flex items-center gap-1.5 min-w-0">
+        <span className="truncate">{listLabel(list)}</span>
+      </button>
+    </li>
+  );
+}
+
+function NotesSection({ notesOpen, onOpenNotes, onOpenList }) {
+  const { lists } = useNoteLists();
+  const { createNote } = useNoteListWriters();
+  const [open, setOpen] = useState(true);
+  const sorted = useMemo(() => [...lists].sort(newestFirst), [lists]);
+  const newNote = async () => {
+    try {
+      const made = await createNote();
+      if (made?.id) onOpenList(made.id);
+    } catch (e) { toast.error(e?.message || "Couldn't make a note."); }
+  };
+  return (
+    <div className="space-y-1 pt-1 border-t border-border/40">
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? "Fold notes and lists" : "Show notes and lists"}
+          className="p-0.5 text-muted-foreground hover:text-foreground flex-shrink-0">
+          {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        </button>
+        <button type="button" onClick={onOpenNotes} aria-current={notesOpen ? "page" : undefined}
+          className={`flex-1 min-w-0 text-left text-sm font-medium py-1 px-1 rounded-md truncate ${notesOpen ? "bg-primary/10 text-primary" : "hover:bg-muted/40"}`}>
+          Notes &amp; lists
+        </button>
+        <button type="button" onClick={newNote} aria-label="New note" title="New note"
+          className="w-8 h-8 flex items-center justify-center rounded-md text-primary hover:bg-primary/10 flex-shrink-0">
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+      {open && (
+        sorted.length === 0
+          ? <p className="text-xs text-muted-foreground px-2">No notes or lists yet.</p>
+          : (
+            <ul className="space-y-0.5 pl-3">
+              {sorted.slice(0, NOTES_SHOWN).map((l) => <NoteRow key={`${l.source || "db"}-${l.id}`} list={l} onOpenList={onOpenList} />)}
+              {sorted.length > NOTES_SHOWN && (
+                <li><button type="button" onClick={onOpenNotes} className="text-xs text-primary px-2 py-1">All {sorted.length}</button></li>
+              )}
+            </ul>
+          )
+      )}
+    </div>
+  );
+}
+
 export default function PageTree({ currentId, onOpen }) {
-  const { index, goals, run, busy, tag, showTag } = useWorkspace();
+  const { index, goals, run, busy, tag, showTag, openList, openNotes, notesOpen } = useWorkspace();
+  const { lists: noteLists } = useNoteLists();
   const [q, setQ] = useState("");
   const [manual, setManual] = useState(() => new Map()); // id → open?
   const [showFinished, setShowFinished] = useState(false);
@@ -66,6 +129,9 @@ export default function PageTree({ currentId, onOpen }) {
     ? flattenPages(index).filter((r) => pageHasTag(r.page, tag))
     : want ? flattenPages(index).filter((r) => (!tagOnly && String(r.page.title || "").toLowerCase().includes(want))
       || (wantTag && pageTags(r.page).some((t) => t.toLowerCase().includes(wantTag)))) : [];
+  // Notes, lists and decks by name (not while showing a #tag).
+  const noteHits = want && !tagOnly && !tag && openList
+    ? noteLists.filter((l) => listLabel(l).toLowerCase().includes(want)).sort(newestFirst) : [];
 
   const addPage = async () => {
     const v = await promptText({ title: "New goal", placeholder: "What's it called?" });
@@ -90,7 +156,7 @@ export default function PageTree({ currentId, onOpen }) {
       </div>
       <div className="relative">
         <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input className={`${inputCls} pl-8 py-1.5`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pages and #tags" aria-label="Search pages" />
+        <input className={`${inputCls} pl-8 py-1.5`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pages, notes and #tags" aria-label="Search pages" />
       </div>
       {tags.length > 0 && !want && (
         <div className="flex flex-wrap gap-1" role="group" aria-label="Tags">
@@ -126,7 +192,11 @@ export default function PageTree({ currentId, onOpen }) {
               </li>
             );
           })}
-          {hits.length === 0 && <li className="text-sm text-muted-foreground px-2">No pages match.</li>}
+          {noteHits.length > 0 && (
+            <li className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes &amp; lists</li>
+          )}
+          {noteHits.map((l) => <NoteRow key={`n-${l.source || "db"}-${l.id}`} list={l} onOpenList={(id) => { openList(id); setQ(""); }} />)}
+          {hits.length === 0 && noteHits.length === 0 && <li className="text-sm text-muted-foreground px-2">Nothing matches.</li>}
         </ul>
       ) : (
         <>
@@ -155,6 +225,7 @@ export default function PageTree({ currentId, onOpen }) {
               {showFinished && list(finished)}
             </div>
           )}
+          {openList && <NotesSection notesOpen={!!notesOpen} onOpenNotes={openNotes} onOpenList={openList} />}
         </>
       )}
     </nav>

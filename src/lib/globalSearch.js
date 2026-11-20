@@ -855,7 +855,7 @@ export function buildGroceryRecords({ items = [], lists = [] }) {
     id: `list-${l.id}`,
     title: l.name || "List",
     subtitle: l.list_type === "note" ? (snippet(stripHtml(l.note_content)) || "Note") : (kindLabel[l.list_type] || "List"),
-    path: `/notes?list=${encodeURIComponent(l.id)}`,
+    path: `/goals?notes=1&list=${encodeURIComponent(l.id)}`,
     searchableText: joinNonEmpty([l.name, stripHtml(l.note_content), kindLabel[l.list_type]]).toLowerCase(),
     sortDate: l.created_date,
   }));
@@ -866,7 +866,7 @@ export function buildGroceryRecords({ items = [], lists = [] }) {
       id: g.id,
       title: stripHtml(g.name) || "Item",
       subtitle: [list?.name, snippet(stripHtml(g.back) || g.notes || g.category) || (g.checked ? "Ticked" : null)].filter(Boolean).join(" · "),
-      path: g.list_id ? `/notes?list=${encodeURIComponent(g.list_id)}` : "/notes",
+      path: g.list_id ? `/goals?notes=1&list=${encodeURIComponent(g.list_id)}` : "/goals?notes=1",
       searchableText: joinNonEmpty([stripHtml(g.name), stripHtml(g.back), g.notes, g.category, list?.name]).toLowerCase(),
       sortDate: g.created_date,
     };
