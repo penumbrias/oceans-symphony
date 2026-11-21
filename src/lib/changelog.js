@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 21, 2026",
+    changes: [
+      { type: "fix", text: "Backups never save as an empty file now. If a backup can't be written, you see an error instead of \"saved\"." },
+    ],
+  },
+  {
     date: "November 20, 2026",
+    version: "0.376.2",
     changes: [
       { type: "feature", text: "New dyslexia-friendly font: turn on OpenDyslexic from Display options → Text, Settings → Accessibility, or the ♿ button on the welcome screen." },
       { type: "feature", text: "File a note, list or flash-card deck inside any Notebook page from its ⋯ menu. It shows in that page and under it in the Pages menu." },

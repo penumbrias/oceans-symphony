@@ -60,6 +60,10 @@ export async function saveBlobToPublicDownloads({ blob, filename, mimeType, subd
   if (!(blob instanceof Blob)) {
     return { result: "failed", error: "not_a_blob" };
   }
+  // Never write an empty file into Downloads as if it were a backup.
+  if (blob.size === 0) {
+    return { result: "failed", error: "empty_file" };
+  }
   const usedSubdir = typeof subdir === "string" ? subdir : DEFAULT_SUBDIR;
   const type = mimeType || blob.type || "application/octet-stream";
   const location = usedSubdir ? `Downloads/${usedSubdir}` : "Downloads";

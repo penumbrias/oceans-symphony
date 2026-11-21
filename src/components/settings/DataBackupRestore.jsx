@@ -226,6 +226,11 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
 // bridge as one base64 string — saveBlobToPublicDownloads and shareFile
 // both write them in pieces.
 async function saveBackupBlob(blob, filename, mode = "save", { ext = ".json" } = {}) {
+  // Never hand an empty file to the person as their backup. A backup that
+  // came out empty fails loudly here instead of landing as a 0-byte file.
+  if (!(blob instanceof Blob) || blob.size === 0) {
+    return { result: "failed", error: "the backup came out empty, so nothing was saved. Reload the app and try again" };
+  }
   const mime = blob.type || "application/octet-stream";
 
   // SHARE-MODE early-out: skip MediaStore entirely and go straight
@@ -283,18 +288,28 @@ async function saveBackupBlob(blob, filename, mode = "save", { ext = ".json" } =
   // Chrome/Edge desktop support it; other browsers (and the native WebView,
   // handled above via MediaStore) fall through to the anchor-download below.
   if (!isNative() && typeof window !== "undefined" && typeof window.showSaveFilePicker === "function") {
+    let handle = null;
     try {
-      const handle = await window.showSaveFilePicker({
+      handle = await window.showSaveFilePicker({
         suggestedName: filename,
         types: [{ description: "Oceans Symphony backup", accept: { [mime]: [ext] } }],
       });
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return { result: "downloaded", location: `“${handle.name}” (where you chose)` };
     } catch (e) {
       if (e && e.name === "AbortError") return { result: "cancelled" }; // user closed the Save dialog
       console.warn("[downloadJson] showSaveFilePicker failed, falling back to download:", e?.message || e);
+    }
+    if (handle) {
+      // The browser makes the (empty) file as soon as a place is picked.
+      // If writing into it then fails, that empty file is all that's
+      // there — so say so, never report it as saved or quietly download
+      // a second copy somewhere else.
+      const written = await writeToPickedFile(handle, blob);
+      if (written.ok) return { result: "downloaded", location: `“${handle.name}” (where you chose)` };
+      console.warn("[downloadJson] writing the picked file failed:", written.error);
+      return {
+        result: "failed",
+        error: `the file “${handle.name}” couldn't be written (${written.error}) and may be empty. Delete it and try again, saving to a different folder`,
+      };
     }
   }
 
@@ -310,6 +325,28 @@ async function saveBackupBlob(blob, filename, mode = "save", { ext = ".json" } =
     // path fails (rare).
     prefer: "download",
   });
+}
+
+// Writes a backup into a file the person picked, then reads the size back
+// so a write that silently produced an empty or short file is caught.
+async function writeToPickedFile(handle, blob) {
+  let writable = null;
+  try {
+    writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    writable = null;
+  } catch (e) {
+    try { await writable?.abort?.(); } catch { /* already closed */ }
+    return { ok: false, error: e?.message || e?.name || "write failed" };
+  }
+  try {
+    const file = await handle.getFile?.();
+    if (file && file.size !== blob.size) {
+      return { ok: false, error: `${file.size} of ${blob.size} bytes were written` };
+    }
+  } catch { /* can't read it back here; the write itself reported success */ }
+  return { ok: true };
 }
 
 // Filter one raw entity dump ({ EntityName: { id: rec } }) down to the
