@@ -311,14 +311,14 @@ export function ColourRow({ label, hint, value, live, fallback = "#888888", onCh
 // `dot` marks a tab where this item has its own settings.
 export function TabBar({ tabs, value, onChange }) {
   return (
-    <div role="tablist" className="flex border-y border-border/50 bg-muted/20 flex-shrink-0">
+    <div role="tablist" className="os-tabbar flex border-y border-border/50 bg-muted/20 flex-shrink-0">
       {tabs.map((t) => {
         const on = t.id === value;
         const Icon = t.icon;
         return (
           <button key={t.id} type="button" role="tab" aria-selected={on} id={`inspector-tab-${t.id}`}
             onClick={() => onChange(t.id)}
-            className={`relative flex-1 min-w-0 flex flex-col items-center gap-0.5 pt-2 pb-1.5 text-[0.6875rem] border-b-2 ${
+            className={`os-tab relative flex-1 min-w-0 flex flex-col items-center gap-0.5 pt-2 pb-1.5 text-xs border-b-2 ${
               on ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>
             {Icon && <Icon className="w-4 h-4" />}

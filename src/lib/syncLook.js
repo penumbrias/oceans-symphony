@@ -34,6 +34,7 @@ export const DEVICE_LOOK_FIELDS = [
   "pinned_alters_config",   // pinned alters strip (+ per-level looks)
   "front_button_icon",      // custom icon on the front button
   "corner_mode",
+  "ui_look",                // Smooth / Pixel app look (uiLook.js)
   "wave_color_key",
   "wave_color_custom",
   "system_banner_height",   // banner crop differs by screen width

@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { readWaveColorKey, readWaveCustom } from "@/lib/waveColorKey";
 import { getPageWaveOverride, subscribePageWaveOverride } from "@/lib/pageWaveOverride";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { readUiLook, UI_LOOKS, STEPPED_WAVE_PATH } from "@/lib/uiLook";
 
 // Animated wave block that fills the header's upper portion with a
 // slightly lighter hue, ending in a wavy bottom edge that scrolls
@@ -43,6 +44,8 @@ export default function HeaderWaveBlock() {
 
   const settings = pickPrimarySystemSettings(settingsList);
   const colorKey = readWaveColorKey(settings);
+  // The pixel look draws the same wave in steps.
+  const pixel = readUiLook(settings) === UI_LOOKS.PIXEL;
   const customWave = readWaveCustom(settings);
 
   // "background" means "no wave" — unless a fully-custom hex is set, which
@@ -78,7 +81,8 @@ export default function HeaderWaveBlock() {
             darker outline — exactly the "seam" the user reported.
             Fill alone is seamless. */}
         <path
-          d="M240 0 L0 0 L0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22 Z"
+          d={pixel ? STEPPED_WAVE_PATH : "M240 0 L0 0 L0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22 Z"}
+          shapeRendering={pixel ? "crispEdges" : undefined}
           fill={fill}
           fillOpacity="0.3"
         />

@@ -1,0 +1,118 @@
+/* ── The pixel look (Display options → Shape → App look → Pixel) ──
+   Every rule here is scoped to html[data-ui-look="pixel"] (set by
+   UiLookApplier in src/lib/uiLook.js), so the smooth look never sees it.
+
+   It restyles the SHARED blocks — panels, cards, sheets, buttons, fields,
+   tabs, headings, the wave — and so every page at once. It never hides,
+   moves or adds anything: a page keeps every control it had.
+
+   Colours come from the person's theme: the bevel's light and dark edges
+   and the outline are mixed from --color-surface / --color-bg, so any
+   colour preset (or their own colours) still works. Alters' colours are
+   never touched. A heading font the person chose (data-heading-font)
+   always wins over the pixel heading font. */
+
+html[data-ui-look="pixel"] {
+  --px-font: 'Pixelify Sans', ui-monospace, monospace;
+  --px-line: color-mix(in srgb, var(--color-bg, #1a1c2b) 45%, #000);
+  --px-hi: color-mix(in srgb, var(--color-surface, #26293e) 74%, #fff);
+  --px-lo: color-mix(in srgb, var(--color-surface, #26293e) 62%, #000);
+  --px-bevel: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  --px-sunken: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi);
+  --radius: 0px;
+}
+
+/* Square corners. Round things that are round on purpose (avatars,
+   switches, dots: .rounded-full) stay round. */
+html[data-ui-look="pixel"] :is(
+  .rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl,
+  [class*="rounded-t-"], [class*="rounded-b-"], [class*="rounded-l-"], [class*="rounded-r-"],
+  [class*="rounded-tl-"], [class*="rounded-tr-"], [class*="rounded-bl-"], [class*="rounded-br-"],
+  [class*="rounded-["], .os-sheet, .os-card, [data-widget-box]
+) {
+  border-radius: 0 !important;
+}
+
+/* Panels: cards, sheets, dialogs, pop-overs — a bevelled box with a dark
+   outline, like a window in a pixel editor. */
+html[data-ui-look="pixel"] :is(.os-card, .os-sheet, .bg-card.border) {
+  border-color: var(--px-line) !important;
+  box-shadow: var(--px-bevel) !important;
+}
+html[data-ui-look="pixel"] .os-sheet { border-width: 2px; }
+
+/* Widget boxes take their border, shadow and radius from the person's
+   widget look (inline styles), so the bevel is drawn on top of the box
+   instead of replacing anything they set. */
+html[data-ui-look="pixel"] [data-widget-box] { position: relative; }
+html[data-ui-look="pixel"] [data-widget-box]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--px-bevel);
+}
+
+/* Buttons: raised, with a dark outline; pressed = the bevel flips. */
+html[data-ui-look="pixel"] .os-btn {
+  border-radius: 0 !important;
+  font-family: var(--px-font);
+  letter-spacing: 0.01em;
+  outline: 2px solid var(--px-line);
+  outline-offset: 0;
+  box-shadow: inset 2px 2px 0 rgb(255 255 255 / 0.28), inset -2px -2px 0 rgb(0 0 0 / 0.32) !important;
+}
+html[data-ui-look="pixel"] .os-btn:active {
+  transform: none !important;
+  box-shadow: inset 2px 2px 0 rgb(0 0 0 / 0.32), inset -2px -2px 0 rgb(255 255 255 / 0.2) !important;
+}
+html[data-ui-look="pixel"] .os-btn:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Text fields: sunken. */
+html[data-ui-look="pixel"] .os-field {
+  border-radius: 0 !important;
+  border-color: var(--px-line);
+  box-shadow: var(--px-sunken) !important;
+}
+html[data-ui-look="pixel"] .os-field:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+/* Tabs (the options menus' fixed tab strip): file-folder tabs. */
+html[data-ui-look="pixel"] .os-tabbar {
+  gap: 3px;
+  padding: 4px 4px 0;
+  border-color: var(--px-line);
+  background: color-mix(in srgb, var(--color-surface, #26293e) 80%, #000);
+}
+html[data-ui-look="pixel"] .os-tab {
+  font-family: var(--px-font);
+  border-bottom-width: 0 !important;
+  outline: 2px solid var(--px-line);
+  background: color-mix(in srgb, var(--color-surface, #26293e) 90%, #000);
+}
+html[data-ui-look="pixel"] .os-tab[aria-selected="true"] {
+  background: var(--color-surface, #26293e);
+  box-shadow: inset 2px 2px 0 var(--px-hi);
+}
+
+/* Display-font titles (page names, the app name) use the pixel font too —
+   only while the person hasn't chosen a heading font, which sets its own
+   --font-display and data-heading-font. */
+html[data-ui-look="pixel"]:not([data-heading-font]) { --font-display: var(--px-font); }
+
+/* Headings and titles in the pixel font — unless the person picked their
+   own heading font. What people write (journal, bulletin text) keeps its
+   own fonts. */
+html[data-ui-look="pixel"]:not([data-heading-font]) :is(h1, h2, h3, .os-title, [data-widget-label]):not(.bulletin-prose *, .ProseMirror *) {
+  font-family: var(--px-font);
+  letter-spacing: 0;
+}
+html[data-ui-look="pixel"] [data-widget-label] { text-transform: none; }
+
+/* Square scroll thumbs where the browser draws them. */
+html[data-ui-look="pixel"] ::-webkit-scrollbar-thumb { border-radius: 0; }

@@ -200,6 +200,11 @@ const THEME_PRESETS = {
 
 // Custom preset themes (from user screenshots)
 const CUSTOM_PRESETS = {
+  // The pixel look's own colours (the Penumblob navy, warm orange accent).
+  pixel: {
+    light: { bg: '#EFE6D2', surface: '#F8F1E2', primary: '#A8692B', secondary: '#E3D6BD', accent: '#565D86', muted: '#CBBD9F', 'text-primary': '#1A1C2B', 'text-secondary': '#454B6C' },
+    dark: { bg: '#1A1C2B', surface: '#26293E', primary: '#E8A65D', secondary: '#343853', accent: '#6D73B0', muted: '#454B6C', 'text-primary': '#E9E7F5', 'text-secondary': '#CFD1EA' }
+  },
   antiquePeach: { 
     light: { bg: '#FFE8D1', surface: '#FFE8D1', primary: '#F4A460', secondary: '#FFE8D1', accent: '#D2691E', muted: '#DEB887', 'text-primary': '#5C4033', 'text-secondary': '#8B6F47' },
     dark: { bg: '#3E2723', surface: '#5D4037', primary: '#FF8C42', secondary: '#4E342E', accent: '#FF6F00', muted: '#795548', 'text-primary': '#EFEBE9', 'text-secondary': '#BCAAA4' }

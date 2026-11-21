@@ -39,8 +39,8 @@ const DrawerContent = React.forwardRef(({ className, children, direction = "bott
         // way of the thing being adjusted (pass direction="top" on the
         // Drawer root too — vaul handles the gesture side).
         direction === "top"
-          ? "fixed inset-x-0 top-0 z-50 mb-24 flex h-auto flex-col rounded-b-[10px] border bg-background"
-          : "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+          ? "os-sheet fixed inset-x-0 top-0 z-50 mb-24 flex h-auto flex-col rounded-b-[10px] border bg-background"
+          : "os-sheet fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className
       )}
       // Top-docked sheets start below the status bar / notch — without

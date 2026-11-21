@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "November 21, 2026",
+    changes: [
+      { type: "feature", text: "New Pixel look: Display options → Shape → Look draws panels, buttons, fields and headings in an old-school pixel style. Nothing moves, and Smooth is one tap away." },
+      { type: "feature", text: "New \"pixel\" colours in Styles, and Pixelify Sans in the font lists." },
+    ],
+  },
+  {
     date: "November 20, 2026",
+    version: "0.376.2",
     changes: [
       { type: "feature", text: "New dyslexia-friendly font: turn on OpenDyslexic from Display options → Text, Settings → Accessibility, or the ♿ button on the welcome screen." },
       { type: "feature", text: "File a note, list or flash-card deck inside any Notebook page from its ⋯ menu. It shows in that page and under it in the Pages menu." },

@@ -132,6 +132,7 @@ import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 import OrphanRecoveryScreen from '@/components/onboarding/OrphanRecoveryScreen';
 import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 import { CornerModeApplier } from '@/lib/useCornerMode';
+import { UiLookApplier } from '@/lib/uiLook';
 import { unifyHomeBoards } from "@/lib/homeBoardUnify";
 import SaveHealthBanner from "@/components/shared/SaveHealthBanner";
 import { hideLaunchCover, watchForFirstScreen } from "@/lib/launchCover";
@@ -235,6 +236,7 @@ const AuthenticatedApp = () => {
   return (
     <ReduceMotionConfig>
       <CornerModeApplier />
+      <UiLookApplier />
       <ErrorBoundary
         resetKeys={[location.pathname]}
         // Stash the trace so the bug-report form can carry it. By the time
