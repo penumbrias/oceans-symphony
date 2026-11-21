@@ -46,6 +46,8 @@ export const APP_FONT_OPTIONS = [
   // bottoms help some readers keep letters from flipping or swimming.
   { label: "OpenDyslexic (dyslexia-friendly)", value: "OpenDyslexic, 'Atkinson Hyperlegible', sans-serif", legacy: "opendyslexic", category: "ui" },
   { label: "Nunito",                 value: "'Nunito', sans-serif",                         legacy: "nunito",   category: "ui" },
+  // Bundled (SIL OFL) — the pixel look's heading font, for anyone.
+  { label: "Pixelify Sans (pixel)",  value: "'Pixelify Sans', ui-monospace, monospace",                     category: "ui" },
   { label: "Poppins",                value: "Poppins, sans-serif",                                              category: "ui" },
   { label: "Raleway",                value: "Raleway, sans-serif",                                              category: "ui" },
   { label: "Noto Sans",              value: "'Noto Sans', sans-serif",                                          category: "ui" },

@@ -30,6 +30,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { installExtraFonts, uninstallExtraFonts } from "@/lib/fontPacks";
 import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFaces";
 import { CORNER_MODES } from "@/lib/useCornerMode";
+import { UI_LOOKS, readUiLook } from "@/lib/uiLook";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, useInspectorPages } from "@/components/shared/SettingRows";
@@ -361,6 +362,14 @@ function ShapeTab({ v2 }) {
     await base44.entities.SystemSettings.update(settingsRow.id, { corner_mode: mode });
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
+  // The app look (uiLook.js): Smooth or Pixel. Changes how every shared
+  // block is drawn, never what a page holds.
+  const uiLook = readUiLook(settingsRow);
+  const writeUiLook = async (look) => {
+    if (!settingsRow?.id || look === uiLook) return;
+    await base44.entities.SystemSettings.update(settingsRow.id, { ui_look: look });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
   const densityDef = tokenById.density;
   const [a11y, setA11y] = useState(() => getAccessibilitySettings());
   const refresh = () => setA11y(getAccessibilitySettings());
@@ -375,14 +384,19 @@ function ShapeTab({ v2 }) {
   const boardGap = useBoardGap();
   return (
     <div>
+      <Group title={tr("editSheet.groupAppLook")} first>
+        <ChoiceRow label={tr("editSheet.appLook")} hint={tr(uiLook === UI_LOOKS.PIXEL ? "editSheet.appLookPixelHint" : "editSheet.appLookHint")}
+          value={uiLook} onChange={writeUiLook}
+          options={[{ value: UI_LOOKS.SMOOTH, label: tr("editSheet.appLookSmooth") }, { value: UI_LOOKS.PIXEL, label: tr("editSheet.appLookPixel") }]} />
+      </Group>
       {boardGap && (
-        <Group title={tr("editSheet.groupWidgets")} first>
+        <Group title={tr("editSheet.groupWidgets")}>
           <div data-board-gap="">
             <WidgetGapRow value={boardGap.value} fallback={boardGap.fallback} onChange={boardGap.onChange} />
           </div>
         </Group>
       )}
-      <Group title={tr("editSheet.groupLayout")} first={!boardGap}>
+      <Group title={tr("editSheet.groupLayout")}>
         <TokenSliderRow v2={v2} id="contentW" hint={tr("editSheet.contentWidthHint")} />
         <ChoiceRow label={alignDef.label} value={v2.uiV2.tokens.alignX ?? "center"}
           onChange={(val) => v2.setToken("alignX", val)}

@@ -39,6 +39,14 @@
 @import '@fontsource/nunito/latin-ext-600.css';
 @import '@fontsource/nunito/latin-700.css';
 @import '@fontsource/nunito/latin-ext-700.css';
+/* Pixelify Sans (SIL OFL) — headings in the pixel look, and a font anyone
+   can pick. */
+@import '@fontsource/pixelify-sans/latin-400.css';
+@import '@fontsource/pixelify-sans/latin-ext-400.css';
+@import '@fontsource/pixelify-sans/latin-600.css';
+@import '@fontsource/pixelify-sans/latin-ext-600.css';
+/* The pixel look (src/lib/uiLook.js). */
+@import './styles/pixel-look.css';
 
 @tailwind base;
 @tailwind components;
