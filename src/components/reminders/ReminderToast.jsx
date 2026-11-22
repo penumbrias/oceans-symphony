@@ -249,7 +249,7 @@ export default function ReminderToast() {
         const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
         return (
           <div role="status" aria-live="polite" data-overlay-notification
-            className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[200] max-w-[calc(100vw-2rem)] sm:max-w-xs">
+            className="os-float-right fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[200] max-w-[calc(100vw-2rem)] sm:max-w-xs">
             <div className="flex items-center gap-1 bg-card border border-border shadow-lg rounded-full pl-1 pr-1 py-1 animate-in fade-in duration-200">
               <button type="button" onClick={() => setPinnedOpen(true)}
                 aria-label={`Reminder: ${reminder.title}. Show it`}
@@ -272,7 +272,7 @@ export default function ReminderToast() {
       {visible.length > 0 && !focusQuiet && !typing && showExpanded && (
         <div role="status" aria-live="polite" aria-atomic="false" data-overlay-notification
           onPointerDown={() => setPinnedOpen(true)}
-          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+          className="os-float-right fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
           {visible.slice(0, 1).map(({ instance, reminder }) => {
             const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
             const inlineActions = reminder.inline_actions || [];

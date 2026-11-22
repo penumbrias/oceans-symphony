@@ -262,6 +262,10 @@ export function initAccessibility() {
   loadExtraFontsIfInstalled();
 }
 
+function pixelLookOn() {
+  try { return document.documentElement.getAttribute("data-ui-look") === "pixel"; } catch { return false; }
+}
+
 export function getAccessibilitySettings() {
   return {
     fontSize:    localStorage.getItem(LS_FONT_SIZE)    || "default",
@@ -270,7 +274,9 @@ export function getAccessibilitySettings() {
     a11yMode:    localStorage.getItem(LS_A11Y_MODE)     === "true",
     largeTouch:  localStorage.getItem(LS_LARGE_TOUCH)  || "default",
     navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
-    fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || "inter",
+    // Nothing chosen: the font on screen is the pixel look's (applyFontFamily),
+    // so the font list shows Pixelify Sans as current, else Inter.
+    fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || (pixelLookOn() ? "'Pixelify Sans', ui-monospace, monospace" : "inter"),
     headingFont: localStorage.getItem(LS_HEADING_FONT) || "default",
     playInsideOnly: localStorage.getItem(LS_PLAY_INSIDE) === "true",
   };

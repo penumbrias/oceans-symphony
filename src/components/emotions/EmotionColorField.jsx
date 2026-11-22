@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { normalizeHex } from "@/lib/hexColor";
+import ColorPicker from "@/components/shared/ColorPicker";
 
-// Colour swatch (native picker) + hex text box. `value` is "" (= use the
+// Colour swatch (the app's colour picker) + hex text box. `value` is "" (= use the
 // category colour) or a valid "#rrggbb". onChange always gets "" or a
 // valid hex, so callers never store garbage.
 export default function EmotionColorField({ value = "", onChange, compact = false }) {
@@ -17,12 +18,12 @@ export default function EmotionColorField({ value = "", onChange, compact = fals
 
   return (
     <div className="flex items-center gap-1 flex-shrink-0">
-      <input
-        type="color"
+      <ColorPicker
+        compact
+        caption={false}
+        label="Emotion colour"
         value={value || "#8b5cf6"}
-        onChange={(e) => { setText(e.target.value); onChange?.(e.target.value.toLowerCase()); }}
-        aria-label="Emotion colour"
-        className={`${compact ? "w-6 h-6" : "w-7 h-7"} rounded-md border border-border/50 bg-transparent p-0 cursor-pointer`}
+        onChange={(hex) => { setText(hex); onChange?.(String(hex).toLowerCase()); }}
       />
       <input
         type="text"

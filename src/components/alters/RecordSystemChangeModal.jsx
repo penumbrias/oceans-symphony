@@ -11,6 +11,7 @@ import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft,
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import ColorPicker from "@/components/shared/ColorPicker";
 import { useTerms } from "@/lib/useTerms";
 import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
@@ -276,12 +277,10 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
         <div>
           <p className="text-xs text-muted-foreground mb-1">Color (optional)</p>
           <div className="flex items-center gap-2">
-            <input type="color" value={newAlterColor || "#9333ea"} onChange={e => onNewAlterColor(e.target.value)}
-              className="w-9 h-9 rounded cursor-pointer border border-border" />
-            <span className="text-xs text-muted-foreground">{newAlterColor || "#9333ea"}</span>
+            <ColorPicker value={newAlterColor || "#9333ea"} onChange={onNewAlterColor} />
           </div>
         </div>
-        {!newAlterName.trim() && <p className="text-xs text-destructive">Enter a name for the new alter.</p>}
+        {!newAlterName.trim() && <p className="text-xs text-destructive">Enter a name for the new {terms.alter}.</p>}
       </div>
     );
   }

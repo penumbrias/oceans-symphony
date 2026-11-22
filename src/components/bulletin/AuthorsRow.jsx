@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SystemAvatar from "@/components/shared/SystemAvatar";
+import { adjustForContrast, getSurfaceBackground } from "@/lib/contrast";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
@@ -16,6 +17,17 @@ function getContrastColor(hex) {
   const b = parseInt(clean.substring(4, 6), 16);
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return lum > 0.5 ? "#1a1a2e" : "#ffffff";
+}
+
+// The alter's own colour for their name, nudged only as far as it needs to
+// be readable on a card. The pixel look shows names in it (os-alter-name in
+// pixel-look.css); the smooth look keeps the usual text colour.
+function nameColorVar(alter) {
+  const c = typeof alter?.color === "string" ? alter.color.trim() : "";
+  if (!/^#[0-9a-f]{6}$/i.test(c)) return undefined;
+  let v = c;
+  try { v = adjustForContrast(c, getSurfaceBackground(), { minRatio: 4.5 }); } catch { /* keep their colour */ }
+  return { "--alter-name": v };
 }
 
 function AlterAvatar({ alter, size = "md" }) {
@@ -84,7 +96,12 @@ export default function AuthorsRow({ authorIds = [], alters = [], timestamp, sho
         </div>
         <div>
           <p className="text-sm font-medium text-foreground leading-tight">
-            {altersToShow.map(a => a.alias || a.name).join(", ")}
+            {altersToShow.map((a, i) => (
+              <React.Fragment key={a.id}>
+                {i > 0 && ", "}
+                <span className="os-alter-name" style={nameColorVar(a)}>{a.alias || a.name}</span>
+              </React.Fragment>
+            ))}
           </p>
           {timestamp && <p className="text-xs text-muted-foreground">{timestamp}</p>}
         </div>
@@ -98,7 +115,7 @@ export default function AuthorsRow({ authorIds = [], alters = [], timestamp, sho
         <Link key={alter.id} to={`/alter/${alter.id}`} className="flex items-center gap-1.5">
           <AlterAvatar alter={alter} />
           <div>
-            <p className="text-sm font-medium text-foreground leading-tight">{alter.alias || alter.name}</p>
+            <p className="os-alter-name text-sm font-medium text-foreground leading-tight" style={nameColorVar(alter)}>{alter.alias || alter.name}</p>
             {timestamp && altersToShow.indexOf(alter) === 0 && (
               <p className="text-xs text-muted-foreground">{timestamp}</p>
             )}

@@ -1619,6 +1619,26 @@ export function getRoutesWithTourSteps() {
   return set;
 }
 
+// The steps a tour plays: the whole tour, or (with restrictToRoute) one
+// page's tutorial. ONE copy, read by the tour itself and by the pixel look's
+// "How this page works" panel, so both always say the same thing.
+export function tourStepsFor(t, { restrictToRoute = null, alterId = null, tourAlterWasCreated = false, uiV2On = false, experimentalOn = false } = {}) {
+  const all = buildSteps(t, restrictToRoute ? (alterId || "_") : alterId, tourAlterWasCreated, uiV2On)
+    .filter((st) => !(uiV2On && st.classicOnly))
+    // Desktop-only controls (the update button) aren't on screen elsewhere.
+    .filter((st) => !(st.desktopOnly && !isDesktop()))
+    // Mods stay out of the tour until experimental
+    // features are switched on.
+    .filter((st) => !(st.experimental && !experimentalOn));
+  if (!restrictToRoute) return all;
+  const key = tutorialRouteKey(restrictToRoute);
+  const own = all.filter(s => s.route && tutorialRouteKey(s.route) === key
+    && s.section !== "welcome" && s.section !== "done" && !s.fullTourOnly);
+  // Open on how the page is built, staying on this page (route null).
+  const intro = own.length ? pageIntroStep(t, key) : null;
+  return intro ? [intro, ...own] : own;
+}
+
 export default function FeatureTour({ onClose, restrictToRoute = null }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -1654,22 +1674,10 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
   }, [altersLoaded]);
 
   const experimentalOn = useExperimentalOn();
-  const steps = useMemo(() => {
-    const all = buildSteps(t, restrictToRoute ? (tourAlterId || "_") : tourAlterId, tourAlterWasCreated, uiV2On)
-      .filter((st) => !(uiV2On && st.classicOnly))
-      // Desktop-only controls (the update button) aren't on screen elsewhere.
-      .filter((st) => !(st.desktopOnly && !isDesktop()))
-      // Mods stay out of the tour until experimental
-      // features are switched on.
-      .filter((st) => !(st.experimental && !experimentalOn));
-    if (!restrictToRoute) return all;
-    const key = tutorialRouteKey(restrictToRoute);
-    const own = all.filter(s => s.route && tutorialRouteKey(s.route) === key
-      && s.section !== "welcome" && s.section !== "done" && !s.fullTourOnly);
-    // Open on how the page is built, staying on this page (route null).
-    const intro = own.length ? pageIntroStep(t, key) : null;
-    return intro ? [intro, ...own] : own;
-  }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On, experimentalOn]);
+  const steps = useMemo(
+    () => tourStepsFor(t, { restrictToRoute, alterId: tourAlterId, tourAlterWasCreated, uiV2On, experimentalOn }),
+    [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On, experimentalOn],
+  );
   const [step, setStep] = useState(0);
 
   // Safety: if a page-scoped tour ends up with no steps (bad route, or every

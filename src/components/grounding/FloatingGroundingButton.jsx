@@ -265,7 +265,7 @@ export default function FloatingGroundingButton() {
       <button
         onMouseDown={onPointerDown}
         onTouchStart={onPointerDown}
-        className="fixed z-40 w-12 h-12 rounded-full bg-card border border-border/80 shadow-lg flex items-center justify-center hover:border-primary/30 select-none"
+        className="os-float-btn fixed z-40 w-12 h-12 rounded-full bg-card border border-border/80 shadow-lg flex items-center justify-center hover:border-primary/30 select-none"
         style={btnStyle}
         title="Grounding & support"
         aria-label="Open grounding support"

@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       { type: "feature", text: "New Pixel look: Display options → Shape → Look draws panels, buttons, fields and headings in an old-school pixel style. Nothing moves, and Smooth is one tap away." },
       { type: "feature", text: "New \"pixel\" colours in Styles, and Pixelify Sans in the font lists." },
+      { type: "feature", text: "Pixel look: a \"How this page works\" panel on the right holds each page's tips and Show me around." },
+      { type: "improve", text: "Pixel look: square chips and tick boxes, folder-style tabs, panel title bars, and bulletin authors' names in their own colour." },
+      { type: "fix", text: "Emotion colours and a new alter's colour in Record a change now use the app's colour picker." },
+      { type: "fix", text: "Pop-up notices now use your chosen font, and the font list shows the font you actually see." },
       { type: "feature", text: "Pixel look: a new header with area menus, Ctrl+K search and page tabs on desktop, a pixel phone header, and the pixel font by default unless you picked another." },
       { type: "fix", text: "Desktop app: backups saved with \"Save to device\" no longer come out as an empty 0-byte file." },
     ],

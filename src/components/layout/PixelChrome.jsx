@@ -18,13 +18,14 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, ChevronLeft, X, Plus } from "lucide-react";
+import { Bell, ChevronLeft, X, Plus, HelpCircle } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { navAreaGroups, pageLabel, ALL_PAGES } from "@/utils/navigationConfig";
 import { pageForPath } from "@/lib/pageLooks";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
+import PixelHelpPanel, { usePixelHelp } from "@/components/layout/PixelHelpPanel";
 
 const TABS_KEY = "symphony_pixel_tabs_v1";
 const MAX_TABS = 12;
@@ -78,7 +79,7 @@ function writeTabs(state) {
 }
 
 // ── Page tabs (computer) ───────────────────────────────────────────
-function PixelPageTabs() {
+function PixelPageTabs({ help }) {
   const location = useLocation();
   const navigate = useNavigate();
   const label = usePathLabel();
@@ -153,6 +154,16 @@ function PixelPageTabs() {
       })}
       <button type="button" className="px-doctab px-doctab-new" aria-label="New tab" title="New tab" onClick={() => open("/")}>
         <Plus className="w-3.5 h-3.5" />
+      </button>
+      <span className="flex-1" />
+      <button
+        type="button"
+        className={help.open ? "px-doctab px-doctab-new px-help-toggle sel" : "px-doctab px-doctab-new px-help-toggle"}
+        aria-pressed={help.open}
+        onClick={() => help.setOpen(!help.open)}
+        title="How this page works"
+      >
+        <HelpCircle className="w-3.5 h-3.5" /> <span>How this page works</span>
       </button>
     </div>
   );
@@ -275,6 +286,7 @@ function PixelSearch() {
 
 // ── The whole frame ────────────────────────────────────────────────
 export function PixelDesktopHeader({ pendingCount = 0, todoAlertCount = 0, onHome, onAppGrid }) {
+  const help = usePixelHelp();
   const extraMore = (
     <>
       <div className="px-menu-sep" />
@@ -309,7 +321,8 @@ export function PixelDesktopHeader({ pendingCount = 0, todoAlertCount = 0, onHom
           <HeaderPageMenu className="px-iconbtn" />
         </div>
       </div>
-      <PixelPageTabs />
+      <PixelPageTabs help={help} />
+      <PixelHelpPanel open={help.open} onClose={() => help.setOpen(false)} />
     </header>
   );
 }

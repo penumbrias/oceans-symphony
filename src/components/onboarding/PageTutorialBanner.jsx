@@ -79,7 +79,7 @@ export default function PageTutorialBanner({ onLaunch }) {
   };
 
   return (
-    <div className="mb-3 mt-1">
+    <div className="os-page-tip mb-3 mt-1">
       <div className="flex items-center gap-2 bg-primary/8 border border-primary/20 rounded-xl px-3 py-2">
         <GraduationCap className="w-4 h-4 text-primary flex-shrink-0" />
         <p className="text-xs flex-1 text-foreground leading-snug">
