@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 22, 2026",
+    changes: [
+      { type: "fix", text: "Desktop app: backups saved with \"Save to device\" no longer come out as an empty 0-byte file." },
+    ],
+  },
+  {
     date: "November 21, 2026",
+    version: "0.376.3",
     changes: [
       { type: "fix", text: "Backups never save as an empty file now. If a backup can't be written, you see an error instead of \"saved\"." },
     ],
