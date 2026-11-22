@@ -168,10 +168,24 @@ function applyNavHeight(value) {
   document.documentElement.style.setProperty("--bottom-nav-extra", `${extra}px`);
 }
 
+// The pixel look's body font, used only while the person hasn't picked one.
+export const PIXEL_BODY_FONT = "'Pixelify Sans', 'Atkinson Hyperlegible', sans-serif";
+
 function applyFontFamily(value) {
-  // Accepts either a legacy short key ("inter") or a CSS font-family string
-  const css = LEGACY_FONT_MAP[value] || value || "'Inter', sans-serif";
-  document.documentElement.style.setProperty("--font-sans", css);
+  // Accepts either a legacy short key ("inter") or a CSS font-family string.
+  // With nothing chosen, the pixel look (html[data-ui-look="pixel"]) uses its
+  // own pixel font; a font the person picked always wins.
+  const root = document.documentElement;
+  const fallback = root.getAttribute("data-ui-look") === "pixel" ? PIXEL_BODY_FONT : "'Inter', sans-serif";
+  const css = LEGACY_FONT_MAP[value] || value || fallback;
+  root.style.setProperty("--font-sans", css);
+}
+
+/** Re-apply the saved body font (after the app look changes). */
+export function reapplyFontFamily() {
+  let saved = null;
+  try { saved = localStorage.getItem(LS_FONT_FAMILY); } catch { /* storage off */ }
+  applyFontFamily(saved);
 }
 
 // 10 heading-font choices spanning sans / serif / handwriting / display.
@@ -241,7 +255,7 @@ export function initAccessibility() {
   applyA11yMode(localStorage.getItem(LS_A11Y_MODE) === "true");
   applyLargeTouch(localStorage.getItem(LS_LARGE_TOUCH) || "default");
   applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
-  applyFontFamily(localStorage.getItem(LS_FONT_FAMILY) || "inter");
+  applyFontFamily(localStorage.getItem(LS_FONT_FAMILY));
   applyHeadingFont(localStorage.getItem(LS_HEADING_FONT) || "default");
   // If the user previously opted into the optional extra-font pack, re-inject
   // its stylesheet so their chosen extra font keeps rendering after launch.

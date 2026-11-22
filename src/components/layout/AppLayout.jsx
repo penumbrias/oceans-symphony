@@ -20,6 +20,8 @@ import QuickActionsHost from "@/components/dashboard/QuickActionsHost";
 import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
+import { PixelDesktopHeader, PixelPhoneHeader } from "@/components/layout/PixelChrome";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 import { OPEN_PAGE_TOUR_EVENT, OPEN_FULL_TOUR_EVENT } from "@/lib/pageTutorials";
 import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
@@ -384,6 +386,10 @@ const settings0 = pickPrimarySystemSettings(systemSettings);
 // release can ship with zero UI changes by flipping the flag alone.
 const uiV2 = useMemo(() => resolveUiV2(settings0?.ui_v2), [settings0?.ui_v2]);
 const uiV2On = UI_V2_ENABLED && uiV2.enabled;
+// The pixel look brings its own frame (PixelChrome) in place of the classic
+// headers and desktop sidebar. The v2 frame keeps its own chrome.
+const uiLook = useUiLook();
+const pixelChrome = uiLook === UI_LOOKS.PIXEL && !uiV2On;
 // v2 bars hosted in CLASSIC chrome (ui_v2 off): the quick-action bar and
 // pinned alters bar are default-on; the v2 top bar replaces the classic
 // header only when chosen. Wait for settings to load (settings0 defined)
@@ -804,6 +810,7 @@ const handleNotifClick = (mentionLog) => {
     <div
       className="flex flex-col h-screen bg-background overflow-hidden"
       data-ui-v2={uiV2On ? "1" : undefined}
+      data-px-chrome={pixelChrome ? "1" : undefined}
       data-rail-side={uiV2On && uiV2.tokens.railSide === "right" ? "right" : undefined}
       data-v2-bstyle={uiV2On && uiV2.tokens.bodyStyle?.length ? uiV2.tokens.bodyStyle.join(" ") : undefined}
       data-v2-hstyle={uiV2On && uiV2.tokens.headerStyle?.length ? uiV2.tokens.headerStyle.join(" ") : undefined}
@@ -844,6 +851,22 @@ const handleNotifClick = (mentionLog) => {
           headers (hidden via [data-classic-v2-top] in index.css). */}
       {!uiV2On && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} classicHost />}
 
+      {pixelChrome && (
+        <>
+          <PixelDesktopHeader
+            pendingCount={pendingCount}
+            todoAlertCount={todoAlertCount}
+            onHome={goHomeClean}
+            onAppGrid={openAppGrid}
+          />
+          <PixelPhoneHeader
+            pendingCount={pendingCount}
+            canGoBack={canGoBack}
+            onBack={handleBack}
+            onOpenMenu={() => setSidebarOpen(true)}
+          />
+        </>
+      )}
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the

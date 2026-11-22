@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { reapplyFontFamily } from "@/lib/useAccessibility";
 
 // The app's overall look (Display options → Shape → App look):
 //   "smooth" — the look the app has always had (the default)
@@ -41,6 +42,8 @@ export function UiLookApplier() {
     const el = document.documentElement;
     if (look === UI_LOOKS.PIXEL) el.setAttribute("data-ui-look", "pixel");
     else el.removeAttribute("data-ui-look");
+    // The pixel look's body font applies only while none is chosen.
+    reapplyFontFamily();
   }, [look]);
   return null;
 }

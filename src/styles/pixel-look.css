@@ -116,3 +116,101 @@ html[data-ui-look="pixel"] [data-widget-label] { text-transform: none; }
 
 /* Square scroll thumbs where the browser draws them. */
 html[data-ui-look="pixel"] ::-webkit-scrollbar-thumb { border-radius: 0; }
+
+/* ── The pixel frame (PixelChrome.jsx) ───────────────────────────────
+   Mounted in place of the classic headers and desktop sidebar while the
+   pixel look is on (AppLayout sets data-px-chrome on its root). */
+[data-px-chrome] .os-classic-header,
+[data-px-chrome] aside.os-classic-chrome { display: none !important; }
+
+html[data-ui-look="pixel"] {
+  --px-panel: var(--color-surface, #26293e);
+  --px-bar: color-mix(in srgb, var(--color-surface, #26293e) 78%, var(--color-text-primary, #e9e7f5) 8%);
+  --px-sunk: var(--color-bg, #1a1c2b);
+  --px-text: var(--color-text-primary, #e9e7f5);
+  --px-text-2: var(--color-text-secondary, #cfd1ea);
+  --px-tab: color-mix(in srgb, var(--color-surface, #26293e) 85%, var(--color-bg, #1a1c2b));
+}
+
+.px-chrome { font-family: var(--px-font); color: var(--px-text); }
+.px-headbar {
+  position: relative;
+  height: 48px;
+  background: var(--px-bar);
+  box-shadow: inset 0 -2px 0 var(--px-line);
+  padding-top: min(env(safe-area-inset-top, 0px), 64px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  box-sizing: content-box;
+}
+.px-headbar-phone { height: 56px; }
+.px-headrow {
+  position: relative; z-index: 1; height: 100%;
+  display: flex; align-items: center; gap: 4px; padding: 0 10px;
+}
+.px-brand { display: flex; align-items: center; gap: 8px; margin-right: 14px; color: var(--px-text); text-decoration: none; }
+.px-logo { width: 28px; height: 28px; object-fit: contain; outline: 2px solid var(--px-line); image-rendering: pixelated; }
+.px-appname { font-weight: 600; font-size: 17px; white-space: nowrap; }
+.px-brandbtn { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+.px-phone-title { flex: 1; min-width: 0; font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 6px; }
+
+.px-areas { display: flex; align-items: center; gap: 2px; font-size: 14px; }
+.px-area { padding: 4px 8px; color: var(--px-text); min-height: 30px; }
+.px-area:hover { background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
+.px-area.sel { background: var(--px-panel); outline: 2px solid var(--px-line); }
+.px-area:focus-visible, .px-doctab button:focus-visible, .px-menu-item:focus-visible, .px-search:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 0; }
+
+.px-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 70; min-width: 220px; padding: 4px 0;
+  background: var(--px-panel); outline: 2px solid var(--px-line); box-shadow: var(--px-bevel);
+  font-family: var(--px-font); font-size: 14px; color: var(--px-text);
+}
+.px-menu-row { display: flex; align-items: center; }
+.px-menu-row.sel { background: color-mix(in srgb, var(--color-primary) 22%, transparent); }
+.px-menu-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 6px 12px; min-height: 34px; text-align: left; color: var(--px-text); width: 100%; }
+.px-menu-item:hover, .px-menu-newtab:hover { background: var(--px-bar); }
+.px-menu-newtab { width: 30px; min-height: 34px; display: flex; align-items: center; justify-content: center; color: var(--px-text-2); }
+.px-menu-sep { height: 2px; background: var(--px-line); margin: 4px 0; }
+.px-badge { min-width: 18px; height: 16px; padding: 0 3px; font-size: 11px; line-height: 16px; text-align: center; background: var(--color-primary); color: var(--color-bg); outline: 2px solid var(--px-line); }
+.px-badge-corner { position: absolute; top: 2px; right: 2px; }
+
+.px-search { display: flex; align-items: center; gap: 14px; padding: 5px 10px; min-height: 30px; color: var(--px-text-2); background: var(--px-sunk); box-shadow: var(--px-sunken); font-size: 13px; }
+.px-kbd { opacity: 0.8; }
+.px-search-panel { left: auto; right: 0; width: min(520px, 90vw); padding: 10px; font-family: var(--font-sans); }
+
+.px-iconbtn { display: inline-flex !important; align-items: center; justify-content: center; min-width: 32px !important; min-height: 32px !important; border-radius: 0 !important; color: var(--px-text) !important; background: transparent !important; }
+.px-iconbtn:hover { background: var(--px-panel) !important; }
+.px-iconbtn-lg { min-width: 44px !important; min-height: 44px !important; }
+
+.px-tabstrip {
+  height: 30px; display: flex; align-items: flex-end; gap: 4px; padding: 0 8px;
+  background: var(--px-sunk); font-size: 13px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.px-tabstrip::-webkit-scrollbar { display: none; }
+.px-doctab { display: flex; align-items: center; flex-shrink: 0; background: var(--px-tab); outline: 2px solid var(--px-line); color: var(--px-text-2); max-width: 220px; }
+.px-doctab.sel { background: var(--px-panel); color: var(--px-text); box-shadow: inset 2px 2px 0 var(--px-hi); }
+.px-doctab-name { padding: 5px 4px 5px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 26px; }
+.px-doctab.sel .px-doctab-name { padding-top: 6px; padding-bottom: 6px; }
+.px-doctab-x { padding: 0 8px 0 6px; align-self: stretch; display: flex; align-items: center; opacity: 0.8; }
+.px-doctab-x:hover { opacity: 1; }
+.px-doctab-new { padding: 5px 10px; min-height: 26px; }
+
+/* The phone's bottom bar, in the frame's style. */
+[data-px-chrome] .os-classic-bottom-nav {
+  background: var(--px-bar) !important; backdrop-filter: none !important;
+  border-top: 0 !important; box-shadow: inset 0 2px 0 var(--px-line);
+  font-family: var(--px-font);
+}
+[data-px-chrome] .os-classic-bottom-nav a[aria-current="page"] { background: var(--color-muted, #454b6c); color: var(--px-text) !important; }
+[data-px-chrome] .os-classic-bottom-nav a[aria-current="page"] svg { transform: none !important; }
+
+/* The page sits on the checkered floor, like the mockups. */
+[data-px-chrome] #main-content {
+  background-color: var(--px-sunk);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--px-sunk) 96%, var(--px-text)) 0 25%, var(--px-sunk) 0 50%);
+  background-size: 16px 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-chrome .app-header-wave-slide { animation: none !important; }
+}
