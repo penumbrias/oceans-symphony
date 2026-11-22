@@ -376,3 +376,12 @@ html[data-ui-look="pixel"] .os-head-label {
   letter-spacing: 0;
   color: var(--px-text);
 }
+
+/* Page titles: compact, like a window's name (the page's tab already
+   names it). Profile and widget-board headers keep their own sizes. */
+@media (min-width: 1024px) {
+  html[data-ui-look="pixel"] [data-px-chrome] #main-content h1:not([data-widget-label], .ProseMirror *, .bulletin-prose *) {
+    font-size: 1.375rem !important;
+    line-height: 1.25 !important;
+  }
+}
