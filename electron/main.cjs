@@ -693,10 +693,16 @@ if (!app.requestSingleInstanceLock()) {
       'fullscreen',
       'background-sync',
     ]);
+    // "fileSystem" is the File System Access API: writing into a file the
+    // person just picked in a Save dialog (backups use it). Chromium makes
+    // the picked file BEFORE asking for write permission, so denying it left
+    // an empty 0-byte backup behind. It only ever covers a file or folder
+    // the person chose themselves in the system dialog.
+    const allowedFor = (permission) => allowed.has(permission) || permission === 'fileSystem';
     session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-      callback(allowed.has(permission));
+      callback(allowedFor(permission));
     });
-    session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
+    session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowedFor(permission));
 
     // The single renderer→main channel. Takes no arguments on purpose:
     // the renderer cannot ask us to open an arbitrary path, only the one

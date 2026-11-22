@@ -18,10 +18,18 @@
 
 export const CHANGELOG = [
   {
-    date: "November 21, 2026",
+    date: "November 22, 2026",
     changes: [
       { type: "feature", text: "New Pixel look: Display options → Shape → Look draws panels, buttons, fields and headings in an old-school pixel style. Nothing moves, and Smooth is one tap away." },
       { type: "feature", text: "New \"pixel\" colours in Styles, and Pixelify Sans in the font lists." },
+      { type: "fix", text: "Desktop app: backups saved with \"Save to device\" no longer come out as an empty 0-byte file." },
+    ],
+  },
+  {
+    date: "November 21, 2026",
+    version: "0.376.3",
+    changes: [
+      { type: "fix", text: "Backups never save as an empty file now. If a backup can't be written, you see an error instead of \"saved\"." },
     ],
   },
   {
