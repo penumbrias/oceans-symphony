@@ -821,10 +821,10 @@ export default function CurrentFronters({ alters, hideStatusNote = false, onlyAl
             Tour Preview — sample data
           </div>
         )}
-        <div className="flex items-center justify-between mb-2.5">
+        <div className="os-head-row flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Currently {terms.Fronting}</p>
+            <p className="os-head-label text-muted-foreground text-xs font-semibold uppercase tracking-wider">Currently {terms.Fronting}</p>
           </div>
           <div className="flex items-center gap-1">
             {/* Post-hoc switch metadata icons. Visible whenever there's

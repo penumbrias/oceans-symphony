@@ -22,6 +22,7 @@ export const CHANGELOG = [
     changes: [
       { type: "feature", text: "New Pixel look: Display options → Shape → Look draws panels, buttons, fields and headings in an old-school pixel style. Nothing moves, and Smooth is one tap away." },
       { type: "feature", text: "New \"pixel\" colours in Styles, and Pixelify Sans in the font lists." },
+      { type: "improve", text: "Pixel look: widgets are solid panels with a title bar, and the Tour explains the new menus, page tabs and search." },
       { type: "feature", text: "Pixel look: a \"How this page works\" panel on the right holds each page's tips and Show me around." },
       { type: "improve", text: "Pixel look: square chips and tick boxes, folder-style tabs, panel title bars, and bulletin authors' names in their own colour." },
       { type: "fix", text: "Emotion colours and a new alter's colour in Record a change now use the app's colour picker." },

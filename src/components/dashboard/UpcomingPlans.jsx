@@ -153,8 +153,8 @@ export default function UpcomingPlans({
 
   return (
     <div className="mb-3">
-      <div className="flex items-center justify-between px-1 mb-1.5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+      <div className="os-head-row flex items-center justify-between px-1 mb-1.5">
+        <p className="os-head-label text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
           <Calendar className="w-3 h-3" /> {title}
         </p>
         <div className="flex items-center gap-3">

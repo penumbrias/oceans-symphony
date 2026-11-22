@@ -265,14 +265,36 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/", look: `the 📥 inbox icon in the top-right of the header`,
     }),
     s("dashboard", {
-      emoji: "☰", title: "The sidebar", classicOnly: true,
+      emoji: "☰", title: "The sidebar", classicOnly: true, notPixelDesk: true,
       body: `Tap the logo in the top-left to open the sidebar. Every page is there, grouped by what it does. It closes by itself when you pick a page.`,
       route: "/", look: `the Oceans Symphony logo in the top-left of the header`,
     }),
     s("dashboard", {
-      emoji: "🔲", title: "Sidebar or app grid", classicOnly: true,
+      emoji: "🔲", title: "Sidebar or app grid", classicOnly: true, notPixelDesk: true,
       body: `The grid icon in the sidebar's header switches to an app grid; the list icon switches back. Choose which pages it lists in Settings → Appearance → Layout → Sidebar.`,
       route: "/", look: `the grid icon at the top of the open sidebar`,
+    }),
+    // The pixel look's frame on a computer (PixelChrome.jsx) replaces the
+    // sidebar with area menus, page tabs and a side help panel.
+    s("dashboard", {
+      emoji: "🗂️", title: "Area menus", pixelDeskOnly: true,
+      body: `Every page sits in one of the menus along the top: Today, ${t.System}, Plan & do, Write, Support, Look back and More. Ctrl-click a page, or its +, to open it in a new tab.`,
+      route: "/", target: "px-area-menus",
+    }),
+    s("dashboard", {
+      emoji: "📑", title: "Page tabs", pixelDeskOnly: true,
+      body: `Pages you open sit in tabs under the header, like a drawing app's files. + opens a new tab and × closes one. Your tabs are still there next time.`,
+      route: "/", target: "px-page-tabs",
+    }),
+    s("dashboard", {
+      emoji: "🔎", title: "Search everything", pixelDeskOnly: true,
+      body: `Search everything (or Ctrl+K) finds anything you've saved: ${t.alters}, journals, check-ins, plans, notes and more.`,
+      route: "/", target: "px-search",
+    }),
+    s("dashboard", {
+      emoji: "❔", title: "How this page works", pixelDeskOnly: true,
+      body: `How this page works opens a panel on the right with this page's tips and Show me around. It opens by itself on pages you haven't seen yet.`,
+      route: "/", target: "px-help-toggle",
     }),
     s("dashboard", {
       emoji: "📝", title: "Notes & lists",
@@ -1619,12 +1641,22 @@ export function getRoutesWithTourSteps() {
   return set;
 }
 
+// Is the pixel look's computer frame on screen right now? (AppLayout marks
+// it data-px-chrome; it shows from 1024px wide.)
+function pixelDeskFrameOn() {
+  try {
+    return !!document.querySelector("[data-px-chrome]") && window.matchMedia("(min-width: 1024px)").matches;
+  } catch { return false; }
+}
+
 // The steps a tour plays: the whole tour, or (with restrictToRoute) one
 // page's tutorial. ONE copy, read by the tour itself and by the pixel look's
 // "How this page works" panel, so both always say the same thing.
-export function tourStepsFor(t, { restrictToRoute = null, alterId = null, tourAlterWasCreated = false, uiV2On = false, experimentalOn = false } = {}) {
+export function tourStepsFor(t, { restrictToRoute = null, alterId = null, tourAlterWasCreated = false, uiV2On = false, experimentalOn = false, pixelDesk = pixelDeskFrameOn() } = {}) {
   const all = buildSteps(t, restrictToRoute ? (alterId || "_") : alterId, tourAlterWasCreated, uiV2On)
     .filter((st) => !(uiV2On && st.classicOnly))
+    // The pixel frame on a computer has no sidebar, and its own parts.
+    .filter((st) => !(pixelDesk && st.notPixelDesk) && !(!pixelDesk && st.pixelDeskOnly))
     // Desktop-only controls (the update button) aren't on screen elsewhere.
     .filter((st) => !(st.desktopOnly && !isDesktop()))
     // Mods stay out of the tour until experimental

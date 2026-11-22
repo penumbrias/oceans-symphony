@@ -189,8 +189,8 @@ export default function PinnedDailyTasksWidget() {
       {/* Compact label-style header — matches the other dashboard section
           headers (UpcomingPlans, DashboardPins, CurrentSymptoms) so the
           widget no longer reads as a separate card with its own padding. */}
-      <div className="flex items-center justify-between px-1 mb-1.5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+      <div className="os-head-row flex items-center justify-between px-1 mb-1.5">
+        <p className="os-head-label text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
           <Sparkles className="w-3 h-3" /> Pinned tasks
         </p>
         <div className="flex items-center gap-3">

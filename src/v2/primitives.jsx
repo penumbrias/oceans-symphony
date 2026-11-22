@@ -94,6 +94,9 @@ export const valignBoxStyle = () => ({
   justifyContent: "var(--v2-widget-valign-set, flex-start)",
 });
 
+const PAD = (side) => `var(--v2-pad-${side}, var(--v2-pad, calc(var(--v2-space, 6px) * 1.5)))`;
+const HEAD_PAD_VARS = { "--os-pad-t": PAD("t"), "--os-pad-r": PAD("r"), "--os-pad-l": PAD("l") };
+
 export function Section({ label, action, center, children }) {
   const chrome = useWidgetChrome();
   // Only a widget that draws a heading gets the person's name in it — a
@@ -107,7 +110,12 @@ export function Section({ label, action, center, children }) {
     // the list below can scroll instead of forcing the box open.
     <section className="h-full flex flex-col min-h-0" data-widget-box="1" style={boxStyle()}>
       {(showLabel || action) && (
-        <div className={`flex items-baseline ${showLabel ? "justify-between" : "justify-end"} mb-1 flex-shrink-0`}>
+        <div
+          className={`os-widget-head flex items-baseline ${showLabel ? "justify-between" : "justify-end"} mb-1 flex-shrink-0`}
+          // The box's own padding, so the pixel look can stretch this row
+          // edge to edge as a title bar (pixel-look.css). Unused otherwise.
+          style={HEAD_PAD_VARS}
+        >
           {/* data-widget-label: the options sheet looks for it to know this
               widget has a name it can hide. */}
           {showLabel && <h2 data-widget-label="" className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>}

@@ -138,7 +138,7 @@ export function ProfileBox({ children, name = "" }) {
   return (
     <section className="h-full flex flex-col min-h-0" data-widget-box="1" style={boxStyle({ borderFallback: false, padFallback: false })}>
       {showLabel && (
-        <h2 data-widget-label="" className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex-shrink-0">{ownName}</h2>
+        <h2 data-widget-label="" className="os-head-row os-head-label text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex-shrink-0">{ownName}</h2>
       )}
       {/* Body moves with the board's "Down" alignment; the ref'd child is
           what the empty check reads. */}

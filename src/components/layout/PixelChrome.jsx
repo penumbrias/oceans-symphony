@@ -135,7 +135,7 @@ function PixelPageTabs({ help }) {
   }, [open]);
 
   return (
-    <div className="px-tabstrip" role="tablist" aria-label="Open pages">
+    <div className="px-tabstrip" role="tablist" aria-label="Open pages" data-tour="px-page-tabs">
       {state.tabs.map((tab) => {
         const sel = tab.id === state.active;
         const name = label(tab.path);
@@ -159,6 +159,7 @@ function PixelPageTabs({ help }) {
       <button
         type="button"
         className={help.open ? "px-doctab px-doctab-new px-help-toggle sel" : "px-doctab px-doctab-new px-help-toggle"}
+        data-tour="px-help-toggle"
         aria-pressed={help.open}
         onClick={() => help.setOpen(!help.open)}
         title="How this page works"
@@ -191,7 +192,7 @@ function AreaMenus({ extraMore, pendingCount, todoAlertCount }) {
   const activeArea = groups.find((g) => g.items.some((it) => isActivePath(it.path, location.pathname)))?.id;
 
   return (
-    <nav ref={ref} className="px-areas" aria-label="Main navigation">
+    <nav ref={ref} className="px-areas" aria-label="Main navigation" data-tour="px-area-menus">
       {groups.map((g) => {
         const open = openId === g.id;
         return (
@@ -271,7 +272,7 @@ function PixelSearch() {
   const mac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform || "");
   return (
     <div ref={ref} className="relative">
-      <button type="button" className="px-search" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Search everything">
+      <button type="button" className="px-search" data-tour="px-search" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Search everything">
         <span>Search everything</span>
         <span className="px-kbd">{mac ? "⌘K" : "Ctrl K"}</span>
       </button>
