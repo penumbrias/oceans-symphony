@@ -57,8 +57,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("welcome", {
       emoji: "♿", title: "Accessibility, any time",
-      body: `The Accessibility button in the corner stays with you through the whole tour. Tap it for bigger text, high contrast or low-vision mode. It's all in Settings → Accessibility too.`,
-      route: "/", look: `the floating "Accessibility" button in the corner of the screen`,
+      body: `The Accessibility button on this card stays with you through the whole tour. Tap it for bigger text, high contrast or low-vision mode. It's all in Settings → Accessibility too.`,
+      route: "/", look: `the Accessibility button beside the × on this card`,
     }),
 
     // ─── ABOUT THE APP (v0.370.4) ───────────────────────────────────────────
@@ -307,10 +307,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals?notes=1", target: ["notes-layout-btn", "notes-page"],
     }),
     s("dashboard", {
-      emoji: "🛒", title: "The grocery list",
+      emoji: "🛒", title: "The grocery list", notPixelDesk: true,
       body: `The cart icon opens your notes and lists. A few quick taps anywhere jump there instantly; change the taps, or pick a page or picture instead, in Settings → Data & privacy → Quick jump.`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the logo top-left to see it)`,
+    }),
+    s("dashboard", {
+      emoji: "🛒", title: "Grocery list in More", pixelDeskOnly: true,
+      body: `Grocery list, at the bottom of the More menu, opens your notes and lists. A few quick taps anywhere jump there instantly; change the taps, or pick a page or picture instead, in Settings → Data & privacy → Quick jump.`,
+      route: "/", target: "px-area-menus",
+      look: `Grocery list in the More menu along the top`,
     }),
     s("dashboard", {
       emoji: "📝", title: "More than groceries",
@@ -1950,9 +1956,14 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
                   </div>
                 </div>
               </div>
-              <button onClick={handleClose} className="text-muted-foreground hover:text-foreground p-1 flex-shrink-0">
-                <X className="w-4 h-4" />
-              </button>
+              {/* Accessibility lives on the card, so it never covers the page
+                  (the header's logo sat under the old floating button). */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <AccessibilityFab inline zIndex={101} />
+                <button onClick={handleClose} aria-label="Close the tour" className="text-muted-foreground hover:text-foreground p-1 flex-shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Body */}
@@ -2011,10 +2022,6 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
         </div>
       </div>
 
-      {/* Accessibility quick-access during the tour — sits on the opposite edge
-          from the tour card, and compact (icon-only) so it never covers tour
-          content. */}
-      <AccessibilityFab position={cardAtTop ? "bottom-left" : "top-left"} zIndex={101} compact />
     </>,
     document.body
   );
