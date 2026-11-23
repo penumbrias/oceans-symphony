@@ -42,7 +42,7 @@ function writePinned(on) {
 // they haven't seen yet that has a walk-through (page tips on, full tour not
 // done). Closing it on a new page marks the page seen, as the banner's ×
 // did.
-export function usePixelHelp() {
+export function usePixelHelp({ auto = true } = {}) {
   const { pathname } = useLocation();
   const key = tutorialRouteKey(pathname);
   const [pinned, setPinned] = React.useState(readPinned);
@@ -61,13 +61,17 @@ export function usePixelHelp() {
   });
   const setupDone = isFetched && isOnboardingDone(pickPrimarySystemSettings(settingsList || []));
   const fresh = setupDone && !!routes?.has(key) && arePageTutorialsEnabled() && !hasUserCompletedFullTour() && !isRouteSeen(key);
-  const open = pinned || fresh;
+  // On a phone the sheet only opens when asked (`auto: false`); `fresh`
+  // puts a dot on its button instead.
+  const [sheet, setSheet] = React.useState(false);
+  React.useEffect(() => { setSheet(false); }, [pathname]);
+  const open = auto ? (pinned || fresh) : sheet;
   const setOpen = (on) => {
-    setPinned(on);
-    writePinned(on);
+    if (auto) { setPinned(on); writePinned(on); }
+    else setSheet(on);
     if (!on) markRouteSeen(key);
   };
-  return { open, setOpen };
+  return { open, setOpen, fresh };
 }
 
 export default function PixelHelpPanel({ open, onClose }) {

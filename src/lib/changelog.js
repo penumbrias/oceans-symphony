@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "November 23, 2026",
+    changes: [
+      { type: "feature", text: "Pixel look on phones: search, page tabs and a \"How this page works\" sheet in the header (a dot means new tips)." },
+      { type: "improve", text: "Pixel look: a soft gradient behind pages instead of the grid. Your own background still shows on top." },
+      { type: "fix", text: "Tour: the Accessibility button sits on the tour card now, so it no longer covers the logo." },
+    ],
+  },
+  {
     date: "November 22, 2026",
+    version: "0.377.3",
     changes: [
       { type: "feature", text: "New Pixel look: Display options → Shape → Look draws panels, buttons, fields and headings in an old-school pixel style. Nothing moves, and Smooth is one tap away." },
       { type: "feature", text: "New \"pixel\" colours in Styles, and Pixelify Sans in the font lists." },

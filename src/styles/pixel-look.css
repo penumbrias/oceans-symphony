@@ -204,11 +204,13 @@ html[data-ui-look="pixel"] {
 [data-px-chrome] .os-classic-bottom-nav a[aria-current="page"] { background: var(--color-muted, #454b6c); color: var(--px-text) !important; }
 [data-px-chrome] .os-classic-bottom-nav a[aria-current="page"] svg { transform: none !important; }
 
-/* The page sits on the checkered floor, like the mockups. */
+/* The page floor behind everything. */
 [data-px-chrome] #main-content {
+  /* A soft gradient from the theme's own colours (Penumbra: no grid). A
+     background the person set paints above this. */
   background-color: var(--px-sunk);
-  background-image: repeating-conic-gradient(color-mix(in srgb, var(--px-sunk) 96%, var(--px-text)) 0 25%, var(--px-sunk) 0 50%);
-  background-size: 16px 16px;
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--px-sunk) 82%, var(--color-primary, #6366f1) 18%) 0%, var(--px-sunk) 70%);
+  background-attachment: fixed;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -384,4 +386,14 @@ html[data-ui-look="pixel"] .os-head-label {
     font-size: 1.375rem !important;
     line-height: 1.25 !important;
   }
+}
+
+/* The phone's frame: search as a full-width sheet under the header, the
+   help panel as a sheet, a dot for unseen page tips. */
+.px-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: var(--color-primary); outline: 2px solid var(--px-line); }
+.px-iconbtn.sel { background: var(--px-panel) !important; }
+.px-search-panel-phone { position: fixed; left: 8px; right: 8px; width: auto; top: calc(56px + 8px + min(env(safe-area-inset-top, 0px), 64px)); }
+@media (max-width: 1023px) {
+  [data-px-chrome] .os-page-tip { display: none !important; }
+  .px-help { left: 0; width: auto; z-index: 210; /* over toasts while open */ top: calc(86px + min(env(safe-area-inset-top, 0px), 64px)); bottom: calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px)); }
 }

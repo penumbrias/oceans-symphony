@@ -18,7 +18,7 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, ChevronLeft, X, Plus, HelpCircle } from "lucide-react";
+import { Bell, ChevronLeft, X, Plus, HelpCircle, Search } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { navAreaGroups, pageLabel, ALL_PAGES } from "@/utils/navigationConfig";
 import { pageForPath } from "@/lib/pageLooks";
@@ -156,7 +156,7 @@ function PixelPageTabs({ help }) {
         <Plus className="w-3.5 h-3.5" />
       </button>
       <span className="flex-1" />
-      <button
+      {help && <button
         type="button"
         className={help.open ? "px-doctab px-doctab-new px-help-toggle sel" : "px-doctab px-doctab-new px-help-toggle"}
         data-tour="px-help-toggle"
@@ -165,7 +165,7 @@ function PixelPageTabs({ help }) {
         title="How this page works"
       >
         <HelpCircle className="w-3.5 h-3.5" /> <span>How this page works</span>
-      </button>
+      </button>}
     </div>
   );
 }
@@ -252,17 +252,18 @@ function AreaMenus({ extraMore, pendingCount, todoAlertCount }) {
 }
 
 // ── Search (computer) ──────────────────────────────────────────────
-function PixelSearch() {
+function PixelSearch({ phone = false }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
   React.useEffect(() => {
+    if (phone) return undefined; // the computer's search owns Ctrl+K
     const key = (e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); setOpen((o) => !o); }
       else if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, []);
+  }, [phone]);
   React.useEffect(() => {
     if (!open) return undefined;
     const down = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -271,13 +272,19 @@ function PixelSearch() {
   }, [open]);
   const mac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform || "");
   return (
-    <div ref={ref} className="relative">
-      <button type="button" className="px-search" data-tour="px-search" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Search everything">
-        <span>Search everything</span>
-        <span className="px-kbd">{mac ? "⌘K" : "Ctrl K"}</span>
-      </button>
+    <div ref={ref} className={phone ? "" : "relative"}>
+      {phone ? (
+        <button type="button" className="px-iconbtn px-iconbtn-lg" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Search everything" title="Search everything">
+          <Search className="w-5 h-5" />
+        </button>
+      ) : (
+        <button type="button" className="px-search" data-tour="px-search" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Search everything">
+          <span>Search everything</span>
+          <span className="px-kbd">{mac ? "⌘K" : "Ctrl K"}</span>
+        </button>
+      )}
       {open && (
-        <div className="px-menu px-search-panel">
+        <div className={phone ? "px-menu px-search-panel px-search-panel-phone" : "px-menu px-search-panel"}>
           <GlobalSearch autoFocus onNavigate={() => setOpen(false)} />
         </div>
       )}
@@ -285,8 +292,30 @@ function PixelSearch() {
   );
 }
 
+// Both headers are mounted (CSS shows one), so the parts that keep state or
+// listen for events — page tabs, search's Ctrl+K, the help panel — run only
+// in the one on screen. Otherwise "open in a new tab" would open two.
+function useDesk() {
+  const query = "(min-width: 1024px)";
+  const get = () => { try { return window.matchMedia(query).matches; } catch { return true; } };
+  const [desk, setDesk] = React.useState(get);
+  React.useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia(query); } catch { return undefined; }
+    const on = () => setDesk(mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+  return desk;
+}
+
 // ── The whole frame ────────────────────────────────────────────────
-export function PixelDesktopHeader({ pendingCount = 0, todoAlertCount = 0, onHome, onAppGrid }) {
+export function PixelDesktopHeader(props) {
+  // Mounted only on a computer-width screen (see useDesk).
+  return useDesk() ? <DesktopHeader {...props} /> : null;
+}
+
+function DesktopHeader({ pendingCount = 0, todoAlertCount = 0, onHome, onAppGrid }) {
   const help = usePixelHelp();
   const extraMore = (
     <>
@@ -328,9 +357,18 @@ export function PixelDesktopHeader({ pendingCount = 0, todoAlertCount = 0, onHom
   );
 }
 
-export function PixelPhoneHeader({ pendingCount = 0, canGoBack, onBack, onOpenMenu }) {
+export function PixelPhoneHeader(props) {
+  return useDesk() ? null : <PhoneHeader {...props} />;
+}
+
+// The phone gets the computer's parts in a phone shape: search behind an
+// icon, the page tabs under the header, and "How this page works" as a
+// sheet behind the ? (a dot on it when this page has tips you haven't
+// seen — the phone never pops the sheet open by itself).
+function PhoneHeader({ pendingCount = 0, canGoBack, onBack, onOpenMenu }) {
   const location = useLocation();
   const label = usePathLabel();
+  const help = usePixelHelp({ auto: false });
   const title = location.pathname === "/" ? "Oceans Symphony" : label(location.pathname);
   return (
     <header className="px-chrome px-chrome-phone sticky top-0 z-50 lg:hidden">
@@ -347,6 +385,18 @@ export function PixelPhoneHeader({ pendingCount = 0, canGoBack, onBack, onOpenMe
             </button>
           )}
           <span className="px-phone-title">{title}</span>
+          <PixelSearch phone />
+          <button
+            type="button"
+            className={help.open ? "px-iconbtn px-iconbtn-lg relative sel" : "px-iconbtn px-iconbtn-lg relative"}
+            aria-pressed={help.open}
+            aria-label={help.fresh ? "How this page works (new tips)" : "How this page works"}
+            title="How this page works"
+            onClick={() => help.setOpen(!help.open)}
+          >
+            <HelpCircle className="w-5 h-5" />
+            {help.fresh && !help.open && <span className="px-dot" aria-hidden="true" />}
+          </button>
           <Link to="/reminders" className="px-iconbtn px-iconbtn-lg relative" aria-label="Reminders">
             <Bell className="w-5 h-5" />
             {pendingCount > 0 && <span className="px-badge px-badge-corner">{pendingCount > 9 ? "9+" : pendingCount}</span>}
@@ -354,6 +404,8 @@ export function PixelPhoneHeader({ pendingCount = 0, canGoBack, onBack, onOpenMe
           <HeaderPageMenu className="px-iconbtn px-iconbtn-lg" />
         </div>
       </div>
+      <PixelPageTabs />
+      <PixelHelpPanel open={help.open} onClose={() => help.setOpen(false)} />
     </header>
   );
 }
