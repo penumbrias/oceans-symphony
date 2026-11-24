@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look on a computer: every settings page is listed in a side panel, so you can hop between them." },
       { type: "improve", text: "Pixel look on a computer: a month beside the Planner jumps the calendar to any day you click." },
       { type: "improve", text: "Pixel look: the tabs of Planner, Analytics, Journals, Support, Reminders and System map sit as subtabs at the top too." },
       { type: "improve", text: "Pixel look on a computer: Journals shows every folder in a side panel, one click to open." },

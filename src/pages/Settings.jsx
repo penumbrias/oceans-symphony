@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { runAutoBackupNow } from "@/lib/autoBackup";
+import { usePixelDesk } from "@/lib/uiLook";
 import { Loader2, ChevronDown, ChevronLeft, Upload, Download, Globe, Database, Search, X as XIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -65,6 +66,7 @@ export default function Settings() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const pixelDesk = usePixelDesk();
   const [backingUp, setBackingUp] = useState(false);
   // Backup dropdown → opens the import/export UI directly as a popup.
   const [backupModal, setBackupModal] = useState(null); // "import" | "export" | null
@@ -165,6 +167,35 @@ export default function Settings() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      <div className={pixelDesk ? "px-ws" : undefined}>
+      {/* Pixel look on a computer: every settings page listed in a side
+          panel (like the mockup), the open one marked. */}
+      {pixelDesk && (
+        <aside className="px-ws-side" aria-label="Settings sections" data-tour="settings-side-panel">
+          <div className="px-ws-ttl"><span>Settings</span></div>
+          <nav className="px-ws-tree">
+            <button type="button" className={`px-ws-row${!openPage ? " sel" : ""}`} aria-current={!openPage ? "page" : undefined}
+              onClick={() => navigate("/settings")}>
+              <span className="px-ws-name">All settings</span>
+            </button>
+            {groups.map((g) => (
+              <React.Fragment key={g.id}>
+                <p className="px-ws-head">{g.label}</p>
+                {g.pages.map((p) => {
+                  const sel = openPage?.id === p.id;
+                  return (
+                    <button key={p.id} type="button" className={`px-ws-row${sel ? " sel" : ""}`} aria-current={sel ? "page" : undefined}
+                      onClick={() => openRow(p)}>
+                      <span className="px-ws-name">{p.label}</span>
+                    </button>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </nav>
+        </aside>
+      )}
+      <div className={pixelDesk ? "px-ws-main" : undefined}>
       {openPage && openPage.render ? (
         <div className="os-page-shell" data-tour="settings-content">
           <div className="flex items-center gap-2 mb-4">
@@ -273,6 +304,9 @@ export default function Settings() {
           </div>
         </>
       )}
+
+      </div>
+      </div>
 
       <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
       <FeedbackSurveyModal open={showSurvey} onClose={() => setShowSurvey(false)} />

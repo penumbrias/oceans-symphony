@@ -1304,6 +1304,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-quick-nav", look: `the highlighted search box`,
     }),
     s("settings", {
+      emoji: "🗂️", title: "Settings panel", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, every settings page is listed on the left, so you can hop between them without going back.`,
+      route: "/settings", target: "settings-side-panel",
+    }),
+    s("settings", {
       emoji: "✏️", title: `Name and words`,
       body: `Profile is where your ${t.system}'s name lives, and Terminology changes the words the app uses, like "${t.system}", "${t.alter}" and "${t.fronting}". Changes show everywhere at once.`,
       route: "/settings", target: "settings-system", look: `the highlighted Profile row`,

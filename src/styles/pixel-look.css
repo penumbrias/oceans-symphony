@@ -707,3 +707,4 @@ html[data-px-front="bottom"][data-px-status="1"] { --px-below-dock: calc(24px + 
 .px-ws-main { min-width: 0; }
 .px-ws-cal { padding: 8px; font-size: 12px; }
 .px-ws-cal button { border-radius: 0 !important; }
+.px-ws-head { margin: 8px 6px 2px; font-family: var(--px-font); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--px-text-2); }
