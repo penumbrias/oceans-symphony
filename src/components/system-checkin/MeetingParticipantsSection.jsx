@@ -5,6 +5,10 @@ import { useTerms } from "@/lib/useTerms";
 import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { base44 } from "@/api/base44Client";
+import { useUiLook } from "@/lib/uiLook";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import { toast } from "sonner";
 
 // ── "Notice who's near" — the single participants section ─────────────────────
 //
@@ -130,6 +134,34 @@ function ParticipantChip({ alter, participant, isExpanded, onToggle, onRemove })
   );
 }
 
+// Pixel look (MeetingPhone board): one row per member — square mark, name,
+// what they've noted — inside a sunken "Who's near" box. Tapping a row
+// opens the same AlterPanel as the classic chip.
+function PxNearRow({ alter, participant, open, onToggle, onRemove }) {
+  const formatAlter = useAlterLabel();
+  const avatar = useResolvedAvatarUrl(alter?.avatar_url);
+  const bits = [];
+  if ((participant.emotions || []).length) bits.push(participant.emotions.join(", "));
+  if ((participant.symptoms || []).length) bits.push(`${participant.symptoms.length} symptom${participant.symptoms.length === 1 ? "" : "s"}`);
+  if ((participant.note || "").trim()) bits.push("note");
+  return (
+    <div className={`pxm-near-row${open ? " open" : ""}`}>
+      <button type="button" className="pxm-row pxm-grow" style={{ minHeight: 36, textAlign: "left" }} aria-expanded={open}
+        onClick={() => onToggle(alter.id)}
+        aria-label={`${formatAlter(alter)} — ${open ? "close" : "open"} their notes, feelings and symptoms`}>
+        {avatar
+          ? <img src={avatar} alt="" className="pxm-av" />
+          : <span className="pxm-av" style={{ background: alter.color || undefined }} />}
+        <span className="pxm-near-name">{formatAlter(alter)}</span>
+        <span className="pxm-near-sum">{bits.length ? `${bits.join(" · ")}${open ? "" : " · tap to edit"}` : "tap to add notes"}</span>
+      </button>
+      <button type="button" className="pxm-x" onClick={() => onRemove(alter.id)} aria-label={`Remove ${formatAlter(alter)}`}>
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function MeetingParticipantsSection({ participants = [], onChange, alters = [] }) {
   const terms = useTerms();
   const list = useMemo(() => normalizeParticipants(participants), [participants]);
@@ -162,6 +194,25 @@ export default function MeetingParticipantsSection({ participants = [], onChange
     onChange(list.filter((p) => p.alter_id !== alterId));
   };
 
+  const pixel = useUiLook() === "pixel";
+  // "Currently fronting": add whoever is in front now (fresh read).
+  const addCurrentFront = async () => {
+    try {
+      const active = await base44.entities.FrontingSession.filter({ is_active: true });
+      const ids = new Set();
+      for (const s of active || []) {
+        const id = s.alter_id || s.primary_alter_id;
+        if (id) ids.add(id);
+        for (const co of s.co_fronter_ids || []) ids.add(co);
+      }
+      const add = [...ids].filter((id) => altersById[id] && !selectedIds.includes(id));
+      if (add.length === 0) { toast.message(`No one else is ${terms.fronting} right now.`); return; }
+      onChange([...list, ...add.map((id) => ({ alter_id: id, emotions: [], symptoms: [], note: "" }))]);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't read who's in front.");
+    }
+  };
+
   const expandedParticipant = expandedId ? list.find((p) => p.alter_id === expandedId) : null;
   const expandedAlter = expandedId ? altersById[expandedId] : null;
 
@@ -169,6 +220,46 @@ export default function MeetingParticipantsSection({ participants = [], onChange
   // 2's single "Notice Who's Near" header (CheckInStep2 passes it as children),
   // so it's just the "Choose who's near…" button + the chip grid + the one
   // expanded per-participant panel.
+  const picker = (
+    <SetFrontModal
+      open={pickerOpen}
+      onClose={() => setPickerOpen(false)}
+      alters={alters}
+      selectionMode
+      allowPresenceTab
+      preselectedIds={selectedIds}
+      onConfirm={applySelection}
+      confirmLabel="Add to meeting"
+    />
+  );
+
+  if (pixel) {
+    return (
+      <div data-tour="meetings-participants" className="pxm-ins pxm-near">
+        <div className="pxm-row" style={{ gap: 6 }}>
+          <span className="pxm-pf pxm-grow" style={{ fontSize: 12 }}>Who's near</span>
+          <button type="button" className="pxm-chip" onClick={addCurrentFront}>Currently {terms.fronting}</button>
+          <button type="button" className="pxm-chip" onClick={() => setPickerOpen(true)}
+            aria-label={list.length > 0 ? `Add or remove ${terms.alters}` : "Choose who's near"}>+ add</button>
+        </div>
+        {list.length === 0 && <div className="pxm-mut" style={{ fontSize: 13, padding: "4px 2px" }}>No one added yet.</div>}
+        {list.map((p) => {
+          const alter = altersById[p.alter_id];
+          if (!alter) return null;
+          return (
+            <PxNearRow key={p.alter_id} alter={alter} participant={p} open={expandedId === p.alter_id}
+              onToggle={(id) => setExpandedId((prev) => (prev === id ? null : id))} onRemove={removeParticipant} />
+          );
+        })}
+        {expandedAlter && expandedParticipant && (
+          <AlterPanel key={expandedAlter.id} alter={expandedAlter} participant={expandedParticipant}
+            onChange={(next) => updateParticipant(expandedAlter.id, next)} onClose={() => setExpandedId(null)} hideHeader />
+        )}
+        {picker}
+      </div>
+    );
+  }
+
   return (
     <div data-tour="meetings-participants" className="space-y-3">
       {/* Open the real Set Fronters modal to choose who's near — sits directly
@@ -220,16 +311,7 @@ export default function MeetingParticipantsSection({ participants = [], onChange
         </>
       )}
 
-      <SetFrontModal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        alters={alters}
-        selectionMode
-        allowPresenceTab
-        preselectedIds={selectedIds}
-        onConfirm={applySelection}
-        confirmLabel="Add to meeting"
-      />
+      {picker}
     </div>
   );
 }

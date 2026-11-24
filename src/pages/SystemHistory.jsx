@@ -15,6 +15,10 @@ import { TRASH_HINT } from "@/lib/trashSettings";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import RichText from "@/components/shared/RichText";
+import RowMenu from "@/components/shared/RowMenu";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import "@/styles/pixel/meeting.css";
 
 const TYPE_META = {
   fusion:    { label: "Fusion",     icon: GitMerge,  color: "text-violet-500",  bg: "bg-violet-500/10 border-violet-500/20",  dot: "bg-violet-500" },
@@ -239,6 +243,175 @@ function BirthDateEditor({ currentDate, settings, queryClient, onClose, t }) {
   );
 }
 
+// ── Pixel look (SystemHistoryPhone board) ─────────────────────────────
+// A "Lineage" panel with a rail of square marks: year · kind · the alters
+// it touched · its note. Every action of the classic card (edit date /
+// notes, hide, delete) is in the row's ⋯ menu; the edit form opens in
+// place, as before. Kind colours are the board's.
+const PX_KIND_COLOR = {
+  return: "#86b88f", dormancy: "#9aa0b4", split: "#d98f5b",
+  fusion: "#c98bb9", emergence: "#e3c16f", reformation: "#8fb8e0",
+};
+
+function PxAlterChip({ alter }) {
+  const formatAlter = useAlterLabel();
+  if (!alter) return null;
+  return (
+    <Link to={`/alter/${alter.id}`} className="pxm-chip">
+      <span className="pxm-sq" style={{ background: alter.color || undefined }} />{formatAlter(alter)}
+    </Link>
+  );
+}
+
+function PxLineageEvent({ event, altersById, alters, onDelete, onEdit, onToggleHidden }) {
+  const meta = TYPE_META[event.type] || TYPE_META.fusion;
+  const color = PX_KIND_COLOR[event.type] || PX_KIND_COLOR.fusion;
+  const [editing, setEditing] = useState(false);
+  const d = new Date(event.date);
+  const valid = !Number.isNaN(d.getTime());
+  const sourceAlters = (event.source_alter_ids || []).map(id => altersById[id]).filter(Boolean);
+  const resultAlters = (event.result_alter_ids || []).map(id => altersById[id]).filter(Boolean);
+  const showResult = !["dormancy", "return", "emergence", "reformation"].includes(event.type) && resultAlters.length > 0;
+  const fusionLabel = event.fusion_type === "absorption" ? "Absorption" : event.fusion_type === "new_formation" ? "New formation" : null;
+  return (
+    <div className={`pxm-ev${event.hidden ? " hid" : ""}`}>
+      <span className="pxm-ev-mark" style={{ background: color }} aria-hidden="true" />
+      <div className="pxm-row" style={{ gap: 8 }}>
+        <span className="pxm-ev-year">{valid ? format(d, "yyyy") : "—"}</span>
+        <span className="pxm-pf" style={{ color }}>{meta.label}</span>
+        {fusionLabel && <span className="pxm-mut" style={{ fontSize: 12 }}>{fusionLabel}</span>}
+        <span className="pxm-grow" />
+        <span className="pxm-mut" style={{ fontSize: 12 }}>{event.year_only ? "year only" : (valid ? format(d, "MMM d") : "")}</span>
+        <RowMenu label="Event actions" items={[
+          { label: editing ? "Close editing" : "Edit date / notes", icon: Pencil, onSelect: () => setEditing(v => !v) },
+          { label: event.hidden ? "Unhide" : "Hide from history", icon: event.hidden ? Eye : EyeOff, onSelect: () => onToggleHidden(event) },
+          { label: "Delete", icon: Trash2, onSelect: () => onDelete(event.id), destructive: true },
+        ]} />
+      </div>
+      {(sourceAlters.length > 0 || showResult) && (
+        <div className="pxm-row pxm-wrap" style={{ marginTop: 4 }}>
+          {sourceAlters.map(a => <PxAlterChip key={a.id} alter={a} />)}
+          {showResult && <span className="pxm-mut" aria-label="became">-&gt;</span>}
+          {showResult && resultAlters.map(a => <PxAlterChip key={a.id} alter={a} />)}
+        </div>
+      )}
+      {editing ? (
+        <div style={{ marginTop: 6 }}>
+          <LineageEventEditForm event={event} alters={alters} onSave={(patch) => onEdit(event.id, patch)} onCancel={() => setEditing(false)} />
+        </div>
+      ) : (
+        <>
+          {event.what_changed && <div className="pxm-ev-note whitespace-pre-wrap"><b>What changed:</b> <RichText content={event.what_changed} /></div>}
+          {event.new_name && <div className="pxm-ev-note"><b>New name:</b> {event.previous_name ? `${event.previous_name} → ` : ""}{event.new_name}</div>}
+          {event.cause && <div className="pxm-ev-note"><b>{event.type === "reformation" ? "Trigger:" : "Cause:"}</b> <RichText content={event.cause} /></div>}
+          {event.notes && <div className="pxm-ev-note whitespace-pre-wrap"><RichText content={event.notes} /></div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function PxBirth({ date, editing, onEdit, onClose, settings, queryClient, t }) {
+  if (editing) {
+    return (
+      <div className="pxm-ev">
+        <span className="pxm-ev-mark" style={{ background: "var(--color-primary)" }} aria-hidden="true" />
+        <BirthDateEditor currentDate={date} settings={settings} queryClient={queryClient} onClose={onClose} t={t} />
+      </div>
+    );
+  }
+  return (
+    <div className="pxm-ev">
+      <span className="pxm-ev-mark" style={{ background: date ? "var(--color-primary)" : "var(--px-tab)" }} aria-hidden="true" />
+      <div className="pxm-row" style={{ gap: 8 }}>
+        <span className="pxm-ev-year">{date ? format(date, "yyyy") : "—"}</span>
+        <span className="pxm-pf" style={{ color: "var(--color-primary)" }}>{t.System} birth</span>
+        <span className="pxm-grow" />
+        <button type="button" className="pxm-btn xs" onClick={onEdit}>{date ? "Edit" : `Set date`}</button>
+      </div>
+      {date && <div className="pxm-ev-note">{format(date, "MMMM d, yyyy")}</div>}
+    </div>
+  );
+}
+
+function PixelSystemHistory({
+  t, events, filteredEvents, typeFilter, setTypeFilter, hiddenCount, showHidden, setShowHidden,
+  altersById, alters, onDelete, onEdit, onToggleHidden, onRecord,
+  systemBirthDate, editingBirth, setEditingBirth, settings, queryClient,
+}) {
+  const desk = usePixelDesk();
+  const kinds = [{ id: "all", label: "All" }, ...["fusion", "split", "emergence", "reformation", "dormancy", "return"]
+    .filter((id) => TYPE_META[id]).map((id) => ({ id, label: TYPE_META[id].label }))];
+  const countOf = (id) => events.filter(e => (showHidden || !e.hidden) && (id === "all" || e.type === id)).length;
+  const hiddenToggle = hiddenCount > 0 && (
+    <button type="button" className={`pxm-chip${showHidden ? " sel" : ""}`} onClick={() => setShowHidden(s => !s)}
+      title={showHidden ? "Hide hidden events again" : "Show events you've hidden"}>
+      {showHidden ? `Hide ${hiddenCount} hidden` : `Show ${hiddenCount} hidden`}
+    </button>
+  );
+  const lineage = (
+    <div className="pxm-pn pxm-hist-panel">
+      <div className="pxm-ttl">
+        <span>Lineage</span>
+        <button type="button" className="pxm-btn xs" onClick={onRecord} data-tour="system-history-add-btn">+ record a change</button>
+      </div>
+      {filteredEvents.length === 0 && (
+        <div className="pxm-empty">
+          No events yet. Record a fusion, split, emergence, reformation, dormancy or return to build your {t.system}'s history.
+        </div>
+      )}
+      <div className="pxm-lin">
+        <span className="pxm-lin-rail" aria-hidden="true" />
+        {filteredEvents.map((event) => (
+          <PxLineageEvent key={event.id} event={event} altersById={altersById} alters={alters}
+            onDelete={onDelete} onEdit={onEdit} onToggleHidden={onToggleHidden} />
+        ))}
+        {typeFilter === "all" && (
+          <PxBirth date={systemBirthDate} editing={editingBirth} onEdit={() => setEditingBirth(true)}
+            onClose={() => setEditingBirth(false)} settings={settings} queryClient={queryClient} t={t} />
+        )}
+      </div>
+    </div>
+  );
+  if (desk) {
+    return (
+      <div className="pxm pxm-desk" data-tour="system-history-page">
+        <h1 className="sr-only">{t.System} history</h1>
+        <div className="pxm-pn pxm-side">
+          <div className="pxm-ttl"><span>Kinds of change</span></div>
+          <div className="pxm-side-scroll">
+            {kinds.map(k => (
+              <button key={k.id} type="button" className={`pxm-side-row${typeFilter === k.id ? " sel" : ""}`}
+                aria-pressed={typeFilter === k.id} onClick={() => setTypeFilter(k.id)}>
+                <span className="pxm-sq" style={{ background: k.id === "all" ? "var(--color-primary)" : PX_KIND_COLOR[k.id] }} />
+                <span className="pxm-side-name">{k.label}</span>
+                <span className="pxm-side-count">{countOf(k.id)}</span>
+              </button>
+            ))}
+            {hiddenToggle && <div style={{ padding: "8px 4px" }}>{hiddenToggle}</div>}
+          </div>
+          <div className="pxm-side-foot">Fusions, splits, emergences, reformations, dormancy and returns.</div>
+        </div>
+        <div className="pxm" style={{ minWidth: 0 }}>{lineage}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="pxm" data-tour="system-history-page">
+      <h1 className="sr-only">{t.System} history</h1>
+      <div className="pxm-intro">Fusions, splits, emergences, reformations, dormancy and returns.</div>
+      <div className="pxm-row pxm-wrap" style={{ gap: 4 }}>
+        {kinds.map(k => (
+          <button key={k.id} type="button" className={`pxm-chip${typeFilter === k.id ? " sel" : ""}`}
+            aria-pressed={typeFilter === k.id} onClick={() => setTypeFilter(k.id)}>{k.label}</button>
+        ))}
+        {hiddenToggle}
+      </div>
+      {lineage}
+    </div>
+  );
+}
+
 export default function SystemHistory() {
   const queryClient = useQueryClient();
   const t = useTerms();
@@ -246,6 +419,7 @@ export default function SystemHistory() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [editingBirth, setEditingBirth] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  const pixel = useUiLook() === "pixel";
 
   const { data: events = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
@@ -320,6 +494,22 @@ export default function SystemHistory() {
     queryClient.invalidateQueries({ queryKey: LINEAGE_KEY });
     return true;
   }, [queryClient, alters, t]);
+
+  if (pixel) {
+    return (
+      <div className="max-w-5xl mx-auto px-3 py-3 pb-24">
+        <PixelSystemHistory
+          t={t} events={events} filteredEvents={filteredEvents} typeFilter={typeFilter} setTypeFilter={setTypeFilter}
+          hiddenCount={hiddenCount} showHidden={showHidden} setShowHidden={setShowHidden}
+          altersById={altersById} alters={alters} onDelete={handleDelete} onEdit={handleEditEvent}
+          onToggleHidden={handleToggleHidden} onRecord={() => setModalOpen(true)}
+          systemBirthDate={systemBirthDate} editingBirth={editingBirth} setEditingBirth={setEditingBirth}
+          settings={settingsArr[0]} queryClient={queryClient}
+        />
+        {modalOpen && <RecordSystemChangeModal open={modalOpen} onClose={() => setModalOpen(false)} />}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl mx-auto px-4 py-6 pb-24" data-tour="system-history-page">
