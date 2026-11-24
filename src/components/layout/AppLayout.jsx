@@ -45,6 +45,8 @@ const FeatureTour = React.lazy(() => import("@/components/onboarding/FeatureTour
 // The new house's desktop/tablet frame (step 2.1). Lazy: with "Try the new
 // house" off, nothing under src/house is downloaded.
 const HouseFrame = React.lazy(() => import("@/house/frame/HouseFrame"));
+// The phone frame (step 2.2): its own lazy chunk, loaded only at phone size.
+const HousePhoneFrame = React.lazy(() => import("@/house/phone/HousePhoneFrame"));
 import { useHouseSwitch, useHouseSizeClass } from "@/lib/houseSwitch";
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, normalizeNavConfig, applySidebarConfig, pageLabel } from "@/utils/navigationConfig";
@@ -818,12 +820,13 @@ const handleNotifClick = (mentionLog) => {
   };
   const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
-  // The new house (step 2.1): on when the person turned it on for this
-  // device and the window is studio-sized. Phones keep this chrome until
-  // the phone frame (step 2.2).
+  // The new house: on when the person turned it on for this device. The
+  // studio frame (step 2.1) for studio-sized windows, the phone frame
+  // (step 2.2) for phones; each is its own lazy chunk.
   const houseSwitchOn = useHouseSwitch();
   const houseSize = useHouseSizeClass(houseSwitchOn);
-  const houseOn = houseSwitchOn && houseSize !== "phone";
+  const houseOn = houseSwitchOn;
+  const Frame = houseSize === "phone" ? HousePhoneFrame : HouseFrame;
 
   // The app-wide hosts after the page (players, sheets, toasts, the tour).
   // One list for both houses; `house` leaves out what the new frame
@@ -892,7 +895,7 @@ const handleNotifClick = (mentionLog) => {
             <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading the new house" />
           </div>
         }>
-          <HouseFrame mainRef={houseMainRef}>
+          <Frame mainRef={houseMainRef}>
             {bannerVisible && (
               <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} framing={bannerFraming} />
             )}
@@ -909,7 +912,7 @@ const handleNotifClick = (mentionLog) => {
               <QuietBoundary name="ModNavSync"><ModNavSync /></QuietBoundary>
               <Outlet context={{ setShowFeatureTour }} />
             </Suspense>
-          </HouseFrame>
+          </Frame>
         </Suspense>
         {showBlobMigration && (
           <React.Suspense fallback={null}>
