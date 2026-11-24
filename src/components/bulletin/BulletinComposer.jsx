@@ -435,7 +435,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
               <ImagePlus className="w-3.5 h-3.5" /> Image / GIF
             </button>
             <AssetButton onPick={(url) => setPendingImage({ urls: [url] })} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
-            <span className="text-[0.625rem] text-muted-foreground/70 ml-1">Select text, then tap a style. @mentions and -signposts still work.</span>
+            <span className="text-xs text-muted-foreground/70 ml-1">Select text, then tap a style. @mentions and -signposts still work.</span>
           </div>
           <MiniToolbar onInsert={insertHtml} float="keyboard" />
           <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={handleComposerImage} />
@@ -516,7 +516,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
                 })}
             </div>
             {whisperTo.size === 0 && (
-              <p className="text-[0.625rem] text-amber-600 dark:text-amber-400">Pick at least one recipient — otherwise this posts as a normal bulletin.</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">Pick at least one recipient — otherwise this posts as a normal bulletin.</p>
             )}
           </div>
         );
