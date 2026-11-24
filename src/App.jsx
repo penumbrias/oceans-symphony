@@ -76,6 +76,8 @@ const ModPage = lazy(() => import('@/pages/ModPage'));
 const HouseKitSample = lazy(() => import('@/house/sample/KitSample'));
 // Step 1.2's story sheet: every kit control in every state (/house/kit/controls).
 const HouseKitControls = lazy(() => import('@/house/sample/ControlsSample'));
+// Step 1.3's story sheet: panels, content and sheets (/house/kit/panels).
+const HouseKitPanels = lazy(() => import('@/house/sample/PanelsSample'));
 
 
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
@@ -355,6 +357,7 @@ const AuthenticatedApp = () => {
       {/* New house, step 1.1: its own root, outside the old frame. Unlinked. */}
       <Route path="/house/kit" element={<HouseKitSample />} />
       <Route path="/house/kit/controls" element={<HouseKitControls />} />
+      <Route path="/house/kit/panels" element={<HouseKitPanels />} />
       <Route path="*" element={<PageNotFound />} />
       </Routes>
       </Suspense>

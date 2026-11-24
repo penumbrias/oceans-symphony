@@ -9,7 +9,7 @@
 // browser's own "force element state", so the picture shows the REAL rule.
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import KitNav from "@/house/sample/KitNav";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Download, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Rows3, Save, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -308,7 +308,7 @@ function Body() {
       <header className="kit-header ks-head">
         <h1 className="house-label house-text-xl">Controls and pickers</h1>
         <p className="house-text-sm house-muted">Every control of the new house in every state, in your colours. A preview: nothing here is saved.</p>
-        <Link to="/house/kit" className="house-text-sm kit-link">Tokens and scales</Link>
+        <KitNav />
       </header>
       <Section id="buttons" title="Buttons" note="Three ranks and danger. Hover, pressed and focus each change shape, not only colour."><Buttons /></Section>
       <Section id="fields" title="Fields" note="Each has a label, a hint, an error and a place that says whether it saved."><Fields /></Section>

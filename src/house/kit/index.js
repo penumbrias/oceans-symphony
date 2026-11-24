@@ -16,7 +16,7 @@ export { default as Inspector, InspectorGroup, orderTabs } from "@/house/kit/Ins
 export { default as Layers } from "@/house/kit/Layers";
 export { Row, Card, Stat, AlterChip, AlterChips, AlterAvatar } from "@/house/kit/Content";
 export { EmptyBlock, LoadingBlock, ErrorBlock } from "@/house/kit/States";
-export { ToastHost, showToast, dismissToast, trashWithUndo } from "@/house/kit/Toast";
+export { ToastHost, ToastCard, showToast, dismissToast, trashWithUndo } from "@/house/kit/Toast";
 export { Sheet, ConfirmSheet, SafetySheet, useBackToClose } from "@/house/kit/Sheet";
 export { HousePopups } from "@/house/kit/KitLayer";
 // The chart set is its own import (it brings recharts): import Chart from "@/house/kit/Charts".

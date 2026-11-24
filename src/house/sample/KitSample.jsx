@@ -7,7 +7,7 @@
 // the house guard fails on any made here.
 
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
+import KitNav from "@/house/sample/KitNav";
 import { CalendarDays, Heart, LifeBuoy, NotebookPen, Users } from "lucide-react";
 import HouseRoot, { useHouse } from "@/house/tokens/HouseRoot";
 import HouseIcon from "@/house/tokens/HouseIcon";
@@ -197,8 +197,7 @@ function Body() {
         <h1 className="house-label house-text-xl">Tokens and scales</h1>
         <p className="house-text-sm house-muted">The new house's building blocks in your colours. A preview: nothing here changes your settings.</p>
         <Summary />
-        <Link to="/" className="house-text-sm kit-link">Back to the app</Link>
-        <Link to="/house/kit/controls" className="house-text-sm kit-link">Controls and pickers (step 1.2)</Link>
+        <KitNav />
       </header>
       <Section title="Colours"><Swatches /></Section>
       <Section title="Can it be read?"><ContrastTable /></Section>

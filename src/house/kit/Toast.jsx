@@ -68,28 +68,31 @@ export function ToastHost({ inline = false }) {
   return (
     <div className={`hk-toast-region${inline ? " hk-toast-region--inline" : ""}`} role="status" aria-live="polite">
       {toast ? (
-        <div ref={boxRef} className="hk-toast" data-tone={toast.tone}
+        <ToastCard ref={boxRef} toast={toast}
+          onAction={async () => { const a = toast.action; dismissToast(toast.id); await a?.onClick?.(); }}
+          onClose={() => dismissToast(toast.id)}
           onPointerEnter={pause("hover")} onPointerLeave={resume("hover")}
           onPointerDown={pause("touch")} onPointerUp={resume("touch")} onPointerCancel={resume("touch")}
-          onFocus={pause("focus")} onBlur={(e) => { if (!boxRef.current?.contains(e.relatedTarget)) resume("focus")(); }}>
-          <HouseIcon icon={toast.tone === "failed" ? AlertTriangle : CheckCircle2} />
-          <span className="hk-toast-text">
-            <span className="hk-toast-message">{toast.message}</span>
-            {toast.detail ? <span className="hk-toast-detail">{toast.detail}</span> : null}
-          </span>
-          {toast.action ? (
-            <Button rank="secondary" onClick={async () => {
-              const a = toast.action;
-              dismissToast(toast.id);
-              await a.onClick?.();
-            }}>{toast.action.label}</Button>
-          ) : null}
-          <IconButton icon={X} label={`Close the message: ${toast.message}`} onClick={() => dismissToast(toast.id)} />
-        </div>
+          onFocus={pause("focus")} onBlur={(e) => { if (!boxRef.current?.contains(e.relatedTarget)) resume("focus")(); }} />
       ) : null}
     </div>
   );
 }
+
+// What one toast looks like (the host above runs its clock).
+export const ToastCard = React.forwardRef(function ToastCard({ toast, onAction, onClose, ...handlers }, ref) {
+  return (
+    <div ref={ref} className="hk-toast" data-tone={toast.tone} {...handlers}>
+      <HouseIcon icon={toast.tone === "failed" ? AlertTriangle : CheckCircle2} />
+      <span className="hk-toast-text">
+        <span className="hk-toast-message">{toast.message}</span>
+        {toast.detail ? <span className="hk-toast-detail">{toast.detail}</span> : null}
+      </span>
+      {toast.action ? <Button rank="secondary" onClick={onAction}>{toast.action.label}</Button> : null}
+      <IconButton icon={X} label={`Close the message: ${toast.message}`} onClick={onClose} />
+    </div>
+  );
+});
 
 // ── Delete to the trash, with Undo ─────────────────────────────────────
 // Returns true when the delete ran. Never throws: a failure says so in a

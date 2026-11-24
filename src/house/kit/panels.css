@@ -66,7 +66,7 @@
 [data-house] .hk-rowtext-title { overflow-wrap: anywhere; }
 [data-house] .hk-rowtext-sub { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); overflow-wrap: anywhere; }
 [data-house] .hk-rowtext-meta { font-size: var(--house-text-sm); color: var(--house-muted); font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
-[data-house] .hk-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); flex-wrap: wrap; padding-top: var(--house-space-2); border-top: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-pager { position: sticky; bottom: 0; background: var(--house-panel); display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); flex-wrap: wrap; padding-top: var(--house-space-2); border-top: var(--house-border-w) solid var(--house-divider); }
 [data-house] .hk-pager-words { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-sm); color: var(--house-muted); }
 
 /* ── Info ────────────────────────────────────────────────────────── */
