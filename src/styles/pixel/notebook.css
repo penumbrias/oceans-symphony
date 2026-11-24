@@ -207,11 +207,21 @@ html[data-ui-look="pixel"] .pxn-measure-week { text-align: right; }
 
 /* A page: three columns */
 html[data-ui-look="pixel"] .pxn-pagegrid {
-  display: grid; grid-template-columns: 380px minmax(0, 1fr) 270px; gap: 4px;
+  display: grid; grid-template-columns: minmax(240px, 380px) minmax(260px, 1fr) minmax(200px, 270px); gap: 4px;
   height: max(520px, calc(100dvh - 300px));
 }
+/* Not room for three panes (the help panel is open, or a narrow window):
+   Page and Note side by side, Linked + Work on it underneath. */
 html[data-ui-look="pixel"][data-px-help="1"] .pxn-pagegrid,
-html[data-ui-look="pixel"][data-px-info="1"] .pxn-pagegrid { grid-template-columns: 300px minmax(0, 1fr) 220px; }
+html[data-ui-look="pixel"][data-px-info="1"] .pxn-pagegrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(420px, 1fr) auto; height: auto; }
+html[data-ui-look="pixel"][data-px-help="1"] .pxn-pagegrid > :nth-child(3),
+html[data-ui-look="pixel"][data-px-info="1"] .pxn-pagegrid > :nth-child(3) { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+@media (max-width: 1279px) {
+  html[data-ui-look="pixel"] .pxn-pagegrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(420px, 1fr) auto; height: auto; }
+  html[data-ui-look="pixel"] .pxn-pagegrid > :nth-child(3) { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+}
+html[data-ui-look="pixel"][data-px-help="1"] .pxn-root.desk,
+html[data-ui-look="pixel"][data-px-info="1"] .pxn-root.desk { grid-template-columns: 230px minmax(0, 1fr); }
 html[data-ui-look="pixel"] .pxn-pagegrid > * { min-height: 0; }
 html[data-ui-look="pixel"] .pxn-lines > .pxn-body { flex: 1; }
 html[data-ui-look="pixel"] .pxn-notepanel { min-height: 0; }
@@ -240,3 +250,7 @@ html[data-ui-look="pixel"] .pxn-root.phone .pxn-page .pxn-pagehead-row { gap: 8p
 html[data-ui-look="pixel"] .pxn-root.phone .pxn-titlefield { font-size: 18px; flex: 1 1 60%; }
 html[data-ui-look="pixel"] .pxn-root.phone .pxn-measure { flex-wrap: wrap; gap: 10px; }
 html[data-ui-look="pixel"] .pxn-root.phone .pxn-measure-bar { flex-basis: 100%; order: 3; }
+html[data-ui-look="pixel"] .pxn-pagehead-btns { margin-left: auto; }
+html[data-ui-look="pixel"] .pxn-titlefield { max-width: 20rem; }
+html[data-ui-look="pixel"] .pxn-datechip input { width: 7.6em; }
+html[data-ui-look="pixel"] .pxn-ledger.compact.nopage .pxn-lrow { grid-template-columns: 62px minmax(0, 1fr) minmax(0, 70px) 64px; gap: 6px; padding-left: 8px; padding-right: 8px; }

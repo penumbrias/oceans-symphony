@@ -91,7 +91,7 @@ export function useNotebookNumbers(range) {
     const now = new Date();
     const acts = pageActs(ctx.activities);
     const start = rangeStart(range, now, acts);
-    const span = Math.max(DAY, now - start);
+    const span = range === "week" ? 7 * DAY : Math.max(DAY, now - start);
     const prevStart = new Date(start.getTime() - span);
     const n = range === "week" ? 7 : 12;
     const bucketOf = (t) => Math.min(n - 1, Math.max(0, Math.floor(((t - start) / span) * n)));
@@ -512,7 +512,8 @@ function WeekChart({ nums, range }) {
   const max = Math.max(1, ...stacks);
   const bw = 520 / n;
   const colorOf = (id) => (id === "__other" ? "#565d86" : colors.color(id));
-  const dayLabel = (i) => format(new Date(nums.start.getTime() + ((Date.now() - nums.start.getTime()) * i) / n), range === "week" ? "EEE" : "MMM d");
+  const span = range === "week" ? 7 * 86400000 : Date.now() - nums.start.getTime();
+  const dayLabel = (i) => format(new Date(nums.start.getTime() + (span * i) / n), range === "week" ? "EEE" : "MMM d");
   return (
     <Panel title={range === "week" ? "Time on pages, by day" : "Time on pages, over time"} action={<span className="pxn-mut">stacked by page</span>} bodyClass="pxn-pad">
       {series.length === 0 ? <p className="pxn-empty">No time logged on a page in {RANGE_WORDS[range]}. "Work on it" on a page times it.</p> : (
@@ -533,7 +534,7 @@ function WeekChart({ nums, range }) {
               );
             })}
           </svg>
-          <div className="pxn-axis"><span>{dayLabel(0)}</span><span>{dayLabel(Math.floor(n / 3))}</span><span>{dayLabel(Math.floor((2 * n) / 3))}</span><span>{range === "week" ? "today" : "now"}</span></div>
+          <div className="pxn-axis"><span>{dayLabel(0)}</span><span>{dayLabel(Math.floor(n / 3))}</span><span>{dayLabel(Math.floor((2 * n) / 3))}</span><span>{range === "week" ? dayLabel(n - 1) : "now"}</span></div>
           <div className="pxn-legend">
             {top.map((s) => (
               <span key={s.id}><Swatch color={colorOf(s.id)} />{s.id === "__other" ? "Other pages" : (index.byId.get(s.id)?.title || "Untitled")}</span>
