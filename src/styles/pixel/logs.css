@@ -235,3 +235,35 @@ html[data-ui-look="pixel"] .pxg-paper-foot { margin-top: 22px !important; font-s
 @media (max-width: 420px) {
   html[data-ui-look="pixel"] .pxg-ticks { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Location history ────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxg-loc { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 8px; align-items: start; }
+html[data-ui-look="pixel"] .pxg-pad { padding: 10px; }
+html[data-ui-look="pixel"] .pxg-logloc { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+html[data-ui-look="pixel"] .pxg-gpsrow { display: flex; gap: 8px; align-items: stretch; }
+html[data-ui-look="pixel"] .pxg-gps { min-width: 120px; min-height: 50px; font-size: 14px; }
+html[data-ui-look="pixel"] .pxg-gpsrow .pxg-ins { align-self: center; padding: 8px; font-size: 14px; min-height: 36px; }
+html[data-ui-look="pixel"] .pxg-seg .pxg-chip { min-height: 26px; }
+html[data-ui-look="pixel"] .pxg-more > summary { cursor: pointer; list-style: none; display: inline-block; }
+html[data-ui-look="pixel"] .pxg-more > summary::-webkit-details-marker { display: none; }
+html[data-ui-look="pixel"] .pxg-when-row { display: flex; align-items: center; gap: 8px; }
+html[data-ui-look="pixel"] .pxg-saverow { display: flex; gap: 8px; }
+html[data-ui-look="pixel"] .pxg-save { flex: 1; min-height: 44px; font-size: 14px; }
+html[data-ui-look="pixel"] .pxg-locrow { display: flex; align-items: center; gap: 8px; padding: 0 2px 0 0; min-height: 56px; box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxg-locrow:hover { background: color-mix(in srgb, var(--px-bar) 45%, transparent); }
+html[data-ui-look="pixel"] .pxg-locmain { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 0 8px 12px; text-align: left; min-height: 56px; }
+html[data-ui-look="pixel"] .pxg-locmain:focus-visible { outline: 2px solid var(--pxg-on); outline-offset: -2px; }
+html[data-ui-look="pixel"] .pxg-locwhen { width: 72px; flex: none; display: flex; flex-direction: column; font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); line-height: 1.3; }
+html[data-ui-look="pixel"] .pxg-locname { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+html[data-ui-look="pixel"] .pxg-locn { font-size: 14.5px; color: var(--px-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-locsub { font-size: 12px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxg-locnote { font-size: 12px; color: var(--px-text-2); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-maplink { font-size: 12px; color: var(--px-text-2); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-maplink:hover { color: var(--px-text); }
+html[data-ui-look="pixel"] .pxg-gpstag { font-family: var(--px-font); font-size: 11px; color: var(--pxg-good); }
+html[data-ui-look="pixel"] .pxg-locsq { width: 14px; height: 14px; }
+@media (max-width: 1023px) {
+  html[data-ui-look="pixel"] .pxg-loc { grid-template-columns: minmax(0, 1fr); }
+  html[data-ui-look="pixel"] .pxg-locwhen { width: 62px; font-size: 11px; }
+  html[data-ui-look="pixel"] .pxg-maplink { font-size: 11px; }
+}
