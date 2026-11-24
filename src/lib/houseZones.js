@@ -70,10 +70,14 @@ export function useHouseZonesActive() {
 export function publishZoneItem(id, item) {
   if (!id || !item) return;
   const prev = items.get(id);
-  const next = { ...item, id, seq: prev ? prev.seq : ++seq };
-  items.set(id, next);
-  // Same signature: refresh the handlers silently.
-  if (prev && prev.sig !== undefined && prev.sig === next.sig) return;
+  // Same signature: refresh the handlers IN PLACE (the frame holds this very
+  // object, and its buttons read the handlers when pressed), silently.
+  if (prev && prev.sig !== undefined && prev.sig === item.sig) {
+    for (const k of Object.keys(prev)) if (!(k in item) && k !== "id" && k !== "seq") delete prev[k];
+    Object.assign(prev, item, { id, seq: prev.seq });
+    return;
+  }
+  items.set(id, { ...item, id, seq: prev ? prev.seq : ++seq });
   emitItems();
 }
 
@@ -82,8 +86,9 @@ export function removeZoneItem(id) {
 }
 
 /** Every item waiting for the line, highest priority first. */
+export function zoneItemsSnapshot() { return snapshot; }
 export function useZoneItems() {
-  return useSyncExternalStore(subscribeItems, () => snapshot, () => snapshot);
+  return useSyncExternalStore(subscribeItems, zoneItemsSnapshot, zoneItemsSnapshot);
 }
 
 /**

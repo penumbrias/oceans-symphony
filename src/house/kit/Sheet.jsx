@@ -12,10 +12,13 @@
 // - Half and peek are NON-MODAL (inspector guide): the page above stays
 //   usable and visible, focus is not trapped, there is no scrim. `modal`
 //   (full sheets, pickers) adds a scrim and keeps Tab inside.
+// - The grab bar is skipped for first focus; `grab={false}` leaves it out
+//   (the confirm sheet has none).
 // - Focus moves to the sheet's first control when it opens and back to
 //   what opened it when it closes.
-// - Escape, Back (the Android back gesture or the browser's Back) and a
-//   press outside close it: onClose(reason). `holdsTyping`: a press outside
+// - Escape and Back (the Android back gesture or the browser's Back) close
+//   it: onClose(reason). A press outside does NOT, unless `closeOnOutside`
+//   (step 2.2: the page beside a half sheet stays usable). `holdsTyping`: a press outside
 //   never closes it (a stray tap must not lose a half-filled capture);
 //   Escape and Back still call onClose, and the host KEEPS the typing as a
 //   draft (building code §5: leaving never loses typing).
@@ -81,7 +84,9 @@ export function useSheetFocus(open, boxRef, { trap = false, initial } = {}) {
     if (!open) return undefined;
     returnTo.current = document.activeElement;
     const box = boxRef.current;
-    const first = (initial && box?.querySelector(initial)) || box?.querySelector("[data-autofocus]") || box?.querySelector(FOCUSABLE) || box;
+    // The grab bar is never the first stop (Lantern): the first real control is.
+    const firstReal = [...(box?.querySelectorAll(FOCUSABLE) || [])].find((el) => !el.classList.contains("hk-sheet-grab"));
+    const first = (initial && box?.querySelector(initial)) || box?.querySelector("[data-autofocus]") || firstReal || box;
     requestAnimationFrame(() => first?.focus?.({ preventScroll: true }));
     return () => {
       const back = returnTo.current;
@@ -99,7 +104,7 @@ export function useSheetFocus(open, boxRef, { trap = false, initial } = {}) {
   return onKeyDown;
 }
 
-export function Sheet({ open, onClose, title, size: sizeProp = "half", onSizeChange, modal, holdsTyping = false, side = "bottom", tools, footer, inline = false, initialFocus, children, className = "", label }) {
+export function Sheet({ open, onClose, title, size: sizeProp = "half", onSizeChange, modal, holdsTyping = false, closeOnOutside = false, grab = true, side = "bottom", tools, footer, inline = false, initialFocus, children, className = "", label }) {
   const id = useId();
   const boxRef = useRef(null);
   const [sizeState, setSizeState] = useState(sizeProp);
@@ -114,9 +119,11 @@ export function Sheet({ open, onClose, title, size: sizeProp = "half", onSizeCha
   const onTrapKey = useSheetFocus(open && !inline, boxRef, { trap: isModal, initial: initialFocus });
   // The toast keeps clear of an open sheet (kit gate item 3).
   useRegisterSheet(open && !inline, boxRef);
-  // A press outside: non-modal sheets close, unless they hold typing.
+  // A press outside: decided NO by default (step 2.2). A non-modal sheet sits
+  // beside a page that stays usable, so a tap on that page is a tap on the
+  // page, not "close". `closeOnOutside` opts a sheet in (never one that holds typing).
   useEffect(() => {
-    if (!open || inline || holdsTyping || isModal) return undefined;
+    if (!open || inline || holdsTyping || isModal || !closeOnOutside) return undefined;
     const onDown = (e) => {
       if (boxRef.current?.contains(e.target)) return;
       if (e.target?.closest?.("[data-house-pop], .hk-pop, [data-shared-pop], [data-sonner-toaster], .hk-toast")) return;
@@ -153,7 +160,7 @@ export function Sheet({ open, onClose, title, size: sizeProp = "half", onSizeCha
         onTrapKey(e);
       }}
     >
-      {side === "bottom" ? (
+      {side === "bottom" && grab ? (
         <button
           type="button"
           className="hk-sheet-grab"
@@ -209,7 +216,7 @@ export function ConfirmSheet({ open, thing, onConfirm, onCancel, instant = false
     ? "This one skips the trash: it can't be brought back."
     : days == null ? "It goes to the trash, where you can bring it back." : `${trashKeepsText(days)}, and you can bring it back from Recent changes.`;
   return (
-    <Sheet open={open} inline={inline} onClose={() => onCancel?.()} title={`${verb} ${thing}?`} size="half" modal initialFocus="[data-safe]">
+    <Sheet open={open} inline={inline} onClose={() => onCancel?.()} title={`${verb} ${thing}?`} size="half" modal grab={false} initialFocus="[data-safe]">
       <div className="hk-confirm">
         <p className="hk-confirm-words">{keeps}</p>
         {detail ? <p className="hk-hint">{detail}</p> : null}
@@ -246,6 +253,7 @@ export function SafetySheet({ open, title, onLeave, children, supportPath = "/gr
         <Button rank="quiet" icon={ArrowLeft} onClick={() => { if (armed) { setArmed(false); onLeave?.("leave"); } else setArmed(true); }}
           aria-describedby={`${id}-leave`}>{armed ? "Tap again to leave" : "Back to the app"}</Button>
         <span id={`${id}-leave`} className="hk-sr">Leaving takes two taps, so it isn't pressed by accident.</span>
+        <span className="hk-sr" role="status" aria-live="polite" data-safety-armed="">{armed ? "Tap again to leave." : ""}</span>
       </header>
       <h1 id={`${id}-t`} className="hk-safety-title house-label">{title}</h1>
       <div className="hk-safety-body">{children}</div>

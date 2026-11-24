@@ -80,12 +80,18 @@ export function ToastHost({ inline = false }) {
     if (!clockRef.current) return;
     clockRef.current = held ? toastPause(clockRef.current, "sheet", Date.now()) : toastResume(clockRef.current, "sheet", Date.now());
   }, [held, toast]);
-  const regionStyle = place.mode === "above" ? { bottom: `${place.bottom}px` } : held ? { visibility: "hidden" } : undefined;
+  // Held: only the CARD is hidden. The region stays a live region and says
+  // the message in words, so a screen reader still hears it while a sheet
+  // leaves no room (Lantern, step 2.2).
+  const regionStyle = place.mode === "above" ? { bottom: `${place.bottom}px` } : undefined;
   return (
     <div className={`hk-toast-region${inline ? " hk-toast-region--inline" : ""}`} role="status" aria-live="polite"
       data-place={inline ? undefined : place.mode} style={regionStyle}>
+      {toast && held ? (
+        <span className="hk-sr" data-toast-held="">{heldWords(toast)}</span>
+      ) : null}
       {toast ? (
-        <ToastCard ref={boxRef} toast={toast}
+        <ToastCard ref={boxRef} toast={toast} style={held ? { visibility: "hidden" } : undefined} aria-hidden={held || undefined}
           onAction={async () => { const a = toast.action; dismissToast(toast.id); await a?.onClick?.(); }}
           onClose={() => dismissToast(toast.id)}
           onPointerEnter={pause("hover")} onPointerLeave={resume("hover")}
@@ -94,6 +100,14 @@ export function ToastHost({ inline = false }) {
       ) : null}
     </div>
   );
+}
+
+// The words a held toast says to a screen reader.
+export function heldWords(toast) {
+  if (!toast) return "";
+  const msg = String(toast.message || "").trim();
+  const tail = toast.action?.label ? ` ${toast.action.label} is waiting until you close this sheet.` : "";
+  return `${msg}${tail}`;
 }
 
 // What one toast looks like (the host above runs its clock).

@@ -12,6 +12,9 @@
 //         dismiss: { label, onClick },
 //         ticking: the detail is a clock; shown, never announced per tick }
 //
+// Handlers are read from `item` when pressed, never captured at render:
+// a publisher refreshes them in place (houseZones `sig`) without a re-render.
+//
 // The region is a polite live region that is always in the page, so a new
 // item is announced even when the line was empty before.
 
@@ -34,19 +37,22 @@ export default function AttentionLine({ item, rest = 0, onNext, label = "Needs y
           ) : null}
           <span className="hk-attn-words">
             {item.onOpen ? (
-              <button type="button" className="hk-attn-title hk-attn-open" onClick={() => item.onOpen()}>{item.title}</button>
+              <button type="button" className="hk-attn-title hk-attn-open" onClick={() => item.onOpen?.()}>{item.title}</button>
             ) : <span className="hk-attn-title">{item.title}</span>}
             {item.detail ? <span className="hk-attn-detail" aria-live={item.ticking ? "off" : undefined}>{item.detail}</span> : null}
           </span>
           <span className="hk-attn-tools">
-            {(item.actions || []).map((a) => (
-              <Button key={a.label} rank={a.primary ? "primary" : "secondary"} busy={a.busy} busyLabel={a.busyLabel} onClick={a.onClick}>{a.label}</Button>
+            {(item.actions || []).map((a, i) => (
+              <Button key={a.label} rank={a.primary ? "primary" : "secondary"} busy={a.busy} busyLabel={a.busyLabel} onClick={(e) => item.actions?.[i]?.onClick?.(e)}>{a.label}</Button>
             ))}
-            {item.menu?.length ? <Menu label={`More for ${item.title}`} items={item.menu} /> : null}
+            {item.menu?.length ? (
+              <Menu label={`More for ${item.title}`}
+                items={item.menu.map((m) => ({ ...m, onSelect: (...args) => item.menu?.find((x) => x.id === m.id)?.onSelect?.(...args) }))} />
+            ) : null}
             {rest > 0 ? (
               <Button rank="quiet" className="hk-attn-more" aria-label={`${rest} more waiting. Show the next`} onClick={onNext}>{`+${rest}`}</Button>
             ) : null}
-            {item.dismiss ? <IconButton icon={X} label={item.dismiss.label} onClick={item.dismiss.onClick} /> : null}
+            {item.dismiss ? <IconButton icon={X} label={item.dismiss.label} onClick={() => item.dismiss?.onClick?.()} /> : null}
           </span>
         </div>
       ) : null}

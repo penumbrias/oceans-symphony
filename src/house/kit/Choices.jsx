@@ -12,6 +12,9 @@
 //   FilterChips  narrow the list beneath. One row that scrolls sideways
 //                (never wraps), on = filled with a ✓, and a count of how
 //                many are on, so one scrolled out of sight still shows.
+//                On a phone with more than 6 options, the row shows the
+//                first 6 (and any that are on) and a "Filter" button that
+//                opens every option as checkboxes in a sheet (step 2.2).
 //   SliderRow    a number with a range: the name, the number beside it
 //                (tap to type), the slider under it. Same behaviour as the
 //                old house's SettingRows SliderRow (inherited values dashed,
@@ -21,7 +24,9 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Check, Minus, X } from "lucide-react";
 import HouseIcon from "@/house/tokens/HouseIcon";
-import { IconButton } from "@/house/kit/Button";
+import { Button, IconButton } from "@/house/kit/Button";
+import { Sheet } from "@/house/kit/Sheet";
+import { useHouseSizeClass } from "@/lib/houseSwitch";
 import { commitNumber } from "@/house/kit/values";
 import "@/house/kit/kit.css";
 
@@ -169,11 +174,24 @@ export function Segmented({ label, options = [], value, onChange, showLabel = fa
 // ── Filter chips ──────────────────────────────────────────────────────
 // `value` is the array of chosen values; [] means "All". `allLabel` adds an
 // All chip that clears the rest.
-export function FilterChips({ label, options = [], value = [], onChange, allLabel = "All" }) {
+export const FILTER_CHIPS_PHONE_MAX = 6;
+
+// Which options a phone row shows: the first `max`, plus any that are on.
+export function phoneChipOptions(options = [], value = [], max = FILTER_CHIPS_PHONE_MAX) {
+  if (options.length <= max) return { shown: options, folded: false };
+  const on = new Set((value || []).map(String));
+  const shown = options.filter((o, i) => i < max || on.has(String(o.value)));
+  return { shown, folded: true };
+}
+
+export function FilterChips({ label, options = [], value = [], onChange, allLabel = "All", phoneMax = FILTER_CHIPS_PHONE_MAX }) {
   const id = useId();
   const rowRef = useRef(null);
   const [more, setMore] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  const isPhone = useHouseSizeClass(options.length > phoneMax) === "phone";
   const on = new Set((value || []).map(String));
+  const { shown, folded } = isPhone ? phoneChipOptions(options, value, phoneMax) : { shown: options, folded: false };
   useLayoutEffect(() => {
     const el = rowRef.current;
     if (!el) return undefined;
@@ -202,7 +220,7 @@ export function FilterChips({ label, options = [], value = [], onChange, allLabe
             <span className="hk-chip-face">{count === 0 ? <Check aria-hidden="true" style={tickStyle} /> : null}{allLabel}</span>
           </button>
         ) : null}
-        {options.map((o) => {
+        {shown.map((o) => {
           const pressed = on.has(String(o.value));
           return (
             <button key={String(o.value)} type="button" className="hk-chip" aria-pressed={pressed} onClick={() => toggle(o.value)}>
@@ -210,7 +228,26 @@ export function FilterChips({ label, options = [], value = [], onChange, allLabe
             </button>
           );
         })}
+        {folded ? (
+          <button type="button" className="hk-chip hk-chip-filter" aria-haspopup="dialog" aria-expanded={sheet}
+            onClick={() => setSheet(true)}>
+            <span className="hk-chip-face">{`Filter (${options.length})`}</span>
+          </button>
+        ) : null}
       </div>
+      {folded ? (
+        <Sheet open={sheet} onClose={() => setSheet(false)} title={label} size="half"
+          footer={<>
+            <Button rank="secondary" onClick={() => onChange?.([])} disabledReason={count === 0 ? "Already showing all" : undefined}>{`Show ${allLabel ? allLabel.toLowerCase() : "all"}`}</Button>
+            <Button rank="primary" onClick={() => setSheet(false)}>Done</Button>
+          </>}>
+          <div className="hk-chips-sheet">
+            {options.map((o) => (
+              <Checkbox key={String(o.value)} label={o.label} checked={on.has(String(o.value))} onChange={() => toggle(o.value)} />
+            ))}
+          </div>
+        </Sheet>
+      ) : null}
     </div>
   );
 }

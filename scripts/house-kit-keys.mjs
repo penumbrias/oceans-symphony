@@ -15,6 +15,10 @@
 //      aria-pressed only.
 //   7  When the confirm sheet's buttons stack, "Keep it" is the bottom one.
 //   +  A date typed that can't be read blocks the story's Save.
+//   +  (2.2, Lantern) A toast held behind a sheet is still announced: the
+//      live region stays visible and says the message and that Undo waits.
+//      A sheet's first focus is never the grab bar; the confirm sheet has
+//      no grab bar; a press outside a half sheet does not close it.
 //
 // Example data only: a fresh browser profile gets past the welcome screen
 // with "Not now" and turns Preview Mode on (as scripts/house-grid.mjs does).
@@ -165,7 +169,14 @@ try {
     if (!t) return null;
     const r = t.getBoundingClientRect();
     const region = t.closest('.hk-toast-region');
-    return { top: r.top, bottom: r.bottom, h: r.height, held: getComputedStyle(region).visibility === 'hidden', place: region.dataset.place, vh: innerHeight };
+    const said = region.querySelector('[data-toast-held]');
+    return {
+      top: r.top, bottom: r.bottom, h: r.height,
+      held: getComputedStyle(t).visibility === 'hidden', place: region.dataset.place, vh: innerHeight,
+      // Lantern: a held toast is still SAID (the live region stays visible and carries the words).
+      regionHidden: getComputedStyle(region).visibility === 'hidden',
+      said: said ? said.textContent : null,
+    };
   });
   const free = await toastBox();
   check('toast at 200%: no taller than 40% of the screen', !!free && free.h <= free.vh * 0.4 + 1, JSON.stringify(free));
@@ -178,6 +189,21 @@ try {
     const sheetTop = await page.evaluate(() => Math.min(...[...document.querySelectorAll('.hk-sheet')].filter((s) => !s.dataset.inline).map((s) => s.getBoundingClientRect().top)));
     const clear = !!t && (t.held || t.bottom <= sheetTop + 0.5);
     check(`toast + "${which}": the toast never covers the sheet`, clear, JSON.stringify({ ...t, sheetTop: Math.round(sheetTop) }));
+    if (t?.held) {
+      check(`toast + "${which}": held, and still announced (region live, words said)`, !t.regionHidden && !!t.said && /moved to trash/i.test(t.said) && /Undo/.test(t.said), JSON.stringify({ said: t.said, regionHidden: t.regionHidden }));
+    }
+    const sheetState = await page.evaluate(() => {
+      const sheet = [...document.querySelectorAll('.hk-sheet')].find((s) => !s.dataset.inline);
+      return { grab: !!sheet?.querySelector('.hk-sheet-grab'), confirm: !!sheet?.querySelector('.hk-confirm'), focusOnGrab: !!document.activeElement?.classList?.contains('hk-sheet-grab') };
+    });
+    check(`"${which}": first focus is not the grab bar`, !sheetState.focusOnGrab, JSON.stringify(sheetState));
+    if (sheetState.confirm) check('confirm sheet: no grab bar', !sheetState.grab, JSON.stringify(sheetState));
+    if (which === 'Open a half sheet') {
+      await page.mouse.click(5, 5);
+      await sleep(500);
+      const still = await page.evaluate(() => [...document.querySelectorAll('.hk-sheet')].some((s) => !s.dataset.inline));
+      check('half sheet: a press outside does not close it (decided no)', still);
+    }
     await page.keyboard.press('Escape');
     await sleep(600);
   }
