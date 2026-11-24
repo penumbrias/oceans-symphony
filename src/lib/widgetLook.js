@@ -27,6 +27,11 @@ export const LOOK_KEYS = [
   // Per-side border widths (Advanced) — each overrides the uniform
   // borderW on its side only, like the per-side spacing.
   "borderTopW", "borderRightW", "borderBottomW", "borderLeftW",
+  // Per-corner rounding — each overrides the uniform radius on its corner.
+  "radiusTL", "radiusTR", "radiusBR", "radiusBL",
+  // Space between the things INSIDE the widget (rows, buttons, chips), as a
+  // percentage of the widget's own spacing — Inner spacing is round the edge.
+  "itemGap",
   // Effects the user can build themselves — the same ones the built-in
   // styles use, so nothing is reserved for presets.
   "gradFrom", "gradTo", "gradAngle", "blur",
@@ -90,9 +95,22 @@ export function mergeLook(base = {}, override = {}) {
 // shadow / background as direct properties on the wrapper was the earlier
 // mistake — the wrapper has no border of its own and sits behind the box,
 // so those settings computed fine and rendered as nothing.
+// A widget box's corners: each corner's own value, else the uniform radius.
+const corner = (c) => `var(--v2-radius-${c}, var(--v2-radius, 8px))`;
+export const BOX_RADIUS = ["tl", "tr", "br", "bl"].map(corner).join(" ");
+
 export function lookToStyle(look = {}, resolveImage = (u) => u) {
   const s = {};
-  if (isSet(look.radius)) { s["--v2-radius"] = `${look.radius}px`; s["--radius"] = `${look.radius}px`; }
+  if (isSet(look.radius)) {
+    s["--v2-radius"] = `${look.radius}px`; s["--radius"] = `${look.radius}px`;
+    // The widget's OWN radius, so a look that draws its own default corners
+    // (the pixel look's square boxes) can still yield to what the person set.
+    s["--v2-own-radius"] = `${look.radius}px`;
+  }
+  if (isSet(look.radiusTL)) s["--v2-radius-tl"] = `${look.radiusTL}px`;
+  if (isSet(look.radiusTR)) s["--v2-radius-tr"] = `${look.radiusTR}px`;
+  if (isSet(look.radiusBR)) s["--v2-radius-br"] = `${look.radiusBR}px`;
+  if (isSet(look.radiusBL)) s["--v2-radius-bl"] = `${look.radiusBL}px`;
   // The split (owner ask, v0.239.0): "Border width" (borderW) scales the
   // borders INSIDE the widget — buttons, cards, dividers — via the
   // [data-own-bw] remaps in index.css; "Element outline" (outlineW) is
@@ -127,6 +145,7 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
     s["--v2-text-muted"] = `color-mix(in srgb, ${look.textColor} ${mutedPct}%, transparent)`;
   }
   if (isSet(look.padding)) s["--v2-pad"] = `${look.padding}px`;
+  if (isSet(look.itemGap)) s["--v2-own-gap"] = String(Math.max(0, Number(look.itemGap)) / 100);
   // Per-side spacing (Advanced) — each overrides the uniform padding on
   // its side only; unset sides keep following --v2-pad.
   if (isSet(look.padTop)) s["--v2-pad-t"] = `${look.padTop}px`;
@@ -134,6 +153,11 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   if (isSet(look.padBottom)) s["--v2-pad-b"] = `${look.padBottom}px`;
   if (isSet(look.padLeft)) s["--v2-pad-l"] = `${look.padLeft}px`;
   if (isSet(look.bg)) s["--v2-widget-bg"] = withAlpha(look.bg, look.bgOpacity);
+  // The pixel look's title band follows a widget's OWN fill or text colour
+  // (it is drawn from the app's title-bar colour otherwise).
+  if (isSet(look.bg) || isSet(look.textColor)) {
+    s["--px-band"] = `color-mix(in srgb, ${isSet(look.bg) ? withAlpha(look.bg, look.bgOpacity) : "var(--px-bar)"} 91%, ${isSet(look.textColor) ? look.textColor : "var(--px-text)"})`;
+  }
   if (isSet(look.bgImage)) {
     // The image sits on the wrapper and shows through the box, so it can
     // sit behind an icon AND its name (the encapsulating-frame ask).
@@ -141,7 +165,7 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
     s.backgroundSize = look.bgSize || "cover";
     s.backgroundPosition = "center";
     s.backgroundRepeat = look.bgSize === "repeat" ? "repeat" : "no-repeat";
-    s.borderRadius = "var(--v2-radius, 8px)";
+    s.borderRadius = BOX_RADIUS;
   }
   if (isSet(look.borderColor)) s["--v2-border-color"] = withAlpha(look.borderColor, look.borderOpacity);
   if (isSet(look.borderStyle)) s["--v2-border-style"] = look.borderStyle;
@@ -315,17 +339,17 @@ export const LOOK_SECTIONS = [
   },
   {
     id: "layout", label: "Layout",
-    keys: ["controlScale", "halign", "valign", "padding", "padTop", "padRight", "padBottom", "padLeft",
+    keys: ["controlScale", "halign", "valign", "padding", "padTop", "padRight", "padBottom", "padLeft", "itemGap",
       // Arrange (v0.314.0): placement, so never part of a style.
       "layered", "zLayer", "boxRotate",
       // Snap to grid (v0.322.x): placement too.
       "snap"],
-    lookKeys: ["padding", "padTop", "padRight", "padBottom", "padLeft"],
+    lookKeys: ["padding", "padTop", "padRight", "padBottom", "padLeft", "itemGap"],
     required: ["padding"],
   },
   {
     id: "box", label: "Box",
-    keys: ["radius", "outlineW", "borderTopW", "borderRightW", "borderBottomW", "borderLeftW",
+    keys: ["radius", "radiusTL", "radiusTR", "radiusBR", "radiusBL", "outlineW", "borderTopW", "borderRightW", "borderBottomW", "borderLeftW",
       "borderStyle", "borderColor", "borderOpacity", "borderW", "shadow"],
     required: ["radius", "outlineW", "shadow"],
   },

@@ -30,7 +30,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { installExtraFonts, uninstallExtraFonts } from "@/lib/fontPacks";
 import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFaces";
 import { CORNER_MODES } from "@/lib/useCornerMode";
-import { UI_LOOKS, readUiLook } from "@/lib/uiLook";
+import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS } from "@/lib/uiLook";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, useInspectorPages } from "@/components/shared/SettingRows";
@@ -382,12 +382,22 @@ function ShapeTab({ v2 }) {
   const alignDef = tokenById.alignX;
   // Opened on a home board: that board's space between widgets.
   const boardGap = useBoardGap();
+  // Pixel look on: its own corners, edge depth and lettering take the place
+  // of the corner rows below (the classic corner mode does nothing there).
+  const pixel = usePixelLook();
+  const pixelEdges = pixel.on && !v2Chrome;
   return (
     <div>
       <Group title={tr("editSheet.groupAppLook")} first>
         <ChoiceRow label={tr("editSheet.appLook")} hint={tr(uiLook === UI_LOOKS.PIXEL ? "editSheet.appLookPixelHint" : "editSheet.appLookHint")}
           value={uiLook} onChange={writeUiLook}
           options={[{ value: UI_LOOKS.SMOOTH, label: tr("editSheet.appLookSmooth") }, { value: UI_LOOKS.PIXEL, label: tr("editSheet.appLookPixel") }]} />
+        {pixelEdges && (
+          <ChoiceRow label={tr("editSheet.pixelType")} hint={tr("editSheet.pixelTypeHint")}
+            value={pixel.px.type || "pixel"} own={!!pixel.px.type} onClear={() => pixel.write({ type: "" })}
+            onChange={(v) => pixel.write({ type: v === "plain" ? "plain" : "" })}
+            options={[{ value: "pixel", label: tr("editSheet.pixelTypePixel") }, { value: "plain", label: tr("editSheet.pixelTypePlain") }]} />
+        )}
       </Group>
       {boardGap && (
         <Group title={tr("editSheet.groupWidgets")}>
@@ -420,6 +430,15 @@ function ShapeTab({ v2 }) {
             <TokenSliderRow v2={v2} id="borderW" label={tr("editSheet.borderW")} />
             <TokenSliderRow v2={v2} id="radius" label={tr("editSheet.radius")} />
           </>
+        ) : pixelEdges ? (
+          <>
+            <SliderRow label={tr("editSheet.corners")} value={pixel.px.corners} fallback={PIXEL_LOOK_DEFAULTS.corners}
+              min={0} max={16} unit="px"
+              onChange={(v) => pixel.write({ corners: Math.round(v) })} onClear={() => pixel.write({ corners: "" })} />
+            <SliderRow label={tr("editSheet.pixelBevel")} hint={tr("editSheet.pixelBevelHint")} value={pixel.px.bevel} fallback={PIXEL_LOOK_DEFAULTS.bevel}
+              min={0} max={4} unit="px"
+              onChange={(v) => pixel.write({ bevel: Math.round(v) })} onClear={() => pixel.write({ bevel: "" })} />
+          </>
         ) : (
           <ChoiceRow label={tr("editSheet.corners")} value={cornerMode} onChange={writeCornerMode}
             options={[{ value: CORNER_MODES.ROUNDED, label: tr("editSheet.cornersRounded") }, { value: CORNER_MODES.SHARP, label: tr("editSheet.cornersSharp") }]} />
@@ -434,7 +453,8 @@ function ShapeTab({ v2 }) {
         // are for a classic user, and the classic mode for a v2 user.
         for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
         await v2.write({ tokens: next });
-        if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
+        if (pixelEdges) await pixel.write({ corners: "", bevel: "", type: "" });
+        else if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
         if (boardGap?.value !== undefined) boardGap.onChange(undefined);
         refresh();
       }} />
@@ -1053,7 +1073,23 @@ const COLOR_ROLES = [
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 
+// A pixel-look colour as drawn right now (hex), for the greyed swatch.
+function readPxLive(cssVar) {
+  try {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${cssVar})`;
+    probe.style.display = "none";
+    document.documentElement.appendChild(probe);
+    const rgb = getComputedStyle(probe).color;
+    probe.remove();
+    const m = rgb.match(/\d+(\.\d+)?/g);
+    if (!m || m.length < 3) return "#888888";
+    return "#" + m.slice(0, 3).map((n) => Math.round(Number(n)).toString(16).padStart(2, "0")).join("");
+  } catch { return "#888888"; }
+}
+
 function ColourTab({ children, v2, onResetBackground = null }) {
+  const pixel = usePixelLook();
   const tr = useT();
   const {
     themeMode, selectedTheme, customColors, updateCustomColorsFull, clearCustomColors,
@@ -1134,10 +1170,23 @@ function ColourTab({ children, v2, onResetBackground = null }) {
           );
         })()}
       </Group>
+      {/* Pixel look on: the colours it draws its frame with (outline, title
+          bars, the page floor). Unset = mixed from the app colours above. */}
+      {pixel.on && (
+        <Group title={tr("editSheet.groupPixelColours")}>
+          {[["outline", "editSheet.pixelOutline", "--px-line"], ["titleBar", "editSheet.pixelTitleBar", "--px-bar"],
+            ["floorTop", "editSheet.pixelFloorTop", "--px-floor-top-live"], ["floorBottom", "editSheet.pixelFloorBottom", "--px-sunk"]].map(([key, labelKey, liveVar]) => (
+            <ColourRow key={key} label={tr(labelKey)} value={pixel.px[key] || ""} live={readPxLive(liveVar)}
+              onChange={(h) => pixel.write({ [key]: splitHexAlpha(h).hex || h })}
+              onClear={() => pixel.write({ [key]: "" })} />
+          ))}
+        </Group>
+      )}
       {children}
       <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetColourBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
+        if (pixel.on) await pixel.write({ outline: "", titleBar: "", floorTop: "", floorBottom: "" });
         clearCustomColors();
         if (v2) v2.setToken("accent", "");
         onResetBackground?.();

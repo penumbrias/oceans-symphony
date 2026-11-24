@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: change its corners, edge depth, lettering, outline, title bars and page floor in Display options." },
+      { type: "feature", text: "Widgets: round each corner on its own, and set the space between items inside a widget." },
+      { type: "fix", text: "Pixel look: a widget's own corners and text colour now show instead of being squared and recoloured." },
       { type: "feature", text: "Pixel look on phones: search, page tabs and a \"How this page works\" sheet in the header (a dot means new tips)." },
       { type: "improve", text: "Pixel look: a soft gradient behind pages instead of the grid. Your own background still shows on top." },
       { type: "fix", text: "Tour: the Accessibility button sits on the tour card now, so it no longer covers the logo." },

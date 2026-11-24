@@ -35,6 +35,7 @@ export const DEVICE_LOOK_FIELDS = [
   "front_button_icon",      // custom icon on the front button
   "corner_mode",
   "ui_look",                // Smooth / Pixel app look (uiLook.js)
+  "ui_pixel",               // the pixel look's own defaults (uiLook.js)
   "wave_color_key",
   "wave_color_custom",
   "system_banner_height",   // banner crop differs by screen width

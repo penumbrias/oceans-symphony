@@ -17,9 +17,11 @@ html[data-ui-look="pixel"] {
   --px-line: color-mix(in srgb, var(--color-bg, #1a1c2b) 45%, #000);
   --px-hi: color-mix(in srgb, var(--color-surface, #26293e) 74%, #fff);
   --px-lo: color-mix(in srgb, var(--color-surface, #26293e) 62%, #000);
-  --px-bevel: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
-  --px-sunken: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi);
-  --radius: 0px;
+  /* Edge depth and corners: the person's own (Display options → Shape,
+     set inline on <html> by UiLookApplier), else the pixel defaults. */
+  --px-bevel: inset var(--px-bw, 2px) var(--px-bw, 2px) 0 var(--px-hi), inset calc(-1 * var(--px-bw, 2px)) calc(-1 * var(--px-bw, 2px)) 0 var(--px-lo);
+  --px-sunken: inset var(--px-bw, 2px) var(--px-bw, 2px) 0 var(--px-lo), inset calc(-1 * var(--px-bw, 2px)) calc(-1 * var(--px-bw, 2px)) 0 var(--px-hi);
+  --radius: var(--px-corner, 0px);
 }
 
 /* Square corners. Round things that are round on purpose (avatars,
@@ -28,9 +30,19 @@ html[data-ui-look="pixel"] :is(
   .rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl,
   [class*="rounded-t-"], [class*="rounded-b-"], [class*="rounded-l-"], [class*="rounded-r-"],
   [class*="rounded-tl-"], [class*="rounded-tr-"], [class*="rounded-bl-"], [class*="rounded-br-"],
-  [class*="rounded-["], .os-sheet, .os-card, [data-widget-box]
+  [class*="rounded-["], .os-sheet, .os-card
 ) {
-  border-radius: 0 !important;
+  border-radius: var(--px-corner, 0px) !important;
+}
+
+/* Widget boxes are square by default too, but corners the person set on
+   the widget (Edges → Corners, or each corner) always win. */
+html[data-ui-look="pixel"] [data-widget-box] {
+  border-radius:
+    var(--v2-radius-tl, var(--v2-own-radius, var(--px-corner, 0px)))
+    var(--v2-radius-tr, var(--v2-own-radius, var(--px-corner, 0px)))
+    var(--v2-radius-br, var(--v2-own-radius, var(--px-corner, 0px)))
+    var(--v2-radius-bl, var(--v2-own-radius, var(--px-corner, 0px))) !important;
 }
 
 /* Panels: cards, sheets, dialogs, pop-overs — a bevelled box with a dark
@@ -50,6 +62,7 @@ html[data-ui-look="pixel"] [data-widget-box]::after {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  border-radius: inherit;
   box-shadow: var(--px-bevel);
 }
 
@@ -130,7 +143,11 @@ html[data-ui-look="pixel"] {
   --px-text: var(--color-text-primary, #e9e7f5);
   --px-text-2: var(--color-text-secondary, #cfd1ea);
   --px-tab: color-mix(in srgb, var(--color-surface, #26293e) 85%, var(--color-bg, #1a1c2b));
+  /* The page floor's gradient top: the person's own, else a soft tint. */
+  --px-floor-top-live: var(--px-floor-top, color-mix(in srgb, var(--px-floor-bottom, var(--px-sunk)) 82%, var(--color-primary, #6366f1) 18%));
 }
+/* Plain lettering: the pixel look keeps its frame but uses the app's type. */
+html[data-ui-look="pixel"][data-px-type="plain"] { --px-font: var(--font-sans); }
 
 .px-chrome { font-family: var(--px-font); color: var(--px-text); }
 .px-headbar {
@@ -208,8 +225,8 @@ html[data-ui-look="pixel"] {
 [data-px-chrome] #main-content {
   /* A soft gradient from the theme's own colours (Penumbra: no grid). A
      background the person set paints above this. */
-  background-color: var(--px-sunk);
-  background-image: linear-gradient(180deg, color-mix(in srgb, var(--px-sunk) 82%, var(--color-primary, #6366f1) 18%) 0%, var(--px-sunk) 70%);
+  background-color: var(--px-floor-bottom, var(--px-sunk));
+  background-image: linear-gradient(180deg, var(--px-floor-top-live) 0%, var(--px-floor-bottom, var(--px-sunk)) 70%);
   background-attachment: fixed;
 }
 
@@ -345,19 +362,24 @@ html[data-ui-look="pixel"] .os-alter-name[style*="--alter-name"] { color: var(--
    background or look the person set on the widget or board sits closer to
    the widget and wins over this default. */
 html[data-ui-look="pixel"] { --v2-widget-bg: var(--color-surface, #26293e); }
+/* The title band: the app's title-bar colour (Display options → Colour),
+   or mixed from a widget's own fill and text colour when it has them. */
+html[data-ui-look="pixel"] :is(.os-widget-head, .os-head-row) {
+  --px-widget-bar: var(--px-band, var(--px-bar));
+}
 html[data-ui-look="pixel"] .os-widget-head {
   align-items: center;
   margin: calc(-1 * var(--os-pad-t, 0px)) calc(-1 * var(--os-pad-r, 0px)) 8px calc(-1 * var(--os-pad-l, 0px));
   padding: 3px 8px;
   min-height: 24px;
-  background: var(--px-bar);
+  background: var(--px-widget-bar);
   box-shadow: inset 0 -2px 0 var(--px-line);
 }
 html[data-ui-look="pixel"] .os-widget-head [data-widget-label] {
   font-family: var(--px-font);
   font-size: 0.8125em;
   font-weight: 500;
-  color: var(--px-text);
+  color: var(--v2-text, var(--px-text));
   letter-spacing: 0;
 }
 
@@ -367,7 +389,7 @@ html[data-ui-look="pixel"] .os-head-row {
   padding: 3px 8px !important;
   min-height: 26px;
   margin-bottom: 8px;
-  background: var(--px-bar);
+  background: var(--px-widget-bar);
   box-shadow: inset 2px 2px 0 var(--px-hi), inset 0 -2px 0 var(--px-line);
 }
 html[data-ui-look="pixel"] .os-head-label {
@@ -376,7 +398,7 @@ html[data-ui-look="pixel"] .os-head-label {
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
-  color: var(--px-text);
+  color: var(--v2-text, var(--px-text));
 }
 
 /* Page titles: compact, like a window's name (the page's tab already

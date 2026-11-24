@@ -176,7 +176,7 @@ function applyFontFamily(value) {
   // With nothing chosen, the pixel look (html[data-ui-look="pixel"]) uses its
   // own pixel font; a font the person picked always wins.
   const root = document.documentElement;
-  const fallback = root.getAttribute("data-ui-look") === "pixel" ? PIXEL_BODY_FONT : "'Inter', sans-serif";
+  const fallback = root.getAttribute("data-ui-look") === "pixel" && root.getAttribute("data-px-type") !== "plain" ? PIXEL_BODY_FONT : "'Inter', sans-serif";
   const css = LEGACY_FONT_MAP[value] || value || fallback;
   root.style.setProperty("--font-sans", css);
 }
@@ -263,7 +263,10 @@ export function initAccessibility() {
 }
 
 function pixelLookOn() {
-  try { return document.documentElement.getAttribute("data-ui-look") === "pixel"; } catch { return false; }
+  try {
+    const root = document.documentElement;
+    return root.getAttribute("data-ui-look") === "pixel" && root.getAttribute("data-px-type") !== "plain";
+  } catch { return false; }
 }
 
 export function getAccessibilitySettings() {

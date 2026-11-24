@@ -638,7 +638,7 @@ function FontStyleToggles({ value = [], onChange }) {
 
 // The four per-side rows under Inner spacing / Outline, opened from a
 // small link under the uniform row and kept open while any side is set.
-function SideRows({ sides, settings, fallback, min, max, set, setHere }) {
+function SideRows({ sides, settings, fallback, min, max, set, setHere, link = "Each side" }) {
   const anySet = setHere(sides.map(([k]) => k));
   const [open, setOpen] = React.useState(false);
   const shown = open || anySet;
@@ -646,7 +646,7 @@ function SideRows({ sides, settings, fallback, min, max, set, setHere }) {
     <>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={shown}
         className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 py-1">
-        <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> Each side{anySet ? " (set)" : ""}
+        <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> {link}{anySet ? " (set)" : ""}
       </button>
       {shown && (
         <div className="pl-3 border-l border-border/40">
@@ -1350,6 +1350,9 @@ export default function WidgetConfigSheet({
                   <SideRows sides={[["padTop", "Top"], ["padRight", "Right"], ["padBottom", "Bottom"], ["padLeft", "Left"]]}
                     settings={settings} fallback={num(settings.padding, fb("padding", "padding", 12))} min={0} max={48} set={set} setHere={setHere} />
                 </div>
+                <SliderRow label="Space between items" hint="Rows, buttons and chips inside" value={settings.itemGap} fallback={100}
+                  min={0} max={300} step={10} unit="%"
+                  onChange={(v) => set({ itemGap: v })} onClear={() => set({ itemGap: "" })} />
                 {/* Left / Right mirror the layout, not just the text. */}
                 <ChoiceRow label="Across" value={settings.halign || "stretch"} onChange={(v) => set({ halign: v })}
                   own={own("halign")} onClear={() => set({ halign: "" })}
@@ -1369,6 +1372,8 @@ export default function WidgetConfigSheet({
                 <SliderRow label="Corners" value={settings.radius} fallback={fb("radius", "radius", 12)}
                   min={0} max={32} unit="px"
                   onChange={(v) => set({ radius: v })} onClear={() => set({ radius: "" })} />
+                <SideRows link="Each corner" sides={[["radiusTL", "Top left"], ["radiusTR", "Top right"], ["radiusBR", "Bottom right"], ["radiusBL", "Bottom left"]]}
+                  settings={settings} fallback={num(settings.radius, fb("radius", "radius", 12))} min={0} max={32} set={set} setHere={setHere} />
                 <div className="border-b border-border/30">
                   <SliderRow label="Outline" hint="The box's own edge" value={settings.outlineW} fallback={fb("outlineW", "outlineW", 1)}
                     min={0} max={8} unit="px"

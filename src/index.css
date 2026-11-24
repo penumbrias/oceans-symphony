@@ -1139,6 +1139,28 @@ body > .fixed { pointer-events: auto; }
 [data-widget-content][data-own-bw] .border-l { border-left-width: var(--v2-own-border-w); }
 [data-widget-content][data-own-bw] .border-r { border-right-width: var(--v2-own-border-w); }
 
+/* A widget's own "Space between items" scales the gaps INSIDE it (rows,
+   buttons, chips) — Inner spacing is the room round its edge. Gated on
+   [data-own-gap], so nothing changes until the person sets it. */
+[data-widget-content][data-own-gap] .gap-0\.5 { gap: calc(0.125rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-0\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.125rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-1 { gap: calc(0.25rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.25rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-1\.5 { gap: calc(0.375rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.375rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-2 { gap: calc(0.5rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.5rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-2\.5 { gap: calc(0.625rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.625rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-3 { gap: calc(0.75rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.75rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-4 { gap: calc(1rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-5 { gap: calc(1.25rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1.25rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .gap-6 { gap: calc(1.5rem * var(--v2-own-gap)); }
+[data-widget-content][data-own-gap] .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1.5rem * var(--v2-own-gap)); }
+
 /* A widget's "Text color" must also reach CLASSED text — nearly every
    line in a widget carries text-foreground or text-muted-foreground,
    which beat inherited color. When the look sets a text color,

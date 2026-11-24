@@ -58,7 +58,7 @@ import { useExpandingWidgets } from "@/hooks/useExpandingWidgets";
 import HomeOpensOnRow from "@/components/settings/HomeOpensOnRow";
 import {
   pickLook, mergeLook, lookToStyle, lookExtraCss, resolveUserStyles, userStyleId, newStyleId,
-  USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS, lookForGroups,
+  USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS, lookForGroups, BOX_RADIUS,
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
@@ -479,7 +479,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
         ...style,
         ...(ownShadowCss && !collapsed ? {
           boxShadow: ownShadowCss,
-          borderRadius: lookStyle["--v2-radius"] || "var(--v2-radius, 8px)",
+          borderRadius: ["tl", "tr", "br", "bl"].map((c) => lookStyle[`--v2-radius-${c}`] || lookStyle["--v2-radius"] || "var(--v2-radius, 8px)").join(" "),
           ...(lookStyle["--v2-accent"] ? { "--v2-accent": lookStyle["--v2-accent"] } : {}),
         } : {}),
       }}
@@ -560,6 +560,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
         data-halign={halign}
         {...(def.paintBox ? { "data-widget-box": "1" } : {})}
         data-own-bw={lookStyle["--v2-own-border-w"] ? "1" : undefined}
+        data-own-gap={lookStyle["--v2-own-gap"] ? "1" : undefined}
         {...(editMode && !a11yStack ? move.getMoveProps() : {})}
         {...(editMode && !a11yStack && onHoldSelect ? {
           // Hold, then LET GO without moving = pick this widget for a
@@ -591,7 +592,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
         ].join(" ").trim() || undefined}
         style={{
           ...lookStyle,
-          borderRadius: "var(--v2-radius, 8px)",
+          borderRadius: BOX_RADIUS,
           // Classic-registry widgets have no v2 Section to consume the box
           // look — the wrapper paints it for them (def.paintBox). Neutral
           // fallbacks keep the default look pixel-identical; only values

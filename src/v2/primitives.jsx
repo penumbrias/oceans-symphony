@@ -6,6 +6,7 @@
 // customization tokens so everything here is user-tunable by construction.
 
 import React from "react";
+import { BOX_RADIUS } from "@/lib/widgetLook";
 
 // The display mode a widget is rendering at, so shared primitives can
 // answer it without every widget threading the prop through. Widgets that
@@ -65,7 +66,7 @@ export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
     borderColor: borderFallback
       ? "var(--v2-border-color, color-mix(in srgb, var(--color-muted) 60%, transparent))"
       : "var(--v2-border-color, transparent)",
-    borderRadius: "var(--v2-radius, 8px)",
+    borderRadius: BOX_RADIUS,
     boxShadow: "var(--v2-shadow, none)",
     background: "var(--v2-widget-bg, transparent)",
     // User-built effects (Appearance → Effects). Both no-ops when unset.
