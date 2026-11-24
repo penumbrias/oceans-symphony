@@ -1,10 +1,10 @@
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import { clockOpts } from "@/lib/timeFormat";
-import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
+import { saveMeeting, trashMeeting } from "@/lib/meetingEntry";
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { logEmotionCheckIn } from "@/lib/checkinEntry";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ import CheckInStep4 from "@/components/system-checkin/CheckInStep4";
 import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
 import MeetingParticipantsSection, { normalizeParticipants } from "@/components/system-checkin/MeetingParticipantsSection";
 import MeetingDialogue, { normalizeDialogue } from "@/components/system-checkin/MeetingDialogue";
-import { saveMentions } from "@/lib/mentionUtils";
 import RichText from "@/components/shared/RichText";
 import { renderRichContent } from "@/lib/renderBulletinContent";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
@@ -122,175 +121,39 @@ export default function SystemCheckInPage() {
   // Highlight check-in on arrival from mention
   useMentionHighlight("id", checkIns.length > 0 && view === "view");
 
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.SystemCheckIn.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
-      toast.success("Check-in saved!");
-      clearMeetingDraft();
-      setFormData({});
-      setView("list");
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (data) => base44.entities.SystemCheckIn.update(currentCheckIn.id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
-      toast.success("Check-in updated!");
-      clearMeetingDraft();
-      setFormData({});
-      setCurrentCheckIn(null);
-      setView("list");
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
+  // One save path (src/lib/meetingEntry.js): the step grammar, the record,
+  // @mention notices and — for a NEW meeting only — its feelings as
+  // EmotionCheckIns. Editing a past meeting never touches the live front
+  // or logs its feelings again.
+  const [saving, setSaving] = useState(false);
   const handleSave = async () => {
-    // Every field is optional — including the date. If somehow empty, default
-    // to today rather than blocking the save.
-    if (!formData.date) {
-      const now = new Date();
-      const localDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-      formData.date = localDate;
-    }
-
-    // Transform any "/w @name [secret]" in the step notes into a whisper bar
-    // (no brackets warns first — a check-in note is a personal record). The
-    // @recipients are still caught by saveMentions below (it runs on the
-    // original text, which still contains the @names), so they're notified.
-    const dataToSave = { ...formData };
-    let meetingAuthorId = null;
-    for (const key of ["step1_arrive", "step2_notice", "step3_greet", "step4_share", "step5_closing"]) {
-      const step = dataToSave[key];
-      if (step?.notes) {
-        let prepared;
-        try { prepared = await prepareAuthoredText(step.notes, { alters, terms, surfaceLabel: "check-in note" }); }
-        catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
-        if (prepared === null) return; // user backed out of the whole-blur warning
-        dataToSave[key] = { ...step, notes: prepared.content, author_alter_ids: prepared.authorIds };
-        if (!meetingAuthorId && prepared.authorIds[0]) meetingAuthorId = prepared.authorIds[0];
-      }
-    }
-
-    const allStepContent = [
-      formData.step3_greet?.notes,
-      formData.step4_share?.notes,
-      formData.step5_closing?.notes,
-    ].filter(Boolean).join(" ");
-
-    if (currentCheckIn) {
-      updateMutation.mutate(dataToSave);
-      // Save mentions for existing check-in
-      if (allStepContent && alters.length > 0) {
-        await saveMentions({
-          content: allStepContent,
-          alters,
-          sourceType: "checkin",
-          sourceId: currentCheckIn.id,
-          sourceLabel: "System Check-In",
-          navigatePath: `/system-checkin?id=${currentCheckIn.id}`,
-          authorAlterId: meetingAuthorId,
-        });
-      }
-    } else {
-      // Create new and then save mentions with the returned ID
-      const newCheckIn = await base44.entities.SystemCheckIn.create(dataToSave);
-      queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
-      if (allStepContent && alters.length > 0) {
-        await saveMentions({
-          content: allStepContent,
-          alters,
-          sourceType: "checkin",
-          sourceId: newCheckIn.id,
-          sourceLabel: "System Check-In",
-          navigatePath: `/system-checkin?id=${newCheckIn.id}`,
-          authorAlterId: meetingAuthorId,
-        });
-      }
-      // Per-participant feelings → EmotionCheckIn, attributed to that alter,
-      // so a meeting participant's emotions show up in analytics / the
-      // check-in log exactly like a Quick Check-In does. Each participant
-      // gets its own row (their feelings are recorded separately).
-      await syncParticipantEmotions(formData.participants);
-      // Who's near comes from the "Notice who's near" section; old drafts
-      // may still carry step2_notice.alters_present, so fold both together.
-      const participantIds = normalizeParticipants(formData.participants).map((p) => p.alter_id);
-      const legacyPresent = formData.step2_notice?.alters_present || [];
-      const presentIds = [...new Set([...participantIds, ...legacyPresent])].filter((id) => alters.some((a) => a.id === id));
-      await syncStep2Feelings(presentIds);
-      toast.success("Check-in saved!");
-      setFormData({});
-      setView("list");
-      return;
-    }
-    // Editing an existing meeting stops here. A past meeting never touches
-    // the live front (this used to close every co-fronter's session and
-    // write the legacy primary/co-fronter shape onto a per-alter session),
-    // and its feelings were already logged when it was first saved.
-  };
-
-  // Step 2 "Feelings noticed" → one system-wide EmotionCheckIn so the
-  // meeting's feelings appear in analytics, the check-in log and reports
-  // exactly like a Quick Check-In does. New meetings only.
-  //
-  // Legacy back-compat: Step 2 used to store feelings as a comma/
-  // semicolon-separated string instead of an array.
-  const syncStep2Feelings = async (alterIds) => {
-    const feelings = formData.step2_notice?.feelings;
-    let emotionLabels = [];
-    if (Array.isArray(feelings)) {
-      emotionLabels = feelings.filter((s) => typeof s === "string" && s.trim()).map((s) => s.trim());
-    } else if (typeof feelings === "string" && feelings.trim()) {
-      emotionLabels = feelings.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-    }
-    if (emotionLabels.length === 0) return;
-    const sensations = (formData.step2_notice?.sensations || "").trim();
-    const stepNotes = (formData.step2_notice?.notes || "").trim();
-    const noteParts = ["From system check-in"];
-    if (sensations) noteParts.push(`Sensations: ${sensations}`);
-    if (stepNotes) noteParts.push(`Notes: ${stepNotes}`);
+    if (saving) return; // one save at a time — a double tap must not make two meetings
+    setSaving(true);
     try {
-      await logEmotionCheckIn({
-        emotions: emotionLabels,
-        frontingAlterIds: alterIds,
-        note: noteParts.join(". "),
-      });
-      queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-    } catch (e) {
-      console.error("Failed to save check-in emotions", e);
-      toast.error("Couldn't save your emotions to the log.");
-    }
-  };
-
-  // Per-participant feelings → EmotionCheckIn, one row per participant,
-  // attributed to that alter. Only the new-meeting save path calls this
-  // (so re-editing an old meeting doesn't duplicate rows).
-  const syncParticipantEmotions = async (participants) => {
-    const list = Array.isArray(participants) ? participants : [];
-    let created = false;
-    let failed = 0;
-    for (const p of list) {
-      const emos = Array.isArray(p?.emotions) ? p.emotions.filter((s) => typeof s === "string" && s.trim()) : [];
-      if (!p?.alter_id || emos.length === 0) continue;
-      const noteBits = ["From system meeting"];
-      if ((p.note || "").trim()) noteBits.push(p.note.trim());
-      try {
-        await logEmotionCheckIn({
-          emotions: emos,
-          frontingAlterIds: [p.alter_id],
-          alter_id: p.alter_id,
-          note: noteBits.join(". "),
-        });
-        created = true;
-      } catch (e) {
-        console.error("Failed to save a participant's emotions", e);
-        failed += 1;
+      let result;
+      try { result = await saveMeeting({ existing: currentCheckIn, formData, alters, terms }); }
+      catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
+      if (!result) return; // backed out of the whole-blur warning
+      queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
+      // The meeting is saved: its draft must not come back as a new one.
+      clearMeetingDraft();
+      setFormData({});
+      if (result.isNew) {
+        const f = result.feelings;
+        if (f.logged > 0) queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+        if (f.participantFailures > 0) toast.error(`Couldn't save emotions for ${f.participantFailures} participant${f.participantFailures === 1 ? "" : "s"}.`);
+        if (f.stepTwoFailed) toast.error("Couldn't save your emotions to the log.");
+        toast.success("Check-in saved!");
+      } else {
+        toast.success("Check-in updated!");
+        setCurrentCheckIn(null);
       }
+      setView("list");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't save the meeting");
+    } finally {
+      setSaving(false);
     }
-    if (created) queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-    if (failed > 0) toast.error(`Couldn't save emotions for ${failed} participant${failed === 1 ? "" : "s"}.`);
   };
 
   const handleNewCheckIn = () => {
@@ -310,7 +173,7 @@ export default function SystemCheckInPage() {
   // Straight to the trash, with Undo on the toast (UI critique H3).
   const handleDelete = (id) => deleteWithUndo({
     label: "Meeting deleted",
-    run: () => base44.entities.SystemCheckIn.delete(id),
+    run: () => trashMeeting(id),
     refresh: () => queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] }),
   });
 
@@ -628,7 +491,7 @@ export default function SystemCheckInPage() {
         sum: clip(fd.step5_closing?.notes) || (fd.step5_closing?.gratitude_expressed ? "Thanks given" : "") },
     ];
     const step = Math.min(5, Math.max(1, pxStep));
-    const saving = createMutation.isPending || updateMutation.isPending;
+    
     const cancelEdit = () => { clearMeetingDraft(); setPxStep(1); currentCheckIn ? setView("view") : setView("list"); };
     const stepRow = (st) => (
       <button key={st.n} type="button" className="pxm-steprow" onClick={() => setPxStep(st.n)}
@@ -932,10 +795,10 @@ export default function SystemCheckInPage() {
             <Button
               onClick={handleSave}
               className="w-full gap-2"
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={saving}
             >
               <Save className="w-4 h-4" />
-              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Meeting"}
+              {saving ? "Saving..." : "Save Meeting"}
             </Button>
           </div>
         </div>
