@@ -15,12 +15,16 @@ import { ActivityManager } from "@/components/activities/ActivityCustomizationMe
 import ActivityCategoryDetail from "@/components/activities/ActivityCategoryDetail";
 import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { usePixelDesk, useUiLook } from "@/lib/uiLook";
+import ActivitiesPixel from "@/components/activities/ActivitiesPixel";
 
 export default function Activities() {
   const { search } = useLocation();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [openId, setOpenId] = useState(() => params.get("category"));
+  const pixel = useUiLook() === "pixel";
+  const pixelDesk = usePixelDesk();
 
   useEffect(() => {
     if (!params.has("category")) return;
@@ -33,6 +37,16 @@ export default function Activities() {
 
   if (params.has("activityId") || params.has("highlight") || params.has("date")) {
     return <Navigate to={`/planner${search}`} replace />;
+  }
+
+  if (pixel) {
+    return (
+      <ErrorBoundary
+        fallback={(err, reset) => <ActivityNestingRecovery error={err} onReset={reset} />}
+        resetKeys={[openId]}>
+        <ActivitiesPixel desk={pixelDesk} openId={openId} setOpenId={setOpenId} />
+      </ErrorBoundary>
+    );
   }
 
   return (

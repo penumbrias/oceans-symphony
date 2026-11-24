@@ -26,7 +26,11 @@ const PRIORITIES = [
 const NEW_GOAL_PAGE = "__new_goal__";
 const NEW_GOAL_PAGE_OPTION = { id: NEW_GOAL_PAGE, label: "＋ New goal named after this to-do" };
 
-export default function TaskFormModal({ open, onClose, editingTask, parentTaskId, allTasks = [] }) {
+// `variant="panel"` (the pixel look's To-do desk) draws the same form as
+// a side panel instead of a dialog: same state, same save path. `onSaved`
+// (optional) is called with the saved task instead of closing; `children`
+// and `footer` fill the panel's subtasks and its bottom row.
+export default function TaskFormModal({ open, onClose, editingTask, parentTaskId, allTasks = [], variant = "dialog", onSaved = null, children = null, footer = null }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
@@ -191,7 +195,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       // — without this, the Today widget and the tracker didn't learn
       // about it until something else refetched activities.
       queryClient.invalidateQueries({ queryKey: ["activities"] });
-      onClose();
+      if (onSaved) onSaved(savedTask || editingTask); else onClose();
     } catch (error) {
       toast.error(error.message || "Failed to save task");
     } finally {
@@ -201,6 +205,17 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       savingRef.current = false; // always unlock, incl. the early-return paths
     }
   };
+
+  if (variant === "panel") {
+    return (
+      <TaskFormPanel
+        formData={formData} setFormData={setFormData} alters={alters} loading={loading}
+        editingTask={editingTask} parentTaskId={parentTaskId} onClose={onClose} onSubmit={handleSubmit}
+        goalPageId={goalPageId} setGoalPageId={setGoalPageId} footer={footer}>
+        {children}
+      </TaskFormPanel>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -351,7 +366,112 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
             </Button>
           </div>
         </form>
+        {footer}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// The pixel look's side-panel form (the "Desktop: To-do" board): labels on
+// the left, square chips, ticks instead of switches. Same fields as the
+// dialog above; it only lays them out differently.
+function PxTick({ on, onClick, label, children }) {
+  return (
+    <button type="button" className="pt-tickrow" role="checkbox" aria-checked={!!on} onClick={onClick}>
+      <span className={`pt-tick${on ? " y" : ""}`} aria-hidden>{on ? "x" : ""}</span>
+      <span>{children || label}</span>
+    </button>
+  );
+}
+
+function TaskFormPanel({ formData, setFormData, alters, loading, editingTask, parentTaskId, onClose, onSubmit, goalPageId, setGoalPageId, footer, children }) {
+  const formId = `pt-form-${editingTask?.id || parentTaskId || "new"}`;
+  const [countOn, setCountOn] = useState(() => !!formData.goal_target);
+  const [pickCats, setPickCats] = useState(false);
+  const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
+  const catName = (id) => categories.find((c) => c.id === id)?.name || "Activity";
+  useEffect(() => { setCountOn(!!(editingTask?.goal_target)); setPickCats(false); }, [editingTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (patch) => setFormData({ ...formData, ...patch });
+  const title = editingTask ? "Edit task" : parentTaskId ? "New subtask" : "New task";
+  return (
+    <div className="pt-panel pt-edit">
+      <div className="pt-ttl">
+        <span>{title}</span>
+        <span className="pt-ttl-acts">
+          <button type="button" className="pt-btn sm" onClick={onClose}>Cancel</button>
+          <button type="submit" form={formId} className="pt-btn sm on" disabled={loading}>
+            {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+            {editingTask ? "Update" : "Create"}
+          </button>
+        </span>
+      </div>
+      <form id={formId} onSubmit={onSubmit} className="pt-edit-body">
+        <label className="pt-lbl" htmlFor={`${formId}-title`}>Title</label>
+        <Input id={`${formId}-title`} value={formData.title} required placeholder="What do you want to do?"
+          onChange={(e) => set({ title: e.target.value })} />
+        <span className="pt-lbl">Description</span>
+        <MentionTextarea toolbar value={formData.description} onChange={(val) => set({ description: val })}
+          alters={alters} signposts rows={2}
+          placeholder={`Add details… @ to mention, /w @name [secret] to whisper`} />
+        <div className="pt-frow">
+          <span className="pt-lbl">Due date (deadline)</span>
+          <Input type="date" className="pt-in" value={formData.due_date || ""} onChange={(e) => set({ due_date: e.target.value })} />
+        </div>
+        <div className="pt-frow">
+          <span className="pt-lbl">Scheduled (plan to do)</span>
+          <Input type="datetime-local" className="pt-in" value={formData.scheduled_at || ""} onChange={(e) => set({ scheduled_at: e.target.value })} />
+        </div>
+        <div className="pt-frow">
+          <span className="pt-lbl">Priority</span>
+          <span className="pt-chips" role="radiogroup" aria-label="Priority">
+            {PRIORITIES.map((p) => (
+              <button key={p.id} type="button" role="radio" aria-checked={formData.priority === p.id}
+                className={`pt-chip${formData.priority === p.id ? " sel" : ""}`} onClick={() => set({ priority: p.id })}>
+                {p.label}
+              </button>
+            ))}
+          </span>
+        </div>
+        <div className="pt-frow">
+          <span className="pt-lbl">Activity category</span>
+          <span className="pt-chips">
+            {(formData.activity_category_ids || []).map((id) => (
+              <span key={id} className="pt-chip">{catName(id)}</span>
+            ))}
+            <button type="button" className="pt-chip" aria-expanded={pickCats} onClick={() => setPickCats((v) => !v)}>
+              {pickCats ? "Done" : (formData.activity_category_ids || []).length ? "Change" : "+ Pick"}
+            </button>
+          </span>
+        </div>
+        {pickCats && (
+          <ActivityPillSelector selectedActivities={formData.activity_category_ids}
+            onActivityChange={(ids) => set({ activity_category_ids: ids })} />
+        )}
+        <div className="pt-frow">
+          <span className="pt-lbl">Goal it belongs to</span>
+          <span className="pt-grow"><GoalPagePicker value={goalPageId} onChange={setGoalPageId} newOption={NEW_GOAL_PAGE_OPTION} label={null} /></span>
+        </div>
+        <PxTick on={countOn} onClick={() => {
+          if (countOn) set({ goal_target: "", goal_unit: "" });
+          setCountOn(!countOn);
+        }}>Count toward a number</PxTick>
+        {countOn && (
+          <div className="pt-frow pt-indent">
+            <Input type="number" className="pt-in" value={formData.goal_target} placeholder="Target count"
+              onChange={(e) => set({ goal_target: e.target.value })} />
+            <Input className="pt-in" value={formData.goal_unit} placeholder="times, hours, km..."
+              onChange={(e) => set({ goal_unit: e.target.value })} />
+          </div>
+        )}
+        <PxTick on={formData.pinned_to_dashboard} onClick={() => set({ pinned_to_dashboard: !formData.pinned_to_dashboard })}>
+          <Pin className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Pin to the home screen
+        </PxTick>
+        <PxTick on={formData.is_urgent} onClick={() => set({ is_urgent: !formData.is_urgent })}>
+          <Zap className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Mark as urgent
+        </PxTick>
+        {children}
+      </form>
+      {footer}
+    </div>
   );
 }

@@ -37,6 +37,13 @@ export default function ActivityTreeRow({
   // Optional: open this activity's details page (the Activities page).
   onOpen = null,
   seen,
+  // Pixel look (ActivityManager's `pixel`): a tap opens, holding or "..."
+  // selects; `openId` marks the open row, `countFor(id)` its count, and
+  // `editRequest` ({ id }) starts a rename from outside the tree.
+  pixel = false,
+  openId = null,
+  countFor = null,
+  editRequest = null,
 }) {
   // Cycle guard — if a malformed parent_category_id chain made the same
   // id appear higher in the render stack, refuse to recurse so we don't
@@ -62,6 +69,20 @@ export default function ActivityTreeRow({
   const isCreatingSub = creatingSubFor === category.id;
 
   useEffect(() => () => { if (autoExpandRef.current) clearTimeout(autoExpandRef.current); }, []);
+  useEffect(() => {
+    if (pixel && editRequest?.id === category.id) {
+      setEditName(category.name); setEditColor(category.color || "#8b5cf6"); setIsEditing(true);
+    }
+  }, [editRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+  const holdRef = useRef(null);
+  const heldRef = useRef(false);
+  useEffect(() => () => { if (holdRef.current) clearTimeout(holdRef.current); }, []);
+  const startHold = () => {
+    heldRef.current = false;
+    if (holdRef.current) clearTimeout(holdRef.current);
+    holdRef.current = setTimeout(() => { heldRef.current = true; holdRef.current = null; onSelect(category.id); }, 500);
+  };
+  const endHold = () => { if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null; } };
 
   // Cycle guard — malformed parent chains must not recurse forever. Sits
   // AFTER the hooks: an early return above them made React's hook order
@@ -106,13 +127,24 @@ export default function ActivityTreeRow({
   return (
     <>
       <div
-        className={`flex items-center gap-2 py-2 px-2 rounded-lg transition-colors cursor-grab active:cursor-grabbing group ${
+        className={pixel
+          ? `pa-row${openId === category.id ? " open" : ""}${isSelected ? " sel" : ""}${isDropTarget ? " drop" : ""}${draggedId === category.id ? " dragging" : ""}`
+          : `flex items-center gap-2 py-2 px-2 rounded-lg transition-colors cursor-grab active:cursor-grabbing group ${
           isDropTarget ? "bg-primary/20 border-2 border-primary" : ""
         } ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"} ${
           draggedId === category.id ? "opacity-50" : ""
         }`}
-        style={{ paddingLeft: `${level * 20 + 8}px` }}
-        onClick={() => !isEditing && onSelect(category.id)}
+        style={{ paddingLeft: `${level * 20 + (pixel ? 4 : 8)}px` }}
+        onClick={() => {
+          if (isEditing) return;
+          if (pixel && onOpen) { if (heldRef.current) { heldRef.current = false; return; } onOpen(category.id); return; }
+          onSelect(category.id);
+        }}
+        {...(pixel ? {
+          onContextMenu: (e) => { e.preventDefault(); endHold(); if (!isEditing) onSelect(category.id); },
+          onPointerDown: (e) => { if (!isEditing && e.pointerType !== "mouse") startHold(); },
+          onPointerUp: endHold, onPointerLeave: endHold, onPointerCancel: endHold,
+        } : {})}
         draggable={!isEditing}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
@@ -162,15 +194,20 @@ export default function ActivityTreeRow({
           </div>
         ) : (
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.color || "#8b5cf6" }} />
-            <span className="text-sm text-foreground truncate">{category.name}</span>
+            <div className={pixel ? "pa-sq" : "w-3 h-3 rounded-full flex-shrink-0"} style={{ backgroundColor: category.color || "#8b5cf6" }} />
+            <span className={pixel ? "pa-name" : "text-sm text-foreground truncate"}>{category.name}</span>
+            {pixel && countFor && <span className="pa-count">{countFor(category.id)}</span>}
+            {pixel && !isSelected && (
+              <button type="button" className="pa-more" aria-label={`Change ${category.name}`} title="Rename, colour, delete, move"
+                onClick={(e) => { e.stopPropagation(); onSelect(category.id); }}>...</button>
+            )}
           </div>
         )}
 
         {/* Actions (when selected, not editing) */}
         {isSelected && !isEditing && (
           <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            {onOpen && (
+            {onOpen && !pixel && (
               <button
                 type="button"
                 onClick={() => onOpen(category.id)}
@@ -201,6 +238,12 @@ export default function ActivityTreeRow({
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
+            {pixel && (
+              <button type="button" onClick={() => onSelect(category.id)} title="Done"
+                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded" aria-label="Done">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
 
@@ -258,6 +301,10 @@ export default function ActivityTreeRow({
               onUpdate={onUpdate}
               onOpen={onOpen}
               seen={nextSeen}
+              pixel={pixel}
+              openId={openId}
+              countFor={countFor}
+              editRequest={editRequest}
             />
           ))}
         </div>
