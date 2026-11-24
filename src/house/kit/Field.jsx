@@ -24,6 +24,7 @@ import { AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, L
 import { base44 } from "@/api/base44Client";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { useTimeFormat } from "@/lib/timeFormat";
+import { usePlannerPrefs } from "@/lib/planner/displayPrefs";
 import HouseIcon from "@/house/tokens/HouseIcon";
 import { Button, IconButton } from "@/house/kit/Button";
 import { KitPopover } from "@/house/kit/KitLayer";
@@ -270,8 +271,13 @@ function Calendar({ value, onPick, onClose, weekStart = 1, clearable, onClear, a
   );
 }
 
-export function DateField({ label, hint, error, save, value, onChange, clearable = false, disabled, weekStart = 1, placeholder = "Today, tomorrow, 23 Nov…", openInline = false }) {
+export function DateField({ label, hint, error, save, value, onChange, clearable = false, disabled, weekStart: weekStartProp, placeholder = "Today, tomorrow, 23 Nov…", openInline = false }) {
   const today = todayDay();
+  // The calendar's first column is the person's own week start (the
+  // planner's "Week starts on", symphony_act_week_start: 0 Sunday, 1 Monday),
+  // read live, never written. A caller can still pass one.
+  const [plannerPrefs] = usePlannerPrefs();
+  const weekStart = weekStartProp ?? plannerPrefs?.weekStartsOn ?? 1;
   const display = isDay(value) ? formatDayWords(value, { today }) : "";
   const { text, setText, setEditing } = useDraft(display);
   const [bad, setBad] = useState(null);
