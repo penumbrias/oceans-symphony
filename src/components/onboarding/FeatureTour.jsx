@@ -712,7 +712,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("journals", {
       emoji: "🔄", title: `${t.Switch} logs`,
       body: `The "${t.Switch} Logs" tab holds the entries written with "Journal this ${t.switch}?", each linked to its ${t.switch}.`,
-      route: "/journals", target: "journals-tabs", look: `the "${t.Switch} Logs" tab`,
+      route: "/journals", target: ["journals-tabs", "px-subtabs"], look: `the "${t.Switch} Logs" tab`,
     }),
     s("journals", {
       emoji: "🔍", title: "Find an entry",
@@ -798,17 +798,17 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("activities", {
       emoji: "🧭", title: "Calendar",
       body: `Calendar shows a Day, Week, Month or Year. Tap a day on the month or year to open it, or hold and drag across days to plan one entry over them all.`,
-      route: "/planner", target: "planner-sections", look: `the Calendar / Plans / Insights switch`,
+      route: "/planner", target: ["planner-sections", "px-subtabs"], look: `the Calendar / Plans / Insights switch`,
     }),
     s("activities", {
       emoji: "🎂", title: "Dates and colours",
       body: `Birthdays and other dates from ${t.alter} profiles show on the calendar; tap one to open the profile. A plan with a colour tag colours its day.`,
-      route: "/planner", target: "planner-sections",
+      route: "/planner", target: ["planner-sections", "px-subtabs"],
     }),
     s("activities", {
       emoji: "📋", title: "Plans",
       body: `Plans lists everything scheduled: Overdue, Today, This week, This month and Later. A repeating series is one row, and the Resolved filter keeps past plans.`,
-      route: "/planner", target: "planner-sections",
+      route: "/planner", target: ["planner-sections", "px-subtabs"],
     }),
     s("activities", {
       emoji: "💸", title: "Events",
@@ -828,7 +828,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("activities", {
       emoji: "📈", title: "Insights",
       body: `Insights has the week's totals per activity and per ${t.alter}, weekly goals, an all-time tally, and "Plan follow-through": how often plans really happen, hardest first.`,
-      route: "/planner", target: "planner-sections",
+      route: "/planner", target: ["planner-sections", "px-subtabs"],
     }),
     s("activities", {
       emoji: "🗓️", title: "Plans and logs",
@@ -1129,7 +1129,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("grounding", {
       emoji: "🫧", title: "Support",
       body: `This page has two tabs, Support and Learn. The ring at the top breathes with you; tap its pattern's name to change it. The 🫧 bubble on every screen brings you back here.`,
-      route: "/grounding", target: "grounding-tabs", look: `the highlighted Support / Learn tabs`,
+      route: "/grounding", target: ["grounding-tabs", "px-subtabs"], look: `the highlighted Support / Learn tabs`,
     }),
     s("grounding", {
       emoji: "🌳", title: "Browse all techniques",
@@ -1204,7 +1204,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("grounding", {
       emoji: "📚", title: "Learn",
       body: `13 modules of short lessons, from Grounding to Building on Progress, each with reflection prompts. "Try Now" opens a technique right from the reading.`,
-      route: "/grounding", target: "grounding-tabs", look: `tap the "Learn" tab`,
+      route: "/grounding", target: ["grounding-tabs", "px-subtabs"], look: `tap the "Learn" tab`,
     }),
     s("grounding", {
       emoji: "📖", title: "Resources",
@@ -1823,7 +1823,10 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
     if (!target) return;
     // A target can list fallbacks: the exact control first, then what holds
     // it (a collapsed Settings section shows the section instead).
-    const el = [].concat(target).map((id) => document.querySelector(`[data-tour="${id}"]`)).find(Boolean);
+    // A target hidden on this screen (an in-page strip shown as subtabs in
+    // the pixel frame) gives way to the next one that is visible.
+    const found = [].concat(target).map((id) => document.querySelector(`[data-tour="${id}"]`)).filter(Boolean);
+    const el = found.find((n) => n.getClientRects().length > 0) || found[0];
     if (!el) {
       // Retry until the page finishes rendering — up to ~2 s
       if (attempt < 10) setTimeout(() => applyHighlight(target, attempt + 1, gen), 200);

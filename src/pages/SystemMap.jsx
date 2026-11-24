@@ -91,7 +91,7 @@ export default function SystemMapPage() {
       </div>
 
       {/* Tabs */}
-      <PageStrip label="Map views" value={tab} onChange={setTab} items={[
+      <PageStrip subtabs label="Map views" value={tab} onChange={setTab} items={[
         { id: "analytics", label: "Analytics Map", icon: Map },
         { id: "inner", label: "Inner World", icon: Globe },
       ]} />

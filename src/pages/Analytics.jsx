@@ -293,7 +293,7 @@ export default function Analytics() {
       </motion.div>
 
       {/* Top-level tabs */}
-      <PageStrip label="Analytics views" items={TABS} value={activeTab} onChange={setActiveTab} />
+      <PageStrip subtabs label="Analytics views" items={TABS} value={activeTab} onChange={setActiveTab} />
 
       {/* Global Date Range — drives the domain tabs. Overview intentionally
           runs on its own fixed "this week vs your usual" window instead. */}

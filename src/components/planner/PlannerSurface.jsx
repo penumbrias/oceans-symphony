@@ -381,7 +381,7 @@ export default function PlannerSurface({
             {/* Row 1: what you're looking at (calendar / plans / insights)
                 plus page config — the tracker's three tabs, merged in. */}
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <PageStrip tour="planner-sections" label="Planner views" className="basis-full" value={section} onChange={setSection} items={[
+              <PageStrip subtabs tour="planner-sections" label="Planner views" className="basis-full" value={section} onChange={setSection} items={[
                 { id: "calendar", label: tr("planner.section.calendar") },
                 { id: "plans", label: tr("planner.plans") },
                 { id: "insights", label: tr("planner.section.insights") },

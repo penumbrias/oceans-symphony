@@ -571,7 +571,7 @@ export default function Grounding({ initialPath = null }) {
 
   // Tab bar shown on entry
   const TabBar = () => (
-    <PageStrip tour="grounding-tabs" label="Support views" sticky className="mb-6" value={activeTab} onChange={setActiveTab} items={[
+    <PageStrip subtabs tour="grounding-tabs" label="Support views" sticky className="mb-6" value={activeTab} onChange={setActiveTab} items={[
       { id: "support", label: "Support" },
       { id: "learn", label: "Learn" },
     ]} />

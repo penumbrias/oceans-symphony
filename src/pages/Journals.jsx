@@ -586,7 +586,7 @@ export default function Journals() {
       </div>
 
       {/* Tabs */}
-      <PageStrip tour="journals-tabs" label="Journal views" items={TABS} value={tab} onChange={setTab} className="mb-4" />
+      <PageStrip subtabs tour="journals-tabs" label="Journal views" items={TABS} value={tab} onChange={setTab} className="mb-4" />
 
       {/* Filters row */}
       <div data-tour="journals-filters" className="flex flex-wrap gap-2 mb-4">

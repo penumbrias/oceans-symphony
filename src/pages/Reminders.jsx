@@ -72,7 +72,7 @@ export default function Reminders() {
       ) : (
         <>
           {/* Tabs */}
-          <PageStrip label="Reminder views" value={tab} onChange={setTab} items={[
+          <PageStrip subtabs label="Reminder views" value={tab} onChange={setTab} items={[
             { id: "inbox", label: "Inbox", tour: "reminders-inbox-tab" },
             { id: "manage", label: "Manage", tour: "reminders-manage-tab" },
           ]} />
