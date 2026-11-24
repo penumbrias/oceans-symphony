@@ -16,8 +16,6 @@ import { useSearchParams } from "react-router-dom";
 import PlannerSurface from "@/components/planner/PlannerSurface";
 import EventSheet from "@/components/planner/EventSheet";
 import { usePlannerEvents } from "@/lib/plannerEvents";
-import { usePixelDesk } from "@/lib/uiLook";
-import { Calendar } from "@/components/ui/calendar";
 
 function parseDay(s) {
   if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
@@ -58,14 +56,14 @@ export default function Planner() {
     setParams(next, { replace: true });
   }, [params, setParams]);
 
-  // The page holds the day the calendar shows, so the pixel look's month
-  // panel (computer) can jump it. Same starting day as before.
-  const pixelDesk = usePixelDesk();
+  // The page holds the day the calendar shows. Same starting day as before.
+  // In the pixel look on a computer the surface lays itself out as the
+  // mockup's desk (month + categories, calendar, insights) — deskLayout.
   const [anchor, setAnchor] = useState(() => initialAnchor || new Date());
-  const [month, setMonth] = useState(anchor);
-  useEffect(() => { setMonth(anchor); }, [anchor]);
 
-  const surface = (
+  return (
+    <>
+    {eventRequest && <EventSheet request={eventRequest} onClose={() => setEventLink(null)} />}
     <PlannerSurface
       dayCount={7}
       chrome
@@ -75,22 +73,8 @@ export default function Planner() {
       initialView={initialView}
       openActivityId={openId}
       onOpenedActivity={() => setOpenId(null)}
+      deskLayout
     />
-  );
-
-  return (
-    <>
-    {eventRequest && <EventSheet request={eventRequest} onClose={() => setEventLink(null)} />}
-    {pixelDesk ? (
-      <div className="px-ws">
-        <aside className="px-ws-side" aria-label="Month" data-tour="planner-month-panel">
-          <div className="px-ws-ttl"><span>Go to a day</span></div>
-          <Calendar mode="single" selected={anchor} month={month} onMonthChange={setMonth}
-            onSelect={(d) => { if (d) setAnchor(d); }} className="px-ws-cal" />
-        </aside>
-        <div className="px-ws-main">{surface}</div>
-      </div>
-    ) : surface}
     </>
   );
 }

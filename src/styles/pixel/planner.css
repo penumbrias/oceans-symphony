@@ -1,0 +1,181 @@
+/* Planner — pixel look (mockup "Planner week, desktop"; phone follows the
+   same language). Every rule is scoped to the pixel look. */
+
+html[data-ui-look="pixel"] {
+  --pxp-open: #e3897c;
+  --pxp-good: #9cc46b;
+  --pxp-warn: #f2c08a;
+  --pxp-on: var(--v2-accent, var(--color-primary, #e8a65d));
+}
+
+/* ── Desk layout ─────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxp-root { padding: 2px 2px 0; }
+html[data-ui-look="pixel"] .pxp-desk {
+  display: grid; grid-template-columns: 230px minmax(0, 1fr) 260px; gap: 4px;
+  min-height: 420px; font-size: 14px; color: var(--px-text);
+}
+html[data-ui-look="pixel"] .pxp-col { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+html[data-ui-look="pixel"] .pxp-flexcol { display: flex; flex-direction: column; min-height: 0; }
+html[data-ui-look="pixel"] .pxp-grow-pn { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+/* Panels + title bars */
+html[data-ui-look="pixel"] .pxp-pn {
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line); outline-offset: -2px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  border-radius: var(--px-corner, 0px);
+}
+html[data-ui-look="pixel"] .pxp-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none;
+  min-height: 24px; padding: 0 8px; font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); color: var(--px-text); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .pxp-ttl-act { display: flex; gap: 2px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxp-ttl-act button { min-width: 22px; min-height: 22px; font-family: var(--px-font); color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxp-ttl-act button:hover,
+html[data-ui-look="pixel"] .pxp-ttl-link:hover { color: var(--px-text); }
+html[data-ui-look="pixel"] .pxp-ttl-link { font-family: var(--px-font); font-size: 13px; color: var(--px-text-2); min-height: 22px; }
+html[data-ui-look="pixel"] .pxp-pad { padding: 10px; }
+html[data-ui-look="pixel"] .pxp-stack { display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .pxp-stack-s { display: flex; flex-direction: column; gap: 6px; }
+html[data-ui-look="pixel"] .pxp-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+html[data-ui-look="pixel"] .pxp-between { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+html[data-ui-look="pixel"] .pxp-muted { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxp-f { font-family: var(--px-font); }
+html[data-ui-look="pixel"] .pxp-good { color: var(--pxp-good); }
+html[data-ui-look="pixel"] .pxp-warn { color: var(--pxp-warn); }
+html[data-ui-look="pixel"] .pxp-empty { font-size: 13px; color: var(--px-text-2); text-align: left; }
+html[data-ui-look="pixel"] .pxp-linkish:hover { color: var(--px-text); text-decoration: underline; }
+html[data-ui-look="pixel"] .pxp-grow { flex: 1 1 auto; }
+
+/* Buttons (raised; "on" = the accent) */
+html[data-ui-look="pixel"] .pxp-btn {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-family: var(--px-font); font-size: 13px; line-height: 1.2; color: var(--px-text);
+  background: var(--px-bar); border: 0; border-radius: var(--px-corner, 0px);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line); outline-offset: -2px;
+  padding: 6px 10px; min-height: 30px;
+}
+html[data-ui-look="pixel"] .pxp-btn:hover { filter: brightness(1.12); }
+html[data-ui-look="pixel"] .pxp-btn:focus-visible { outline-color: var(--pxp-on); }
+html[data-ui-look="pixel"] .pxp-btn.on {
+  background: var(--pxp-on); color: var(--color-bg, #1a1c2b);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--pxp-on) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--pxp-on) 62%, #000);
+}
+html[data-ui-look="pixel"] .pxp-btn:disabled { opacity: .6; }
+html[data-ui-look="pixel"] .pxp-btn-sm { padding: 4px 8px; min-height: 26px; font-size: 12.5px; }
+
+/* ── Toolbar ─────────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxp-toolbar { background: var(--px-panel); box-shadow: inset 0 -2px 0 var(--px-line); flex: none; }
+html[data-ui-look="pixel"] .pxp-toolrow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 8px; }
+html[data-ui-look="pixel"] .pxp-toolrow-2 { padding-top: 0; gap: 6px; }
+html[data-ui-look="pixel"] .pxp-radios, html[data-ui-look="pixel"] .pxp-adds { display: flex; gap: 4px; flex-wrap: wrap; }
+html[data-ui-look="pixel"] .pxp-range { display: inline-flex; align-items: center; gap: 4px; font-family: var(--px-font); font-size: 14px; margin-left: 4px; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxp-arrow { min-width: 26px; min-height: 30px; font-family: var(--px-font); font-size: 15px; color: var(--px-text); }
+html[data-ui-look="pixel"] .pxp-arrow:hover { color: var(--pxp-on); }
+html[data-ui-look="pixel"] .pxp-overlays { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 12.5px; font-family: var(--px-font); }
+
+/* ── Main panel ──────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxp-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+html[data-ui-look="pixel"] .pxp-running:empty { display: none; }
+html[data-ui-look="pixel"] .pxp-running > * { margin: 6px 8px 0; }
+html[data-ui-look="pixel"] .pxp-display { padding: 6px 8px 0; flex: none; }
+html[data-ui-look="pixel"] .pxp-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px; }
+html[data-ui-look="pixel"] .pxp-body-canvas { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .pxp-body-canvas > * { flex: 1 1 auto; min-height: 0; }
+html[data-ui-look="pixel"] .pxp-statusline {
+  display: flex; align-items: center; gap: 18px; flex: none; min-height: 24px; padding: 0 10px;
+  font-family: var(--px-font); font-size: 12px; white-space: nowrap; overflow: hidden;
+  background: var(--px-bar); box-shadow: inset 0 2px 0 var(--px-line);
+}
+
+/* ── Week canvas (pixel branch of WeekCanvas) ────────────────────── */
+html[data-ui-look="pixel"] .pxp-gutter { width: 54px; background: var(--px-panel); }
+html[data-ui-look="pixel"] .pxp-head { box-shadow: inset 0 -2px 0 var(--px-line); font-family: var(--px-font); font-size: 12px; }
+html[data-ui-look="pixel"] .pxp-dayname {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  padding: 5px 6px; min-width: 0; white-space: nowrap;
+}
+html[data-ui-look="pixel"] .pxp-dayname.today { background: var(--pxp-on); color: var(--color-bg, #1a1c2b); }
+html[data-ui-look="pixel"] .pxp-daytotal { font-size: 11px; opacity: .75; }
+html[data-ui-look="pixel"] .pxp-allday {
+  min-height: 26px; background: color-mix(in srgb, var(--px-panel) 85%, var(--px-sunk));
+  box-shadow: inset 0 -2px 0 var(--px-line); font-size: 11px;
+}
+html[data-ui-look="pixel"] .pxp-allday .pxp-gutter { background: transparent; }
+html[data-ui-look="pixel"] .pxp-allday-label { padding: 6px; font-family: var(--px-font); color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxp-allday-cell {
+  display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; padding: 3px 20px 3px 4px;
+  min-width: 0; max-height: 64px; overflow-y: auto;
+}
+html[data-ui-look="pixel"] .pxp-allday-add {
+  position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; line-height: 16px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text-2); opacity: .7;
+}
+html[data-ui-look="pixel"] .pxp-allday-add:hover { opacity: 1; color: var(--px-text); }
+html[data-ui-look="pixel"] .pxp-allday .pxp-events { display: contents; }
+html[data-ui-look="pixel"] .pxp-allday .pxp-events > [role="button"],
+html[data-ui-look="pixel"] .pxp-chip {
+  display: inline-flex; align-items: center; gap: 3px; max-width: 100%; min-width: 0;
+  padding: 0 4px; font-family: var(--px-font); font-size: 11px; line-height: 16px;
+  background: var(--px-bar) !important; border: 0 !important; border-radius: var(--px-corner, 0px) !important;
+  outline: 2px solid currentColor; outline-offset: -2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+html[data-ui-look="pixel"] .pxp-allday .pxp-events > [role="button"] > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui-look="pixel"] .pxp-grid { background: var(--px-panel); }
+html[data-ui-look="pixel"] .pxp-grid > div:not(.pxp-gutter) { border-left: 0 !important; box-shadow: inset 2px 0 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxp-hr { border-top: 2px solid color-mix(in srgb, var(--px-bar) 70%, var(--px-panel)); }
+html[data-ui-look="pixel"] .pxp-hour { left: 6px; font-family: var(--px-font); font-size: 11px; color: var(--px-text-2); white-space: nowrap; }
+html[data-ui-look="pixel"] .pxp-block { font-size: 12px; z-index: 1; }
+html[data-ui-look="pixel"] .pxp-block-btn { display: block; padding: 2px 5px; overflow: hidden; }
+html[data-ui-look="pixel"] .pxp-block-time { font-family: var(--px-font); font-size: 11px; line-height: 1.2; }
+html[data-ui-look="pixel"] .pxp-block-name { line-height: 1.25; }
+html[data-ui-look="pixel"] .pxp-block[data-px-kind="done"] .pxp-block-name { font-weight: 600; }
+
+/* ── Side panels ─────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxp-month {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; padding: 8px;
+  font-family: var(--px-font); font-size: 12px; text-align: center;
+}
+html[data-ui-look="pixel"] .pxp-month-h { padding: 3px 0; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxp-month-d { padding: 3px 0; min-height: 22px; color: var(--px-text); border-radius: var(--px-corner, 0px); }
+html[data-ui-look="pixel"] .pxp-month-d:hover { outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .pxp-month-d.out { pointer-events: none; }
+html[data-ui-look="pixel"] .pxp-month-d.wk { background: var(--px-bar); }
+html[data-ui-look="pixel"] .pxp-month-d.sel { outline: 2px solid var(--pxp-on); outline-offset: -2px; }
+html[data-ui-look="pixel"] .pxp-month-d.today { background: var(--pxp-on); color: var(--color-bg, #1a1c2b); }
+
+html[data-ui-look="pixel"] .pxp-cats { padding: 6px; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; flex: 1; min-height: 0; font-family: var(--px-font); font-size: 13px; }
+html[data-ui-look="pixel"] .pxp-cat { display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 6px; text-align: left; color: var(--px-text); }
+html[data-ui-look="pixel"] .pxp-cat:hover { background: color-mix(in srgb, var(--pxp-on) 12%, transparent); }
+html[data-ui-look="pixel"] .pxp-cat.off { color: var(--px-text-2); opacity: .75; }
+html[data-ui-look="pixel"] .pxp-eye { width: 14px; flex: none; }
+html[data-ui-look="pixel"] .pxp-sq { width: 10px; height: 10px; flex: none; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .pxp-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+html[data-ui-look="pixel"] .pxp-meter { height: 14px; position: relative; background: var(--px-sunk); box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-lo); }
+html[data-ui-look="pixel"] .pxp-meter > span { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--pxp-on) 30%, #8a90d6); }
+html[data-ui-look="pixel"] .pxp-total { display: flex; align-items: center; gap: 8px; }
+html[data-ui-look="pixel"] .pxp-total-name { width: 76px; flex: none; }
+html[data-ui-look="pixel"] .pxp-bar { flex: 1; height: 12px; position: relative; background: var(--px-sunk); }
+html[data-ui-look="pixel"] .pxp-bar > span { position: absolute; left: 0; top: 0; bottom: 0; outline: 1px solid var(--px-line); }
+html[data-ui-look="pixel"] .pxp-total-h { width: 40px; text-align: right; font-size: 12px; flex: none; }
+html[data-ui-look="pixel"] .pxp-decide-name { text-align: left; }
+html[data-ui-look="pixel"] .pxp-decide-name:hover b { text-decoration: underline; }
+html[data-ui-look="pixel"] .pxp-decide-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+
+/* ── Phone / narrow: the toolbar wraps and the page keeps its stack ── */
+@media (max-width: 1023px) {
+  html[data-ui-look="pixel"] .pxp-toolbar { outline: 2px solid var(--px-line); outline-offset: -2px; box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
+  html[data-ui-look="pixel"] .pxp-toolrow { gap: 6px; }
+  html[data-ui-look="pixel"] .pxp-radios { width: 100%; }
+  html[data-ui-look="pixel"] .pxp-radios .pxp-btn { flex: 1 1 auto; justify-content: center; padding: 6px 6px; }
+  html[data-ui-look="pixel"] .pxp-adds { width: 100%; }
+  html[data-ui-look="pixel"] .pxp-adds .pxp-btn { flex: 1; justify-content: center; }
+  html[data-ui-look="pixel"] .pxp-range { margin-left: 0; }
+}
+
+/* The desk fits the week into the panel: the inner track sizes to its
+   columns' own minimums rather than to the longest chip's text. */
+html[data-ui-look="pixel"] .pxp-body-canvas .min-w-max { min-width: min-content; }
