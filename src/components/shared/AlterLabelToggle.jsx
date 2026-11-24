@@ -2,10 +2,9 @@ import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tag } from "lucide-react";
 import { toast } from "sonner";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { ALTER_LABEL_MODES, DEFAULT_ALTER_LABEL_MODE } from "@/lib/alterLabel";
 import { useAlterLabelMode } from "@/lib/useAlterLabel";
-import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 // Pill button that cycles the system-wide alter-label mode through
 // name → alias → both → name. Persists to SystemSettings.alter_label_mode
@@ -35,13 +34,7 @@ export default function AlterLabelToggle({ className = "", size = "sm" }) {
     const next = ORDER[(idx + 1) % ORDER.length] || DEFAULT_ALTER_LABEL_MODE;
     setBusy(true);
     try {
-      const list = await base44.entities.SystemSettings.list();
-      if (pickPrimarySystemSettings(list)?.id) {
-        await base44.entities.SystemSettings.update(pickPrimarySystemSettings(list).id, { alter_label_mode: next });
-      } else {
-        await base44.entities.SystemSettings.create({ alter_label_mode: next });
-      }
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ alter_label_mode: next }, { create: true, queryClient: qc });
     } catch (e) {
       toast.error(e?.message || "Couldn't change label mode");
     } finally {

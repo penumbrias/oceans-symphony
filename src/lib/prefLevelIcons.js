@@ -10,6 +10,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Angry, ThumbsDown, Minus, ThumbsUp, Heart } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const DEFAULT_PREF_ICONS = { 1: Angry, 2: ThumbsDown, 3: Minus, 4: ThumbsUp, 5: Heart };
@@ -36,15 +37,14 @@ export function usePrefLevelIcons() {
   // One write for any number of levels (a fresh read first, so two quick
   // changes never overwrite each other).
   const setIcons = async (patch) => {
-    const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
-    const current = fresh?.pref_level_icons && typeof fresh.pref_level_icons === "object" ? { ...fresh.pref_level_icons } : {};
-    for (const [level, text] of Object.entries(patch)) {
-      const s = (text || "").trim();
-      if (s) current[String(level)] = s; else delete current[String(level)];
-    }
-    if (fresh?.id) await base44.entities.SystemSettings.update(fresh.id, { pref_level_icons: current });
-    else await base44.entities.SystemSettings.create({ pref_level_icons: current });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettings((fresh) => {
+      const current = fresh?.pref_level_icons && typeof fresh.pref_level_icons === "object" ? { ...fresh.pref_level_icons } : {};
+      for (const [level, text] of Object.entries(patch)) {
+        const s = (text || "").trim();
+        if (s) current[String(level)] = s; else delete current[String(level)];
+      }
+      return { pref_level_icons: current };
+    }, { create: true, queryClient: qc });
   };
   const setIcon = (level, text) => setIcons({ [level]: text });
   return { icons: map, setIcon, setIcons };

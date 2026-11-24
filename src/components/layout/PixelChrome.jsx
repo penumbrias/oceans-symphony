@@ -19,6 +19,7 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { resolveUiV2 } from "@/lib/uiV2";
 import { useFrontPresence, useClock, alterNameColorVar } from "@/lib/useFrontPresence";
@@ -797,10 +798,7 @@ function FrontStrip({ answerToggle }) {
 
   const setCollapsed = React.useCallback(async (collapsed) => {
     // A fresh row, so a change made elsewhere a moment ago is kept.
-    const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
-    if (!fresh?.id) return;
-    await base44.entities.SystemSettings.update(fresh.id, pinnedBarPatch(fresh, { enabled: true, collapsed }));
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettings((fresh) => pinnedBarPatch(fresh, { enabled: true, collapsed }), { queryClient: qc });
   }, [qc]);
 
   React.useEffect(() => {

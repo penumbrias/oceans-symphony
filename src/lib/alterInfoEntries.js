@@ -13,8 +13,8 @@
 //   own:<name>          one of this alter's own fields (alter_custom_fields)
 
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { extractYear, firstAppearanceOf, patchAlterCustomFields } from "@/lib/alterEntry";
-import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { richTitleOf } from "@/lib/fieldTitle";
 
 export const FIELD_ORDER_KEY = "_field_order";
@@ -154,11 +154,11 @@ export async function addSharedEntry({ name, kind = "text", nameRich = null }) {
 export const hiddenEntryIdsOf = (settings) => (Array.isArray(settings?.hidden_field_ids) ? settings.hidden_field_ids : []);
 
 export async function setSharedEntryHidden(fieldId, hidden) {
-  const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
-  const ids = hiddenEntryIdsOf(fresh).filter((id) => id !== fieldId);
-  if (hidden) ids.push(fieldId);
-  if (fresh?.id) return base44.entities.SystemSettings.update(fresh.id, { hidden_field_ids: ids });
-  return base44.entities.SystemSettings.create({ hidden_field_ids: ids });
+  return writeSettings((fresh) => {
+    const ids = hiddenEntryIdsOf(fresh?.id ? fresh : null).filter((id) => id !== fieldId);
+    if (hidden) ids.push(fieldId);
+    return { hidden_field_ids: ids };
+  }, { create: true, invalidate: false });
 }
 
 // Rename a shared entry or change its kind, for every alter. Values are

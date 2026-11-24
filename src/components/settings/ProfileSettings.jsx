@@ -5,6 +5,7 @@ import { promptText } from "@/components/shared/ConfirmDialog";
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -178,11 +179,7 @@ export default function ProfileSettings() {
       image_framing: systemImageFraming,
     };
     try {
-      if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, data);
-      } else {
-        await base44.entities.SystemSettings.create(data);
-      }
+      await writeSettings(data, { create: true });
       refetch();
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);

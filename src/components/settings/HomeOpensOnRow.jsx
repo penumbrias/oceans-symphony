@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { Row, Segmented } from "@/components/shared/SettingRows";
 
@@ -19,10 +20,8 @@ export default function HomeOpensOnRow() {
   const choose = async (v) => {
     if (v === value) return;
     try {
-      const next = { ...(record?.ui_v2 || {}), homeDefault: v };
-      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
-      else await base44.entities.SystemSettings.create({ ui_v2: next });
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      // Fresh row, one key changed; a row is created only if none exists.
+      await writeSettings({ ui_v2: { homeDefault: v } }, { create: true, queryClient });
     } catch (e) {
       toast.error(e?.message || "Couldn't switch");
     }

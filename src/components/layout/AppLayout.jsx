@@ -7,6 +7,7 @@ import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import InterruptCheckNote from "@/components/needs/InterruptCheckNote";
@@ -710,8 +711,8 @@ useEffect(() => {
   const settings = pickPrimarySystemSettings(systemSettings);
   (async () => {
     if (Object.keys(settingsPatch).length > 0) {
-      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, settingsPatch);
-      else await base44.entities.SystemSettings.create(settingsPatch);
+      // One settings writer: fresh row, one queue, never a second row.
+      await writeSettings(settingsPatch, { create: true });
     }
     if (hasBoardPart && settings?.id) {
       await writeBoard(settings, boardField, (cur) => applyHomePresetToBoard(preset, cur));

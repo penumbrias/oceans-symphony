@@ -22,6 +22,7 @@ import { useFrontLook } from "@/lib/frontLook";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 import MentionTextarea from "@/components/shared/MentionTextarea";
@@ -888,8 +889,7 @@ function SystemIdentityWidget({ mode = "normal", api }) {
   // updates too.
   const setAvatar = async (url) => {
     if (!settings?.id) return;
-    await base44.entities.SystemSettings.update(settings.id, { system_avatar_url: url });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettings({ system_avatar_url: url }, { queryClient: qc });
   };
   const alters = useList("alters", "Alter");
   const avatar = useResolvedAvatarUrl(settings?.system_avatar_url || settings?.system_avatar || "");

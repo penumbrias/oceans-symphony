@@ -14,6 +14,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { PROFILE_LOOK_KEYS } from "@/lib/lookSubject";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
@@ -69,15 +70,16 @@ export function useRecordWithLookDefaults(record, type) {
 // value of undefined removes the key.
 export async function patchLookDefaults(type, changes) {
   if (!LOOK_DEFAULT_TYPES.includes(type)) throw new Error(`No defaults for ${type}`);
-  const rows = await base44.entities.SystemSettings.list();
-  const row = pickPrimarySystemSettings(rows);
-  if (!row?.id) throw new Error("There's no settings record to save the defaults to yet");
-  const all = row[PROFILE_LOOK_DEFAULTS_FIELD] && typeof row[PROFILE_LOOK_DEFAULTS_FIELD] === "object" ? { ...row[PROFILE_LOOK_DEFAULTS_FIELD] } : {};
-  const entry = { ...(all[type] && typeof all[type] === "object" ? all[type] : {}) };
-  for (const [k, v] of Object.entries(changes || {})) {
-    if (v === undefined) delete entry[k];
-    else entry[k] = v;
-  }
-  all[type] = entry;
-  return base44.entities.SystemSettings.update(row.id, { [PROFILE_LOOK_DEFAULTS_FIELD]: all });
+  // Through the one settings writer: built on the fresh row inside its queue.
+  return writeSettings((row) => {
+    if (!row?.id) throw new Error("There's no settings record to save the defaults to yet");
+    const all = row[PROFILE_LOOK_DEFAULTS_FIELD] && typeof row[PROFILE_LOOK_DEFAULTS_FIELD] === "object" ? { ...row[PROFILE_LOOK_DEFAULTS_FIELD] } : {};
+    const entry = { ...(all[type] && typeof all[type] === "object" ? all[type] : {}) };
+    for (const [k, v] of Object.entries(changes || {})) {
+      if (v === undefined) delete entry[k];
+      else entry[k] = v;
+    }
+    all[type] = entry;
+    return { [PROFILE_LOOK_DEFAULTS_FIELD]: all };
+  });
 }

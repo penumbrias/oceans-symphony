@@ -18,6 +18,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 export const PROFILE_VIEW_FIELDS = {
@@ -39,9 +40,7 @@ export function readProfileViewPrefs(settings) {
 export async function setProfileViewPref(key, value) {
   const field = PROFILE_VIEW_FIELDS[key];
   if (!field) throw new Error(`Unknown profile view setting: ${key}`);
-  const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
-  if (fresh?.id) return base44.entities.SystemSettings.update(fresh.id, { [field]: !!value });
-  return base44.entities.SystemSettings.create({ [field]: !!value });
+  return writeSettings({ [field]: !!value }, { create: true });
 }
 
 // The prefs plus a setter that refreshes the shared settings query.

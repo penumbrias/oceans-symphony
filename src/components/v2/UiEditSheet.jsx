@@ -77,6 +77,8 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useIsWide } from "@/lib/useIsWide";
 import { readPinnedBar, pinnedBarLook, pinnedBarPatch, pinnedBarLookPatch } from "@/lib/barsModel";
+import { writeSettings as writeSettingsRow } from "@/lib/settingsWriter";
+import { resolveUiV2 } from "@/lib/uiV2";
 import BarShowSwitch, { useBarsChrome, useBarLabels } from "@/components/v2/BarShowSwitch";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { sharedList } from "@/lib/sharedLists";
@@ -336,9 +338,11 @@ function TextTab({ v2 }) {
         setAccessibilityFontSize("default");
         setAccessibilityFontFamily(APP_FONT_OPTIONS[0].value);
         setAccessibilityHeadingFont("default");
-        const next = { ...(v2.uiV2.tokens || {}) };
-        for (const id of ["headerScale", "bodyStyle", "headerStyle"]) delete next[id];
-        v2.write({ tokens: next });
+        v2.write((cur) => {
+          const next = { ...(resolveUiV2(cur).tokens || {}) };
+          for (const id of ["headerScale", "bodyStyle", "headerStyle"]) delete next[id];
+          return { tokens: next };
+        });
         refresh();
       }} />
     </div>
@@ -359,16 +363,14 @@ function ShapeTab({ v2 }) {
   const cornerMode = settingsRow?.corner_mode === CORNER_MODES.SHARP ? CORNER_MODES.SHARP : CORNER_MODES.ROUNDED;
   const writeCornerMode = async (mode) => {
     if (!settingsRow?.id || mode === cornerMode) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, { corner_mode: mode });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettingsRow({ corner_mode: mode }, { queryClient: qc });
   };
   // The app look (uiLook.js): Smooth or Pixel. Changes how every shared
   // block is drawn, never what a page holds.
   const uiLook = readUiLook(settingsRow);
   const writeUiLook = async (look) => {
     if (!settingsRow?.id || look === uiLook) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, { ui_look: look });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettingsRow({ ui_look: look }, { queryClient: qc });
   };
   const densityDef = tokenById.density;
   const [a11y, setA11y] = useState(() => getAccessibilitySettings());
@@ -448,11 +450,13 @@ function ShapeTab({ v2 }) {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetShapeBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
         setAccessibilityLargeTouch("default");
-        const next = { ...(v2.uiV2.tokens || {}) };
         // Only this chrome's own keys: the new UI's tokens stay as they
         // are for a classic user, and the classic mode for a v2 user.
-        for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
-        await v2.write({ tokens: next });
+        await v2.write((cur) => {
+          const next = { ...(resolveUiV2(cur).tokens || {}) };
+          for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
+          return { tokens: next };
+        });
         if (pixelEdges) await pixel.write({ corners: "", bevel: "", type: "" });
         else if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
         if (boardGap?.value !== undefined) boardGap.onChange(undefined);
@@ -475,12 +479,15 @@ function BarLookRows({ v2, barId, look: lookIn = null, write: writeIn = null, on
   // The pinned bar passes its own look/write (lib/barsModel.js owns where
   // that look lives); every other bar is ui_v2.barLooks[barId].
   const look = lookIn || v2.uiV2.barLooks?.[barId] || {};
-  const write = writeIn || ((patch) => v2.write({ barLooks: { ...(v2.uiV2.barLooks || {}), [barId]: { ...look, ...patch } } }));
-  const reset = onReset || (() => {
-    const rest = { ...(v2.uiV2.barLooks || {}) };
+  const write = writeIn || ((patch) => v2.write((cur) => {
+    const looks = resolveUiV2(cur).barLooks || {};
+    return { barLooks: { ...looks, [barId]: { ...(looks[barId] || {}), ...patch } } };
+  }));
+  const reset = onReset || (() => v2.write((cur) => {
+    const rest = { ...(resolveUiV2(cur).barLooks || {}) };
     delete rest[barId];
-    v2.write({ barLooks: rest });
-  });
+    return { barLooks: rest };
+  }));
   const hasLook = Object.values(look).some((v) => v !== undefined && v !== null && v !== "");
   // Inherited (unset) values show the app-wide number greyed and dashed;
   // the × puts a value back to inherited.
@@ -577,11 +584,14 @@ function BarsTab({ v2, alignX }) {
   const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
   const { v2Chrome: v2ChromeNow } = useBarsChrome();
 
+  // `patch` is an object, or a function of the FRESH settings row (the one
+  // settings writer reads it inside its queue), so nothing here is built
+  // from a cached row.
   const writeSettings = async (patch) => {
     if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, patch);
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettingsRow(patch, { queryClient: qc });
   };
+  const navOf = (row) => (row?.navigation_config && typeof row.navigation_config === "object" ? row.navigation_config : {});
 
   const tokenRow = (id, labelKey) => <TokenSliderRow v2={v2} id={id} label={tr(labelKey)} />;
 
@@ -603,11 +613,11 @@ function BarsTab({ v2, alignX }) {
   const navConfig = settingsRow?.navigation_config || {};
   const bottomIds = Array.isArray(navConfig.bottomBar) ? navConfig.bottomBar : DEFAULT_CONFIG.bottomBar;
   const pageName = (id) => pageLabel(id, terms);
-  const writeBottomBar = (next) => writeSettings({ navigation_config: { ...navConfig, bottomBar: next } });
+  const writeBottomBar = (next) => writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), bottomBar: next } }));
   // The classic top navigation bar (web only — phones never show it) is
   // the same kind of list: navigation_config.topBar, up to six pages.
   const topIds = Array.isArray(navConfig.topBar) ? navConfig.topBar : DEFAULT_CONFIG.topBar;
-  const writeClassicTopBar = (next) => writeSettings({ navigation_config: { ...navConfig, topBar: next } });
+  const writeClassicTopBar = (next) => writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), topBar: next } }));
   const classicTopBarShown = !v2ChromeNow && !isNative();
   // Pixel look on: its header is always shown and draws the top bar's
   // items in its own frame, so only the items list and the wave colour
@@ -670,7 +680,10 @@ function BarsTab({ v2, alignX }) {
   // navigation_config.sidebar, the same config SidebarNav reads.
   const sidebarGroups = orderSidebarGroups(buildSidebarGroups(terms.Alters, terms.System), navConfig.sidebar);
   const sidebarHidden = new Set(navConfig.sidebar?.hidden || []);
-  const writeSidebar = (patch) => writeSettings({ navigation_config: { ...navConfig, sidebar: { ...(navConfig.sidebar || {}), ...patch } } });
+  const writeSidebar = (patch) => writeSettings((fresh) => {
+    const nav = navOf(fresh);
+    return { navigation_config: { ...nav, sidebar: { ...(nav.sidebar || {}), ...patch } } };
+  });
   const toggleSidebar = (pageId) => {
     const hidden = new Set(sidebarHidden);
     if (hidden.has(pageId)) hidden.delete(pageId); else hidden.add(pageId);
@@ -698,12 +711,11 @@ function BarsTab({ v2, alignX }) {
   const wide = useIsWide();
   const pinnedBar = readPinnedBar(settingsRow);
   const pinnedLook = pinnedBarLook(settingsRow);
-  const writePinnedBar = (patch) => writeSettings(pinnedBarPatch(settingsRow, patch));
-  const writePinnedLook = (patch) => writeSettings(pinnedBarLookPatch(settingsRow, patch));
+  const writePinnedBar = (patch) => writeSettings((fresh) => pinnedBarPatch(fresh, patch));
+  const writePinnedLook = (patch) => writeSettings((fresh) => pinnedBarLookPatch(fresh, patch));
   const pinnedCfg = settingsRow?.pinned_alters_config || {};
-  const writePinnedCfg = (patch) => writeSettings({
-    pinned_alters_config: { ...pinnedCfg, ...patch },
-  });
+  // pinned_alters_config merges key by key in the settings writer.
+  const writePinnedCfg = (patch) => writeSettings({ pinned_alters_config: patch });
   const classicBars = v2.uiV2.classicBars;
 
   // One bar on screen at a time. Opened for one bar (openBarsEditor), that
@@ -718,7 +730,7 @@ function BarsTab({ v2, alignX }) {
   // "arrangement / icon images, labels ... toggle display"). No on/off
   // for the whole bar: it carries the recovery paths, so it stays.
   const topBar = v2.uiV2.topBar;
-  const writeTopBar = (patch) => v2.write({ topBar: { ...topBar, ...patch } });
+  const writeTopBar = (patch) => v2.write((cur) => ({ topBar: { ...resolveUiV2(cur).topBar, ...patch } }));
   const moveTopItem = (idx, dir) => {
     const next = [...topBar.order];
     const to = idx + dir;
@@ -746,7 +758,7 @@ function BarsTab({ v2, alignX }) {
           along beside the sidebar at all. */}
       {!v2Chrome && wide && (
         <BarToggle label={tr("editSheet.wideBars")} on={classicBars.wide === true}
-          onChange={(on) => v2.write({ classicBars: { ...(settingsRow?.ui_v2?.classicBars || {}), wide: on } })} />
+          onChange={(on) => v2.write((cur) => ({ classicBars: { ...(cur.classicBars || {}), wide: on } }))} />
       )}
 
       {/* ── Top bar ── */}
@@ -1065,7 +1077,7 @@ function BarsTab({ v2, alignX }) {
         <BarPart label={tr("editSheet.partLook")}>
           <BarLookRows v2={v2} barId="alters" alignX={alignX}
             look={pinnedLook} write={writePinnedLook}
-            onReset={() => writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }))} />
+            onReset={() => writeSettings((fresh) => pinnedBarLookPatch(fresh, {}, { replace: true }))} />
         </BarPart>
         {/* Pins, order, names, fronting emphasis, front levels — the same
             panel the Alters page uses for its pinned row. */}
@@ -1101,28 +1113,27 @@ function BarsTab({ v2, alignX }) {
       <ResetRow label={tr("editSheet.resetBar")} onReset={async () => {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetBarBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
-        const ui = settingsRow?.ui_v2 || {};
-        const looks = { ...(ui.barLooks || {}) };
-        const tokens = { ...(ui.tokens || {}) };
-        const bars = { ...(ui.bars || {}) };
+        // Which keys this bar's reset clears; applied to the FRESH ui_v2
+        // below, so a change made a moment ago elsewhere is kept.
+        const drop = { looks: [], tokens: [], bars: [] };
         const patch = {};
         if (shownBar === "top") {
-          delete looks.top; delete tokens.statusH;
+          drop.looks.push("top"); drop.tokens.push("statusH");
           patch.topBar = null; patch.appsView = "grid"; patch.appsIcon = "";
-          await writeSettings({ wave_color_key: null, wave_color_custom: null, ...(v2Chrome ? {} : { navigation_config: { ...navConfig, topBar: DEFAULT_CONFIG.topBar } }) });
+          await writeSettings((fresh) => ({ wave_color_key: null, wave_color_custom: null, ...(v2Chrome ? {} : { navigation_config: { ...navOf(fresh), topBar: DEFAULT_CONFIG.topBar } }) }));
         } else if (shownBar === "tabs") {
-          delete looks.tabs; delete tokens.stripH; delete bars.tabs;
+          drop.looks.push("tabs"); drop.tokens.push("stripH"); drop.bars.push("tabs");
           if (!v2Chrome) { setAccessibilityNavHeight("default"); refreshA11y(); }
-          await writeSettings({ navigation_config: { ...navConfig, bottomBar: DEFAULT_CONFIG.bottomBar } });
+          await writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), bottomBar: DEFAULT_CONFIG.bottomBar } }));
         } else if (shownBar === "actions") {
-          delete looks.actions; delete looks.active; delete bars.actions;
-          for (const id of ["cmdSize", "actionsMode", "actionsEdge", "actionsAttach", "barsSwap", "handleSides", "activeBubble"]) delete tokens[id];
+          drop.looks.push("actions", "active"); drop.bars.push("actions");
+          drop.tokens.push("cmdSize", "actionsMode", "actionsEdge", "actionsAttach", "barsSwap", "handleSides", "activeBubble");
           patch.commandKeys = null;
         } else if (shownBar === "alters") {
-          delete looks.alters;
-          await writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }));
+          drop.looks.push("alters");
+          await writeSettings((fresh) => pinnedBarLookPatch(fresh, {}, { replace: true }));
         } else if (shownBar === "rail") {
-          delete looks.rail; delete bars.rail; delete tokens.railW; delete tokens.railSide; delete tokens.railActions;
+          drop.looks.push("rail"); drop.bars.push("rail"); drop.tokens.push("railW", "railSide", "railActions");
         } else if (shownBar === "status") {
           await pixelLook.write({ statusBar: "", statusHidden: "" });
         } else if (shownBar === "pxrail") {
@@ -1130,11 +1141,19 @@ function BarsTab({ v2, alignX }) {
         } else if (shownBar === "pxdock") {
           await pixelLook.write({ dock: "", dockHidden: "" });
         } else if (shownBar === "sidebar") {
-          await writeSettings({ navigation_config: { ...navConfig, sidebar: {} } });
+          await writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), sidebar: {} } }));
         }
-        const next = { ...patch, barLooks: looks, tokens, bars };
-        for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
-        await v2.write(next);
+        await v2.write((ui) => {
+          const looks = { ...(ui.barLooks || {}) };
+          const tokens = { ...(ui.tokens || {}) };
+          const bars = { ...(ui.bars || {}) };
+          for (const k of drop.looks) delete looks[k];
+          for (const k of drop.tokens) delete tokens[k];
+          for (const k of drop.bars) delete bars[k];
+          const next = { ...patch, barLooks: looks, tokens, bars };
+          for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+          return next;
+        });
       }} />
       <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
         title={iconFor ? `Icon for ${iconFor.label}` : "Choose an icon"}
@@ -1545,10 +1564,9 @@ function StylesTab({ v2 }) {
   const deleteSavedPack = async (pk) => {
     if (!settingsRow?.id) return;
     try {
-      await base44.entities.SystemSettings.update(settingsRow.id, {
-        ui_v2_setup_packs: savedPacks.filter((x) => x.id !== pk.id),
-      });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettingsRow((fresh) => ({
+        ui_v2_setup_packs: (Array.isArray(fresh.ui_v2_setup_packs) ? fresh.ui_v2_setup_packs : savedPacks).filter((x) => x?.id !== pk.id),
+      }), { queryClient: qc });
     } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
 
@@ -1661,12 +1679,6 @@ function StylesTab({ v2 }) {
     setName(""); setLinkAlterId("");
   };
 
-  const writeSettings = async (patch) => {
-    if (!settingsRow?.id || Object.keys(patch).length === 0) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, patch);
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
-  };
-
   // Widget-look entries write the board's default style (styleMode).
   const applyWidgetStyle = async (st, { skipSnapshot = false } = {}) => {
     if (!settingsRow?.id) return;
@@ -1696,9 +1708,9 @@ function StylesTab({ v2 }) {
     if (preset.font !== undefined) setAccessibilityFontFamily(preset.font);
     if (preset.headingFont !== undefined) setAccessibilityHeadingFont(preset.headingFont);
     const patch = {};
-    if (preset.uiV2Tokens) {
-      patch.ui_v2 = { ...(settingsRow?.ui_v2 || {}), tokens: { ...(settingsRow?.ui_v2?.tokens || {}), ...preset.uiV2Tokens } };
-    }
+    // The preset's display tokens go onto the FRESH ui_v2 (below), so a
+    // change made a moment ago isn't undone.
+    const tokens = preset.uiV2Tokens && typeof preset.uiV2Tokens === "object" ? preset.uiV2Tokens : null;
     // The parts the old Appearance form saved — only the keys the preset
     // carries are touched, so a colours-only preset leaves the rest alone.
     if (preset.terms) {
@@ -1723,7 +1735,13 @@ function StylesTab({ v2 }) {
         if (preset.banner[k] !== undefined) patch[k] = preset.banner[k];
       }
     }
-    await writeSettings(patch);
+    if (settingsRow?.id && (tokens || Object.keys(patch).length)) {
+      await writeSettingsRow((fresh) => {
+        if (!tokens) return patch;
+        const ui = fresh.ui_v2 && typeof fresh.ui_v2 === "object" ? fresh.ui_v2 : {};
+        return { ...patch, ui_v2: { ...ui, tokens: { ...(ui.tokens || {}), ...tokens } } };
+      }, { queryClient: qc });
+    }
     // The board part goes through the shared writer: applied to the board
     // as it is now and stamped, so the next sync can't quietly undo it.
     if (settingsRow?.id && applyHomePresetToBoard(preset, settingsRow?.[homeField])) {

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { TIMEZONE_GROUPS } from "@/lib/timezoneHelpers";
@@ -30,8 +31,7 @@ export default function TimezoneSettings() {
 
   const handleChange = async (tz) => {
     if (!setting) return;
-    await base44.entities.SystemSettings.update(setting.id, { timezone: tz });
-    queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettings({ timezone: tz }, { queryClient });
     setShowOverride(false);
   };
 

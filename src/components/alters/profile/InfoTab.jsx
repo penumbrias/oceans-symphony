@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2, X, Check, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,11 +62,12 @@ export default function InfoTab({ alter, systemFields }) {
 
   const toggleFieldVisibility = async (fieldId) => {
     if (!systemSettings) return;
-    const updated = isVisible(fieldId)
-      ? [...hiddenFieldIds, fieldId]
-      : hiddenFieldIds.filter(id => id !== fieldId);
-    await base44.entities.SystemSettings.update(systemSettings.id, { hidden_field_ids: updated });
-    queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+    const hide = isVisible(fieldId);
+    // Toggled on the fresh list, so two quick taps both land.
+    await writeSettings((fresh) => {
+      const cur = Array.isArray(fresh.hidden_field_ids) ? fresh.hidden_field_ids : [];
+      return { hidden_field_ids: hide ? [...cur.filter((id) => id !== fieldId), fieldId] : cur.filter((id) => id !== fieldId) };
+    }, { queryClient });
   };
 
   const moveSystemField = async (index, dir) => {

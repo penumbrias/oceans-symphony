@@ -22,6 +22,7 @@ import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -753,10 +754,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
   const savePos = async (pos) => {
     try {
       if (!settingsRow?.id) return;
-      await base44.entities.SystemSettings.update(settingsRow.id, {
-        ui_v2: { ...(settingsRow.ui_v2 || {}), dockPos: pos },
-      });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ ui_v2: { dockPos: pos } }, { queryClient: qc });
     } catch { /* best-effort */ }
   };
 
@@ -1299,8 +1297,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
   const altersPos = altersBarCfg.position;
   const setNavAlters = async (collapsed) => {
     if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, { enabled: true, collapsed }));
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettings((fresh) => pinnedBarPatch(fresh, { enabled: true, collapsed }), { queryClient: qc });
   };
   const toggleNavAlters = () => setNavAlters(!altersBarCfg.collapsed);
   // The split handle, the Set-Front key hold and the board all speak this
@@ -1386,8 +1383,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
         onToggle={(on) => setNavAlters(!on)}
         onSavePos={async (bubble) => {
           if (!settingsRow?.id) return;
-          await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, { bubble }));
-          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+          await writeSettings((fresh) => pinnedBarPatch(fresh, { bubble }), { queryClient: qc });
         }}
         onGear={() => openBarsEditor("alters")} />
     )}

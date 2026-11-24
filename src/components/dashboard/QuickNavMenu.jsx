@@ -6,6 +6,7 @@ import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { DEFAULT_CONFIG, normalizeNavConfig } from "@/utils/navigationConfig";
 import GlobalSearch from "./GlobalSearch";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -276,14 +277,12 @@ export default function QuickNavMenu() {
       // removed list, otherwise we'd silently re-hide them on the next
       // mergedGrid build.
       const newRemoved = [...new Set([...removed, ...removedNow])].filter(id => !localOrder.includes(id));
-      const newConfig = { ...navConfig, dashboardGrid: localOrder, dashboardGridRemoved: newRemoved };
-
-      if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, { navigation_config: newConfig });
-      } else {
-        await base44.entities.SystemSettings.create({ navigation_config: newConfig });
-      }
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      // Only the grid keys change; the rest of navigation_config is taken
+      // from the fresh row so a bar change made elsewhere is kept.
+      await writeSettings((fresh) => {
+        const cur = fresh.navigation_config && typeof fresh.navigation_config === "object" ? fresh.navigation_config : navConfig;
+        return { navigation_config: { ...cur, dashboardGrid: localOrder, dashboardGridRemoved: newRemoved } };
+      }, { create: true, queryClient });
     } finally {
       setSaving(false);
       setEditMode(false);

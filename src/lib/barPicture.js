@@ -5,8 +5,7 @@
 // pinnedAvatars`, set from the bar's own settings panel or an Image
 // widget). Without one, the bar shows the profile picture.
 
-import { base44 } from "@/api/base44Client";
-import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { writeSettings } from "@/lib/settingsWriter";
 
 export function barPictureOverride(settingsRow, alterId) {
   const map = settingsRow?.pinned_alters_config?.pinnedAvatars;
@@ -23,12 +22,12 @@ export function barPictureFor(settingsRow, alter) {
 // of the settings, changing only that one entry.
 export async function setBarPicture(alterId, url) {
   if (!alterId) return null;
-  const rows = (await base44.entities.SystemSettings.list()) || [];
-  const row = pickPrimarySystemSettings(rows);
-  if (!row?.id) throw new Error("Settings aren't ready yet");
-  const config = (row.pinned_alters_config && typeof row.pinned_alters_config === "object") ? row.pinned_alters_config : {};
-  const map = { ...((config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {}) };
-  if (url) map[alterId] = url;
-  else delete map[alterId];
-  return base44.entities.SystemSettings.update(row.id, { pinned_alters_config: { ...config, pinnedAvatars: map } });
+  return writeSettings((row) => {
+    if (!row?.id) throw new Error("Settings aren't ready yet");
+    const config = (row.pinned_alters_config && typeof row.pinned_alters_config === "object") ? row.pinned_alters_config : {};
+    const map = { ...((config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {}) };
+    if (url) map[alterId] = url;
+    else delete map[alterId];
+    return { pinned_alters_config: { ...config, pinnedAvatars: map } };
+  });
 }
