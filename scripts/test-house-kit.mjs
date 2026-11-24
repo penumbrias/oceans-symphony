@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The new house's kit, step 1.2: the pure logic behind the fields (numbers,
+// The new house's kit, steps 1.2 and 1.3: the pure logic behind the fields (numbers,
 // days, times, durations, the save-state words), the guard still clean with
 // the kit in place (and still catching a raw control outside it), the
 // shadow tokens safe to combine, and the kit loaded only lazily. Pure:
@@ -190,6 +190,150 @@ test("kit: pickers reuse today's shared components", () => {
     assert.match(p, new RegExp(`import[^\\n]*${c}[^\\n]*from "@/components/shared/`), c);
   }
   assert.match(read("src/house/kit/Field.jsx"), /import MentionTextarea from "@\/components\/shared\/MentionTextarea"/);
+});
+
+// ── Step 1.3: lists, trees, layers, chips, the toast clock ───────────
+const L = await import("../src/house/kit/lists.js");
+
+test("lists: up to 200 rows drawn whole, beyond that 100 a page", () => {
+  const items = (n) => Array.from({ length: n }, (_, i) => i);
+  assert.equal(L.pageSlice(items(2), 0).rows.length, 2);
+  assert.equal(L.pageSlice(items(200), 0).paged, false);
+  assert.equal(L.pageSlice(items(200), 0).rows.length, 200);
+  const s = L.pageSlice(items(1000), 3);
+  assert.equal(s.paged, true);
+  assert.equal(s.pages, 10);
+  assert.equal(s.start, 300);
+  assert.equal(s.rows.length, 100);
+  assert.equal(L.pageSlice(items(250), 9).page, 2, "a page past the end is clamped");
+  assert.equal(L.pageSlice(items(250), -4).page, 0);
+  assert.equal(L.pageOf(150), 1);
+  assert.match(L.rangeWords(s, 1000), /301/);
+  assert.equal(L.pageSlice([], 0).rows.length, 0);
+});
+
+test("trees: loops, self-parents and missing parents become roots; nothing is lost", () => {
+  const nodes = [
+    { id: "a", parentId: null }, { id: "b", parentId: "a" }, { id: "c", parentId: "b" },
+    { id: "self", parentId: "self" },
+    { id: "x", parentId: "y" }, { id: "y", parentId: "x" },
+    { id: "orphan", parentId: "gone" },
+    { id: "b", parentId: null }, // a duplicate id is drawn once
+  ];
+  const rows = L.flattenTree(nodes);
+  assert.deepEqual(rows.map((r) => r.id).sort(), ["a", "b", "c", "orphan", "self", "x", "y"]);
+  const lv = Object.fromEntries(rows.map((r) => [r.id, r.level]));
+  assert.equal(lv.a, 1); assert.equal(lv.b, 2); assert.equal(lv.c, 3);
+  for (const root of ["self", "x", "y", "orphan"]) assert.equal(lv[root], 1, root);
+  // Folding a branch hides its children; "open all" lists the branches.
+  const folded = L.flattenTree(nodes, { expanded: new Set() });
+  assert.ok(!folded.some((r) => r.id === "b"));
+  assert.deepEqual(L.branchIds(rows), ["a", "b"]);
+});
+
+test("trees: a very deep chain keeps its real level but clamps the indent", () => {
+  const chain = Array.from({ length: 40 }, (_, i) => ({ id: `n${i}`, parentId: i ? `n${i - 1}` : null }));
+  const rows = L.flattenTree(chain);
+  assert.equal(rows.length, 40);
+  assert.equal(rows[39].level, 40);
+  assert.equal(rows[39].depth, L.MAX_TREE_DEPTH);
+  assert.equal(rows[0].posInSet, 1);
+});
+
+test("layers: moving by buttons or keys, and what a screen reader hears", () => {
+  const list = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  const ids = (l) => l.map((x) => x.id).join("");
+  assert.equal(ids(L.moveById(list, "b", -1)), "bac");
+  assert.equal(ids(L.moveById(list, "b", 1)), "acb");
+  assert.equal(ids(L.moveById(list, "a", -1)), "abc", "the top stays put");
+  assert.equal(ids(L.moveById(list, "c", "top")), "cab");
+  assert.equal(ids(L.moveById(list, "a", "bottom")), "bca");
+  assert.equal(ids(L.moveById(list, "zz", 1)), "abc");
+  assert.equal(ids(list), "abc", "the original is never changed");
+  assert.equal(L.moveWords("Notes", 0, 3), "Notes moved to the top, 1 of 3");
+  assert.equal(L.moveWords("Notes", 1, 3), "Notes moved to 2 of 3");
+  assert.equal(L.moveWords("Notes", 2, 3), "Notes moved to the bottom, 3 of 3");
+});
+
+test("chips: never folds a single person, names the rest in words", () => {
+  const seven = ["A", "B", "C", "D", "E", "F", "G"];
+  assert.deepEqual(L.overflowSplit(seven.slice(0, 4), 3).hidden, []);
+  const s = L.overflowSplit(seven, 3);
+  assert.equal(s.shown.length, 3);
+  assert.deepEqual(s.hidden, ["D", "E", "F", "G"]);
+  assert.equal(L.namesWords(["Ash"]), "Ash");
+  assert.equal(L.namesWords(["Ash", "River"]), "Ash and River");
+  assert.equal(L.namesWords(seven), "A, B, C and 4 others");
+  assert.equal(L.namesWords(["A", "B", "C", "D"]), "A, B, C and 1 other");
+});
+
+test("toast: at least 10 seconds, and time stops while it's held", () => {
+  assert.equal(L.toastClock(3000).total, L.TOAST_MIN_MS);
+  let c = L.toastTick(L.toastClock(), 0);
+  c = L.toastTick(c, 4000);
+  assert.equal(c.left, 6000);
+  c = L.toastPause(c, "focus", 5000);
+  c = L.toastPause(c, "hover", 6000);
+  c = L.toastTick(c, 60000);
+  assert.equal(c.left, 5000);
+  assert.ok(!L.toastExpired(c));
+  c = L.toastResume(c, "focus", 61000);
+  c = L.toastTick(c, 99000);
+  assert.equal(c.left, 5000, "still held by the pointer");
+  c = L.toastResume(c, "hover", 100000);
+  c = L.toastTick(c, 104000);
+  assert.equal(c.left, 1000);
+  c = L.toastTick(c, 106000);
+  assert.ok(L.toastExpired(c));
+});
+
+test("charts: the text version's numbers", () => {
+  const m = L.seriesSummary([{ v: 2 }, { v: 5 }, { v: "x" }, {}], "v");
+  assert.equal(m.total, 7); assert.equal(m.min, 2); assert.equal(m.max, 5); assert.equal(m.count, 2);
+});
+
+// ── Step 1.3: wiring ─────────────────────────────────────────────────
+test("pop-ups: additive — the shared pickers wear the house only inside a PopupTheme", () => {
+  const theme = read("src/components/shared/popupTheme.js");
+  assert.match(theme, /if \(!theme\) return EMPTY;/);
+  for (const f of ["AlterSearchSelect", "SearchableSelect", "ColorPicker", "IconPicker", "AssetPickerModal"]) {
+    const src = read(`src/components/shared/${f}.jsx`);
+    assert.match(src, /usePopupTheme\(/, f);
+    assert.match(src, /\{\.\.\.popTheme\.attrs\}/, f);
+  }
+  const css = read("src/house/kit/sharedPops.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const rule of css.split("}").map((r) => r.trim()).filter(Boolean)) {
+    const sel = rule.split("{")[0].trim();
+    if (sel.startsWith("@")) continue;
+    const parts = []; let depth = 0, cur = "";
+    for (const ch of sel) { if (ch === "(" || ch === "[") depth += 1; if (ch === ")" || ch === "]") depth -= 1; if (ch === "," && !depth) { parts.push(cur); cur = ""; } else cur += ch; }
+    parts.push(cur);
+    for (const part of parts) assert.match(part.trim(), /^\[data-house\][^\s]*\[data-shared-pop/, part.trim());
+  }
+  assert.match(read("src/house/kit/Pickers.jsx"), /<HousePopups>/);
+});
+
+test("kit 1.3: panels, content and sheets are built from the kit and stay lazy", () => {
+  const app = read("src/App.jsx");
+  assert.match(app, /lazy\(\(\) => import\('@\/house\/sample\/PanelsSample'\)\)/);
+  assert.match(app, /path="\/house\/kit\/panels"/);
+  // recharts stays out of the kit's index (Chart is imported on its own).
+  assert.ok(!/Charts/.test(read("src/house/kit/index.js").replace(/\/\/.*$/gm, "")));
+  const toast = read("src/house/kit/Toast.jsx");
+  assert.match(toast, /useAttentionSlot\("house-toast"/);
+  assert.match(toast, /withTrashBatch/);
+  assert.match(toast, /restoreTrashBatch/);
+  const sheet = read("src/house/kit/Sheet.jsx");
+  assert.match(sheet, /useEdgeSafeSliders/);
+  assert.match(sheet, /data-safe/);
+  assert.match(read("src/house/kit/Content.jsx"), /useResolvedAvatarUrl/);
+  assert.match(read("src/house/kit/Content.jsx"), /useAlterLabel/);
+  assert.match(read("src/house/kit/Field.jsx"), /usePlannerPrefs/);
+  for (const f of ["Panel.jsx", "TreeList.jsx", "Info.jsx", "Inspector.jsx", "Layers.jsx", "States.jsx", "Content.jsx", "Charts.jsx", "Toast.jsx", "Sheet.jsx", "panels.css", "sharedPops.css"]) {
+    const src = read(`src/house/kit/${f}`);
+    assert.ok(!/type=["']color["']/.test(src), f);
+    assert.ok(!/<select\b/.test(src), `${f}: a native select`);
+  }
 });
 
 console.log(`\n${passed} passed.`);
