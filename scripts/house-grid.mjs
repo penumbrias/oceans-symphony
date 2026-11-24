@@ -171,6 +171,18 @@ async function setPaint(page, { paint, text, look }) {
     window.dispatchEvent(new StorageEvent('storage'));
   }, { paint, textClass: TEXT_CLASS[text] ?? null, wallpaper: WALLPAPER });
   await sleep(700);
+  // Web fonts load on first use; wait for the label font (Pixelify Sans in
+  // the pixel look) so the picture shows it, not its fallback.
+  // A font file the dev server refuses (a worktree whose node_modules is a
+  // symlink outside Vite's fs.allow) would leave every picture in fallback
+  // fonts, so that stops the run instead of passing quietly.
+  const failed = await page.evaluate(async () => {
+    const fam = getComputedStyle(document.querySelector('[data-house]') || document.body).getPropertyValue('--house-font-label');
+    try { await Promise.all(['400', '600', '700'].map((w) => document.fonts.load(`${w} 16px ${fam || 'sans-serif'}`))); } catch { /* */ }
+    await document.fonts.ready;
+    return [...new Set([...document.fonts].filter((f) => f.status === 'error').map((f) => f.family))];
+  });
+  if (failed.length) throw new Error(`Web fonts didn't load (${failed.join(', ')}): the dev server must be able to read node_modules/@fontsource (Vite server.fs.allow).`);
 }
 
 // Hold hover / focus / pressed on the cells that ask for it.
