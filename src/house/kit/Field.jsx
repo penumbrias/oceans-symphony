@@ -203,10 +203,13 @@ function Calendar({ value, onPick, onClose, weekStart = 1, clearable, onClear, a
   const year = d.getFullYear(), month = d.getMonth();
   const cells = useMemo(() => monthGrid(year, month, weekStart), [year, month, weekStart]);
   const gridRef = useRef(null);
-  const first = useRef(true);
+  // Focus follows the moving day, and lands on open unless drawn inline.
+  const startDay = useRef(focusDay);
   useEffect(() => {
-    if (first.current) { first.current = false; if (!autoFocus) return; }
-    gridRef.current?.querySelector(`[data-day="${focusDay}"]`)?.focus();
+    if (!autoFocus && focusDay === startDay.current) return undefined;
+    // A frame later: the pop-up is placed (and visible) only after mount.
+    const raf = requestAnimationFrame(() => gridRef.current?.querySelector(`[data-day="${focusDay}"]`)?.focus());
+    return () => cancelAnimationFrame(raf);
   }, [focusDay, autoFocus]);
   const title = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const dows = cells.slice(0, 7).map((c) => dayToDate(c.day));
@@ -331,7 +334,11 @@ function TimeList({ value, step, format, onPick, label, onClose, autoFocus = tru
   const [active, setActive] = useState(start);
   const listRef = useRef(null);
   const baseId = useId();
-  useEffect(() => { if (autoFocus) listRef.current?.focus(); }, [autoFocus]);
+  useEffect(() => {
+    if (!autoFocus) return undefined;
+    const raf = requestAnimationFrame(() => listRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, [autoFocus]);
   useEffect(() => {
     const el = listRef.current?.querySelector(`[data-idx="${active}"]`);
     const box = listRef.current?.closest(".hk-pop");
