@@ -113,7 +113,7 @@ async function enterExampleData(page) {
 // In-app navigation (a reload would rebuild the example system's settings).
 async function goStory(page) {
   await page.evaluate((to) => { history.pushState({}, '', to); dispatchEvent(new PopStateEvent('popstate')); }, STORY);
-  await page.waitForSelector('[data-house] [data-story]', { timeout: 30000 });
+  await page.waitForSelector('[data-house] [data-story], [data-house] .kit-main', { timeout: 30000 });
   await sleep(1200);
 }
 

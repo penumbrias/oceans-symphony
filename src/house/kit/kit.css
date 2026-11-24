@@ -93,13 +93,15 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 [data-house] .hk-inputwrap .hk-bare {
   /* At least as wide as the words in it (--hk-chars, set by the field), so
      a value is never cut ("1 h 30 min" shows whole); never wider than the box. */
-  flex: 1 1 auto; width: 0; min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + var(--house-space-3) * 2));
+  flex: 1 1 auto; width: 0; min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + min(var(--house-space-3), max(8px, 3cqi)) * 2));
   border: 0; background: transparent; color: inherit; font: inherit;
-  padding: var(--house-space-2) var(--house-space-3); border-radius: var(--house-corner-sm);
+  /* Side padding gives way in a narrow field (cqi: the field's width), so
+     "Today, Tue Nov 24" still fits a phone at 200% in a wide font. */
+  padding: var(--house-space-2) min(var(--house-space-3), max(8px, 3cqi)); border-radius: var(--house-corner-sm);
 }
 /* The value and its unit, kept together (number and duration). */
 [data-house] .hk-stepval { flex: 1 1 auto; display: flex; align-items: stretch; min-width: 0; }
-[data-house] .hk-stepval > .hk-bare { min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + var(--house-space-3) * 2)); }
+[data-house] .hk-stepval > .hk-bare { min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + min(var(--house-space-3), max(8px, 3cqi)) * 2)); }
 [data-house] .hk-inputwrap .hk-bare::placeholder { color: var(--house-muted); opacity: 1; }
 [data-house] .hk-inputwrap .hk-bare:focus-visible { outline: none; }
 [data-house] .hk-inputwrap:focus-within { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }
