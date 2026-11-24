@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: the Notebook opens on an overview of time, words and study with a ledger of what moved each page, and pages get a three-pane desk." },
       { type: "improve", text: "Pixel look: Bulletins is a three-column board with an always-open post box, polls vote right on the card, and Friends shows your friends beside what they can see." },
       { type: "feature", text: "Pixel look: \"Use the pixel layout\" in the home screen's edit menu adds a page arranged like the new design, leaving your pages as they are." },
       { type: "fix", text: "Polls whose options were saved in an older format no longer crash the poll view." },
