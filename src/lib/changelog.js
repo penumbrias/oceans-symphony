@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: the Planner on a computer has a month and categories on the left, the week in the middle, and this week, goals and plans needing a decision on the right." },
+      { type: "feature", text: "Timeline widget: a new Layers option shows or hides each kind of record." },
       { type: "improve", text: "Pixel look: Support opens with a \"Need help right now?\" panel, grounding tiles and your Learn progress." },
       { type: "improve", text: "Pixel look: medications show today's doses with Take and Skip, and refills with a bar of what's left." },
       { type: "improve", text: "Pixel look: quick check-in sections fold under title bars with a summary, and feelings stay grouped as square chips." },
