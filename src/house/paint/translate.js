@@ -184,12 +184,31 @@ function swatchesFor(colours, variant, settingsRow, px) {
   return s;
 }
 
+// A suggested colour for `fg` that reads on `bg`. contrast.js's
+// adjustForContrast keeps the hue but always moves away from the
+// background's side, which can't work on a mid-tone background; then the
+// nearest of "toward black" / "toward white" that reaches `min` wins.
+export function suggestReadable(fg, bg, min) {
+  const kept = adjustForContrast(fg, bg, { minRatio: min });
+  if ((contrastRatio(kept, bg) ?? 0) >= min) return kept;
+  let best = kept, bestRatio = contrastRatio(kept, bg) ?? 0;
+  for (let t = 0.05; t <= 1.0001; t += 0.05) {
+    for (const end of ["#000000", "#FFFFFF"]) {
+      const c = mix(fg, end, t);
+      const r = contrastRatio(c, bg) ?? 0;
+      if (r >= min) return c;
+      if (r > bestRatio) { best = c; bestRatio = r; }
+    }
+  }
+  return best;
+}
+
 function readabilityFor(swatches, variant) {
   const out = [];
   for (const { fg, bg, min } of READABILITY_PAIRS) {
     const ratio = wcagRatio(swatches[fg], swatches[bg]);
     if (ratio == null || ratio >= min) continue;
-    out.push({ variant, fg, bg, ratio, min, fix: { [fg]: adjustForContrast(swatches[fg], swatches[bg], { minRatio: min }) } });
+    out.push({ variant, fg, bg, ratio, min, fix: { [fg]: suggestReadable(swatches[fg], swatches[bg], min) } });
   }
   return out;
 }
