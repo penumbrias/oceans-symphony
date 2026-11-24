@@ -92,10 +92,20 @@ test("every rule in the token files is scoped to [data-house]", () => {
     const text = fs.readFileSync(new URL(`../src/house/tokens/${f}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const selectors = [...text.matchAll(/([^{}]+)\{/g)].map((m) => m[1].trim()).filter((s) => s && !s.startsWith("@"));
     assert.ok(selectors.length, f);
-    for (const sel of selectors) for (const part of sel.split(",")) assert.match(part, /\[data-house\]/, `${f}: ${part.trim()}`);
+    for (const sel of selectors) for (const part of topLevelParts(sel)) assert.match(part, /\[data-house\]/, `${f}: ${part.trim()}`);
     assert.ok(!/!\s*important/.test(text), `${f}: no !important`);
   }
 });
+
+function topLevelParts(sel) {
+  const parts = []; let depth = 0, cur = "";
+  for (const ch of sel) {
+    if (ch === "(") depth += 1;
+    if (ch === ")") depth -= 1;
+    if (ch === "," && depth === 0) { parts.push(cur); cur = ""; } else cur += ch;
+  }
+  return [...parts, cur];
+}
 
 // ── contrast helpers ────────────────────────────────────────────────────
 test("readableOnAll keeps a readable colour and fixes one that isn't, on every background", () => {

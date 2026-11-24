@@ -141,3 +141,14 @@ html.a11y-reduce-motion [data-house] {
   outline: var(--house-focus-w) solid var(--house-focus);
   outline-offset: var(--house-focus-gap);
 }
+
+/* Headings inside the house take the house's fonts, not the old house's
+   heading rules (pixel-look.css gives h1–h3 the pixel face at a high
+   specificity, index.css the chosen heading font). The long attribute
+   chain outranks those without a forced override. */
+html [data-house][data-house-look][data-house-variant][data-house-label] :is(h1, h2, h3, h4, h5, h6):not(.house-label) {
+  font-family: inherit;
+}
+html [data-house][data-house-look][data-house-variant][data-house-label] :is(h1, h2, h3, h4, h5, h6).house-label {
+  font-family: var(--house-font-label);
+}
