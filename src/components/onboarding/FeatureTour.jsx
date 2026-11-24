@@ -801,6 +801,21 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/planner", target: "planner-month-panel",
     }),
     s("activities", {
+      emoji: "🏷️", title: "Categories", pixelDeskOnly: true,
+      body: `Under the month, every category is listed. Click one to hide it from the calendar on this computer, and again to bring it back. Nothing is deleted.`,
+      route: "/planner", target: "planner-px-categories",
+    }),
+    s("activities", {
+      emoji: "📊", title: "This week", pixelDeskOnly: true,
+      body: `On the right: how many plans got done this week and where the time went. Insights opens the full numbers, goals and the tally.`,
+      route: "/planner", target: "planner-px-week",
+    }),
+    s("activities", {
+      emoji: "✅", title: "Needs a decision", pixelDeskOnly: true,
+      body: `Plans whose time has passed wait here. Mark one Done, Partly or Skipped, or open it for more choices like moving it.`,
+      route: "/planner", target: "planner-px-decisions",
+    }),
+    s("activities", {
       emoji: "🧭", title: "Calendar",
       body: `Calendar shows a Day, Week, Month or Year. Tap a day on the month or year to open it, or hold and drag across days to plan one entry over them all.`,
       route: "/planner", target: ["planner-sections", "px-subtabs"], look: `the Calendar / Plans / Insights switch`,
