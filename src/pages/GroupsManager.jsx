@@ -15,7 +15,7 @@
 // src/lib/groupMembership.js. Neither is duplicated here.
 
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -45,6 +45,8 @@ import { getMemberAlters } from "@/lib/subsystemUtils";
 import { setGroupMembers, currentMemberIds, deleteGroupCascade } from "@/lib/groupMembership";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { withTrashBatch } from "@/lib/localDb";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import GroupsPixelDesk from "@/components/groups/GroupsPixelDesk";
 
 const dotColor = (c) => (isValidHexColor(c) ? c : "hsl(var(--muted))");
 
@@ -132,6 +134,11 @@ export default function GroupsManager() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [createOpen, setCreateOpen] = useState(false);
+  // The pixel desk names where a new group goes (top level, or nested in
+  // the group it was asked from); undefined = the level you're inside.
+  const [createParent, setCreateParent] = useState(undefined);
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  const [searchParams] = useSearchParams();
   const [membersFor, setMembersFor] = useState(null);
   const [movingIds, setMovingIds] = useState(null);   // array of group ids
   const [colorIds, setColorIds] = useState(null);     // array of group ids
@@ -339,10 +346,10 @@ export default function GroupsManager() {
     return parts.join(" · ");
   };
 
-  return (
-    <div className="min-h-screen p-4 sm:p-6">
-      <div className="os-page-shell space-y-4" data-tour="groups-page"
-        style={{ paddingBottom: selectMode ? 72 : 0 }}>
+  // Everything the manager shows — the classic page, and the pixel desk's
+  // "Manage" view.
+  const body = (
+    <>
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manage groups</h1>
@@ -535,8 +542,11 @@ export default function GroupsManager() {
             )}
           </>
         )}
-      </div>
+    </>
+  );
 
+  const overlays = (
+    <>
       {/* Mass-edit action bar. */}
       {selectMode && (
         <div className="fixed inset-x-0 z-[60] px-4"
@@ -611,8 +621,8 @@ export default function GroupsManager() {
 
       <CreateGroupModal
         open={createOpen}
-        onClose={() => { setCreateOpen(false); refresh(); }}
-        parentGroup={current}
+        onClose={() => { setCreateOpen(false); setCreateParent(undefined); refresh(); }}
+        parentGroup={createParent !== undefined ? createParent : current}
       />
       {membersFor && (
         <GroupMembersModal
@@ -622,6 +632,36 @@ export default function GroupsManager() {
           onClose={() => { setMembersFor(null); refresh(); }}
         />
       )}
+    </>
+  );
+
+  if (pixel) {
+    return (
+      <div className="pb-2">
+        <GroupsPixelDesk
+          groups={groups} alters={alters} byId={byId} stranded={stranded}
+          initialGroupId={searchParams.get("group")}
+          managerBody={<div className="space-y-4" style={{ paddingBottom: selectMode ? 72 : 0 }}>{body}</div>}
+          onRename={handleRename}
+          onMovePick={(ids) => setMovingIds(ids)}
+          onMoveTo={handleMove}
+          onDelete={handleDelete}
+          onColor={(ids) => setColorIds(ids)}
+          onMembers={(g) => setMembersFor(g)}
+          onCreate={(parent) => { setCreateParent(parent); setCreateOpen(true); }}
+        />
+        {overlays}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 sm:p-6">
+      <div className="os-page-shell space-y-4" data-tour="groups-page"
+        style={{ paddingBottom: selectMode ? 72 : 0 }}>
+        {body}
+      </div>
+      {overlays}
     </div>
   );
 }
