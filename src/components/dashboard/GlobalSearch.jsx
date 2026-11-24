@@ -13,6 +13,8 @@ import { useModPagesVersion } from "@/lib/mods/registry";
 import { useExperimentalOn, isExperimentalPath } from "@/lib/experimentalFeatures";
 import { listSystems } from "@/lib/systems";
 import { listMods, MODS_QUERY_KEY } from "@/lib/mods/modStore";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import "@/styles/pixel/sheets.css";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -135,6 +137,9 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   const terms = useTerms();
   const TYPE_LABELS = useMemo(() => getTypeLabels(terms), [terms]);
   const [query, setQuery] = useState("");
+  // The pixel look draws the results as the "Search" board: one titled
+  // panel per kind with its count, square-marked rows and "Show more".
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const [searchFocused, setSearchFocused] = useState(false);
   const containerRef = useRef(null);
 
@@ -557,7 +562,57 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
         </button>
       )}
 
-      {searchFocused && (
+      {searchFocused && pixel && (
+        <div className="psh-gs-drop">
+          <p className="psh-gs-hint">Every word must match. Quotes keep a phrase together.</p>
+          {query.trim().length < 2 && (
+            <p className="psh-gs-hint">Type at least 2 characters to search</p>
+          )}
+          {query.trim().length >= 2 && searching && searchResults.length === 0 && (
+            <p className="psh-gs-hint">Searching…</p>
+          )}
+          {searchResults.length === 0 && query.trim().length >= 2 && !searching && (
+            <p className="psh-gs-hint">No results for "{query}"</p>
+          )}
+          {query.trim().length >= 2 && TYPE_ORDER.map((type) => {
+            const allOfType = groupedResults[type];
+            if (!allOfType?.length) return null;
+            const shown = shownByType[type] || PER_TYPE;
+            const typeResults = allOfType.slice(0, shown);
+            const more = allOfType.length - typeResults.length;
+            return (
+              <section key={type} className="psh-pn psh-gs-group" aria-label={TYPE_LABELS[type]}>
+                <div className="psh-ttl"><span>{TYPE_LABELS[type]}</span><span className="psh-mut">{allOfType.length}</span></div>
+                {typeResults.map((result) => (
+                  <button key={`${result.type}-${result.id}`} type="button" onClick={() => handleResultClick(result.path)}
+                    className={`psh-line psh-row psh-gs-row${result.isArchived ? " psh-gs-arch" : ""}`}>
+                    {result.color ? (
+                      <span className="psh-sq" style={{ backgroundColor: result.isArchived ? "var(--px-tab)" : result.color }} aria-hidden="true" />
+                    ) : (
+                      <span className="psh-gs-ico" aria-hidden="true">{TYPE_ICONS[result.type]}</span>
+                    )}
+                    <span className="psh-who">
+                      <span className="psh-name">
+                        {highlightMatch(result.title, highlightWords)}
+                        {result.isArchived && <span className="psh-chip psh-chip-sm">archived</span>}
+                      </span>
+                      {result.subtitle && <span className="psh-mut psh-small psh-trunc">{highlightMatch(result.subtitle, highlightWords)}</span>}
+                    </span>
+                  </button>
+                ))}
+                {more > 0 && (
+                  <button type="button" className="psh-gs-more"
+                    onClick={() => setShownByType((m) => ({ ...m, [type]: shown + MORE_STEP }))}>
+                    Show {Math.min(more, MORE_STEP)} more{more > MORE_STEP ? ` (${more} left)` : ""}
+                  </button>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {searchFocused && !pixel && (
         <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl max-h-[60vh] overflow-y-auto">
           {query.length < 2 && (
             <p className="p-4 text-center text-sm text-muted-foreground">Type at least 2 characters to search</p>

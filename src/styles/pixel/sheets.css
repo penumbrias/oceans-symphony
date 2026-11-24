@@ -1,0 +1,226 @@
+/* Sheets in the pixel look — the "Set front", "Search", "Unlock" and
+   "Quick jump" phone boards (SetFrontPhone, SearchPhone, UnlockPhone,
+   QuickJumpPhone). Markup: SetFrontSheetPixel.jsx (via SetFrontSheet),
+   GlobalSearch.jsx's pixel results, UnlockScreen.jsx's pixel branch and
+   QuickJumpSettings.jsx's pixel branch — each only rendered in the pixel
+   look. Every rule is scoped to html[data-ui-look="pixel"]. */
+
+/* ── Shared pieces (the boards' .pn .ttl .btn .chip .tick .tab .ins) ── */
+html[data-ui-look="pixel"] .psh-pn {
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .psh-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 26px; padding: 0 10px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .psh-ttl > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .psh-ttl-lg { min-height: 44px; font-size: 15px; padding-right: 6px; }
+html[data-ui-look="pixel"] .psh-ttl-acts { display: inline-flex; gap: 6px; flex: none; }
+html[data-ui-look="pixel"] .psh-mut { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .psh-small { font-size: 12px; }
+html[data-ui-look="pixel"] .psh-center { text-align: center; }
+html[data-ui-look="pixel"] .psh-trunc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .psh-grow { flex: 1; min-width: 0; }
+
+html[data-ui-look="pixel"] .psh-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 32px; padding: 4px 10px;
+  font-family: var(--px-font); font-size: 14px; color: var(--px-text);
+  background: var(--px-bar); border: 0; border-radius: 0;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .psh-btn:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .psh-btn.on {
+  background: var(--color-primary); color: var(--color-bg);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 60%, #000);
+}
+html[data-ui-look="pixel"] .psh-btn:disabled { opacity: .55; }
+html[data-ui-look="pixel"] .psh-btn-wide { width: 100%; min-height: 44px; }
+
+html[data-ui-look="pixel"] .psh-chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 4px 9px; flex: none;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); white-space: nowrap;
+  background: var(--px-tab); outline: 2px solid var(--px-line); outline-offset: -1px; border: 0; border-radius: 0;
+}
+html[data-ui-look="pixel"] .psh-chip.sel { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .psh-chip-sm { min-height: 18px; padding: 0 5px; font-size: 10px; margin-left: 6px; vertical-align: middle; }
+html[data-ui-look="pixel"] .psh-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+html[data-ui-look="pixel"] .psh-tick {
+  width: 22px; height: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-sunk); outline: 2px solid var(--px-line); border: 0; border-radius: 0;
+}
+html[data-ui-look="pixel"] .psh-tick.y { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .psh-tickrow {
+  display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 2px;
+  text-align: left; color: var(--px-text); background: transparent; border: 0;
+}
+html[data-ui-look="pixel"] .psh-tickrow:disabled { opacity: .55; }
+
+html[data-ui-look="pixel"] .psh-ins {
+  background: var(--px-sunk); color: var(--px-text);
+  box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi);
+}
+html[data-ui-look="pixel"] .psh-field {
+  width: 100%; min-height: 36px; padding: 6px 8px; border: 0; border-radius: 0; font-size: 14px;
+}
+html[data-ui-look="pixel"] .psh-field::placeholder { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .psh-field:disabled { opacity: .55; }
+
+html[data-ui-look="pixel"] .psh-row { display: flex; align-items: center; gap: 10px; }
+html[data-ui-look="pixel"] .psh-line { box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .psh-sq { width: 12px; height: 12px; flex: none; display: inline-block; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .psh-av {
+  width: 28px; height: 28px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; outline: 2px solid var(--px-line); color: var(--px-text);
+}
+html[data-ui-look="pixel"] .psh-av > img { width: 100%; height: 100%; object-fit: cover; }
+html[data-ui-look="pixel"] .psh-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .psh-who-inline { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui-look="pixel"] .psh-name { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .psh-pro { font-size: 12px; }
+html[data-ui-look="pixel"] .psh-sub {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text); margin-top: 4px;
+}
+html[data-ui-look="pixel"] .psh-count { margin-left: 4px; }
+html[data-ui-look="pixel"] .psh-note { padding: 8px; font-size: 13px; }
+html[data-ui-look="pixel"] .psh-list { display: flex; flex-direction: column; gap: 6px; }
+html[data-ui-look="pixel"] .psh-list-flat { gap: 0; }
+html[data-ui-look="pixel"] .psh-link { font-size: 12px; color: var(--px-text-2); text-decoration: underline; min-height: 32px; background: none; border: 0; }
+html[data-ui-look="pixel"] .psh-link:hover { color: var(--px-text); }
+
+html[data-ui-look="pixel"] :is(.psh-btn, .psh-chip, .psh-tickrow, .psh-tab, .psh-rest, .psh-gs-row, .psh-gs-more, .psh-link, .psh-iconbtn, .psh-qj-pic):focus-visible {
+  outline: 2px solid var(--color-primary); outline-offset: 0;
+}
+
+/* A SearchableSelect drawn as a chip (level, trigger category, page). */
+html[data-ui-look="pixel"] .psh-sel { flex: none; max-width: 46%; }
+html[data-ui-look="pixel"] .psh-sel-grow { flex: 1; max-width: none; min-width: 0; }
+html[data-ui-look="pixel"] .psh-sel-wide { max-width: none; width: 100%; }
+html[data-ui-look="pixel"] .psh-sel > button {
+  height: auto; min-height: 28px; padding: 3px 8px; gap: 4px;
+  font-family: var(--px-font); font-size: 12px;
+  background: var(--px-tab); border: 0; border-radius: 0 !important; box-shadow: none;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+}
+html[data-ui-look="pixel"] .psh-sel-wide > button { min-height: 36px; font-size: 13px; }
+
+/* ── Set front ─────────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .psh-dlg {
+  display: flex !important; flex-direction: column; padding: 0 !important; gap: 0 !important;
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  overflow: visible !important; max-width: 520px;
+}
+@media (max-width: 639px) {
+  html[data-ui-look="pixel"] .psh-dlg { width: calc(100vw - 24px) !important; max-width: none !important; }
+}
+html[data-ui-look="pixel"] .psh-sf { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .psh-ttl-name { font-family: var(--px-font); font-size: 15px; font-weight: 400; letter-spacing: 0; }
+html[data-ui-look="pixel"] .psh-tabs { display: flex; gap: 4px; padding: 8px 12px 0; flex: none; flex-wrap: wrap; }
+html[data-ui-look="pixel"] .psh-tab {
+  padding: 6px 12px; min-height: 32px; font-family: var(--px-font); font-size: 13px;
+  outline: 2px solid var(--px-line); outline-offset: -1px; background: var(--px-tab); color: var(--px-text-2); border: 0;
+}
+html[data-ui-look="pixel"] .psh-tab.sel { background: var(--px-panel); color: var(--px-text); box-shadow: inset 2px 2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .psh-body {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px 12px; display: flex; flex-direction: column; gap: 6px;
+}
+html[data-ui-look="pixel"] .psh-searchrow { display: flex; gap: 6px; align-items: stretch; }
+html[data-ui-look="pixel"] .psh-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; min-height: 36px; }
+html[data-ui-look="pixel"] .psh-search > input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; font-size: 14px; color: var(--px-text); }
+html[data-ui-look="pixel"] .psh-search > input::placeholder { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .psh-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; padding: 0 6px;
+  color: var(--px-text); background: var(--px-bar); border: 0 !important; border-radius: 0 !important;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .psh-now { padding: 6px 8px; min-height: 48px; }
+html[data-ui-look="pixel"] .psh-now .psh-tick { width: 26px; height: 26px; }
+html[data-ui-look="pixel"] .psh-rest { width: 100%; padding: 5px 8px; min-height: 48px; text-align: left; color: var(--px-text); background: transparent; border: 0; }
+html[data-ui-look="pixel"] .psh-rest:hover { background: color-mix(in srgb, var(--px-bar) 60%, transparent); }
+html[data-ui-look="pixel"] .psh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; padding: 4px 0; }
+html[data-ui-look="pixel"] .psh-foot {
+  flex: none; padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 13px;
+  box-shadow: inset 0 2px 0 var(--px-sunk);
+}
+html[data-ui-look="pixel"] .psh-trig { gap: 8px; }
+html[data-ui-look="pixel"] .psh-trig > .psh-tickrow { min-height: 32px; flex: none; gap: 6px; }
+html[data-ui-look="pixel"] .psh-trig > .psh-tickrow .psh-tick { width: 18px; height: 18px; font-size: 11px; }
+html[data-ui-look="pixel"] .psh-foot > .psh-tickrow { min-height: 32px; }
+
+/* ── Search results ────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .psh-gs-drop {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50; margin-top: 8px;
+  max-height: 60vh; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--px-sunk); outline: 2px solid var(--px-line);
+  padding: 8px;
+}
+html[data-ui-look="pixel"] .px-search-panel .psh-gs-drop { position: static; margin-top: 8px; outline: 0; background: transparent; padding: 2px; }
+html[data-ui-look="pixel"] .px-search-panel { max-height: calc(100dvh - 120px); display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .px-search-panel > .relative { display: flex; flex-direction: column; min-height: 0; }
+html[data-ui-look="pixel"] .px-search-panel .psh-gs-drop { max-height: calc(100dvh - 190px); }
+html[data-ui-look="pixel"] .psh-gs-hint { font-size: 12px; color: var(--px-text-2); margin: 0; }
+html[data-ui-look="pixel"] .psh-gs-group { flex: none; }
+html[data-ui-look="pixel"] .psh-gs-row {
+  width: 100%; padding: 6px 12px; min-height: 44px; text-align: left; color: var(--px-text); background: transparent; border: 0;
+}
+html[data-ui-look="pixel"] .psh-gs-row:hover { background: color-mix(in srgb, var(--px-bar) 60%, transparent); }
+html[data-ui-look="pixel"] .psh-gs-arch { opacity: .65; }
+html[data-ui-look="pixel"] .psh-gs-ico { width: 18px; flex: none; text-align: center; font-size: 13px; line-height: 1; }
+html[data-ui-look="pixel"] .psh-gs-more {
+  display: block; width: 100%; padding: 6px 12px; min-height: 32px; text-align: left;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); background: transparent; border: 0;
+}
+html[data-ui-look="pixel"] .psh-gs-more:hover { color: var(--px-text); }
+html[data-ui-look="pixel"] .psh-gs-row mark { background: color-mix(in srgb, var(--color-primary) 35%, transparent); color: inherit; }
+
+/* ── Unlock ────────────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .psh-unlock {
+  display: flex; flex-direction: column; background: var(--px-sunk); color: var(--px-text);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+html[data-ui-look="pixel"] .psh-unlock-head {
+  flex: none; height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 12px;
+  font-family: var(--px-font); font-size: 18px; font-weight: 600;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .psh-unlock-logo-sm { width: 30px; height: 30px; object-fit: cover; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .psh-unlock-mid {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; justify-content: center; gap: 12px;
+  width: 100%; max-width: 420px; margin: 0 auto;
+}
+html[data-ui-look="pixel"] .psh-unlock-card { padding: 18px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+html[data-ui-look="pixel"] .psh-unlock-logo { width: 64px; height: 64px; object-fit: cover; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .psh-unlock-title { font-family: var(--px-font); font-size: 22px; font-weight: 400; margin: 0; }
+html[data-ui-look="pixel"] .psh-unlock-field { position: relative; width: 100%; }
+html[data-ui-look="pixel"] .psh-unlock-field > .psh-field { min-height: 40px; padding: 10px 40px 10px 10px; font-size: 15px; }
+html[data-ui-look="pixel"] .psh-unlock-eye {
+  position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+  min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .psh-unlock-err { font-size: 13px; color: var(--color-destructive, #f87171); text-align: center; margin: 0; }
+html[data-ui-look="pixel"] .psh-unlock-acts { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Quick jump ────────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .psh-qj { display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--px-text); }
+html[data-ui-look="pixel"] .psh-qj > .psh-sub { font-size: 13px; margin-top: 2px; }
+html[data-ui-look="pixel"] .psh-qj-row { min-height: 46px; padding: 3px 0; }
+html[data-ui-look="pixel"] .psh-qj-col { display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .psh-qj-pick { display: flex; flex-direction: column; gap: 6px; padding: 0 0 10px 32px; }
+html[data-ui-look="pixel"] .psh-qj-row > .psh-mut { max-width: 45%; }
+html[data-ui-look="pixel"] .psh-qj-pic {
+  width: 100%; aspect-ratio: 4 / 3; max-width: 520px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; border: 0; padding: 0; font-family: var(--px-font);
+}
+html[data-ui-look="pixel"] .psh-qj-pic > img { width: 100%; height: 100%; object-fit: cover; }

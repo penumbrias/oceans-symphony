@@ -6,6 +6,15 @@ import { initLocalDb, MissingSaltError, CorruptedDataError, StorageReadError } f
 import { hasAnyUnlockedList } from "@/lib/localUnlockedGrocery";
 import { readLockCopy } from "@/lib/emergencyCard";
 import EmergencyCardView from "@/components/emergency/EmergencyCardView";
+import "@/styles/pixel/sheets.css";
+
+// The pixel look can only be known before unlock if it was already applied
+// in this session (a re-lock): settings are encrypted until then. So the
+// "Unlock" board is drawn only while <html data-ui-look="pixel"> is set,
+// read once at mount. Markup only — the unlock logic below is shared.
+function pixelLookApplied() {
+  try { return document.documentElement.getAttribute("data-ui-look") === "pixel"; } catch { return false; }
+}
 
 export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
   const [password, setPassword] = useState("");
@@ -17,6 +26,7 @@ export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
   // to show without the password (emergencyInfo.js). None → no button.
   const [lockCopy] = useState(() => readLockCopy());
   const [showEmergency, setShowEmergency] = useState(false);
+  const [pixel] = useState(pixelLookApplied);
 
   const handleUnlock = async () => {
     if (!password) return;
@@ -44,6 +54,69 @@ export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
       setLoading(false);
     }
   };
+
+  const openGrocery = () => window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { lockedMode: true } }));
+
+  if (pixel) {
+    return (
+      <div className="fixed inset-0 psh-unlock">
+        {showEmergency && lockCopy && (
+          <EmergencyCardView sections={lockCopy.sections} fullScreen onClose={() => setShowEmergency(false)} />
+        )}
+        <div className="psh-unlock-head">
+          <img src="/logo.png" alt="" className="psh-unlock-logo-sm" />
+          <span>Oceans Symphony</span>
+        </div>
+        <div className="psh-unlock-mid">
+          <div className="psh-pn psh-unlock-card">
+            <img src="/logo.png" alt="Oceans Symphony" className="psh-unlock-logo" />
+            <h2 className="psh-unlock-title">Unlock Symphony</h2>
+            <p className="psh-mut psh-small psh-center">Your data is encrypted. Enter your password to continue.</p>
+            <div className="psh-unlock-field">
+              <input
+                type={showPass ? "text" : "password"}
+                value={password}
+                onChange={e => { setPassword(e.target.value); setError(""); }}
+                onKeyDown={e => e.key === "Enter" && handleUnlock()}
+                placeholder="Your encryption password..."
+                aria-label="Your encryption password"
+                className="psh-ins psh-field"
+                autoFocus
+              />
+              <button type="button" onClick={() => setShowPass(p => !p)} className="psh-unlock-eye"
+                aria-label={showPass ? "Hide password" : "Show password"}>
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {error && <p className="psh-unlock-err">{error}</p>}
+            <button type="button" onClick={handleUnlock} disabled={loading || !password} className="psh-btn on psh-btn-wide">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+              Unlock
+            </button>
+            {attempts >= 3 && onNeedRecovery && (
+              <button type="button" onClick={() => onNeedRecovery({ kind: 'forgot_password' })} className="psh-link">
+                Can't get in? Open recovery options
+              </button>
+            )}
+          </div>
+          <div className="psh-pn">
+            <div className="psh-ttl"><span>Available when locked</span></div>
+            <div className="psh-unlock-acts">
+              {lockCopy && (
+                <button type="button" className="psh-btn psh-btn-wide" onClick={() => setShowEmergency(true)}>
+                  <Siren className="w-4 h-4" /> Show my emergency info
+                </button>
+              )}
+              <button type="button" className="psh-btn psh-btn-wide" onClick={openGrocery}>
+                <ShoppingCart className="w-4 h-4" />
+                {hasAnyUnlockedList() ? "Open grocery list" : "Open grocery list (no unlock needed)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-background flex items-center justify-center p-4">

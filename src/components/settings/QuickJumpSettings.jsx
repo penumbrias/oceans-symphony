@@ -20,6 +20,8 @@ import { readPanicTapsSetting, writePanicTapsSetting } from "@/components/settin
 import {
   readQuickJump, readLockPref, writeLockPref, readLastPage, pathOnly, SOUNDSCAPE_FOCUS_PATH,
 } from "@/lib/quickJump";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import "@/styles/pixel/sheets.css";
 
 const TAP_CHOICES = [
   { value: 2, label: "2" }, { value: 3, label: "3" }, { value: 4, label: "4" },
@@ -39,6 +41,23 @@ function PictureThumb({ url }) {
     : <span className="w-12 h-12 rounded-lg bg-muted inline-block" />;
 }
 
+function PxTick({ on }) {
+  return <span className={`psh-tick${on ? " y" : ""}`} aria-hidden="true">{on ? "x" : ""}</span>;
+}
+
+// The pixel board's picture well: the chosen picture as it will show.
+function PixelPicture({ url, onChoose }) {
+  const resolved = useResolvedAvatarUrl(url || "");
+  return (
+    <button type="button" className="psh-ins psh-qj-pic" onClick={onChoose}
+      aria-label={url ? "Change the picture" : "Choose a picture"}>
+      {url && resolved
+        ? <img src={resolved} alt="" />
+        : <span className="psh-mut">{url ? "Loading picture…" : "Choose a picture — it shows full screen"}</span>}
+    </button>
+  );
+}
+
 export default function QuickJumpSettings() {
   const qc = useQueryClient();
   const t = useTerms();
@@ -52,6 +71,7 @@ export default function QuickJumpSettings() {
   const [lockOn, setLockOn] = useState(readLockPref);
   const [pickerOpen, setPickerOpen] = useState(false);
   const encryptionOn = isEncryptionEnabled();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
 
   // Every page the person can open, term-aware, plus the Soundscape in
   // full screen and the exact spot they were on before Settings.
@@ -120,6 +140,90 @@ export default function QuickJumpSettings() {
     page: "Any page or exact spot. Handy as a shortcut too.",
     image: "A picture or gif you choose, full screen.",
   }[jump.target];
+
+  if (pixel) {
+    // The "Quick jump" board: tick rows for where the jump goes, the lock
+    // as a tick, and the chosen picture shown large. Same saves as below.
+    const last = readLastPage();
+    const onLast = jump.target === "page" && !!last && jump.path === last;
+    const lockShown = encryptionOn && lockOn;
+    return (
+      <div className="psh-qj">
+        <p className="psh-mut">A few quick taps anywhere jump you somewhere you choose. Use it to cover the screen fast, or just as a shortcut.</p>
+
+        <div className="psh-sub">Quick taps</div>
+        <div className="psh-chips" role="radiogroup" aria-label="Quick taps">
+          {TAP_CHOICES.map((c) => (
+            <button key={c.value} type="button" role="radio" aria-checked={taps === c.value}
+              className={`psh-chip${taps === c.value ? " sel" : ""}`} onClick={() => setTaps(c.value)}>{c.label}</button>
+          ))}
+        </div>
+        <p className="psh-mut psh-small">{tapsHint}</p>
+
+        <div className="psh-sub">Jump to</div>
+        <div className="psh-list psh-list-flat" role="radiogroup" aria-label="Jump to">
+          <div className="psh-line psh-row psh-qj-row">
+            <button type="button" role="radio" aria-checked={jump.target === "image"} className="psh-tickrow psh-grow"
+              onClick={() => saveJump({ target: "image" })}>
+              <PxTick on={jump.target === "image"} /><span>A picture</span>
+            </button>
+            {jump.target === "image" && (
+              <button type="button" className="psh-chip" onClick={() => setPickerOpen(true)}>
+                {jump.image_url ? "Change" : "Choose"}
+              </button>
+            )}
+          </div>
+          <div className="psh-line psh-row psh-qj-row">
+            <button type="button" role="radio" aria-checked={jump.target === "lists"} className="psh-tickrow psh-grow"
+              onClick={() => saveJump({ target: "lists" })}>
+              <PxTick on={jump.target === "lists"} /><span>Notes &amp; lists panel</span>
+            </button>
+          </div>
+          <div className="psh-line psh-qj-col">
+            <div className="psh-row psh-qj-row">
+              <button type="button" role="radio" aria-checked={jump.target === "page" && !onLast} className="psh-tickrow psh-grow"
+                onClick={() => saveJump({ target: "page" })}>
+                <PxTick on={jump.target === "page" && !onLast} /><span>A page</span>
+              </button>
+              {jump.target === "page" && jump.label && !onLast && <span className="psh-mut psh-small psh-trunc">{jump.label}</span>}
+            </div>
+            {jump.target === "page" && (
+              <div className="psh-qj-pick">
+                <SearchableSelect className="psh-sel psh-sel-wide" value={jump.path || null} onChange={(v) => v && pagePicked(v)} options={pageOptions}
+                  placeholder="Choose a page…" searchPlaceholder="Search pages…" />
+                {!jump.path && <p className="psh-mut psh-small">Pick one. Until you do, the jump opens notes &amp; lists.</p>}
+              </div>
+            )}
+          </div>
+          {last && (
+            <div className="psh-line psh-row psh-qj-row">
+              <button type="button" role="radio" aria-checked={onLast} className="psh-tickrow psh-grow"
+                onClick={() => pagePicked(last)}>
+                <PxTick on={onLast} /><span>The page I was just on</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button type="button" className="psh-tickrow" aria-pressed={lockShown} disabled={!encryptionOn}
+          onClick={() => { if (encryptionOn) setLock(!lockOn); }}>
+          <PxTick on={lockShown} /><span>Lock behind it</span>
+        </button>
+        <p className="psh-mut psh-small">
+          {encryptionOn
+            ? "Leaving the page the jump opened locks the app until your password is entered."
+            : "Needs a password. Turn one on in Storage & encryption."}
+        </p>
+
+        {jump.target === "image" && (
+          <PixelPicture url={jump.image_url} onChoose={() => setPickerOpen(true)} />
+        )}
+
+        <AssetPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} allowFolders
+          onSelect={(url) => { saveJump({ target: "image", image_url: url }); setPickerOpen(false); }} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-1">

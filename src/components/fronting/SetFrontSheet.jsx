@@ -49,6 +49,8 @@ import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { an } from "@/lib/articles";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import SetFrontSheetPixel from "@/components/fronting/SetFrontSheetPixel";
 
 // One alter in the draft (the "here now" list being edited).
 function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary, onLevel, onRemove, holdProps = null }) {
@@ -138,6 +140,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
   const levelCfg = useFrontLevels();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
 
   // Everyone already in the draft sits in the section above, so this list
   // never needs fronters-first — just the user's chosen order.
@@ -374,9 +377,43 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
 
   const primaryId = draft.find((d) => d.isPrimary)?.alterId || "";
 
+  // The pixel look draws the "Set front" board around the same state and
+  // handlers (SetFrontSheetPixel) — the save still goes through handleSave.
+  const pixelBody = pixel ? (
+    <SetFrontSheetPixel
+      terms={terms} formatAlter={formatAlter} levelCfg={levelCfg} sorter={sorter}
+      tab={tab} setTab={setTab} viewMode={viewMode} setViewMode={setViewMode}
+      search={search} setSearch={setSearch}
+      draft={draft} altersById={altersById} isUnsure={isUnsure} setIsUnsure={setIsUnsure} primaryId={primaryId}
+      addList={addList} activeAlters={activeAlters} groups={groups} draftIds={draftIds}
+      onClose={onClose} onSave={handleSave} saving={saving}
+      togglePrimary={togglePrimary} setLevel={setLevel} removeAlter={removeAlter}
+      guardedAdd={guardedAdd} guardedToggleFromView={guardedToggleFromView} setMany={setMany}
+      getAddHoldProps={getAddHoldProps} draftLevelOf={draftLevelOf} levelName={levelName} treeGroupRail={treeGroupRail}
+      railNodes={<>
+        {rowOptionsMenu.node}
+        {groupLevelRail.node}
+        <FrontLevelRail rail={addRail} cfg={levelCfg} withRemove
+          alterName={addRailAlter ? formatAlter(addRailAlter) : ""} />
+      </>}
+      journalSwitch={journalSwitch} setJournalSwitch={setJournalSwitch}
+      triggeredSwitch={triggeredSwitch} setTriggeredSwitch={setTriggeredSwitch}
+      triggerCategory={triggerCategory} setTriggerCategory={setTriggerCategory}
+      triggerLabel={triggerLabel} setTriggerLabel={setTriggerLabel}
+      allTriggerCategories={allTriggerCategories}
+    />
+  ) : null;
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
+        {pixel ? (
+          <DialogContent showCloseButton={false} aria-describedby={undefined}
+            className="psh-dlg psh-dlg-sf"
+            style={{ height: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)" }}>
+            {pixelBody}
+          </DialogContent>
+        ) : (
         <DialogContent
           // One scrollable column, NOT a rigid flex layout: on short
           // viewports (landscape phones) a fixed header/footer flex column
@@ -546,6 +583,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
             </>
           )}
         </DialogContent>
+        )}
       </Dialog>
 
       {showJournalModal && (
