@@ -6,13 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Trash2, AlarmClock, Cloud, ZapOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, formatDistanceToNow } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, formatDistanceToNow, subDays } from "date-fns";
 import SleepLogModal from "@/components/sleep/SleepLogModal";
 import SleepEditModal from "@/components/sleep/SleepEditModal";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
 import { startSleep } from "@/lib/sleepEntry";
 import { clockPattern } from "@/lib/timeFormat";
 import RichText from "@/components/shared/RichText";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/care.css";
+
+// Pixel look: a night's bar colour by how long it was (SleepPhone).
+const nightColor = (h) => (h >= 6.5 ? "#8fb8e0" : h >= 5 ? "#e3c16f" : "#ef8a6a");
+const hm = (hours) => {
+  const mins = Math.max(0, Math.round(hours * 60));
+  return `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, "0")}`;
+};
 
 export default function SleepTracker() {
   const queryClient = useQueryClient();
@@ -166,6 +175,130 @@ export default function SleepTracker() {
       ? (sleepRecords.reduce((sum, s) => sum + calculateDuration(s), 0) /
           sleepRecords.length).toFixed(1)
       : 0;
+
+  const pixel = useUiLook() === "pixel";
+  if (pixel) {
+    const today = new Date();
+    const nights = Array.from({ length: 7 }, (_, i) => subDays(today, 6 - i)).map((d) => {
+      const sl = getSleepForDate(d);
+      const h = sl ? calculateDuration(sl) : 0;
+      return { d, sl, h, live: !!sl && !sl.wake_time };
+    });
+    const done = nights.filter((n) => n.h > 0);
+    const avg7 = done.length ? done.reduce((a, n) => a + n.h, 0) / done.length : 0;
+    const sorted = [...sleepRecords].sort((a, b) => parseISO(b.bedtime || "") - parseISO(a.bedtime || ""));
+    const sinceHours = inProgressSleep?.bedtime ? (Date.now() - parseISO(inProgressSleep.bedtime)) / 3600000 : 0;
+    return (
+      <div className="px-cr" data-tour="sleep-page">
+        <div className="px-cr-head">
+          <h1 className="px-cr-title">Sleep</h1>
+          <button type="button" className="px-cr-btn px-cr-icon" aria-label="Add past night" title="Add past night"
+            onClick={() => handleAddSleep(new Date())}><Plus className="w-4 h-4" /></button>
+        </div>
+        <div className="px-cr-grid">
+          <div className="px-cr-col">
+            <section className="px-cr-pn" data-tour="sleep-start">
+              {inProgressSleep ? (
+                <>
+                  <h2 className="px-cr-ttl"><span>Sleeping now</span><span className="px-cr-pf" style={{ color: "var(--color-primary)" }}>in progress</span></h2>
+                  <div className="px-sl-now">
+                    <span>Since {safeDate(inProgressSleep.bedtime, clockPattern("h:mm a"))} · {hm(sinceHours)} min</span>
+                    {!endingSleep && <button type="button" className="px-cr-btn on" onClick={handleEndSleep}>End sleep</button>}
+                  </div>
+                  <p className="px-sl-sub px-cr-mut" style={{ margin: 0 }}>
+                    Started by mistake? <button type="button" className="px-cr-link" onClick={handleCancelInProgress}>Discard it</button>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="px-cr-ttl"><span>Tonight</span></h2>
+                  <div className="px-sl-now">
+                    <span className="px-cr-mut">Going to bed? Start it now and end it when you wake.</span>
+                    <button type="button" className="px-cr-btn on" onClick={handleStartSleep} disabled={startingNow}>
+                      {startingNow ? "Starting…" : "Start sleep"}
+                    </button>
+                  </div>
+                  <p className="px-sl-sub" style={{ margin: 0 }}>
+                    <button type="button" className="px-cr-link" onClick={() => handleAddSleep(new Date())}>Add past night</button>
+                  </p>
+                </>
+              )}
+            </section>
+            <section className="px-cr-pn">
+              <h2 className="px-cr-ttl"><span>Last 7 nights</span>{avg7 > 0 && <span className="px-cr-mut">avg {hm(avg7)}</span>}</h2>
+              <div className="px-sl-bars">
+                {nights.map((n) => {
+                  const label = format(n.d, "EEEEEE");
+                  const height = n.live ? 30 : Math.min(100, Math.round(n.h * 10));
+                  const style = { height: n.sl ? height : 4, background: n.live ? "var(--px-hi)" : n.sl ? nightColor(n.h) : "var(--px-sunk)" };
+                  const title = `${format(n.d, "EEEE")}: ${n.live ? "in progress" : n.sl ? hm(n.h) : "nothing logged"}`;
+                  return n.sl && !n.live ? (
+                    <button key={label + n.d.getDate()} type="button" className="px-sl-bar" title={title} aria-label={`${title}. Edit`}
+                      onClick={() => setEditingSleep(n.sl)}>
+                      <span style={style} /><span>{label}</span>
+                    </button>
+                  ) : (
+                    <span key={label + n.d.getDate()} className="px-sl-bar" title={title}><span style={style} /><span>{label}</span></span>
+                  );
+                })}
+              </div>
+              <div className="px-sl-stats">
+                <span>All nights: <b>{sleepRecords.length}</b></span>
+                <span>avg length <b>{averageDuration}h</b></span>
+                <span>avg quality <b>{averageQuality}</b>/10</span>
+              </div>
+            </section>
+            <SleepEndModal inline isOpen={!!endingSleep} sleep={endingSleep}
+              onClose={() => setEndingSleep(null)} onSave={handleEndSaved} />
+          </div>
+          <section className="px-cr-pn" aria-label="Recent nights">
+            <h2 className="px-cr-ttl"><span>Recent nights</span><span className="px-cr-mut">{sleepRecords.length}</span></h2>
+            {sorted.length === 0 ? (
+              <p className="px-cr-empty">No sleep records yet. Log your first night to start tracking patterns.</p>
+            ) : (
+              <ul className="px-sl-list">
+                {sorted.map((sleep) => {
+                  const n = sleep.interruption_count || sleep.interruption_times?.length;
+                  return (
+                    <li key={sleep.id} className="px-sl-rec">
+                      <div className="px-sl-rec-main">
+                        <span className="px-sl-rec-day">{safeDate(sleep.date || sleep.bedtime, "EEE d MMM")}</span>
+                        <span className="px-sl-rec-meta">
+                          <span>{safeDate(sleep.bedtime, clockPattern("h:mm a"))} – {sleep.wake_time ? safeDate(sleep.wake_time, clockPattern("h:mm a")) : "in progress"}</span>
+                          {sleep.wake_time && <b>{hm(calculateDuration(sleep))}</b>}
+                          {sleep.quality ? <span>quality <b>{sleep.quality}</b>/10</span> : null}
+                        </span>
+                        {(sleep.is_interrupted || sleep.dreamed || sleep.had_nightmare) && (
+                          <span className="px-sl-tags">
+                            {sleep.is_interrupted && <span>{n ? `Interrupted ×${n}` : "Interrupted"}</span>}
+                            {sleep.dreamed && !sleep.had_nightmare && <span>Dreamed</span>}
+                            {sleep.had_nightmare && <span>Nightmare</span>}
+                          </span>
+                        )}
+                        {sleep.is_interrupted && sleep.interruption_times?.length > 0 && (
+                          <span className="px-cr-mut" style={{ fontSize: 12 }}>Woke at: {sleep.interruption_times.join(", ")}</span>
+                        )}
+                        {sleep.notes && <span className="px-cr-mut"><RichText content={sleep.notes} /></span>}
+                      </div>
+                      <div className="px-sl-acts">
+                        <button type="button" className="px-cr-btn" aria-label="Edit" title="Edit" onClick={() => setEditingSleep(sleep)}><Pencil className="w-4 h-4" /></button>
+                        <button type="button" className="px-cr-btn" aria-label="Delete" title="Delete" onClick={() => handleDelete(sleep.id)}><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
+        <SleepLogModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} selectedDate={selectedDate} />
+        {editingSleep && (
+          <SleepEditModal sleep={editingSleep} onClose={() => setEditingSleep(null)}
+            onSave={() => { queryClient.invalidateQueries({ queryKey: ["sleep"] }); setEditingSleep(null); }} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="py-6">

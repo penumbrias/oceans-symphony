@@ -17,6 +17,22 @@ import {
   rankAlters,
 } from "@/lib/unblendScoring";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook } from "@/lib/uiLook";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import { changeFront } from "@/lib/setFront";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import "@/styles/pixel/care.css";
+
+// Pixel look: scores → a share of 100 (softmax), for the "Likely in
+// front" bars. Display only; the ranking itself is unchanged.
+function likelyShares(ranked) {
+  if (!ranked.length) return new Map();
+  const max = Math.max(...ranked.map((r) => r.score));
+  const w = ranked.map((r) => Math.exp(r.score - max));
+  const sum = w.reduce((a, b) => a + b, 0) || 1;
+  return new Map(ranked.map((r, i) => [r.alter.id, Math.round((w[i] / sum) * 100)]));
+}
+const FALLBACK_SWATCHES = ["#7fb3a6", "#c98bb9", "#e3c16f", "#86b88f", "#8fb8e0", "#d98f5b", "#9aa0b4", "#ef8a6a"];
 
 // "Help me unblend" — a gentle, customisable identification helper
 // for figuring out which alter is fronting. Built around the spec
@@ -78,6 +94,7 @@ function RankedAlterAvatar({ alter }) {
 export default function HelpMeUnblend() {
   const navigate = useNavigate();
   const terms = useTerms();
+  const pixel = useUiLook() === "pixel";
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -298,6 +315,15 @@ export default function HelpMeUnblend() {
       setScores({});
     }
   };
+
+  if (pixel) {
+    return (
+      <UnblendPixel {...{ terms, navigate, ranked, activeAlters, activeFronterIds, answeredIds, currentQuestion,
+        isExhausted, hasNoQuestions, colorDraft, setColorDraft, handleColorPick, handleChoicePick, handleIdk,
+        handleShuffle, handleRestart, idkCount, groundingNudgeShown, setGroundingNudgeShown, deleteUserQuestion,
+        setQuestionIdx, queryClient }} />
+    );
+  }
 
   return (
     <div className="os-page-shell p-4 sm:p-6 space-y-5" data-tour="unblend-page">
@@ -554,6 +580,214 @@ export default function HelpMeUnblend() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+// The pixel look (UnblendPhone mockup): "Likely in front" as bars with a
+// one-tap set front for the top one, the question in its own panel with
+// Skip / Different question / Restart along the bottom, and the colour
+// question as swatches (the alters' own colours) plus the app's colour
+// picker — never the browser's. Same state and handlers as the page.
+function UnblendAvatar({ alter }) {
+  const url = useResolvedAvatarUrl(alter?.avatar_url);
+  return (
+    <span className="px-ub-av" style={{ background: alter.color || "var(--px-hi)" }} aria-hidden="true">
+      {url ? <img src={url} alt="" /> : null}
+    </span>
+  );
+}
+
+function UnblendPixel({
+  terms, navigate, ranked, activeAlters, activeFronterIds, answeredIds, currentQuestion, isExhausted, hasNoQuestions,
+  colorDraft, setColorDraft, handleColorPick, handleChoicePick, handleIdk, handleShuffle, handleRestart, idkCount,
+  groundingNudgeShown, setGroundingNudgeShown, deleteUserQuestion, setQuestionIdx, queryClient,
+}) {
+  const formatAlter = useAlterLabel();
+  const [showAll, setShowAll] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [setting, setSetting] = useState(false);
+  const shares = useMemo(() => likelyShares(ranked), [ranked]);
+  const shown = showAll ? ranked : ranked.slice(0, 4);
+  const top = ranked[0]?.alter || null;
+  const topIsSoleFront = top && activeFronterIds.has(top.id);
+  const swatches = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const a of activeAlters) {
+      const c = normalizeHexInput(a.color || "");
+      if (c && !seen.has(c.toLowerCase())) { seen.add(c.toLowerCase()); out.push(c); }
+      if (out.length >= 8) break;
+    }
+    for (const c of FALLBACK_SWATCHES) {
+      if (out.length >= 8) break;
+      if (!seen.has(c)) { seen.add(c); out.push(c); }
+    }
+    return out;
+  }, [activeAlters]);
+  const draft = normalizeHexInput(colorDraft);
+  const setFrontToTop = async () => {
+    if (!top) return;
+    setSetting(true);
+    try {
+      // The one front write path, like the "set front" quick action.
+      // Adds them to who's in front; everyone already there stays (no silent replace).
+      await changeFront((cur) => (cur.some((x) => x.alterId === top.id) ? cur : [...cur, { alterId: top.id }]),
+        { queryClient, terms, alters: activeAlters });
+      toast.success(`${formatAlter(top)} added to ${terms.front}`);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't change that.");
+    } finally {
+      setSetting(false);
+    }
+  };
+  const asking = currentQuestion && !isExhausted && !hasNoQuestions;
+
+  return (
+    <div className="px-cr" data-tour="unblend-page">
+      <div className="px-cr-head">
+        <h1 className="px-cr-title">Help me unblend</h1>
+        <button type="button" className="px-cr-btn" onClick={() => navigate("/unblend/questions")} data-tour="unblend-manage-btn">Manage questions</button>
+      </div>
+      <p className="px-cr-mut" style={{ margin: 0, fontSize: 13 }}>
+        A gentle series of questions to reconnect with whoever's here now. Skip anything you don't want to answer.
+      </p>
+      {groundingNudgeShown && (
+        <section className="px-cr-pn px-ub-nudge">
+          <p className="px-cr-pf" style={{ margin: 0 }}>Want to take a grounding break?</p>
+          <p className="px-cr-mut" style={{ margin: 0, fontSize: 13 }}>
+            When it's hard to tell who's here, sometimes the answer is "we need a moment first". A short breathing or grounding exercise can help things settle before coming back to this.
+          </p>
+          <div className="px-cr-row">
+            <button type="button" className="px-cr-btn on" onClick={() => navigate("/grounding")}>Open grounding</button>
+            <button type="button" className="px-cr-btn" onClick={() => setGroundingNudgeShown(false)}>Not right now</button>
+          </div>
+        </section>
+      )}
+      <div className="px-cr-grid">
+        <section className="px-cr-pn">
+          <h2 className="px-cr-ttl">
+            <span>Likely in front</span>
+            <span className="px-cr-mut">{answeredIds.size ? `after ${answeredIds.size} answer${answeredIds.size === 1 ? "" : "s"}` : "from the time of day"}</span>
+          </h2>
+          {activeAlters.length === 0 ? (
+            <p className="px-cr-empty">No {terms.alters} yet. Add some to start using this.</p>
+          ) : (
+            <>
+              <div style={{ paddingTop: 4 }}>
+                {shown.map(({ alter }) => {
+                  const p = shares.get(alter.id) || 0;
+                  const fronting = activeFronterIds.has(alter.id);
+                  return (
+                    <button key={alter.id} type="button" className="px-ub-row" onClick={() => navigate(`/alter/${alter.id}`)}
+                      aria-label={`${formatAlter(alter)}, ${p}%${fronting ? `, ${terms.fronting}` : ""}`}>
+                      <UnblendAvatar alter={alter} />
+                      <span className="px-ub-name" style={alter.color ? { color: alter.color } : undefined}>{formatAlter(alter)}</span>
+                      <span className="px-ub-bar px-cr-ins"><span style={{ width: `${p}%`, background: alter.color || "var(--color-primary)" }} /></span>
+                      <span className="px-ub-pc">{fronting ? <span className="px-ub-on">{terms.front}</span> : `${p}%`}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ padding: "4px 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                {ranked.length > 4 && (
+                  <button type="button" className="px-cr-link" style={{ alignSelf: "flex-start" }} onClick={() => setShowAll((v) => !v)}>
+                    {showAll ? "Show the top four" : `Show all ${ranked.length} ${terms.alters}`}
+                  </button>
+                )}
+                {top && (
+                  <button type="button" className="px-cr-btn on" style={{ width: "100%", minHeight: 52 }}
+                    disabled={setting || topIsSoleFront} onClick={setFrontToTop}>
+                    {topIsSoleFront ? `${formatAlter(top)} is ${terms.fronting}` : `Add ${formatAlter(top)} to ${terms.front}`}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
+        <div className="px-cr-col">
+          {(hasNoQuestions || isExhausted) && (
+            <section className="px-cr-pn">
+              <h2 className="px-cr-ttl"><span>{hasNoQuestions ? "Nothing to ask yet" : "That's every question"}</span></h2>
+              <div className="px-ub-q">
+                <p style={{ margin: 0 }}>
+                  {hasNoQuestions
+                    ? `Not enough ${terms.alter} data to ask anything useful yet.`
+                    : "You've worked through every question we can ask right now."}
+                </p>
+                <p className="px-cr-mut" style={{ margin: 0, fontSize: 13 }}>
+                  Help me unblend only asks questions whose answer would actually narrow the list. To unlock more, fill in {terms.alter} colours, pronouns, roles, ages, or custom fields, or use Get to know me to seed answers when you're grounded enough to.
+                </p>
+                <div className="px-ub-opts">
+                  <button type="button" className="px-cr-btn on" onClick={() => navigate("/get-to-know-me")}>Get to know me</button>
+                  <button type="button" className="px-cr-btn" onClick={() => navigate("/Home")}>Open {terms.alters}</button>
+                  {isExhausted && <button type="button" className="px-cr-btn" onClick={handleRestart}>Start over</button>}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {asking && (
+            <section className="px-cr-pn">
+              <h2 className="px-cr-ttl">
+                <span>Question {answeredIds.size + 1}</span>
+                <span className="px-cr-mut">{idkCount > 0 ? `${idkCount} skipped` : "skipping is fine"}</span>
+              </h2>
+              <div className="px-ub-q">
+                <p className="px-ub-prompt">{currentQuestion.prompt}</p>
+                {currentQuestion.kind === "color" && (
+                  <>
+                    <div className="px-ub-sw">
+                      {swatches.map((c) => (
+                        <button key={c} type="button" style={{ background: c }} aria-label={`Colour ${c}`}
+                          aria-pressed={draft?.toLowerCase() === c.toLowerCase()} onClick={() => setColorDraft(c)} />
+                      ))}
+                    </div>
+                    <div className="px-cr-row">
+                      <button type="button" className="px-cr-btn" onClick={() => setPicking(true)}>
+                        <span className="px-cr-sq" style={{ background: draft || "transparent" }} aria-hidden="true" /> Another colour…
+                      </button>
+                    </div>
+                    <button type="button" className="px-cr-btn" disabled={!draft} onClick={() => handleColorPick(draft || colorDraft)}>Use this colour</button>
+                    <p className="px-cr-mut" style={{ margin: 0, fontSize: 12 }}>The list re-ranks toward {terms.alters} with similar colours.</p>
+                  </>
+                )}
+                {currentQuestion.kind === "choice" && (
+                  <div className="px-ub-opts">
+                    {currentQuestion.options.map((opt) => (
+                      <button key={opt.id} type="button" className="px-cr-btn" onClick={() => handleChoicePick(opt)}>{opt.label}</button>
+                    ))}
+                  </div>
+                )}
+                {currentQuestion.userId && (
+                  <button type="button" className="px-cr-link" style={{ alignSelf: "flex-start" }}
+                    onClick={async () => {
+                      if (await confirm("Delete this question?")) {
+                        deleteUserQuestion(currentQuestion.userId);
+                        setQuestionIdx((i) => i + 1);
+                      }
+                    }}>Delete this question</button>
+                )}
+              </div>
+              <div className="px-ub-foot">
+                <button type="button" className="px-cr-btn" onClick={handleIdk}>Skip</button>
+                <button type="button" className="px-cr-btn" onClick={handleShuffle}>Different question</button>
+                <button type="button" className="px-cr-btn" onClick={handleRestart}>Restart</button>
+              </div>
+            </section>
+          )}
+
+          <div className="px-cr-row">
+            <span className="px-cr-mut" style={{ fontSize: 12, flex: 1 }}>Build up data by answering when grounded.</span>
+            <button type="button" className="px-cr-btn" onClick={() => navigate("/get-to-know-me")}>Get to know me</button>
+          </div>
+        </div>
+      </div>
+      {picking && (
+        <ColorPickerModal color={draft || "#8b5cf6"} label="Which colour feels right?"
+          onSave={(hex) => { setColorDraft(hex); setPicking(false); }} onClose={() => setPicking(false)} />
+      )}
     </div>
   );
 }

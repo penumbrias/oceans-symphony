@@ -11,6 +11,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Phone, X, ALargeSmall } from "lucide-react";
+import "@/styles/pixel/care.css";
 
 export default function EmergencyCardView({ sections = [], fullScreen = false, onClose = null, footer = null }) {
   const [big, setBig] = useState(false);
@@ -23,6 +24,65 @@ export default function EmergencyCardView({ sections = [], fullScreen = false, o
   }, [fullScreen, onClose]);
   const first = sections[0]?.id === "communication" ? sections[0] : null;
   const rest = first ? sections.slice(1) : sections;
+  // Read the look off <html> (not useUiLook): the unlock screen draws this
+  // card before the database is open, so it must not query settings.
+  const pixel = typeof document !== "undefined" && document.documentElement.getAttribute("data-ui-look") === "pixel";
+  if (pixel) {
+    // Pixel look (EmergencyCardPhone): one panel with a red title bar,
+    // A- / A+ for the text size, small-caps labels and call buttons.
+    const calls = sections.flatMap((s) => s.contacts || []);
+    const card = (
+      <div className={`px-ec px-ec-pn${big ? " big" : ""}`} data-tour="emergency-card">
+        <h2 className="px-ec-ttl">
+          <span>Emergency information</span>
+          <button type="button" className="px-cr-btn" onClick={() => setBig(false)} disabled={!big} aria-label="Smaller text">A-</button>
+          <button type="button" className="px-cr-btn" onClick={() => setBig(true)} disabled={big} aria-label="Bigger text">A+</button>
+        </h2>
+        <div className="px-ec-body">
+          {first && (
+            <section>
+              <h3 className="px-ec-k">{first.label}</h3>
+              {first.lines.map((l, i) => <p key={i} className="px-ec-v px-ec-first">{l}</p>)}
+            </section>
+          )}
+          {rest.filter((s) => s.id !== "contacts").map((s) => (
+            <section key={s.id}>
+              <h3 className="px-ec-k">{s.label}</h3>
+              {s.lines.map((l, i) => <p key={i} className={`px-ec-v${s.id === "allergies" ? " px-ec-first" : ""}`}>{l}</p>)}
+            </section>
+          ))}
+          {calls.length > 0 && (
+            <section>
+              <h3 className="px-ec-k">Contacts</h3>
+              {calls.filter((c) => !c.phone).map((c, i) => (
+                <p key={`n${i}`} className="px-ec-who">{[c.name, c.relation].filter(Boolean).join(" · ")}</p>
+              ))}
+              <div className="px-ec-calls">
+                {calls.filter((c) => c.phone).map((c, i) => (
+                  <a key={i} href={`tel:${c.phone.replace(/[^\d+]/g, "")}`} className={`px-cr-btn${i === 0 ? " on" : ""}`}>
+                    <span>Call {c.name}</span>
+                    <small>{[c.relation, c.phone].filter(Boolean).join(" · ")}</small>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+          {footer}
+        </div>
+      </div>
+    );
+    if (!fullScreen) return card;
+    return createPortal(
+      <div role="dialog" aria-modal="true" aria-label="Emergency information" className="px-ec-full" style={{ zIndex: 2147483000 }}>
+        <div className="px-ec-top">
+          <span>Emergency info</span>
+          {onClose && <button type="button" className="px-cr-btn px-cr-icon" onClick={onClose} aria-label="Close">&times;</button>}
+        </div>
+        <div className="px-ec-wrap">{card}</div>
+      </div>,
+      document.body,
+    );
+  }
   const body = (
     <div className={`mx-auto max-w-xl ${big ? "text-2xl" : "text-lg"} leading-snug`} data-tour="emergency-card">
       <div className="flex items-center gap-2 mb-3">

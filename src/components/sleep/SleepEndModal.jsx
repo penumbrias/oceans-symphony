@@ -115,7 +115,35 @@ function InterruptionDetails({ count, onCount, interruptionTimes, onTimesChange 
 }
 
 
-export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
+// `inline` (the pixel look's Sleep page, SleepPhone mockup): the same
+// form and the same save, drawn as a panel on the page instead of a dialog.
+// The specific-times half of InterruptionDetails, for the inline form
+// (its count stepper sits beside the Interrupted chip there).
+function InterruptionTimes({ interruptionTimes, onTimesChange, onCount }) {
+  const [newTime, setNewTime] = useState("");
+  const addTime = () => {
+    const t = newTime.trim();
+    if (!t) return;
+    const updated = [...interruptionTimes, t];
+    onTimesChange(updated);
+    onCount(updated.length);
+    setNewTime("");
+  };
+  return (
+    <div className="px-cr-row" style={{ flexWrap: "wrap", gap: 6 }}>
+      <input type="time" className="px-cr-field" value={newTime} aria-label="Woke at"
+        onChange={(e) => setNewTime(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addTime()} />
+      <button type="button" className="px-cr-btn sm" onClick={addTime}>+ Add time</button>
+      {interruptionTimes.map((t, i) => (
+        <span key={i} className="px-cr-chip sel">{t}
+          <button type="button" aria-label={`Remove ${t}`} onClick={() => onTimesChange(interruptionTimes.filter((_, idx) => idx !== i))}><X className="w-3 h-3" /></button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export default function SleepEndModal({ sleep, isOpen, onClose, onSave, inline = false }) {
   const terms = useTerms();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [wakeTime, setWakeTime] = useState("");
@@ -236,6 +264,64 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
       setIsLoading(false);
     }
   };
+
+  if (inline) {
+    if (!isOpen) return null;
+    return (
+      <section className="px-cr-pn" aria-label="End sleep log">
+        <h2 className="px-cr-ttl px-cr-ttl-tall">
+          <span>End sleep log</span>
+          <span style={{ display: "flex", gap: 6 }}>
+            <button type="button" className="px-cr-btn sm" onClick={onClose}>Cancel</button>
+            <button type="button" className="px-cr-btn sm on" onClick={handleSave} disabled={isLoading}>{isLoading ? "Saving…" : "Save"}</button>
+          </span>
+        </h2>
+        <div className="px-sl-form">
+          <p className="px-cr-mut" style={{ margin: 0, fontSize: 13 }}>
+            Started{bedtimeDate ? ` ${liveDurationLabel} ago, at ${format(bedtimeDate, clockPattern("EEE h:mm a"))}` : ""}.
+          </p>
+          <label className="px-cr-row" style={{ flexWrap: "wrap" }}>
+            <span className="px-sl-lbl">Wake time</span>
+            <input type="datetime-local" className="px-cr-field" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)} />
+          </label>
+          <div>
+            <p className="px-cr-mut" style={{ margin: "0 0 6px", fontSize: 13 }}>Quality (optional){quality ? `, ${quality}/10` : ""}</p>
+            <div className="px-sl-q">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <button key={n} type="button" className="px-cr-chip" aria-pressed={quality === n} aria-label={`Quality ${n} of 10`}
+                  onClick={() => setQuality((q) => (q === n ? 0 : n))}>{n}</button>
+              ))}
+            </div>
+          </div>
+          <div className="px-sl-flags">
+            <button type="button" className="px-cr-chip" aria-pressed={dreamed} onClick={() => { setDreamed(!dreamed); if (dreamed) setHadNightmare(false); }}>Dreamed</button>
+            <button type="button" className="px-cr-chip" aria-pressed={hadNightmare} onClick={() => { setHadNightmare(!hadNightmare); if (!hadNightmare) setDreamed(true); }}>Nightmare</button>
+            <button type="button" className="px-cr-chip" aria-pressed={isInterrupted} onClick={() => handleInterruptedToggle(!isInterrupted)}>Interrupted</button>
+            {isInterrupted && (
+              <span className="px-sl-step">
+                <button type="button" className="px-cr-btn" aria-label="One fewer time" onClick={() => setInterruptionCount(Math.max(0, interruptionCount - 1))}>−</button>
+                <span className="px-cr-mut" style={{ fontSize: 12 }}>{interruptionCount || 0} times</span>
+                <button type="button" className="px-cr-btn" aria-label="One more time" onClick={() => setInterruptionCount((interruptionCount || 0) + 1)}>+</button>
+              </span>
+            )}
+          </div>
+          {isInterrupted && (
+            <InterruptionTimes interruptionTimes={interruptionTimes} onTimesChange={setInterruptionTimes}
+              onCount={(n) => { if (n > interruptionCount) setInterruptionCount(n); }} />
+          )}
+          <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts
+            placeholder="How did you sleep? Any dreams?" rows={3} />
+          <button type="button" role="checkbox" aria-checked={saveAsDream} className="px-cr-check" onClick={() => setSaveAsDream((v) => !v)}>
+            <span className="px-cr-tick" aria-hidden="true">{saveAsDream ? "x" : ""}</span>
+            <span>Save to Dream Journal</span>
+          </button>
+          {saveAsDream && !notes.trim() && (
+            <p className="px-cr-mut" style={{ margin: 0, fontSize: 12 }}>Add a note above and it'll be saved as a Dream journal entry too.</p>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) onClose?.(); }}>
