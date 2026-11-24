@@ -6,6 +6,7 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { Label } from "@/components/ui/label";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { useTerms } from "@/lib/useTerms";
+import { useUiLook } from "@/lib/uiLook";
 
 // "Feelings noticed" used to be a free-text Textarea. Now it's the same
 // EmotionWheelPicker the Quick Check-In uses — selected labels live in
@@ -17,6 +18,10 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
   const terms = useTerms();
   const queryClient = useQueryClient();
   const step = data?.step2_notice || {};
+  // Pixel look (MeetingPhone board): the picked feelings as chips with a
+  // "+" that opens the same EmotionWheelPicker.
+  const pixel = useUiLook() === "pixel";
+  const [pickerOpen, setPickerOpen] = React.useState(false);
 
   // Normalize the persisted shape: legacy records stored a comma-/
   // semicolon-separated string; new ones store an array. The picker
@@ -80,6 +85,27 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
               </div>
             )}
 
+            {pixel ? (
+              <div className="space-y-2">
+                <div className="pxm-row pxm-wrap">
+                  <span className="pxm-mut" style={{ minWidth: 120 }}>Feelings noticed</span>
+                  {selectedEmotions.map((label) => (
+                    <button key={label} type="button" className="pxm-chip sel" onClick={() => handleToggleEmotion(label)}
+                      aria-label={`Remove ${label}`} title={`Remove ${label}`}>{label}</button>
+                  ))}
+                  <button type="button" className={`pxm-chip${pickerOpen ? " sel" : ""}`} aria-expanded={pickerOpen}
+                    onClick={() => setPickerOpen((v) => !v)} aria-label="Pick feelings">{pickerOpen ? "Done" : "+"}</button>
+                </div>
+                {pickerOpen && (
+                  <EmotionWheelPicker
+                    selectedEmotions={selectedEmotions}
+                    onToggle={handleToggleEmotion}
+                    customEmotions={customEmotions}
+                    onAddCustom={(label, category, color) => addCustomEmotionMutation.mutate({ label, category, color })}
+                  />
+                )}
+              </div>
+            ) : (
             <div>
               <Label className="text-sm mb-2 block">Feelings noticed</Label>
               <EmotionWheelPicker
@@ -89,9 +115,10 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
                 onAddCustom={(label, category, color) => addCustomEmotionMutation.mutate({ label, category, color })}
               />
             </div>
+            )}
 
             <div>
-              <Label htmlFor="step2-sensations" className="text-sm mb-2 block">
+              <Label htmlFor="step2-sensations" className={pixel ? "sr-only" : "text-sm mb-2 block"}>
                 Sensations, colors, or textures
               </Label>
               <MentionTextarea

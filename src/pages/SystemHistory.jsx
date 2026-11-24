@@ -340,7 +340,8 @@ function PixelSystemHistory({
   systemBirthDate, editingBirth, setEditingBirth, settings, queryClient,
 }) {
   const desk = usePixelDesk();
-  const kinds = [{ id: "all", label: "All" }, ...Object.entries(TYPE_META).map(([id, m]) => ({ id, label: m.label }))];
+  const kinds = [{ id: "all", label: "All" }, ...["fusion", "split", "emergence", "reformation", "dormancy", "return"]
+    .filter((id) => TYPE_META[id]).map((id) => ({ id, label: TYPE_META[id].label }))];
   const countOf = (id) => events.filter(e => (showHidden || !e.hidden) && (id === "all" || e.type === id)).length;
   const hiddenToggle = hiddenCount > 0 && (
     <button type="button" className={`pxm-chip${showHidden ? " sel" : ""}`} onClick={() => setShowHidden(s => !s)}
