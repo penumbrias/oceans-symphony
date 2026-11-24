@@ -112,7 +112,7 @@ export default function AccessibilitySettings() {
         <div className="flex items-center justify-between">
           <div className="min-w-0 pr-3">
             <p className="text-sm font-semibold">Floating Grounding bubble</p>
-            <p className="text-xs text-muted-foreground">The persistent quick-support button in the corner. Turn off if it gets in the way — Support is still one tap away from the quick actions and the apps drawer.</p>
+            <p className="text-xs text-muted-foreground">A quick-support button that stays in the corner of every screen. Off unless you turn it on; Support is always in the menu and quick actions too.</p>
           </div>
           <Switch
             checked={groundingBubble}

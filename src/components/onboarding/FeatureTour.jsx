@@ -91,7 +91,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("about", {
       emoji: "🫧", title: "Support & Learn",
-      body: `Grounding, breathing, sounds and a course of coping skills. The 🫧 bubble on every screen opens Support. The app isn't a substitute for professional care.`,
+      body: `Grounding, breathing, sounds and a course of coping skills. Support is in the menu on every screen. The app isn't a substitute for professional care.`,
       route: "/", fullTourOnly: true,
     }),
     s("about", {
@@ -1148,7 +1148,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── SUPPORT ────────────────────────────────────────────────────────────
     s("grounding", {
       emoji: "🫧", title: "Support",
-      body: `This page has two tabs, Support and Learn. The ring at the top breathes with you; tap its pattern's name to change it. The 🫧 bubble on every screen brings you back here.`,
+      body: `This page has two tabs, Support and Learn. The ring at the top breathes with you; tap its pattern's name to change it. Settings → Accessibility can add a 🫧 bubble that brings you back here from any screen.`,
       route: "/grounding", target: ["grounding-tabs", "px-subtabs"], look: `the highlighted Support / Learn tabs`,
     }),
     s("grounding", {

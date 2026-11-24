@@ -153,3 +153,53 @@ html[data-ui-look="pixel"] .prm-dlg > .prm-ed { flex: 1; }
 html[data-ui-look="pixel"] .prm-ttl .prm-btn-ttl { min-height: 22px; padding: 1px 8px; font-size: 12px; gap: 4px; }
 html[data-ui-look="pixel"] .prm-ttl:has(.prm-btn-ttl) { padding-right: 4px; min-height: 30px; }
 html[data-ui-look="pixel"] .prm-quiet { align-self: center; margin-right: 4px; }
+
+/* ── Fired reminder strip (PixelReminderStrip) ──
+   One slim line instead of the big card: in the home notice stack, and
+   docked low on every other screen (just above the phone's bottom bar or
+   the computer's status bar). */
+html[data-ui-look="pixel"] .px-rstrip {
+  display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 2px 4px 2px 8px;
+  background: var(--px-bar); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  font-size: 13px; margin: 2px 2px 6px;
+}
+html[data-ui-look="pixel"] .px-rstrip-ico { flex: none; font-size: 14px; line-height: 1; }
+html[data-ui-look="pixel"] .px-rstrip-title {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--px-font);
+}
+html[data-ui-look="pixel"] .px-rstrip-more { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-rstrip-btn {
+  flex: none; display: inline-flex; align-items: center; gap: 3px;
+  min-height: 24px; padding: 0 8px; border: 0; border-radius: 0;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text);
+  background: var(--px-panel); outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  margin: 0 2px;
+}
+html[data-ui-look="pixel"] .px-rstrip-btn:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .px-rstrip-done { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .px-rstrip-icon {
+  flex: none; min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 0; color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .px-rstrip-icon:hover { color: var(--px-text); }
+html[data-ui-look="pixel"] .px-rstrip :is(.px-rstrip-btn, .px-rstrip-icon):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+html[data-ui-look="pixel"] .px-rstrip-dock {
+  position: fixed; z-index: 200; right: 12px; left: 12px;
+  bottom: calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px) + 8px);
+}
+html[data-ui-look="pixel"] .px-rstrip-float { margin: 0; }
+@media (min-width: 640px) {
+  html[data-ui-look="pixel"] .px-rstrip-dock { left: auto; width: 380px; }
+}
+@media (min-width: 1024px) {
+  html[data-ui-look="pixel"] .px-rstrip-dock { bottom: 12px; right: 16px; }
+  html[data-ui-look="pixel"][data-px-status="1"] .px-rstrip-dock { bottom: 36px; }
+}
+@media (max-width: 639px) {
+  html[data-ui-look="pixel"] .px-rstrip-hide-sm { display: none; }
+}

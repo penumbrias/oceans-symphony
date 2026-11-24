@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "The floating Support bubble is now off unless you turn it on in Settings → Accessibility. Support is still in the menu." },
+      { type: "improve", text: "Pixel look: reminders like \"Drink water\" now show as one slim pixel strip instead of a big card." },
       { type: "improve", text: "Pixel look: the check-in log, therapy report, location history, recent changes and mods pages follow their new designs; the check-in log keeps its daily summary." },
       { type: "fix", text: "Check-in log: the display menu's per-person heading now uses your own words." },
       { type: "improve", text: "Pixel look: the Notebook opens on an overview of time, words and study with a ledger of what moved each page, and pages get a three-pane desk." },

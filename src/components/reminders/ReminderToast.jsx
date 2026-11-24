@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isFocusQuiet, subscribeFocusQuiet } from "@/lib/soundscape/focusMode";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import PixelReminderStrip from "./PixelReminderStrip";
 
 // How long a newly fired reminder shows in full before it folds into a
 // small pill (UI critique C1). The pill stays until the reminder is dealt
@@ -75,6 +77,7 @@ const DEFAULT_SNOOZE = [10, 60, 240, "tomorrow"];
 
 export default function ReminderToast() {
   const { data: pendingInstances = [] } = usePendingReminderInstances();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const [visible, setVisible] = useState([]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -244,7 +247,22 @@ export default function ReminderToast() {
 
   return (
     <>
-      {visible.length > 0 && !focusQuiet && !typing && !showExpanded && (() => {
+      {/* Pixel look: one slim strip instead of the card and the pill. */}
+      {pixel && visible.length > 0 && !focusQuiet && !typing && (() => {
+        const { instance, reminder } = visible[0];
+        return (
+          <div role="status" aria-live="polite" className="px-rstrip-dock">
+            <PixelReminderStrip floating reminder={reminder}
+              onAction={(action) => handleAction({ instance, reminder }, action)}
+              onDone={() => updateInstance(instance.id, { status: "acted", acted_action: "done" })}
+              onSnooze={(opt) => handleSnooze({ instance, reminder }, opt)}
+              onDismiss={() => handleXClose(instance.id)}
+              moreCount={visible.length - 1}
+              onOpenMore={() => navigate("/reminders")} />
+          </div>
+        );
+      })()}
+      {!pixel && visible.length > 0 && !focusQuiet && !typing && !showExpanded && (() => {
         const { instance, reminder } = visible[0];
         const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
         return (
@@ -269,7 +287,7 @@ export default function ReminderToast() {
           </div>
         );
       })()}
-      {visible.length > 0 && !focusQuiet && !typing && showExpanded && (
+      {!pixel && visible.length > 0 && !focusQuiet && !typing && showExpanded && (
         <div role="status" aria-live="polite" aria-atomic="false" data-overlay-notification
           onPointerDown={() => setPinnedOpen(true)}
           className="os-float-right fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">

@@ -54,6 +54,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import PixelReminderStrip from "@/components/reminders/PixelReminderStrip";
 import { sharedList } from "@/lib/sharedLists";
 
 // One notice at a time (UI critique C1): the most urgent shows, the rest
@@ -102,6 +104,7 @@ function DismissX({ onClick, label }) {
 // ── Fired reminder ──────────────────────────────────────────────────
 function ReminderNotice({ reminder, onSettle }) {
   const tr = useT();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const navigate = useNavigate();
   const icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
   const inlineActions = reminder.inline_actions || [];
@@ -133,6 +136,16 @@ function ReminderNotice({ reminder, onSettle }) {
     }
     onSettle({ status: "acted", acted_action: type });
   };
+
+  if (pixel) {
+    return (
+      <PixelReminderStrip reminder={reminder} menuZ={80}
+        onAction={act}
+        onDone={() => onSettle({ status: "acted", acted_action: "done" })}
+        onSnooze={(opt) => onSettle({ status: "snoozed", snoozed_until: snoozeUntilDate(opt) })}
+        onDismiss={() => onSettle({ status: "dismissed" })} />
+    );
+  }
 
   return (
     <NoticeCard>

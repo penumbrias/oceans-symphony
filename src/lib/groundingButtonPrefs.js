@@ -1,5 +1,6 @@
 // User preference: show the floating Grounding button (the persistent
-// bubble in the corner). Defaults to ON. Toggled from Settings →
+// bubble in the corner). Defaults to OFF since v0.380.3 (the owner asked
+// for it gone; Support stays in the menus, quick actions and the pixel rail). Toggled from Settings →
 // Accessibility. Stored per-device in localStorage because it's a
 // display preference — a user might want it on their phone but off
 // on their desktop.
@@ -9,10 +10,10 @@ const KEY = "symphony_grounding_button_enabled_v1";
 export function isGroundingButtonEnabled() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw === null) return true; // default ON
+    if (raw === null) return false; // default OFF
     return raw === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
