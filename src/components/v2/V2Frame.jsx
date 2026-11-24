@@ -72,12 +72,12 @@ import { useFrontPresence, useClock } from "@/lib/useFrontPresence";
 // sheet is actually opened.
 const UiEditSheet = React.lazy(() => import("@/components/v2/UiEditSheet"));
 
-const KEY_ICONS = {
+export const KEY_ICONS = {
   quick_checkin: Heart, quick_note: PenLine, start_activity: Zap,
   start_symptom: ActivityIcon, quick_thing: CheckSquare, set_front: Users,
   active_now: null, // drawn by ActiveNowKeyFace (icon + count badge)
 };
-const KEY_LABEL_KEYS = {
+export const KEY_LABEL_KEYS = {
   quick_checkin: "capture.checkIn", quick_note: "capture.note",
   start_activity: "capture.activity", start_symptom: "capture.symptom",
   quick_thing: "capture.thing", set_front: "capture.front", active_now: "capture.active",

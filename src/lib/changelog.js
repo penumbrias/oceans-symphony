@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "feature", text: "Pixel look on a computer: a tool rail down the left holds your quick actions and this page's tools. Move it right or turn it off in Display options → Bars → Tool rail." },
       { type: "feature", text: "Pixel look on a computer: a status bar along the bottom shows saving, last sync, the next plan and the next medication. Turn it or its items off in Display options → Bars." },
       { type: "feature", text: "New alters: add just the basics, then their profile opens with a short guide to Info for the rest." },
       { type: "improve", text: "Add several: type names with commas, like \"mark, amy, susan, carol\", to add them all at once." },

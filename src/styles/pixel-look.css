@@ -456,3 +456,40 @@ a.px-status-item:hover, button.px-status-item:hover { color: var(--px-text); bac
   html[data-px-status="1"] .os-float-right, html[data-px-status="1"] .os-float-btn { margin-bottom: 24px; }
   html[data-px-status="1"] [data-sonner-toaster][data-y-position="bottom"] { bottom: 40px !important; }
 }
+
+/* ── Tool rail (computer) ──────────────────────────────────────────── */
+.px-rail {
+  position: fixed; z-index: 40; width: 48px; display: none;
+  top: calc(78px + min(env(safe-area-inset-top, 0px), 64px)); bottom: 0;
+  flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 8px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  background: var(--px-bar); color: var(--px-text);
+}
+.px-rail::-webkit-scrollbar { display: none; }
+.px-rail-left { left: 0; box-shadow: inset -2px 0 0 var(--px-line); }
+.px-rail-right { right: 0; box-shadow: inset 2px 0 0 var(--px-line); }
+.px-rail-lbl { font-family: var(--px-font); font-size: 10px; letter-spacing: .04em; color: var(--px-text-2); margin-top: 2px; text-transform: uppercase; }
+.px-rail-slot { display: block; }
+.px-rail-key {
+  position: relative; flex: none; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--px-text); background: var(--px-panel);
+  border-radius: var(--px-corner, 0px);
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+.px-rail-key:hover { background: color-mix(in srgb, var(--color-primary) 18%, var(--px-panel)); }
+.px-rail-key:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+.px-rail-key.sel { background: var(--color-primary); color: var(--color-bg); box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+.px-rail-key.accent { color: var(--color-primary); }
+.px-rail-key:focus-visible { outline: 2px solid var(--color-primary); }
+@media (min-width: 1024px) {
+  .px-rail { display: flex; }
+  html[data-px-status="1"] .px-rail { bottom: 24px; }
+  html[data-px-rail="left"] [data-px-chrome] #main-content { padding-left: 52px; }
+  html[data-px-rail="right"] [data-px-chrome] #main-content { padding-right: 52px; }
+  html[data-px-rail="right"][data-px-help="1"] [data-px-chrome] #main-content { padding-right: 372px; }
+  html[data-px-rail="right"] .px-help { right: 48px; }
+  html[data-px-rail="right"] .os-float-right, html[data-px-rail="right"] .os-float-btn[style*="right"] { margin-right: 48px; }
+  html[data-px-rail="left"] .os-float-btn[style*="left"] { margin-left: 48px; }
+}

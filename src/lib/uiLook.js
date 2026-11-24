@@ -65,6 +65,10 @@ export function readPixelLook(settings) {
   // and which of its items are hidden.
   out.statusBar = raw.statusBar !== false;
   out.statusHidden = Array.isArray(raw.statusHidden) ? raw.statusHidden.filter((id) => PIXEL_STATUS_ITEMS.some((i) => i.id === id)) : [];
+  // The tool rail (computer): quick actions and this page's tools down one
+  // edge. On unless switched off; left unless moved right.
+  out.rail = raw.rail !== false;
+  out.railSide = raw.railSide === "right" ? "right" : "left";
   return out;
 }
 
@@ -124,7 +128,7 @@ export function UiLookApplier() {
   const look = readUiLook(row);
   const px = look === UI_LOOKS.PIXEL ? readPixelLook(row) : {};
   // Only the parts that draw CSS re-run the applier.
-  const pxKey = JSON.stringify({ ...px, statusBar: undefined, statusHidden: undefined });
+  const pxKey = JSON.stringify({ ...px, statusBar: undefined, statusHidden: undefined, rail: undefined, railSide: undefined });
   useEffect(() => {
     const el = document.documentElement;
     if (look === UI_LOOKS.PIXEL) el.setAttribute("data-ui-look", "pixel");

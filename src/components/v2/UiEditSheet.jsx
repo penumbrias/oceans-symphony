@@ -33,7 +33,7 @@ import { CORNER_MODES } from "@/lib/useCornerMode";
 import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS, PIXEL_STATUS_ITEMS } from "@/lib/uiLook";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, useInspectorPages } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, LinkRow, useInspectorPages } from "@/components/shared/SettingRows";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -711,7 +711,7 @@ function BarsTab({ v2, alignX }) {
   const [bar, setBar] = useState(() => {
     let id = null;
     try { id = sessionStorage.getItem("os_bars_focus"); sessionStorage.removeItem("os_bars_focus"); } catch { /* storage off */ }
-    return ["top", "tabs", "actions", "alters", "rail", "sidebar", "status"].includes(id) ? id : "top";
+    return ["top", "tabs", "actions", "alters", "rail", "sidebar", "status", "pxrail"].includes(id) ? id : "top";
   });
 
   // Top-bar arrangement — order + per-item show/hide (the wireframe's
@@ -735,9 +735,9 @@ function BarsTab({ v2, alignX }) {
     { value: "actions", label: labels.actions }, { value: "alters", label: labels.alters },
     ...(v2Chrome ? [{ value: "rail", label: labels.rail }] : [{ value: "sidebar", label: tr("editSheet.barSidebar") }]),
     // The pixel look's status bar along the bottom (computer only).
-    ...(pixelTop ? [{ value: "status", label: tr("editSheet.barStatus") }] : []),
+    ...(pixelTop ? [{ value: "status", label: tr("editSheet.barStatus") }, { value: "pxrail", label: tr("editSheet.barToolRail") }] : []),
   ];
-  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) || (bar === "status" && !pixelTop) ? "top" : bar;
+  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) || ((bar === "status" || bar === "pxrail") && !pixelTop) ? "top" : bar;
 
   return (
     <div>
@@ -851,6 +851,24 @@ function BarsTab({ v2, alignX }) {
             })}
           </BarPart>
         )}
+      </div>)}
+
+      {/* ── Tool rail (pixel look, computer) ── */}
+      {shownBar === "pxrail" && (<div data-bar-section="pxrail">
+        <BarPart label={tr("editSheet.show")} first>
+          <SwitchRow label={tr("editSheet.barToolRail")} hint={tr("editSheet.barToolRailHint")}
+            checked={pixelLook.px.rail} onChange={(on) => pixelLook.write({ rail: on ? "" : false })} />
+        </BarPart>
+        {pixelLook.px.rail && (<>
+          <BarPart label={tr("editSheet.partPosition")}>
+            <ChoiceRow label={tr("editSheet.alignEdge")} value={pixelLook.px.railSide}
+              onChange={(val) => pixelLook.write({ railSide: val === "right" ? "right" : "" })}
+              options={[{ value: "left", label: tr("editSheet.left") }, { value: "right", label: tr("editSheet.right") }]} />
+          </BarPart>
+          <BarPart label={tr("editSheet.partContent")}>
+            <LinkRow label={tr("editSheet.toolRailKeys")} onClick={() => setBar("actions")} />
+          </BarPart>
+        </>)}
       </div>)}
 
       {/* ── Bottom tabs ── */}
@@ -1083,6 +1101,10 @@ function BarsTab({ v2, alignX }) {
           await writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }));
         } else if (shownBar === "rail") {
           delete looks.rail; delete bars.rail; delete tokens.railW; delete tokens.railSide; delete tokens.railActions;
+        } else if (shownBar === "status") {
+          await pixelLook.write({ statusBar: "", statusHidden: "" });
+        } else if (shownBar === "pxrail") {
+          await pixelLook.write({ rail: "", railSide: "" });
         } else if (shownBar === "sidebar") {
           await writeSettings({ navigation_config: { ...navConfig, sidebar: {} } });
         }

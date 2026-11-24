@@ -31,7 +31,15 @@ import { getLastRun, getSyncFolder } from "@/lib/deviceSyncRunner";
 import { useMedications, useMedicationDoses, dosesOnDay, MEDICATIONS_PATH } from "@/lib/medications";
 import { clockOpts } from "@/lib/timeFormat";
 import { isScheduled } from "@/lib/activityStatus";
-import { Bell, ChevronLeft, X, Plus, HelpCircle, Search } from "lucide-react";
+import { Bell, ChevronLeft, X, Plus, HelpCircle, Search, Heart, LifeBuoy, Pencil, LayoutGrid, SlidersHorizontal } from "lucide-react";
+import { V2_COMMAND_KEYS } from "@/lib/uiV2";
+import { CommandKeyButton, QuickNoteSheet, KEY_ICONS, KEY_LABEL_KEYS } from "@/components/v2/V2Frame";
+import { ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
+import { IconSlot } from "@/components/shared/LucideByName";
+import { applyTerms } from "@/lib/dailyTaskSystem";
+import { useT } from "@/lib/i18n";
+import { useBoardsOnScreen } from "@/lib/boardPresence";
+import { openBarsEditor } from "@/lib/barsModel";
 import { useTerms } from "@/lib/useTerms";
 import { navAreaGroups, pageLabel, ALL_PAGES } from "@/utils/navigationConfig";
 import { pageForPath } from "@/lib/pageLooks";
@@ -573,7 +581,7 @@ function StatusBar() {
   const lastSync = getSyncFolder() ? getLastRun() : "";
 
   return (
-    <footer className="px-status hidden lg:flex" aria-label="Status">
+    <footer className="px-status hidden lg:flex" aria-label="Status" data-tour="px-status">
       {on("saved") && (health.ok
         ? <span className="px-status-item">Saved</span>
         : <button type="button" className="px-status-item px-status-warn" onClick={() => retrySave()} title="A save didn't get through. Try again.">Not saved · try again</button>)}
@@ -592,5 +600,134 @@ function StatusBar() {
       {on("look") && <span className="px-status-item">Look: Pixel</span>}
       {on("version") && <span className="px-status-item">v{APP_VERSION}</span>}
     </footer>
+  );
+}
+
+// ── Tool rail (computer) ───────────────────────────────────────────────
+// The mockups' tool column down the left edge: the quick actions on top
+// (the SAME keys, order and icons as the quick action bar, so they are set
+// up once, in Display options → Bars → Quick action bar), then this page's
+// own tools at the bottom: edit the home screen or the page's layout, and
+// Display options. Tap a key to use it; hold it for your saved quick
+// actions, as everywhere. Display options → Bars → Tool rail switches it
+// off or moves it to the right.
+export function PixelToolRail() {
+  return useDesk() ? <ToolRail /> : null;
+}
+
+function useEditingScopes() {
+  const read = () => { try { return { ...(window.__osEditing || {}) }; } catch { return {}; } };
+  const [editing, setEditing] = React.useState(read);
+  React.useEffect(() => {
+    const on = () => setEditing(read());
+    window.addEventListener("os-home-edit-state", on);
+    return () => window.removeEventListener("os-home-edit-state", on);
+  }, []);
+  return editing;
+}
+
+function RailKey({ label, onTap, onHold = null, holdHint = null, sel = false, accent = false, children }) {
+  const cls = `px-rail-key${sel ? " sel" : ""}${accent ? " accent" : ""}`;
+  if (onHold === false) {
+    return (
+      <button type="button" className={cls} onClick={onTap} aria-label={label} title={label} aria-pressed={sel || undefined}>
+        {children}
+      </button>
+    );
+  }
+  return (
+    <CommandKeyButton onTap={onTap} onHold={onHold} holdHint={holdHint} label={label} className={cls}>
+      {children}
+    </CommandKeyButton>
+  );
+}
+
+function ToolRail() {
+  const t = useT();
+  const terms = useTerms();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { data: list = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const row = pickPrimarySystemSettings(list);
+  const px = readPixelLook(row);
+  const uiV2 = resolveUiV2(row?.ui_v2);
+  const boards = useBoardsOnScreen();
+  const editing = useEditingScopes();
+  const [noteOpen, setNoteOpen] = React.useState(false);
+  const [activeOpen, setActiveOpen] = React.useState(false);
+  const activeAnchor = React.useRef(null);
+
+  const on = px.rail;
+  const side = px.railSide;
+  React.useEffect(() => {
+    if (!on) return undefined;
+    document.documentElement.setAttribute("data-px-rail", side);
+    return () => document.documentElement.removeAttribute("data-px-rail");
+  }, [on, side]);
+  if (!on) return null;
+
+  const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
+  const pageTools = [];
+  if (pathname === "/") {
+    pageTools.push({
+      id: "edit-home", label: "Edit home screen", Icon: Pencil, sel: !!editing["os-classic"],
+      run: () => window.dispatchEvent(new CustomEvent("os-classic-edit-home")),
+    });
+    pageTools.push({
+      id: "edit-board", label: "Edit widget board", Icon: LayoutGrid, sel: !!editing["os-v2"],
+      run: () => window.dispatchEvent(new CustomEvent("os-v2-edit-home")),
+    });
+  } else if (boards.includes("os-profile")) {
+    pageTools.push({
+      id: "edit-page", label: "Edit page", Icon: LayoutGrid, sel: !!editing["os-profile"],
+      run: () => window.dispatchEvent(new CustomEvent("os-profile-edit-home")),
+    });
+  }
+  pageTools.push({
+    id: "display", label: "Display options", Icon: SlidersHorizontal,
+    run: () => window.dispatchEvent(new CustomEvent("os-open-display-options")),
+  });
+
+  return (
+    <nav className={`px-rail px-rail-${side}`} aria-label="Tools" data-tour="px-tool-rail">
+      {keys.length > 0 && <div className="px-rail-lbl" aria-hidden="true">Quick</div>}
+      {keys.map((k) => {
+        const Icon = KEY_ICONS[k.id] || Heart;
+        const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
+        const face = k.id === "active_now"
+          ? <ActiveNowKeyFace />
+          : <IconSlot override={uiV2.icons?.keys?.[k.id]} Default={Icon} style={{ width: 18, height: 18 }} />;
+        const key = (
+          <RailKey key={k.id} label={label}
+            sel={k.id === "active_now" && activeOpen}
+            onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
+            holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
+            onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : k.id === "active_now" ? setActiveOpen((v) => !v) : navigate(k.target))}>
+            {face}
+          </RailKey>
+        );
+        return k.id === "active_now" ? <span key={k.id} ref={activeAnchor} className="px-rail-slot">{key}</span> : key;
+      })}
+      <RailKey label={t("capture.support")} accent onHold={false} onTap={() => navigate("/grounding")}>
+        <LifeBuoy style={{ width: 18, height: 18 }} />
+      </RailKey>
+      {keys.length === 0 && (
+        <RailKey label="Choose quick actions" onHold={false} onTap={() => openBarsEditor("actions")}>
+          <Plus style={{ width: 18, height: 18 }} />
+        </RailKey>
+      )}
+      <span className="flex-1" />
+      <div className="px-rail-lbl" aria-hidden="true">Page</div>
+      {pageTools.map((tool) => (
+        <RailKey key={tool.id} label={tool.label} sel={tool.sel} onHold={false} onTap={tool.run}>
+          <tool.Icon style={{ width: 18, height: 18 }} />
+        </RailKey>
+      ))}
+      <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
+      <ActiveNowPopover anchorRef={activeAnchor} open={activeOpen} onClose={() => setActiveOpen(false)} />
+    </nav>
   );
 }

@@ -92,6 +92,7 @@ import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
 import { startHoldTimer } from "@/lib/holdTimer";
 import { WidgetSuspense } from "@/lib/lazyNamed";
 import { keepScroll } from "@/lib/keepScroll";
+import { announceBoard } from "@/lib/boardPresence";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -825,6 +826,8 @@ export default function ExperimentalDashboard({
   const t = useTerms();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
+  // Say this board is on screen (the pixel tool rail's "Edit page").
+  useEffect(() => announceBoard(eventPrefix), [eventPrefix]);
   // Tell the header ⚙ menu whether THIS home is being edited — it only
   // offers "Reset home screen…" then (owner, 2026-10-01). Mirrored on
   // window so a menu opened later reads the current state.

@@ -20,7 +20,7 @@ import QuickActionsHost from "@/components/dashboard/QuickActionsHost";
 import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
-import { PixelDesktopHeader, PixelPhoneHeader, PixelStatusBar } from "@/components/layout/PixelChrome";
+import { PixelDesktopHeader, PixelPhoneHeader, PixelStatusBar, PixelToolRail } from "@/components/layout/PixelChrome";
 import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 import { OPEN_PAGE_TOUR_EVENT, OPEN_FULL_TOUR_EVENT } from "@/lib/pageTutorials";
 import SystemBanner from "@/components/system/SystemBanner";
@@ -866,6 +866,7 @@ const handleNotifClick = (mentionLog) => {
             onOpenMenu={() => setSidebarOpen(true)}
           />
           <PixelStatusBar />
+          <PixelToolRail />
         </>
       )}
       {/* ── Desktop top header (hidden on mobile) ──
