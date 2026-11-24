@@ -89,11 +89,13 @@ export function htmlToPlainText(html) {
 // excludeIds: mentions to SKIP — callers that notify on content pass the ids
 // already mentioned in the previous version of the same record, so editing
 // an entry never re-pings everyone in it.
-export async function saveMentions({ content, alters, sourceType, sourceId, sourceLabel, navigatePath, authorAlterId, excludeIds = [] }) {
+// `previewText` replaces the default preview (the first 120 characters):
+// a caller whose text may hold a whisper passes WHISPER_PREVIEW.
+export async function saveMentions({ content, alters, sourceType, sourceId, sourceLabel, navigatePath, authorAlterId, excludeIds = [], previewText = null }) {
   if (!content) return;
   const skip = new Set(excludeIds);
   const mentionedIds = extractMentionedIds(content, alters).filter((id) => !skip.has(id));
-  const preview = content.slice(0, 120);
+  const preview = previewText ?? content.slice(0, 120);
 
   const logs = [];
 

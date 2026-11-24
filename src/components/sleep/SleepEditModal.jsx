@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createDreamJournal, updateDreamJournal, DREAM_JOURNAL_FOLDER } from "@/lib/journalEntry";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -198,7 +199,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
       //   3. No link, no dream content → nothing to do. Legacy sleep records
       //      from before this fix stay unlinked unless the user explicitly
       //      opts in here.
-      const DREAM_FOLDER = "Dreams";
+      const DREAM_FOLDER = DREAM_JOURNAL_FOLDER;
       const ensureDreamFolder = () => {
         const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
         if (!saved.includes(DREAM_FOLDER)) {
@@ -206,19 +207,13 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         }
       };
       const dreamTitle = `Dream — ${format(new Date(sleepDate), "MMMM d, yyyy")}`;
-      const dreamTags = [hadNightmare ? "nightmare" : "dream"];
 
       if (sleep.journal_entry_id) {
         // Path 1: propagate edits to the existing journal entry. Never
         // delete the entry from this side — journal content is user-edited
         // and outlives the sleep record (user-data-preservation rule).
         try {
-          await base44.entities.JournalEntry.update(sleep.journal_entry_id, {
-            title: dreamTitle,
-            content: cleanNotes.trim(),
-            folder: DREAM_FOLDER,
-            tags: dreamTags,
-          });
+          await updateDreamJournal(sleep.journal_entry_id, { title: dreamTitle, content: cleanNotes.trim(), nightmare: hadNightmare });
         } catch (err) {
           console.warn("Failed to sync linked dream journal entry", err);
           toast.error("Sleep saved, but the linked dream journal couldn't be updated");
@@ -228,13 +223,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         // content. Create + link.
         ensureDreamFolder();
         try {
-          const journal = await base44.entities.JournalEntry.create({
-            title: dreamTitle,
-            content: cleanNotes.trim(),
-            folder: DREAM_FOLDER,
-            tags: dreamTags,
-            entry_type: "dream",
-          });
+          const journal = await createDreamJournal({ title: dreamTitle, content: cleanNotes.trim(), nightmare: hadNightmare });
           if (journal?.id) {
             await base44.entities.Sleep.update(sleep.id, { journal_entry_id: journal.id });
           }

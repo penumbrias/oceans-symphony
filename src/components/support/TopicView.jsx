@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { saveTopicNotes, toggleTopicComplete } from "@/lib/reflectionEntry";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -912,16 +913,7 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
     if (!currentNotes.trim()) return;
     setSavingNotes(true);
     try {
-      if (currentProgress) {
-        await base44.entities.LearningProgress.update(currentProgress.id, { notes: currentNotes });
-      } else {
-        await base44.entities.LearningProgress.create({
-          module_id: moduleId,
-          topic_id: topic.id,
-          completed: false,
-          notes: currentNotes,
-        });
-      }
+      await saveTopicNotes(currentProgress, { moduleId, topicId: topic.id, notes: currentNotes });
       queryClient.invalidateQueries({ queryKey: ["learningProgress"] });
       setNotesSaved(true);
     } catch (e) {
@@ -937,20 +929,7 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
   useEffect(() => () => clearTimeout(autoSaveTimerRef.current), []);
 
   const handleToggleComplete = async () => {
-    const now = new Date().toISOString();
-    if (myProgress) {
-      await base44.entities.LearningProgress.update(myProgress.id, {
-        completed: !myProgress.completed,
-        completed_date: !myProgress.completed ? now : null,
-      });
-    } else {
-      await base44.entities.LearningProgress.create({
-        module_id: moduleId,
-        topic_id: topic.id,
-        completed: true,
-        completed_date: now,
-      });
-    }
+    await toggleTopicComplete(myProgress, { moduleId, topicId: topic.id });
     queryClient.invalidateQueries({ queryKey: ["learningProgress"] });
   };
 

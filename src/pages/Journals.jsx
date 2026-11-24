@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import PageStrip from "@/components/shared/PageStrip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { trashJournalEntry, moveEntriesOutOfFolder, renameEntriesFolder } from "@/lib/journalEntry";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
@@ -280,20 +281,9 @@ export default function Journals() {
     // entries at root (folder=null); subfolder deletes land them at the
     // parent path.
     const parent = getParent(path); // null for top-level
-    const isInside = (folder) => folder === path || (folder && folder.startsWith(`${path}/`));
-    const affected = entries.filter((e) => isInside(e.folder));
-    await Promise.all(
-      affected.map((e) => {
-        // For descendants, remove the deleted prefix; for direct children,
-        // collapse to the parent (or root).
-        let nextFolder = parent;
-        if (e.folder && e.folder.startsWith(`${path}/`)) {
-          const remainder = e.folder.slice(path.length + 1);
-          nextFolder = parent ? `${parent}/${remainder}` : remainder;
-        }
-        return base44.entities.JournalEntry.update(e.id, { folder: nextFolder });
-      })
-    );
+    // Direct children collapse to the parent (or root); descendants keep
+    // their sub-path under it (folderAfterDelete in journalEntry.js).
+    await moveEntriesOutOfFolder(entries, path);
     const updated = savedFolders.filter((f) => f !== path && !f.startsWith(`${path}/`));
     persistFolders(updated);
     setSavedFoldersState(updated);
@@ -309,7 +299,7 @@ export default function Journals() {
   const handleDeleteEntry = async (entry) => {
     if (!entry?.id) return;
     try {
-      await base44.entities.JournalEntry.delete(entry.id);
+      await trashJournalEntry(entry.id);
       queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
       queryClient.invalidateQueries({ queryKey: ["journals"] });
       toast.success("Entry deleted");
@@ -341,17 +331,7 @@ export default function Journals() {
     persistFolders(updated);
     setSavedFoldersState(updated);
     // Update any entry whose folder is the renamed path or a descendant
-    const affected = entries.filter(
-      (e) => e.folder === oldPath || (e.folder && e.folder.startsWith(`${oldPath}/`))
-    );
-    await Promise.all(
-      affected.map((e) => {
-        const nextFolder = e.folder === oldPath
-          ? newPath
-          : newPath + e.folder.slice(oldPath.length);
-        return base44.entities.JournalEntry.update(e.id, { folder: nextFolder });
-      })
-    );
+    await renameEntriesFolder(entries, oldPath, newPath);
     if (viewingFolder === oldPath) setViewingFolder(newPath);
     else if (viewingFolder && viewingFolder.startsWith(`${oldPath}/`)) {
       setViewingFolder(newPath + viewingFolder.slice(oldPath.length));

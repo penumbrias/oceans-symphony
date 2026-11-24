@@ -2,11 +2,10 @@ import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare, Hash, Plus, Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { base44, localEntities } from "@/api/base44Client";
+import { localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
-import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
-import { WHISPER_PREVIEW } from "@/lib/whisperRedact";
+import { sendChatMessage, editChatMessage, deleteChatMessage, createChatChannel, newChannelFields } from "@/lib/chatEntry";
 import ChatSurface from "@/components/chat/ChatSurface";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { an } from "@/lib/articles";
@@ -107,16 +106,13 @@ function StorageTargetPicker({ value, channelId, onChange, terms }) {
     const clean = newName.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     if (!clean) { toast.error("Give the channel a name."); return; }
     try {
-      const record = await localEntities.SystemChatChannel.create({
+      const record = await createChatChannel(newChannelFields({
         name: clean,
         description: null,
         category_id: null,
         is_private: false,
         member_alter_ids: [],
-        sort_order: Date.now(),
-        is_archived: false,
-        created_date: new Date().toISOString(),
-      });
+      }));
       qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
       onChange({ mode: "channel", channelId: record.id });
       setCreating(false);
@@ -281,61 +277,17 @@ export default function MeetingDialogue({
   };
 
   const handleSendChannel = async (payload) => {
-    const label = payload.isWhisper ? `#${channel?.name} (whisper)` : `#${channel?.name}`;
-    const created = await localEntities.SystemChatMessage.create({
-      channel_id: storageChannelId,
-      author_alter_id: payload.authorAlterIds[0] || null,
-      author_alter_ids: payload.authorAlterIds,
-      content: payload.cleanText,
-      timestamp: new Date().toISOString(),
-      edited_at: null,
-      deleted_at: null,
-      reply_to_id: payload.replyToId || null,
-      mentioned_alter_ids: payload.mentionedIds || [],
-      is_whisper: !!payload.isWhisper,
-      whisper_to_ids: payload.isWhisper ? (payload.whisperRecipientIds || []) : [],
-      reactions: {},
-      thread_parent_id: null,
-      is_pinned: false,
+    await sendChatMessage({
+      channel: { id: storageChannelId, name: channel?.name },
+      alters,
+      cleanText: payload.cleanText,
+      authorAlterIds: payload.authorAlterIds,
+      replyToId: payload.replyToId,
+      mentionedIds: payload.mentionedIds || [],
+      isWhisper: payload.isWhisper,
+      whisperRecipientIds: payload.whisperRecipientIds,
     });
     qc.invalidateQueries({ queryKey: ["systemChatMessages", storageChannelId] });
-    try {
-      for (const id of (payload.authorAlterIds.length > 0 ? payload.authorAlterIds : [null])) {
-        await saveAuthoredLog({
-          authorAlterId: id,
-          sourceType: "chat",
-          sourceId: created.id,
-          sourceLabel: label,
-          navigatePath: `/chat?channel=${storageChannelId}&message=${created.id}`,
-          previewText: payload.isWhisper ? WHISPER_PREVIEW : payload.cleanText,
-        });
-      }
-      if (payload.isWhisper) {
-        for (const id of (payload.mentionedIds || [])) {
-          await base44.entities.MentionLog.create({
-            mentioned_alter_id: id,
-            author_alter_id: payload.authorAlterIds[0] || null,
-            log_type: "mention",
-            source_type: "chat",
-            source_id: created.id,
-            source_label: label,
-            source_date: new Date().toISOString(),
-            preview_text: WHISPER_PREVIEW,
-            navigate_path: `/chat?channel=${storageChannelId}&message=${created.id}`,
-          });
-        }
-      } else {
-        await saveMentions({
-          content: payload.cleanText,
-          alters,
-          sourceType: "chat",
-          sourceId: created.id,
-          sourceLabel: label,
-          navigatePath: `/chat?channel=${storageChannelId}&message=${created.id}`,
-          authorAlterId: payload.authorAlterIds[0] || null,
-        });
-      }
-    } catch { /* mention log best-effort */ }
     pullInParticipants(payload);
   };
 
@@ -346,13 +298,7 @@ export default function MeetingDialogue({
   };
 
   const handleEditChannel = async (msg, { cleanText, authorAlterIds, mentionedIds }) => {
-    await localEntities.SystemChatMessage.update(msg.id, {
-      content: cleanText,
-      author_alter_id: authorAlterIds[0] || null,
-      author_alter_ids: authorAlterIds,
-      edited_at: new Date().toISOString(),
-      mentioned_alter_ids: mentionedIds,
-    });
+    await editChatMessage(msg.id, { cleanText, authorAlterIds, mentionedIds });
     qc.invalidateQueries({ queryKey: ["systemChatMessages", storageChannelId] });
   };
 
@@ -366,10 +312,7 @@ export default function MeetingDialogue({
 
   const handleDeleteChannel = async (msg) => {
     if (!(await confirm("Delete this message?"))) return;
-    await localEntities.SystemChatMessage.update(msg.id, {
-      content: "",
-      deleted_at: new Date().toISOString(),
-    });
+    await deleteChatMessage(msg.id);
     qc.invalidateQueries({ queryKey: ["systemChatMessages", storageChannelId] });
   };
 

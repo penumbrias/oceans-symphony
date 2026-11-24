@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Lock, Check } from "lucide-react";
 import { toast } from "sonner";
-import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
+import { extractMentionedIds } from "@/lib/mentionUtils";
+import { postBulletin } from "@/lib/bulletinEntry";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
 import { applyLogCommands } from "@/lib/logCommands";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -312,106 +313,22 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         : (finalAuthorIds.length > 0 ? finalAuthorIds : (authorAlterId ? [authorAlterId] : [])),
     };
 
-    if (showPoll && pollQuestion.trim()) {
-      // Create the linked Poll entity FIRST so the bulletin can store its
-      // id. Both the bulletin's poll block and the standalone Polls page
-      // read/write the same Poll record, so voting is unified.
-      const filledOptions = pollOptions.filter((o) => o.trim());
-      const votes = {};
-      filledOptions.forEach((_, idx) => { votes[String(idx)] = []; });
-      // Inherit the user's last-used voting mode (alter vs anonymous
-      // tally count) from the same localStorage key the Polls page
-      // CreatePollModal writes. Same default contract: missing/0 = alter
-      // mode, "1" = tally mode. Per-poll override is still possible from
-      // the poll's detail view.
-      let tallyDefault = false;
-      try { tallyDefault = localStorage.getItem("symphony_polls_default_tally_mode") === "1"; }
-      catch { /* localStorage might be off; default to alter mode */ }
-      const createdPoll = await base44.entities.Poll.create({
-        question: pollQuestion.trim(),
-        options: filledOptions,
-        votes,
-        is_closed: false,
-        tally_mode: tallyDefault,
-        // New polls posted to the Bulletin Board auto-pin themselves to
-        // the board so the question is hard to miss; the user can unpin
-        // anytime from either surface. A group/subsystem board's polls
-        // stay within that board (the bulletin is group-scoped) rather
-        // than pinning to the system dashboard.
-        pinned_to_dashboard: !groupId,
-        // In tally mode there's no per-alter accounting — leave the
-        // creator alter null even if a fronter is set.
-        created_by_alter_id: tallyDefault ? null : (finalAuthorIds[0] || authorAlterId || null),
-        // Back-ref filled in after the bulletin exists.
-      });
-      data.poll_id = createdPoll.id;
-      // Auto-pin the bulletin so its poll block surfaces in the
-      // BulletinBoard's Pinned section without the user having to long-
-      // press → Pin afterwards.
-      data.is_pinned = true;
-      // Keep an inline copy in the legacy shape (label+votes) so any
-      // surface that still reads `bulletin.poll` (older builds, exports,
-      // …) keeps showing the question and options. The render path
-      // prefers the Poll entity for vote state — the inline copy is only
-      // a label fallback and is NOT kept in sync after creation.
-      data.poll = {
-        question: pollQuestion.trim(),
-        options: filledOptions.map((label) => ({ label, votes: [] })),
-      };
-    }
-
-    const bulletin = await base44.entities.Bulletin.create(data);
-    // Close the loop on the Poll → Bulletin back-ref now that we have an id.
-    if (data.poll_id) {
-      try { await base44.entities.Poll.update(data.poll_id, { bulletin_id: bulletin.id }); }
-      catch { /* non-fatal — the bulletin already references the poll */ }
-      qc.invalidateQueries({ queryKey: ["polls"] });
-    }
+    // A poll attached here becomes a linked Poll record and pins the post
+    // (postBulletin, bulletinEntry.js).
+    await postBulletin({
+      record: data,
+      poll: showPoll && pollQuestion.trim() ? { question: pollQuestion, options: pollOptions } : null,
+      alters,
+      authorIds: finalAuthorIds,
+      mentionAuthorId: finalAuthorIds[0] || authorAlterId || null,
+      isWhisper,
+      whisperRecipientIds,
+    });
+    if (showPoll) qc.invalidateQueries({ queryKey: ["polls"] });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
     // Retain these authors as the default for the NEXT post (used when no one
     // is fronting and nothing's been signposted yet). Empty = the system.
     try { localStorage.setItem(LAST_AUTHORS_KEY, JSON.stringify(finalAuthorIds)); } catch { /* quota/disabled */ }
-    // Public @mention notifications — skipped for whispers (the body is hidden;
-    // only the chosen recipients are notified, via the loop below).
-    if (!isWhisper) {
-      await saveMentions({
-        content: cleanContent,
-        alters,
-        sourceType: "bulletin",
-        sourceId: bulletin.id,
-        sourceLabel: "Bulletin Board",
-        navigatePath: `/bulletin/${bulletin.id}`,
-        authorAlterId: finalAuthorIds[0] || authorAlterId || null,
-      });
-    }
-    // Whisper recipients are peeled off the body (so saveMentions can't see
-    // them) — notify them explicitly so the whisper reaches its target.
-    for (const rid of whisperRecipientIds) {
-      try {
-        await base44.entities.MentionLog.create({
-          mentioned_alter_id: rid,
-          author_alter_id: finalAuthorIds[0] || authorAlterId || null,
-          log_type: "mention",
-          source_type: "bulletin",
-          source_id: bulletin.id,
-          source_label: "Bulletin Board (whisper)",
-          source_date: new Date().toISOString(),
-          preview_text: "🔒 private whisper",
-          navigate_path: `/bulletin/${bulletin.id}`,
-        });
-      } catch { /* notification best-effort */ }
-    }
-    // Log authored entry for each author's board
-    for (const authorId of finalAuthorIds) {
-      await saveAuthoredLog({
-        authorAlterId: authorId,
-        sourceType: "bulletin",
-        sourceId: bulletin.id,
-        sourceLabel: "Bulletin Board",
-        navigatePath: `/bulletin/${bulletin.id}`,
-        previewText: cleanContent,
-      });
-    }
     toast.success("Bulletin posted!");
     clearDraft(); // posted — never "restore" it again
     onClose?.();

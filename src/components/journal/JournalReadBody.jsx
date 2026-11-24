@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { decryptContent, encryptContent, isLegacyEncryptedContent } from "@/lib/encryption";
-import { base44 } from "@/api/base44Client";
+import { upgradeLockedJournal } from "@/lib/journalEntry";
 import { useQueryClient } from "@tanstack/react-query";
 import { Lock, AlertCircle, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -110,7 +110,7 @@ export default function JournalReadBody({ entry, altersById, className = "prose 
       if (isLegacyEncryptedContent(entry.content)) {
         try {
           const upgraded = await encryptContent(result, decryptPassword);
-          await base44.entities.JournalEntry.update(entry.id, { content: upgraded });
+          await upgradeLockedJournal(entry.id, upgraded);
           queryClient?.invalidateQueries({ queryKey: ["journalEntries"] });
         } catch { /* best-effort — the entry still opens; it upgrades next time */ }
       }

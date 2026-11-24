@@ -53,7 +53,8 @@ import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import { extractHashtags } from "@/lib/journalTags";
 import { journalEntryDate, sortJournalsNewestFirst } from "@/lib/journalDate";
-import { saveMentions, htmlToPlainText } from "@/lib/mentionUtils";
+import { htmlToPlainText } from "@/lib/mentionUtils";
+import { createJournalEntry, journalAuthorFields, journalTitleOrNow, notifyJournalMentions } from "@/lib/journalEntry";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS, BREATHING_PACE_OPTIONS } from "@/utils/groundingDefaults";
@@ -165,7 +166,7 @@ import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeRemind
 import ReminderInstanceCard from "@/components/reminders/ReminderInstanceCard";
 import { DEFAULT_SNOOZE_OPTIONS, formatSnoozeLabel } from "@/components/reminders/snoozeHelpers";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { castPollVote, pollCounts, currentFrontVoterIds } from "@/lib/pollVote";
+import { castPollVote, pollCounts, currentFrontVoterIds } from "@/lib/pollEntry";
 import { createActivityEntry, ENTRY_MODES } from "@/lib/activityEntry";
 import { foldWidget } from "@/lib/widgetFold";
 
@@ -1855,13 +1856,12 @@ function NotebookWidget({ settings, updateSettings, instanceId, mode = "normal" 
       // Signed like every other new journal: the first person in front is
       // the author, the others co-authors.
       const who = await defaultAttributionIds();
-      const created = await base44.entities.JournalEntry.create({
-        author_alter_id: who[0] || null,
-        co_author_alter_ids: who.slice(1),
+      const created = await createJournalEntry({
+        ...journalAuthorFields(who),
         // Untitled entries match the Journals page editor exactly (it falls
         // back to the date-time string) so the entry lists read the same no
         // matter where the entry was written.
-        title: title.trim() || new Date().toLocaleString(),
+        title: journalTitleOrNow(title),
         content,
         // Typed hashtags become tags, same as the Journals page editor.
         tags: extractHashtags(`${title} ${content}`),
@@ -1870,16 +1870,7 @@ function NotebookWidget({ settings, updateSettings, instanceId, mode = "normal" 
       });
       // Body @mentions notify, same as the Journals page editor. New
       // entries only ever fire once — the widget always creates.
-      try {
-        await saveMentions({
-          content: htmlToPlainText(content),
-          alters: notebookAlters,
-          sourceType: "journal",
-          sourceId: created?.id,
-          sourceLabel: title.trim() || "Journal Entry",
-          navigatePath: created?.id ? `/journals?id=${created.id}` : "/journals",
-        });
-      } catch { /* notifications are best-effort */ }
+      await notifyJournalMentions({ entry: created, text: htmlToPlainText(content), alters: notebookAlters, label: title.trim() });
       qc.invalidateQueries({ queryKey: ["journalEntries"] });
       clearDraft();
       setTitle("");

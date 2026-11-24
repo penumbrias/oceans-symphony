@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
+import { editBulletin } from "@/lib/bulletinEntry";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
-import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,13 +93,8 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
       } catch (e) { if (isLogCommandError(e)) { toast.error(e.message); setSaving(false); return; } throw e; }
       if (prepared === null) { setSaving(false); return; }
       const finalIds = systemAuthor && prepared.authorIds.length === 0 ? [] : prepared.authorIds;
-      await base44.entities.Bulletin.update(bulletin.id, {
-        content: prepared.content,
-        author_alter_ids: finalIds,
-        author_alter_id: finalIds[0] || null,
-        // Carry the rich flag so formatting renders (and isn't stripped on edit).
-        is_rich: richMode,
-      });
+      // Carry the rich flag so formatting renders (and isn't stripped on edit).
+      await editBulletin(bulletin.id, { content: prepared.content, authorIds: finalIds, isRich: richMode });
       await recordAuthoredText({ ...prepared, alters: activeAlters, sourceType: "bulletin", sourceId: bulletin.id, sourceLabel: "Bulletin", navigatePath: `/bulletin/${bulletin.id}` });
       qc.invalidateQueries({ queryKey: ["bulletins"] });
       toast.success("Bulletin updated");

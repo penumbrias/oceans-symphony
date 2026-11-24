@@ -2,9 +2,8 @@ import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Pin, ExternalLink, Lock, Minus } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { markPollVotedToday } from "@/lib/dailyTaskSystem";
+import { castPollVote, decrementTallyVote, unpinPollOnly } from "@/lib/pollEntry";
 
 /**
  * A standalone votable poll card rendered in the Bulletin Board's
@@ -29,57 +28,33 @@ export default function PinnedPollCard({ poll, currentAlterId, pixel = false }) 
     if (poll.is_closed) return;
     // Refetch the freshest poll before tallying so rapid votes don't overwrite
     // each other from a render-stale count.
-    let source = poll;
-    try {
-      const fresh = await base44.entities.Poll.get(poll.id);
-      if (fresh) source = fresh;
-    } catch { /* fall back to cached */ }
-    if (source.is_closed) return;
-    const key = String(optionIndex);
-    const newVotes = JSON.parse(JSON.stringify(source.votes || {}));
-    if (!newVotes[key]) newVotes[key] = [];
-    if (source.tally_mode) {
-      newVotes[key].push("");
-    } else if (newVotes[key].includes(voterId)) {
-      newVotes[key] = newVotes[key].filter((id) => id !== voterId);
-    } else {
-      Object.keys(newVotes).forEach((k) => {
-        newVotes[k] = newVotes[k].filter((id) => id !== voterId);
-      });
-      newVotes[key].push(voterId);
-    }
-    qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
-      Array.isArray(old)
-        ? old.map((p) => (p.id === poll.id ? { ...p, votes: newVotes } : p))
-        : old
-    );
-    await base44.entities.Poll.update(poll.id, { votes: newVotes });
-    markPollVotedToday();
+    await castPollVote(poll, optionIndex, [voterId], {
+      onVotes: (newVotes) => qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
+        Array.isArray(old)
+          ? old.map((p) => (p.id === poll.id ? { ...p, votes: newVotes } : p))
+          : old
+      ),
+    });
     qc.invalidateQueries({ queryKey: ["polls"] });
   };
 
   const handleDecrement = async (optionIndex, e) => {
     if (e) e.stopPropagation();
     if (poll.is_closed) return;
-    const key = String(optionIndex);
-    const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
-    if (!newVotes[key] || newVotes[key].length === 0) return;
-    const lastAnon = newVotes[key].lastIndexOf("");
-    if (lastAnon >= 0) newVotes[key].splice(lastAnon, 1);
-    else newVotes[key].pop();
-    qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
-      Array.isArray(old)
-        ? old.map((p) => (p.id === poll.id ? { ...p, votes: newVotes } : p))
-        : old
-    );
-    await base44.entities.Poll.update(poll.id, { votes: newVotes });
+    await decrementTallyVote(poll, optionIndex, {
+      onVotes: (newVotes) => qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
+        Array.isArray(old)
+          ? old.map((p) => (p.id === poll.id ? { ...p, votes: newVotes } : p))
+          : old
+      ),
+    });
     qc.invalidateQueries({ queryKey: ["polls"] });
   };
 
   const handleUnpin = async (e) => {
     e.stopPropagation();
     try {
-      await base44.entities.Poll.update(poll.id, { pinned_to_dashboard: false });
+      await unpinPollOnly(poll.id);
       qc.invalidateQueries({ queryKey: ["polls"] });
       toast.success("Unpinned from Bulletin Board");
     } catch (err) {

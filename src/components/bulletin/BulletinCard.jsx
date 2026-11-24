@@ -8,7 +8,8 @@ import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
 import BulletinActionMenu from "./BulletinActionMenu";
 import { useTerms } from "@/lib/useTerms";
-import { markPollVotedToday } from "@/lib/dailyTaskSystem";
+import { reactToBulletin, voteInlineBulletinPoll, setBulletinPinned, trashBulletin } from "@/lib/bulletinEntry";
+import { castPollVote } from "@/lib/pollEntry";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { clockPattern } from "@/lib/timeFormat";
 import { sharedList } from "@/lib/sharedLists";
@@ -84,21 +85,12 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     // emojis, or two people on the same device) would otherwise both start from
     // the same render-captured object, and the second write would clobber the
     // first.
-    let base = reactions;
-    try {
-      const fresh = await base44.entities.Bulletin.get(bulletin.id);
-      if (fresh) base = fresh.reactions || {};
-    } catch { /* fall back to the cached copy */ }
-    const existing = base[emoji] || [];
-    const next = existing.includes(voterId) ?
-    existing.filter((id) => id !== voterId) :
-    [...existing, voterId];
-    const newReactions = { ...base, [emoji]: next };
-    // Optimistic update
-    qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
-    Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, reactions: newReactions } : b) : old
-    );
-    await base44.entities.Bulletin.update(bulletin.id, { reactions: newReactions });
+    await reactToBulletin(bulletin.id, emoji, voterId, reactions, {
+      // Optimistic update
+      onReactions: (newReactions) => qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
+        Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, reactions: newReactions } : b) : old
+      ),
+    });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
@@ -119,19 +111,11 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     if (!bulletin.poll) return;
     // Refetch the freshest inline poll before mutating so rapid votes don't
     // clobber each other from a render-stale copy.
-    let source = bulletin.poll;
-    try {
-      const fresh = await base44.entities.Bulletin.get(bulletin.id);
-      if (fresh?.poll) source = fresh.poll;
-    } catch { /* fall back to cached */ }
-    const poll = { ...source };
-    poll.options = poll.options.map((opt) => ({ ...opt, votes: (opt.votes || []).filter((id) => id !== voterId) }));
-    poll.options[optionIndex] = { ...poll.options[optionIndex], votes: [...(poll.options[optionIndex].votes || []), voterId] };
-    qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
-    Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, poll } : b) : old
-    );
-    await base44.entities.Bulletin.update(bulletin.id, { poll });
-    markPollVotedToday();
+    await voteInlineBulletinPoll(bulletin.id, optionIndex, voterId, bulletin.poll, {
+      onPoll: (poll) => qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
+        Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, poll } : b) : old
+      ),
+    });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
@@ -140,32 +124,11 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     if (linkedPoll.is_closed) return;
     // Refetch the freshest poll before tallying so rapid votes don't overwrite
     // each other from a render-stale count.
-    let source = linkedPoll;
-    try {
-      const fresh = await base44.entities.Poll.get(linkedPoll.id);
-      if (fresh) source = fresh;
-    } catch { /* fall back to cached */ }
-    if (source.is_closed) return;
-    const key = String(optionIndex);
-    const newVotes = JSON.parse(JSON.stringify(source.votes || {}));
-    if (!newVotes[key]) newVotes[key] = [];
-    if (source.tally_mode) {
-      // Anonymous tally: each tap is +1, no toggle, no removal from
-      // other options. Decrement is only exposed on the standalone Polls
-      // page detail view to keep the in-card UI simple.
-      newVotes[key].push("");
-    } else if (newVotes[key].includes(voterId)) {
-      // Tap same option → toggle off, matching the standalone Polls page.
-      newVotes[key] = newVotes[key].filter((id) => id !== voterId);
-    } else {
-      Object.keys(newVotes).forEach((k) => { newVotes[k] = newVotes[k].filter((id) => id !== voterId); });
-      newVotes[key].push(voterId);
-    }
-    qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
-      Array.isArray(old) ? old.map((p) => p.id === linkedPoll.id ? { ...p, votes: newVotes } : p) : old
-    );
-    await base44.entities.Poll.update(linkedPoll.id, { votes: newVotes });
-    markPollVotedToday();
+    await castPollVote(linkedPoll, optionIndex, [voterId], {
+      onVotes: (newVotes) => qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
+        Array.isArray(old) ? old.map((p) => p.id === linkedPoll.id ? { ...p, votes: newVotes } : p) : old
+      ),
+    });
     qc.invalidateQueries({ queryKey: ["polls"] });
   };
 
@@ -192,7 +155,7 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
     Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, is_pinned: newPinned } : b) : old
     );
-    await base44.entities.Bulletin.update(bulletin.id, { is_pinned: newPinned });
+    await setBulletinPinned(bulletin.id, newPinned);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
@@ -216,7 +179,7 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
     Array.isArray(old) ? old.filter((b) => b.id !== bulletin.id) : old
     );
-    await base44.entities.Bulletin.delete(bulletin.id);
+    await trashBulletin(bulletin.id);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toggleBulletinFlag, trashBulletin } from "@/lib/bulletinEntry";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Pin, PinOff, Trash2, Eye, Loader2, Pencil, Zap } from "lucide-react";
@@ -52,7 +53,7 @@ export default function BulletinActionMenu({ bulletin, alters = [], open, onClos
   async function toggle(field, label) {
     setBusy(field === "is_pinned" ? "board" : "dash");
     try {
-      await base44.entities.Bulletin.update(bulletin.id, { [field]: !bulletin[field] });
+      await toggleBulletinFlag(bulletin, field);
       qc.invalidateQueries({ queryKey: ["bulletins"] });
       toast.success(label);
       onClose();
@@ -67,7 +68,7 @@ export default function BulletinActionMenu({ bulletin, alters = [], open, onClos
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setBusy("delete");
     try {
-      await base44.entities.Bulletin.delete(bulletin.id);
+      await trashBulletin(bulletin.id);
       qc.invalidateQueries({ queryKey: ["bulletins"] });
       toast.success("Deleted");
       onClose();

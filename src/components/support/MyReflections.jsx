@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { editReflection, trashReflection } from "@/lib/reflectionEntry";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import { CURRICULUM } from "./TopicView";
 import { format } from "date-fns";
 import { ChevronLeft, FileText, Pencil, Trash2 } from "lucide-react";
@@ -31,7 +31,7 @@ function ReflectionCard({ entry }) {
   const save = async () => {
     setSaving(true);
     try {
-      await base44.entities.SupportJournalEntry.update(entry.id, { responses: draft, updated_date: new Date().toISOString() });
+      await editReflection(entry.id, draft);
       invalidate();
       setEditing(false);
       toast.success("Reflection updated");
@@ -45,7 +45,7 @@ function ReflectionCard({ entry }) {
   const del = async () => {
     if (!(await confirm(`Delete this reflection? ${TRASH_HINT}`))) return;
     try {
-      await base44.entities.SupportJournalEntry.delete(entry.id);
+      await trashReflection(entry.id);
       invalidate();
       toast.success("Reflection deleted");
     } catch (e) {

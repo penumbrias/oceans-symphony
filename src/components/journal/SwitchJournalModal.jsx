@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
+import { createSwitchJournal } from "@/lib/journalEntry";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { BookOpen } from "lucide-react";
@@ -128,16 +129,13 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
       const cleanNotes = prepared.content;
       const cleanTrigger = pTrigger.content, cleanBefore = pBefore.content, cleanAfter = pAfter.content;
       const content = buildContent({ trigger: cleanTrigger, before: cleanBefore, after: cleanAfter, symptoms, notes: cleanNotes });
-      const entry = await base44.entities.JournalEntry.create({
+      const entry = await createSwitchJournal({
         title,
         content: `## ${title} (${format(now, clockPattern("MMMM d, yyyy · h:mm a"))})\n\n${content}`,
-        entry_type: "switch_log",
-        tags: ["switch"],
-        author_alter_id: prepared.authorIds[0] || authorAlterId || "",
-        co_author_alter_ids: prepared.authorIds.filter((id) => id !== (prepared.authorIds[0] || authorAlterId)),
-        fronting_session_id: sessionId || "",
-        allowed_alter_ids: [],
-        switch_data: { trigger: cleanTrigger, before: cleanBefore, after: cleanAfter, symptoms },
+        authorIds: prepared.authorIds,
+        fallbackAuthorId: authorAlterId,
+        sessionId,
+        switchData: { trigger: cleanTrigger, before: cleanBefore, after: cleanAfter, symptoms },
       });
       await recordAuthoredText({ ...prepared, content: [cleanTrigger, cleanBefore, cleanAfter, cleanNotes].filter(Boolean).join("\n"), recipientIds: [...new Set([...(prepared.recipientIds || []), ...(pTrigger.recipientIds || []), ...(pBefore.recipientIds || []), ...(pAfter.recipientIds || [])])], alters, sourceType: "journal", sourceId: entry?.id || "", sourceLabel: `${terms.Switch} journal`, navigatePath: entry?.id ? `/journals?id=${entry.id}` : "/journals" });
       // Sync trigger info back to the fronting session for analytics

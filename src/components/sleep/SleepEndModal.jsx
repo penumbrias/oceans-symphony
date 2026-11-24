@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createDreamJournal, DREAM_JOURNAL_FOLDER } from "@/lib/journalEntry";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -220,20 +221,14 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave, inline =
       // retroactively-logged ones.
       let journalEntryId = sleep.journal_entry_id || null;
       if (saveAsDream && cleanNotes.trim() && !journalEntryId) {
-        const DREAM_FOLDER = "Dreams";
+        const DREAM_FOLDER = DREAM_JOURNAL_FOLDER;
         try {
           const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
           if (!saved.includes(DREAM_FOLDER)) {
             localStorage.setItem("os_journal_folders", JSON.stringify([...saved, DREAM_FOLDER]));
           }
           const title = `Dream — ${format(new Date(sleep.date || bedtimeISO), "MMMM d, yyyy")}`;
-          const journal = await base44.entities.JournalEntry.create({
-            title,
-            content: cleanNotes.trim(),
-            folder: DREAM_FOLDER,
-            tags: [hadNightmare ? "nightmare" : "dream"],
-            entry_type: "dream",
-          });
+          const journal = await createDreamJournal({ title, content: cleanNotes.trim(), nightmare: hadNightmare });
           journalEntryId = journal?.id || null;
         } catch (journalErr) {
           console.warn("Failed to create linked dream journal entry", journalErr);
