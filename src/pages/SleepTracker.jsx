@@ -243,9 +243,9 @@ export default function SleepTracker() {
                 })}
               </div>
               <div className="px-sl-stats">
-                <span><b>{sleepRecords.length}</b> nights logged</span>
-                <span>avg <b>{averageDuration}h</b></span>
-                <span>quality <b>{averageQuality}</b>/10</span>
+                <span>All nights: <b>{sleepRecords.length}</b></span>
+                <span>avg length <b>{averageDuration}h</b></span>
+                <span>avg quality <b>{averageQuality}</b>/10</span>
               </div>
             </section>
             <SleepEndModal inline isOpen={!!endingSleep} sleep={endingSleep}
