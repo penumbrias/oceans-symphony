@@ -31,6 +31,9 @@ import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import RichText from "@/components/shared/RichText";
 import { plainNoteText } from "@/lib/plainNote";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import "@/styles/pixel/logs.css";
 
 // Long-press / double-click helper for re-opening a check-in in the
 // Quick Check-In modal so the user can fix mistakes after the fact.
@@ -1622,10 +1625,403 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
   );
 }
 
+// The "Show in log" toggles (the Show menu; the pixel log's ⋯ menu).
+function ShowInLogItems({ display, toggleDisplay, setDisplay, allOff }) {
+  const t = useTerms();
+  return (
+    <>
+    <DropdownMenuLabel>Show in log</DropdownMenuLabel>
+    <DropdownMenuSeparator />
+    <DropdownMenuCheckboxItem checked={display.checkIns} onCheckedChange={toggleDisplay("checkIns")}>
+      Check-ins
+    </DropdownMenuCheckboxItem>
+    <DropdownMenuCheckboxItem checked={display.statusNotes} onCheckedChange={toggleDisplay("statusNotes")}>
+      Status notes
+    </DropdownMenuCheckboxItem>
+    <DropdownMenuCheckboxItem checked={display.symptoms} onCheckedChange={toggleDisplay("symptoms")}>
+      Symptoms
+    </DropdownMenuCheckboxItem>
+    <DropdownMenuCheckboxItem checked={display.activities} onCheckedChange={toggleDisplay("activities")}>
+      Activities
+    </DropdownMenuCheckboxItem>
+    <DropdownMenuCheckboxItem checked={display.locations} onCheckedChange={toggleDisplay("locations")}>
+      Locations
+    </DropdownMenuCheckboxItem>
+    <DropdownMenuCheckboxItem checked={display.perAlter} onCheckedChange={toggleDisplay("perAlter")}>
+      Per-{t.alter} entries
+    </DropdownMenuCheckboxItem>
+    <DropdownMenuCheckboxItem checked={display.diary} onCheckedChange={toggleDisplay("diary")}>
+      Diary data
+    </DropdownMenuCheckboxItem>
+    <DropdownMenuSeparator />
+    <button
+      type="button"
+      onClick={() => setDisplay(allOff ? DEFAULT_DISPLAY : Object.fromEntries(Object.keys(DEFAULT_DISPLAY).map((k) => [k, false])))}
+      className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-sm"
+    >
+      {allOff ? "Show everything" : "Hide everything"}
+    </button>
+    </>
+  );
+}
+
+// ── Pixel look: the log as the "Check-in log, desktop" board ──────────
+// A list panel (title bar, search + kind chips + who, a bar per day with
+// its daily summary, one compact row per entry) and, on a computer, an
+// entry panel on the right that shows the picked row with every editor
+// and ⋯ action the classic card has. On a phone the picked row opens
+// under itself. Same records, same write paths: rows only pick.
+const PX_KIND_LABEL = {
+  checkin: "Check-in", symptom: "Symptom", activity: "Activity", location: "Location",
+  status: "Status", "per-alter": "Note", diary: "Diary card",
+};
+const PX_DAYS_STEP = 21;
+
+function pxWhoIds(rec) {
+  if (!rec) return [];
+  const ids = [
+    ...(Array.isArray(rec.fronting_alter_ids) ? rec.fronting_alter_ids : []),
+    ...(Array.isArray(rec.author_alter_ids) ? rec.author_alter_ids : []),
+    rec.alter_id, rec.author_alter_id,
+  ].filter(Boolean);
+  return [...new Set(ids)];
+}
+function pxQuote(text, max = 70) {
+  const plain = plainNoteText(text || "").replace(/\s+/g, " ").trim();
+  if (!plain) return "";
+  return `“${plain.length > max ? `${plain.slice(0, max - 1)}…` : plain}”`;
+}
+function pxEntryKey(entry) {
+  return `${entry.kind}:${entry.data?.id || entry.ts}`;
+}
+// One line for a row: what it was, in words, and who it belongs to.
+function pxEntrySummary(entry, { symptomsById, altersById, formatAlter, terms }) {
+  const d = entry.data || {};
+  switch (entry.kind) {
+    case "checkin": {
+      const bits = [];
+      if ((d.emotions || []).length) bits.push(d.emotions.join(", "));
+      const q = pxQuote(d.note);
+      if (q) bits.push(q);
+      return { text: bits.join("  ·  ") || "Check-in", who: pxWhoIds(d) };
+    }
+    case "symptom": {
+      const sym = symptomsById[d.symptom_id];
+      const sev = d.severity != null ? ` ${formatSeverityForSymptom(sym, d.severity)}` : "";
+      return { text: `${sym?.label || "Symptom"}${sev}`, who: pxWhoIds(d) };
+    }
+    case "activity":
+      return { text: activityPillText(d), who: pxWhoIds(d) };
+    case "location": {
+      const meta = getCategoryMeta(d.category);
+      const name = d.name || meta?.label || "Location";
+      const bits = [name];
+      if (d.name && meta?.label && meta.label !== d.name) bits.push(meta.label);
+      if (d.source === "gps" || (d.latitude != null && d.longitude != null)) bits.push("GPS");
+      return { text: bits.join("  ·  "), who: pxWhoIds(d) };
+    }
+    case "status":
+      return { text: pxQuote(d.note, 90) || "Status", who: pxWhoIds(d) };
+    case "per-alter": {
+      const alter = altersById[d.alterId];
+      const name = alter ? formatAlter(alter) : terms.Alter;
+      let what = "";
+      if (d.kind === "note") what = pxQuote(d.payload?.text);
+      else if (d.kind === "emotion") {
+        const labels = Array.isArray(d.payload?.labels) && d.payload.labels.length ? d.payload.labels : [d.payload?.label].filter(Boolean);
+        what = labels.join(", ");
+      } else {
+        const items = Array.isArray(d.payload?.items) && d.payload.items.length ? d.payload.items : [d.payload].filter(Boolean);
+        what = items.map((x) => x?.label).filter(Boolean).join(", ");
+      }
+      return { text: `${name}: ${what || d.kind}`, who: d.alterId ? [d.alterId] : [] };
+    }
+    case "diary": {
+      const urges = d.urges || {};
+      const bm = d.body_mind || {};
+      const bits = [];
+      if (urges.suicidal > 0 || urges.self_harm > 0) bits.push(`urges ${Math.max(urges.suicidal || 0, urges.self_harm || 0)}`);
+      if (bm.emotional_misery != null) bits.push(`misery ${bm.emotional_misery}`);
+      if (bm.joy != null) bits.push(`joy ${bm.joy}`);
+      if (d.skills_practiced != null) bits.push(`skills used ${d.skills_practiced}`);
+      return { text: bits.join("  ·  ") || "Diary card", who: pxWhoIds(d) };
+    }
+    default:
+      return { text: "", who: [] };
+  }
+}
+
+function PixelLogRow({ entry, summary, kindLabel, selected, onPick, onEdit, altersById, formatAlter, children }) {
+  const editPress = useEditPress(() => onEdit(entry));
+  const time = format(new Date(entry.ts), clockPattern("h:mm a"));
+  const who = summary.who.map((id) => altersById[id]).filter(Boolean);
+  return (
+    <div className={`pxg-entry${selected ? " sel" : ""}`} data-highlight-id={entry.data?.id}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-pressed={selected}
+        aria-label={`${kindLabel}, ${time}: ${summary.text}`}
+        className="pxg-logrow"
+        onClick={() => onPick(entry)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(entry); } }}
+        {...editPress}
+      >
+        <span className="pxg-time">{time}</span>
+        <span className="pxg-chip pxg-kind">{kindLabel}</span>
+        <span className="pxg-sum">{summary.text}</span>
+        <span className="pxg-who">
+          {who.slice(0, 4).map((a) => (
+            <span key={a.id} className="pxg-sq" style={{ background: a.color || "var(--px-text-2)" }} title={formatAlter(a)} />
+          ))}
+          {who.length > 4 && <span className="pxg-more">+{who.length - 4}</span>}
+        </span>
+        <span className="pxg-dots" aria-hidden="true">...</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function PixelCheckInLog({
+  byDate, altersById, alters, symptomsById, symptomCheckIns, activities, locations, statusNotes, perAlterEntries,
+  diaryCardsByDate, highlightId, highlightDate, display, setDisplay, toggleDisplay, allOff,
+  onDelete, onEdit, onEditDiary, onDeleteDiary, onAddNote, onCharts, checkInCount,
+}) {
+  const desk = usePixelDesk();
+  const terms = useTerms();
+  const formatAlter = useAlterLabel();
+  const [query, setQuery] = useState("");
+  const [kind, setKind] = useState("all");
+  const [whoId, setWhoId] = useState(null);
+  const [pickedKey, setPickedKey] = useState(highlightId ? `checkin:${highlightId}` : null);
+  const [dayLimit, setDayLimit] = useState(PX_DAYS_STEP);
+  const [closedDays, setClosedDays] = useState(() => new Set());
+
+  const kindChips = [
+    { id: "all", label: "All", on: true },
+    { id: "checkin", label: "Check-ins", on: display.checkIns },
+    { id: "symptom", label: "Symptoms", on: display.symptoms },
+    { id: "status", label: "Statuses", on: display.statusNotes },
+    { id: "location", label: "Locations", on: display.locations },
+    { id: "activity", label: "Activities", on: display.activities },
+    { id: "per-alter", label: `${terms.Alter} entries`, on: display.perAlter },
+    { id: "diary", label: "Diary cards", on: display.diary },
+  ].filter((k) => k.on);
+
+  const q = query.trim().toLowerCase();
+  const ctx = { symptomsById, altersById, formatAlter, terms };
+
+  // Every day, with its rows filtered by search / kind / who.
+  const days = useMemo(() => byDate.map(([date, dayCheckIns]) => {
+    const day = computeDay({
+      date, checkIns: dayCheckIns, allSymptomCheckIns: symptomCheckIns, allActivities: activities,
+      allLocations: locations, allStatusNotes: statusNotes, perAlterEntries, diaryCardsByDate, display,
+    });
+    const rows = day.entries.map((entry) => {
+      const summary = pxEntrySummary(entry, ctx);
+      return { entry, summary, key: pxEntryKey(entry), kindLabel: PX_KIND_LABEL[entry.kind] || entry.kind };
+    }).filter((r) => {
+      if (kind !== "all" && r.entry.kind !== kind) return false;
+      if (whoId && !r.summary.who.includes(whoId)) return false;
+      if (q && !`${r.kindLabel} ${r.summary.text}`.toLowerCase().includes(q)) return false;
+      return true;
+    }).reverse(); // newest first, like the day order
+    const shown = day.totalVisibleEntries > 0 || day.visibleDiaryCards.length > 0;
+    return { date, dayCheckIns, day, rows, shown };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [byDate, symptomCheckIns, activities, locations, statusNotes, perAlterEntries, diaryCardsByDate, display, kind, whoId, q, symptomsById, altersById, formatAlter, terms]);
+
+  const filtering = kind !== "all" || !!whoId || !!q;
+  const visibleDays = days.filter((d) => d.shown && (!filtering || d.rows.length > 0));
+  const pageDays = visibleDays.slice(0, Math.max(dayLimit, highlightDate ? visibleDays.findIndex((d) => d.date === highlightDate) + 1 : 0));
+
+  // The picked row, with the day it belongs to (its editors need the day).
+  let picked = null;
+  for (const d of visibleDays) {
+    const r = d.rows.find((x) => x.key === pickedKey);
+    if (r) { picked = { ...r, d }; break; }
+  }
+  if (!picked && desk) {
+    const first = pageDays.find((d) => d.rows.length && !closedDays.has(d.date));
+    if (first) picked = { ...first.rows[0], d: first };
+  }
+
+  const scrolledRef = useRef(false);
+  useEffect(() => {
+    if (scrolledRef.current || !highlightId) return;
+    const el = document.querySelector(`[data-highlight-id="${CSS.escape(highlightId)}"]`);
+    if (el) { scrolledRef.current = true; el.scrollIntoView({ block: "center" }); }
+  });
+
+  const detailFor = (p) => renderLogEntry(p.entry, 0, {
+    altersById, symptomsById, allSymptomCheckIns: symptomCheckIns,
+    dayActivities: p.d.day.dayActivities, dayLocations: p.d.day.dayLocations, matchDiaryCard: p.d.day.matchDiaryCard,
+    highlightId: null, onDelete, onEdit, onEditDiary, onDeleteDiary, display,
+  });
+  const editRow = (entry) => {
+    if (entry.kind === "checkin") onEdit(entry.data);
+    else if (entry.kind === "diary") onEditDiary(entry.data);
+    else setPickedKey(pxEntryKey(entry));
+  };
+  const toggleDay = (date) => setClosedDays((prev) => {
+    const next = new Set(prev);
+    if (next.has(date)) next.delete(date); else next.add(date);
+    return next;
+  });
+  const hideAll = () => setDisplay(allOff ? DEFAULT_DISPLAY : Object.fromEntries(Object.keys(DEFAULT_DISPLAY).map((k) => [k, false])));
+
+  const list = (
+    <section className="pxg-pn pxg-loglist" aria-label="Check-in log">
+      <div className="pxg-ttl">
+        <span>Check-in log <span className="pxg-ttl-sub">{checkInCount} check-in{checkInCount !== 1 ? "s" : ""}</span></span>
+        <span className="pxg-ttl-acts">
+          <button type="button" className="pxg-btn pxg-btn-s" onClick={() => onAddNote(null)}>+ Note</button>
+          <button type="button" className="pxg-btn pxg-btn-s" onClick={onCharts}>Charts</button>
+          <button type="button" className="pxg-btn pxg-btn-s" onClick={hideAll}>{allOff ? "Show everything" : "Hide everything"}</button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="pxg-btn pxg-btn-s" data-tour="checkin-log-display" aria-label="Show in log" title="Show in log">Show</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <ShowInLogItems display={display} toggleDisplay={toggleDisplay} setDisplay={setDisplay} allOff={allOff} />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
+      </div>
+      <div className="pxg-toolbar">
+        <input
+          type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search the log..." aria-label="Search the log" className="pxg-ins pxg-search"
+        />
+        <div className="pxg-kinds" role="group" aria-label="Show only">
+          {kindChips.map((k) => (
+            <button key={k.id} type="button" aria-pressed={kind === k.id}
+              className={`pxg-chip${kind === k.id ? " sel" : ""}`} onClick={() => setKind(k.id)}>{k.label}</button>
+          ))}
+        </div>
+        <span className="pxg-grow" />
+        <div className="pxg-whopick">
+          <AlterSearchSelect alters={alters} value={whoId} onChange={(v) => setWhoId(v || null)} terms={terms}
+            noneLabel="Everyone" placeholder="Who: everyone" buttonClassName="pxg-chip pxg-whobtn" />
+        </div>
+      </div>
+
+      {byDate.length === 0 ? (
+        <div className="pxg-empty">
+          <p className="pxg-f">Nothing logged yet</p>
+          <p>Use Quick Check-In to log emotions, symptoms, activities, and more.</p>
+        </div>
+      ) : allOff ? (
+        <div className="pxg-empty">
+          <p className="pxg-f">Everything is hidden</p>
+          <p>Use Show in the title bar to choose which entry types appear here.</p>
+        </div>
+      ) : pageDays.length === 0 ? (
+        <div className="pxg-empty"><p>Nothing matches. Try another word, kind or {terms.alter}.</p></div>
+      ) : (
+        <div className="pxg-days">
+          {pageDays.map((d) => {
+            const dateObj = parseISO(d.date + "T12:00:00");
+            const isToday = d.date === format(new Date(), "yyyy-MM-dd");
+            const label = `${isToday ? "Today, " : ""}${format(dateObj, isToday ? "EEE MMM d" : "EEE MMM d, yyyy")}`;
+            const open = !closedDays.has(d.date);
+            return (
+              <div key={d.date} className="pxg-day">
+                <div className="pxg-daybar">
+                  <button type="button" className="pxg-daytoggle" aria-expanded={open} onClick={() => toggleDay(d.date)}>
+                    {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    <span>{label}</span>
+                  </button>
+                  <span className="pxg-muted">{d.rows.length} entr{d.rows.length !== 1 ? "ies" : "y"}</span>
+                  <button type="button" className="pxg-btn pxg-btn-s" onClick={() => onAddNote(d.date)}
+                    aria-label={`Add note on ${format(dateObj, "MMMM d")}`}>+ Add note on this day</button>
+                </div>
+                {/* The daily summary (Penumbra asked to keep it). */}
+                <div className="pxg-daysum">
+                  <DayTotals
+                    checkIns={d.day.visibleCheckIns}
+                    altersById={altersById}
+                    symptomCheckIns={d.day.daySymptomCheckIns}
+                    symptomsById={symptomsById}
+                    activities={d.day.dayActivities}
+                    locations={d.day.dayLocations}
+                    statusNotes={d.day.visibleStatusNotes}
+                    diaryCards={d.day.visibleDiaryCards}
+                    perAlterEntries={d.day.visiblePerAlter}
+                    totalEntryCount={d.day.totalVisibleEntries + d.day.visibleDiaryCards.length}
+                    onEditDiary={onEditDiary}
+                    display={display}
+                  />
+                </div>
+                {open && d.rows.map((r) => {
+                  const selected = picked?.key === r.key && picked?.d.date === d.date;
+                  return (
+                    <PixelLogRow key={r.key} entry={r.entry} summary={r.summary} kindLabel={r.kindLabel}
+                      selected={selected} altersById={altersById} formatAlter={formatAlter}
+                      onPick={(entry) => setPickedKey(selected && !desk ? null : pxEntryKey(entry))} onEdit={editRow}>
+                      {!desk && selected && <div className="pxg-inline">{detailFor(picked)}</div>}
+                    </PixelLogRow>
+                  );
+                })}
+              </div>
+            );
+          })}
+          {visibleDays.length > pageDays.length && (
+            <div className="pxg-moredays">
+              <button type="button" className="pxg-btn" onClick={() => setDayLimit((n) => n + PX_DAYS_STEP)}>
+                Show older days ({visibleDays.length - pageDays.length} more)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="pxg-foot">Tap a row to see it. Double-click or long-press a check-in to edit it. Deleted rows wait in the trash.</div>
+    </section>
+  );
+
+  if (!desk) return <div className="pxg-log pxg-log-phone">{list}<MedicalDisclaimerFooter className="mt-4" /></div>;
+
+  const pickedTime = picked ? format(new Date(picked.entry.ts), "EEE MMM d, " + clockPattern("h:mm a")) : "";
+  return (
+    <div className="pxg-log">
+      <div className="pxg-logdesk">
+        {list}
+        <aside className="pxg-pn pxg-side" aria-label="Entry">
+          <div className="pxg-ttl">
+            <span>{picked ? picked.kindLabel : "Entry"}</span>
+            {picked && (picked.entry.kind === "checkin" || picked.entry.kind === "diary") && (
+              <span className="pxg-ttl-acts">
+                <button type="button" className="pxg-btn pxg-btn-s on" onClick={() => editRow(picked.entry)}>Edit</button>
+              </span>
+            )}
+          </div>
+          {picked ? (
+            <>
+              <div className="pxg-side-when"><span className="pxg-muted">When</span><span className="pxg-ins pxg-when">{pickedTime}</span></div>
+              <div className="pxg-side-body">{detailFor(picked)}</div>
+              <div className="pxg-side-foot">
+                <span className="pxg-muted">Use ... on the entry for more.</span>
+                {picked.entry.kind === "checkin" && (
+                  <button type="button" className="pxg-btn" onClick={() => onDelete(picked.entry.data.id)}>... Delete</button>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="pxg-empty">Pick a row to see it here.</p>
+          )}
+        </aside>
+      </div>
+      <MedicalDisclaimerFooter className="mt-4" />
+    </div>
+  );
+}
+
 export default function CheckInLog() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [view, setView] = useState("list");
+  const pixel = useUiLook() === "pixel";
   const [display, setDisplay] = useDisplaySettings();
   const [editingCheckIn, setEditingCheckIn] = useState(null);
   const [editingDiaryCard, setEditingDiaryCard] = useState(null);
@@ -1796,6 +2192,39 @@ export default function CheckInLog() {
     );
   }
 
+  const dialogs = (
+    <>
+      {/* Reopen-for-edit modal: pre-fills the Quick Check-In form
+          with the selected entry. Saving calls UPDATE (no duplicate). */}
+      <QuickCheckInModal
+        isOpen={!!editingCheckIn}
+        onClose={() => setEditingCheckIn(null)}
+        alters={alters}
+        editingEntry={editingCheckIn}
+      />
+      <CustomNoteDialog open={customNoteOpen} onClose={() => setCustomNoteOpen(false)} alters={alters} />
+      <DiaryCardEditDialog card={editingDiaryCard} onClose={() => setEditingDiaryCard(null)} />
+    </>
+  );
+
+  if (pixel) {
+    return (
+      <>
+        <PixelCheckInLog
+          byDate={byDate} altersById={altersById} alters={alters} symptomsById={symptomsById}
+          symptomCheckIns={symptomCheckIns} activities={activities} locations={locations} statusNotes={statusNotes}
+          perAlterEntries={perAlterEntries} diaryCardsByDate={diaryCardsByDate}
+          highlightId={highlightId} highlightDate={highlightDate}
+          display={display} setDisplay={setDisplay} toggleDisplay={toggleDisplay} allOff={allOff}
+          onDelete={handleDelete} onEdit={handleEdit} onEditDiary={setEditingDiaryCard} onDeleteDiary={handleDeleteDiary}
+          onAddNote={(d) => setCustomNoteOpen(d ? { date: d } : true)} onCharts={() => setView("analytics")}
+          checkInCount={checkIns.length}
+        />
+        {dialogs}
+      </>
+    );
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
       <div className="flex items-center justify-between gap-2">
@@ -1819,37 +2248,7 @@ export default function CheckInLog() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Show in log</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem checked={display.checkIns} onCheckedChange={toggleDisplay("checkIns")}>
-                Check-ins
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={display.statusNotes} onCheckedChange={toggleDisplay("statusNotes")}>
-                Status notes
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={display.symptoms} onCheckedChange={toggleDisplay("symptoms")}>
-                Symptoms
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={display.activities} onCheckedChange={toggleDisplay("activities")}>
-                Activities
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={display.locations} onCheckedChange={toggleDisplay("locations")}>
-                Locations
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={display.perAlter} onCheckedChange={toggleDisplay("perAlter")}>
-                Per-alter entries
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={display.diary} onCheckedChange={toggleDisplay("diary")}>
-                Diary data
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              <button
-                type="button"
-                onClick={() => setDisplay(allOff ? DEFAULT_DISPLAY : Object.fromEntries(Object.keys(DEFAULT_DISPLAY).map((k) => [k, false])))}
-                className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-sm"
-              >
-                {allOff ? "Show everything" : "Hide everything"}
-              </button>
+              <ShowInLogItems display={display} toggleDisplay={toggleDisplay} setDisplay={setDisplay} allOff={allOff} />
             </DropdownMenuContent>
           </DropdownMenu>
           {/* Analytics now uses every log source (check-ins, symptom
@@ -1906,16 +2305,7 @@ export default function CheckInLog() {
 
       <MedicalDisclaimerFooter className="mt-6" />
 
-      {/* Reopen-for-edit modal: pre-fills the Quick Check-In form
-          with the selected entry. Saving calls UPDATE (no duplicate). */}
-      <QuickCheckInModal
-        isOpen={!!editingCheckIn}
-        onClose={() => setEditingCheckIn(null)}
-        alters={alters}
-        editingEntry={editingCheckIn}
-      />
-      <CustomNoteDialog open={customNoteOpen} onClose={() => setCustomNoteOpen(false)} alters={alters} />
-      <DiaryCardEditDialog card={editingDiaryCard} onClose={() => setEditingDiaryCard(null)} />
+      {dialogs}
     </motion.div>
   );
 }
