@@ -12,19 +12,38 @@ import { createPortal } from "react-dom";
 import { useHouse } from "@/house/tokens/HouseRoot";
 import { usePopupZ } from "@/components/shared/popupLayer";
 import { DropdownLayer } from "@/components/shared/SearchableSelect";
+import { PopupTheme } from "@/components/shared/popupTheme";
+
+// The nearest HouseRoot's attributes and paint, for an element that has to
+// live outside it (a portal). `style` holds only the colour/shape variables.
+export function houseAttrs(house) {
+  if (!house) return { attrs: { "data-house": "" }, style: {} };
+  return {
+    attrs: {
+      "data-house": "",
+      "data-house-look": house.look,
+      "data-house-variant": house.variant,
+      "data-house-label": house.fonts?.labelIsPixel ? "pixel" : "body",
+    },
+    style: { ...house.vars, colorScheme: house.variant },
+  };
+}
+
+// Dresses today's shared pickers' own pop-ups (AlterSearchSelect,
+// SearchableSelect, ColorPicker, IconPicker, AssetPickerModal) in the
+// house's look: they read it through usePopupTheme and carry it to <body>.
+// Outside this wrapper they look exactly as they always did.
+export function HousePopups({ children }) {
+  const house = useHouse();
+  const value = React.useMemo(() => (house ? houseAttrs(house) : null), [house]);
+  return <PopupTheme value={value}>{children}</PopupTheme>;
+}
 
 export default function KitLayer({ children }) {
   const house = useHouse();
   if (typeof document === "undefined") return null;
-  const attrs = house
-    ? {
-        "data-house": "",
-        "data-house-look": house.look,
-        "data-house-variant": house.variant,
-        "data-house-label": house.fonts?.labelIsPixel ? "pixel" : "body",
-        style: { ...house.vars, display: "contents", background: "transparent" },
-      }
-    : { "data-house": "", style: { display: "contents" } };
+  const h = houseAttrs(house);
+  const attrs = { ...h.attrs, style: { ...h.style, display: "contents", background: "transparent" } };
   // DropdownLayer: inside a modal dialog or a vaul sheet, the pop-up becomes
   // the active focus scope while open (the same fix the shared pickers use).
   return createPortal(<div {...attrs}><DropdownLayer>{children}</DropdownLayer></div>, document.body);

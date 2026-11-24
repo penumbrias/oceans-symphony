@@ -19,6 +19,7 @@ export function DropdownLayer({ children }) {
 import { ChevronDown, Check, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { usePopupTheme } from "@/components/shared/popupTheme";
 
 function AvatarImg({ url, label }) {
   const resolvedUrl = useResolvedAvatarUrl(url);
@@ -95,6 +96,7 @@ export function SearchableSelect({
   triggerLabelledBy,  // field label names it (the house kit's NestedPicker)
 }) {
   const [open, setOpen] = useState(false);
+  const popTheme = usePopupTheme("searchable-select");
   const [query, setQuery] = useState("");
   const [openAbove, setOpenAbove] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -283,9 +285,10 @@ export function SearchableSelect({
         <DropdownLayer>
         <div
           ref={panelRef}
+          {...popTheme.attrs}
           data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
+          style={{ ...popTheme.style, top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
@@ -356,6 +359,7 @@ export function SearchableMultiSelect({
   className,
 }) {
   const [open, setOpen] = useState(false);
+  const popTheme = usePopupTheme("searchable-select");
   const [query, setQuery] = useState("");
   const [openAbove, setOpenAbove] = useState(false);
   const [panelPos, setPanelPos] = useState(null);
@@ -494,9 +498,10 @@ export function SearchableMultiSelect({
         <DropdownLayer>
         <div
           ref={panelRef}
+          {...popTheme.attrs}
           data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
+          style={{ ...popTheme.style, top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

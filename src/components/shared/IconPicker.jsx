@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Search, Images } from "lucide-react";
 import { loadLucideSet, pascalToKebab } from "@/components/shared/LucideByName";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
+import { usePopupTheme } from "@/components/shared/popupTheme";
 
 const PAGE = 120;
 
@@ -14,6 +15,7 @@ export default function IconPicker({ open, onClose, onPick, current = "", allowI
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [imgOpen, setImgOpen] = useState(false);
+  const popTheme = usePopupTheme("icons");
   useEffect(() => { if (open && !set) loadLucideSet().then(setSet); }, [open, set]);
   useEffect(() => { setLimit(PAGE); }, [q]);
   const names = useMemo(() => {
@@ -28,7 +30,7 @@ export default function IconPicker({ open, onClose, onPick, current = "", allowI
   const shown = names.slice(0, limit);
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md p-0 overflow-hidden flex flex-col" style={{ maxHeight: "80vh" }}>
+      <DialogContent {...popTheme.attrs} className="max-w-md p-0 overflow-hidden flex flex-col" style={{ ...popTheme.style, maxHeight: "80vh" }}>
         <DialogHeader className="px-4 pt-3 pb-2">
           {/* DialogContent draws its own close button — no second one here. */}
           <DialogTitle className="text-sm pr-8">{title}</DialogTitle>

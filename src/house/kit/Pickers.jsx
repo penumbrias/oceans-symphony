@@ -12,8 +12,9 @@
 //   AssetField    → AssetPickerModal   (the person's asset library)
 //
 // The field (label, hint, error, save state, 44 px trigger, focus ring) is
-// the house's; the pop-up is still the shared component's own until step
-// 1.3 gives the kit its sheets.
+// the house's. Since step 1.3 the shared pop-ups wear the house's look too
+// (HousePopups → usePopupTheme → src/house/kit/sharedPops.css); outside the
+// house they are untouched.
 
 import React, { useState } from "react";
 import { ImageIcon, Images, Shapes, X } from "lucide-react";
@@ -30,7 +31,9 @@ import { useTerms } from "@/lib/useTerms";
 import { an } from "@/lib/articles";
 import { Button, IconButton } from "@/house/kit/Button";
 import { FieldShell } from "@/house/kit/Field";
+import { HousePopups } from "@/house/kit/KitLayer";
 import "@/house/kit/kit.css";
+import "@/house/kit/sharedPops.css";
 
 // ── Alter ─────────────────────────────────────────────────────────────
 export function AlterPicker({ label, hint, error, save, value, onChange, alters: altersProp, showNone = true, noneLabel = "No one", disabledIds, placeholder }) {
@@ -40,7 +43,7 @@ export function AlterPicker({ label, hint, error, save, value, onChange, alters:
   return (
     <FieldShell label={label ?? terms.Alter} hint={hint} error={error} save={save} labelAs="span" className="hk-picker">
       {({ inputId, labelId }) => (
-        <AlterSearchSelect
+        <HousePopups><AlterSearchSelect
           alters={alters}
           value={value ?? null}
           onChange={onChange}
@@ -53,7 +56,7 @@ export function AlterPicker({ label, hint, error, save, value, onChange, alters:
           triggerId={inputId}
           triggerLabelledBy={`${labelId} ${inputId}`}
           zIndex={260}
-        />
+        /></HousePopups>
       )}
     </FieldShell>
   );
@@ -74,7 +77,7 @@ export function NestedPicker({ label, hint, error, save, value, onChange, option
   return (
     <FieldShell label={label} hint={hint} error={error} save={save} labelAs="span" className="hk-picker">
       {({ inputId, labelId }) => (
-        <SearchableSelect
+        <HousePopups><SearchableSelect
           value={value ?? null}
           onChange={onChange}
           options={options}
@@ -85,7 +88,7 @@ export function NestedPicker({ label, hint, error, save, value, onChange, option
           renderOption={indentOption}
           triggerId={inputId}
           triggerLabelledBy={`${labelId} ${inputId}`}
-        />
+        /></HousePopups>
       )}
     </FieldShell>
   );
@@ -97,7 +100,7 @@ export function ColourField({ label, hint, error, save, value, onChange, onClear
     <FieldShell label={label} hint={hint} error={error} save={save} labelAs="span">
       {() => (
         <div className="hk-colour">
-          <ColorPicker compact caption={false} label={label} value={value || "#888888"} onChange={onChange} onClear={onClear} />
+          <HousePopups><ColorPicker compact caption={false} label={label} value={value || "#888888"} onChange={onChange} onClear={onClear} /></HousePopups>
           <span className="hk-colour-value">{value ? String(value).toUpperCase() : "No colour yet"}</span>
         </div>
       )}
@@ -120,8 +123,8 @@ export function IconField({ label, hint, error, save, value, onChange, allowImag
           <span className="hk-hint">{value?.iconName || (value?.iconUrl ? "A picture" : "The usual icon")}</span>
           <Button rank="secondary" onClick={() => setOpen(true)}>Choose icon</Button>
           {has ? <IconButton icon={X} label={`${label}: back to the usual icon`} onClick={() => onChange?.({ iconName: "", iconUrl: "" })} /> : null}
-          <IconPicker open={open} onClose={() => setOpen(false)} current={value?.iconName || ""} allowImage={allowImage} title={label}
-            onPick={(v) => onChange?.(v)} />
+          <HousePopups><IconPicker open={open} onClose={() => setOpen(false)} current={value?.iconName || ""} allowImage={allowImage} title={label}
+            onPick={(v) => onChange?.(v)} /></HousePopups>
         </div>
       )}
     </FieldShell>
@@ -142,8 +145,8 @@ export function AssetField({ label, hint, error, save, value, onChange, kind = "
           <span className="hk-hint">{value ? "Picture chosen" : "No picture yet"}</span>
           <Button rank="secondary" icon={Images} onClick={() => setOpen(true)}>Choose from assets</Button>
           {value ? <IconButton icon={X} label={`${label}: remove the picture`} onClick={() => onChange?.(null)} /> : null}
-          <AssetPickerModal open={open} kind={kind} onClose={() => setOpen(false)}
-            onSelect={(url) => { onChange?.(url); setOpen(false); }} />
+          <HousePopups><AssetPickerModal open={open} kind={kind} onClose={() => setOpen(false)}
+            onSelect={(url) => { onChange?.(url); setOpen(false); }} /></HousePopups>
         </div>
       )}
     </FieldShell>
