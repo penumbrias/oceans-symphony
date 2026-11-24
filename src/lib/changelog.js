@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "November 24, 2026",
+    changes: [
+      { type: "improve", text: "Pixel look: page tabs across the app, like Analytics' views, are drawn as folder tabs." },
+    ],
+  },
+  {
     date: "November 23, 2026",
+    version: "0.379.3",
     changes: [
       { type: "improve", text: "Pixel look: home pages show as named tabs, with Home screen and Widget board tabs so you can switch without swiping." },
       { type: "improve", text: "Pixel look on phones: square bottom tabs with the open page raised, bevelled quick action keys, and the menu drawer grouped under title bars." },

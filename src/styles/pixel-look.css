@@ -312,6 +312,23 @@ html[data-ui-look="pixel"] .os-tabs-tab[data-state="active"] {
   box-shadow: inset 2px 2px 0 var(--px-hi) !important;
 }
 
+/* The shared page strip (PageStrip): the same folder tabs. */
+html[data-ui-look="pixel"] .os-page-strip {
+  gap: 4px; padding: 4px 4px 0; align-items: flex-end;
+  border-bottom: 0 !important; background: var(--px-sunk); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-page-strip > [role="tab"] {
+  flex: 0 0 auto; min-height: 34px; margin: 0; padding: 4px 12px;
+  border-bottom: 0 !important; border-radius: var(--px-corner, 0px) var(--px-corner, 0px) 0 0;
+  font-family: var(--px-font); font-weight: 500;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  background: var(--px-tab); color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .os-page-strip > [role="tab"][aria-selected="true"] {
+  background: var(--px-panel); color: var(--px-text); box-shadow: inset 2px 2px 0 var(--px-hi); padding-top: 6px;
+}
+html[data-ui-look="pixel"] .os-page-strip > [role="tab"]:focus-visible { outline: 2px solid var(--color-primary); }
+
 /* Drop-down menus and pick lists: a pixel panel, the picked row filled. */
 html[data-ui-look="pixel"] .os-menu {
   border-radius: 0 !important;
@@ -562,18 +579,3 @@ html[data-ui-look="pixel"] .os-drawer-group {
 html[data-ui-look="pixel"] .os-drawer-item { border-radius: var(--px-corner, 0px) !important; margin: 0 4px; }
 html[data-ui-look="pixel"] .os-drawer-item[aria-current="page"] { background: var(--px-panel) !important; box-shadow: inset 2px 0 0 var(--color-primary), inset 0 0 0 2px var(--px-line); }
 
-/* ── Home: the board's pages as named tabs ─────────────────────────── */
-.px-pages {
-  display: flex; align-items: flex-end; gap: 4px; flex-wrap: wrap;
-  margin: 0 0 10px; padding: 4px 6px 0; font-family: var(--px-font); font-size: 13px;
-  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
-}
-.px-pages-lbl { color: var(--px-text-2); padding: 0 6px 6px 2px; font-size: 12px; }
-.px-pages-tab {
-  min-height: 30px; padding: 4px 12px; color: var(--px-text-2); background: var(--px-tab);
-  outline: 2px solid var(--px-line); outline-offset: -1px; border-radius: var(--px-corner, 0px) var(--px-corner, 0px) 0 0;
-}
-.px-pages-tab:hover { color: var(--px-text); }
-.px-pages-tab.sel { color: var(--px-text); background: var(--px-panel); box-shadow: inset 2px 2px 0 var(--px-hi); padding-top: 6px; }
-.px-pages-tab:focus-visible { outline: 2px solid var(--color-primary); }
-.px-pages-add { display: flex; align-items: center; justify-content: center; padding: 4px 10px; }

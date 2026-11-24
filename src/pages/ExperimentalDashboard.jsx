@@ -2454,33 +2454,32 @@ export default function ExperimentalDashboard({
           )}
         </PageStrip>
       ) : pixelLook && (visiblePages.length > 1 || editMode || onExitLeft || onExitRight) ? (
-        // Pixel look: the same pages as named tabs, with the home screen
-        // and the widget board as tabs of their own, so a mouse reaches
-        // both without a swipe. Same handlers as the dots below.
-        <div className="px-pages" role="tablist" aria-label="Homescreen pages">
-          <span className="px-pages-lbl" aria-hidden="true">Pages</span>
-          {onExitLeft && (
-            <button type="button" role="tab" aria-selected="false" className="px-pages-tab" onClick={onExitLeft}>
-              Home screen
-            </button>
-          )}
-          {visiblePages.map((p, i) => (
-            <button key={p.id} type="button" role="tab" aria-selected={p.id === page.id}
-              className={`px-pages-tab${p.id === page.id ? " sel" : ""}`} onClick={() => goToPage(i)}>
-              {applyTerms(p.label, t) || `Page ${i + 1}`}
-            </button>
-          ))}
-          {onExitRight && (
-            <button type="button" role="tab" aria-selected="false" className="px-pages-tab" onClick={onExitRight}>
-              Widget board
-            </button>
-          )}
+        // Pixel look: the same pages as named tabs (the shared PageStrip),
+        // with the home screen and the widget board as tabs of their own,
+        // so a mouse reaches both without a swipe.
+        <PageStrip
+          label="Homescreen pages"
+          className="px-pages mb-3"
+          value={page.id}
+          onChange={(id) => {
+            if (id === "__home_screen") { onExitLeft?.(); return; }
+            if (id === "__widget_board") { onExitRight?.(); return; }
+            const i = visiblePages.findIndex((p) => p.id === id);
+            if (i >= 0) goToPage(i);
+          }}
+          items={[
+            ...(onExitLeft ? [{ id: "__home_screen", label: "Home screen" }] : []),
+            ...visiblePages.map((p, i) => ({ id: p.id, label: applyTerms(p.label, t) || `Page ${i + 1}` })),
+            ...(onExitRight ? [{ id: "__widget_board", label: "Widget board" }] : []),
+          ]}
+        >
           {editMode && (
-            <button type="button" onClick={handleAddPage} aria-label="Add page" title="Add page" className="px-pages-tab px-pages-add">
-              <Plus className="w-3.5 h-3.5" />
+            <button type="button" onClick={handleAddPage} aria-label="Add page" title="Add page"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-primary flex-shrink-0">
+              <Plus className="w-4 h-4" />
             </button>
           )}
-        </div>
+        </PageStrip>
       ) : (visiblePages.length > 1 || editMode || onExitLeft) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
           {onExitLeft && (
