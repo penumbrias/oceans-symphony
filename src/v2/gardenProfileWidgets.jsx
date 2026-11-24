@@ -75,7 +75,7 @@ export function GardenBox({ empty, name, children, ...rest }) {
   return (
     <section className="h-full min-h-0 overflow-y-auto text-[0.875em] leading-relaxed" style={box}
       data-pxp-box={pixel ? (name ? "1" : "head") : undefined} data-pxp-empty={pixel && empty ? "1" : undefined} {...rest}>
-      {band && <h2 data-widget-label="" className="os-head-row os-head-label pxp-band flex-shrink-0">{band}</h2>}
+      {band && <h2 data-widget-label="" className="os-head-row os-head-label pxpf-band flex-shrink-0">{band}</h2>}
       {empty ? (
         <div className="pf-widget-empty h-full items-center justify-center rounded-xl border border-dashed border-current opacity-50 text-[0.8125em] px-3 text-center" aria-hidden="true">
           {name} — nothing to show yet

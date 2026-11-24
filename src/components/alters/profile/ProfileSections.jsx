@@ -315,7 +315,7 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
           {pixel && inFront ? (
             <span className="flex flex-wrap items-center gap-1 mt-1">
               {rolePill}
-              <span className="pxp-chip pxp-chip-on">{terms.fronting}</span>
+              <span className="pxpf-chip pxpf-chip-on">{terms.fronting}</span>
             </span>
           ) : rolePill}
           {extrasRow}

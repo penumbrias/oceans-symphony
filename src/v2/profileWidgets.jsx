@@ -159,7 +159,7 @@ export function ProfileBox({ children, name: nameProp = "", band = true }) {
       data-pxp-empty={pixel && empty ? "1" : undefined}
       style={box}>
       {bandName && (
-        <h2 data-widget-label="" className="os-head-row os-head-label pxp-band flex-shrink-0">{bandName}</h2>
+        <h2 data-widget-label="" className="os-head-row os-head-label pxpf-band flex-shrink-0">{bandName}</h2>
       )}
       {showLabel && (
         <h2 data-widget-label="" className="os-head-row os-head-label text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex-shrink-0">{ownName}</h2>
@@ -167,7 +167,7 @@ export function ProfileBox({ children, name: nameProp = "", band = true }) {
       {/* Body moves with the board's "Down" alignment; the ref'd child is
           what the empty check reads. */}
       <div className="min-h-0 flex-1 overflow-y-auto" style={{ ...valignBoxStyle(), ...(pad ? { padding: pad } : {}) }}>
-        <div ref={bodyRef} className="min-w-0 pxp-body">{children}</div>
+        <div ref={bodyRef} className="min-w-0 pxpf-body">{children}</div>
       </div>
       {empty && (
         <div className="pf-widget-empty flex-1 items-center justify-center rounded-xl border border-dashed border-border/60 text-[0.75em] text-muted-foreground px-3 text-center" aria-hidden="true">

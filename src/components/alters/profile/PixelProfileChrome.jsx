@@ -31,11 +31,11 @@ export function PixelProfileTopBar({
     if (window.history.length > 1) navigate(-1); else navigate("/Home");
   };
   return (
-    <div className="pxp-bar" data-pf-chrome data-profile-header-actions="">
-      <button type="button" className="pxa-btn pxp-sq" onClick={back} aria-label="Back" title="Back">
+    <div className="pxpf-bar" data-pf-chrome data-profile-header-actions="">
+      <button type="button" className="pxa-btn pxpf-sq" onClick={back} aria-label="Back" title="Back">
         <ChevronLeft aria-hidden="true" />
       </button>
-      <span className="pxp-bar-name" title={formatAlter(alter)}>{formatAlter(alter)}</span>
+      <span className="pxpf-bar-name" title={formatAlter(alter)}>{formatAlter(alter)}</span>
       {!layoutEditing && (
         <FrontingToggleButton alter={alter} activeSessions={activeSessions} label={isFronting ? `In ${t.front}` : t.Front} />
       )}
@@ -45,7 +45,7 @@ export function PixelProfileTopBar({
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="pxa-btn pxp-sq" aria-label="Page menu">
+          <button type="button" className="pxa-btn pxpf-sq" aria-label="Page menu">
             <MoreHorizontal aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
@@ -74,7 +74,7 @@ export function PixelProfileTopBar({
 
 export function PixelProfileActionBar({ onEditPage, onStyle, onWriteNote }) {
   return (
-    <div className="pxp-actions" role="toolbar" aria-label="Page actions">
+    <div className="pxpf-actions" role="toolbar" aria-label="Page actions">
       <button type="button" className="pxa-btn" onClick={onEditPage} data-tour="alter-profile-layout-btn">Edit page</button>
       <button type="button" className="pxa-btn" onClick={onStyle}>Profile style</button>
       <button type="button" className="pxa-btn on" onClick={onWriteNote}>Write note</button>

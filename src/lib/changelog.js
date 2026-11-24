@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "fix", text: "Pixel look: the top bar no longer shows twice, and a new profile's name and buttons no longer pile up at the top." },
       { type: "improve", text: "The floating Support bubble is now off unless you turn it on in Settings → Accessibility. Support is still in the menu." },
       { type: "improve", text: "Pixel look: reminders like \"Drink water\" now show as one slim pixel strip instead of a big card." },
       { type: "improve", text: "Pixel look: the check-in log, therapy report, location history, recent changes and mods pages follow their new designs; the check-in log keeps its daily summary." },

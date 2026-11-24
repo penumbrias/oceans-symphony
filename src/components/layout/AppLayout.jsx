@@ -849,7 +849,9 @@ const handleNotifClick = (mentionLog) => {
       {uiV2On && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
       {/* v2 top bar hosted in CLASSIC chrome — replaces the classic
           headers (hidden via [data-classic-v2-top] in index.css). */}
-      {!uiV2On && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} classicHost />}
+      {/* Not in the pixel look: its own header already shows the top bar's
+          items, and both together stacked two header bars. */}
+      {!uiV2On && !pixelChrome && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} classicHost />}
 
       {pixelChrome && (
         <>
