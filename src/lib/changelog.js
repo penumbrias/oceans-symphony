@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: home pages show as named tabs, with Home screen and Widget board tabs so you can switch without swiping." },
       { type: "improve", text: "Pixel look on phones: square bottom tabs with the open page raised, bevelled quick action keys, and the menu drawer grouped under title bars." },
       { type: "feature", text: "Pixel look on a computer: the pinned bar sits in the frame as a strip, under the page tabs or above the status bar." },
       { type: "improve", text: "Pixel look: bars are solid so the page no longer shows through them, and the \"Pull down to refresh\" tip is gone from the tour." },

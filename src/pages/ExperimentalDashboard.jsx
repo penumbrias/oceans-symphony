@@ -93,6 +93,7 @@ import { startHoldTimer } from "@/lib/holdTimer";
 import { WidgetSuspense } from "@/lib/lazyNamed";
 import { keepScroll } from "@/lib/keepScroll";
 import { announceBoard } from "@/lib/boardPresence";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -826,6 +827,9 @@ export default function ExperimentalDashboard({
   const t = useTerms();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
+  // The pixel look draws the page dots as named page tabs (the mockup's
+  // "Pages" strip).
+  const pixelLook = useUiLook() === UI_LOOKS.PIXEL;
   // Say this board is on screen (the pixel tool rail's "Edit page").
   useEffect(() => announceBoard(eventPrefix), [eventPrefix]);
   // Tell the header ⚙ menu whether THIS home is being edited — it only
@@ -2449,6 +2453,34 @@ export default function ExperimentalDashboard({
             </button>
           )}
         </PageStrip>
+      ) : pixelLook && (visiblePages.length > 1 || editMode || onExitLeft || onExitRight) ? (
+        // Pixel look: the same pages as named tabs, with the home screen
+        // and the widget board as tabs of their own, so a mouse reaches
+        // both without a swipe. Same handlers as the dots below.
+        <div className="px-pages" role="tablist" aria-label="Homescreen pages">
+          <span className="px-pages-lbl" aria-hidden="true">Pages</span>
+          {onExitLeft && (
+            <button type="button" role="tab" aria-selected="false" className="px-pages-tab" onClick={onExitLeft}>
+              Home screen
+            </button>
+          )}
+          {visiblePages.map((p, i) => (
+            <button key={p.id} type="button" role="tab" aria-selected={p.id === page.id}
+              className={`px-pages-tab${p.id === page.id ? " sel" : ""}`} onClick={() => goToPage(i)}>
+              {applyTerms(p.label, t) || `Page ${i + 1}`}
+            </button>
+          ))}
+          {onExitRight && (
+            <button type="button" role="tab" aria-selected="false" className="px-pages-tab" onClick={onExitRight}>
+              Widget board
+            </button>
+          )}
+          {editMode && (
+            <button type="button" onClick={handleAddPage} aria-label="Add page" title="Add page" className="px-pages-tab px-pages-add">
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       ) : (visiblePages.length > 1 || editMode || onExitLeft) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
           {onExitLeft && (
