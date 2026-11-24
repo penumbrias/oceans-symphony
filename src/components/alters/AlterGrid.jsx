@@ -26,9 +26,11 @@ import SubsystemAlterList from "./SubsystemAlterList";
 import AlterFilterPopup from "./AlterFilterPopup";
 import MassArchiveModal from "./MassArchiveModal";
 import { getAltersInsideSubsystems, getMemberAlters, getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
-import { rootGroups as topLevelGroups } from "@/lib/groupTree";
+import { rootGroups as topLevelGroups, flattenGroupTree } from "@/lib/groupTree";
+import { anonymizeBlurNames } from "@/hooks/useAnonymizeMode";
+import { groupNameColor } from "@/lib/contrast";
 
-export default function AlterGrid({ alters }) {
+export default function AlterGrid({ alters, workspace = false }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const isDemo = alters.length === 0 && !!window.__tourActive;
@@ -329,8 +331,46 @@ export default function AlterGrid({ alters }) {
   const currentSort = SORT_OPTIONS.find((o) => o.id === sortMode) || SORT_OPTIONS[0];
   const ANON_LABELS = { off: "Off", names: "Blur names", avatars: "Blur pictures", all: "Blur names and pictures" };
 
+  // Pixel look on a computer: the groups as a tree in a side panel (like
+  // the mockup). A click shows that group's members here through the same
+  // membership filter the Filter popup sets; the arrow opens its profile.
+  const groupTree = workspace ? flattenGroupTree(allGroups, { sort: "order" }) : [];
+  const onlyGroup = selectedFilterIds.length === 1 && filters.roles.length === 0 ? selectedFilterIds[0] : null;
+  const pickGroup = (g) => setFilters((f) => (onlyGroup === g?.id || !g
+    ? { ...f, groupIds: [], subsystemIds: [] }
+    : { ...f, groupIds: g.owner_alter_id ? [] : [g.id], subsystemIds: g.owner_alter_id ? [g.id] : [], mode: "any" }));
+  const groupsPanel = workspace && (
+    <aside className="px-ws-side" aria-label="Groups" data-tour="alters-groups-panel">
+      <div className="px-ws-ttl"><span>Groups</span>{groupControls()}</div>
+      <div className="px-ws-tree">
+        <button type="button" className={`px-ws-row${!hasMembershipFilter ? " sel" : ""}`} aria-pressed={!hasMembershipFilter}
+          onClick={() => pickGroup(null)}>
+          <span className="px-ws-name">Everyone</span>
+          <span className="px-ws-count">{effectiveAlters.filter((a) => !a.is_archived).length}</span>
+        </button>
+        {groupTree.map((g) => {
+          const count = getMemberAlters(g, effectiveAlters).filter((a) => !a.is_archived).length;
+          const sel = onlyGroup === g.id;
+          return (
+            <div key={g.id} className={`px-ws-row${sel ? " sel" : ""}`} style={{ paddingLeft: 6 + g._depth * 14 }}>
+              <button type="button" className="px-ws-pick" aria-pressed={sel} onClick={() => pickGroup(g)}>
+                <span className="px-ws-swatch" style={g.color ? { background: g.color } : undefined} aria-hidden="true" />
+                <span className={`px-ws-name ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={{ color: sel ? undefined : groupNameColor(g.color) }}>{g.name}</span>
+                <span className="px-ws-count">{count}</span>
+              </button>
+              <button type="button" className="px-ws-open" aria-label={`Open ${g.name}`} title="Open group" onClick={() => navigate(`/group/${g.id}`)}>›</button>
+            </div>
+          );
+        })}
+        {groupTree.length === 0 && <p className="px-ws-empty">No groups yet. Use New group to make one.</p>}
+      </div>
+    </aside>
+  );
+
   return (
-    <div>
+    <div className={workspace ? "px-ws" : undefined}>
+      {groupsPanel}
+      <div className={workspace ? "px-ws-main" : undefined}>
       {isDemo && (
         <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[0.625rem] text-primary/80 text-center">
           Tour Preview — sample {terms.alters}
@@ -342,8 +382,9 @@ export default function AlterGrid({ alters }) {
             Self-contained component; renders nothing when none pinned. */}
         <PinnedAltersGallery />
 
-        {/* Groups section — header always visible */}
-        <div>
+        {/* Groups section — header always visible (in the pixel workspace
+            the groups sit in the side panel instead) */}
+        {!workspace && <div>
           <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
             <div className="flex-1 h-px bg-border/50" />
@@ -361,7 +402,7 @@ export default function AlterGrid({ alters }) {
           {rootGroups.length === 0 && (
             <p className="text-xs text-muted-foreground px-1 pb-1">No groups yet — tap New group to make one.</p>
           )}
-        </div>
+        </div>}
 
         {/* Search + filters — sits right above the alters list, below groups */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
@@ -513,6 +554,7 @@ export default function AlterGrid({ alters }) {
           onClose={() => setFilterOpen(false)}
         />
       )}
+      </div>
     </div>);
 
 }

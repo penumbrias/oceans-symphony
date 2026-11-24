@@ -16,6 +16,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import { normalizeNavConfig } from "@/utils/navigationConfig";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { usePixelDesk } from "@/lib/uiLook";
 
 export default function Home() {
   const [searchParams] = useSearchParams();
@@ -24,6 +25,7 @@ export default function Home() {
   const [showImport, setShowImport] = useState(false);
   const [showSeveral, setShowSeveral] = useState(false);
   const terms = useTerms();
+  const pixelDesk = usePixelDesk();
 
   // Handle bulletin deep-link
   useDeepLinkHighlight("bulletinId", "bulletin-");
@@ -142,7 +144,7 @@ export default function Home() {
           on the Dashboard (/) instead — that's what their Settings
           labels say and where users expect them. */}
       <div data-tour="alters-grid">
-        <AlterGrid alters={activeAlters} />
+        <AlterGrid alters={activeAlters} workspace={pixelDesk} />
       </div>
 
       <button

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look on a computer: the alters page shows your groups as a tree in a side panel; click one to show just its members." },
       { type: "feature", text: "Pixel look on a computer: an optional timeline dock along the bottom of Home shows the day as layers; click anything for its details in an Info panel." },
       { type: "improve", text: "Pixel look: Home's pages sit as subtabs beside the Home tab (phones too), and on a computer the page starts closer to the top." },
       { type: "improve", text: "Pixel look: page tabs across the app, like Analytics' views, are drawn as folder tabs." },

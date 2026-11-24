@@ -393,6 +393,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/Home", target: "alters-grid", look: `the highlighted cards below the search bar`,
     }),
     s("alters", {
+      emoji: "🗂️", title: "Groups panel", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, your groups sit in a panel on the left. Click one to show just its ${t.alters}; the arrow opens the group.`,
+      route: "/Home", target: "alters-groups-panel",
+    }),
+    s("alters", {
       emoji: "📌", title: `Pinned ${t.alters}`,
       body: `Pin ${an(t.alter)} from their profile and they show here and in the pinned bar. Tap a chip for their menu; hold it for the level rail. The ⚙ picks who's pinned and how they look.`,
       route: "/Home", target: "pinned-alters", look: `the Pinned row — it shows once you've pinned someone`,

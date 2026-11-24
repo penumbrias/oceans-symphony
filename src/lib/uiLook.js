@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
@@ -33,6 +33,24 @@ export function useUiLook() {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   return readUiLook(pickPrimarySystemSettings(list));
+}
+
+// True while the pixel look is on AND the screen is computer-wide (the
+// width the pixel frame's desktop panels use). Pages use it to switch to
+// their mockup workspace layout; phones keep the stacked layout.
+const DESK_QUERY = "(min-width: 1024px)";
+export function usePixelDesk() {
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  const get = () => { try { return window.matchMedia(DESK_QUERY).matches; } catch { return false; } };
+  const [wide, setWide] = useState(get);
+  useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia(DESK_QUERY); } catch { return undefined; }
+    const on = () => setWide(mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+  return pixel && wide;
 }
 
 // The pixel look's own defaults, which the person can change

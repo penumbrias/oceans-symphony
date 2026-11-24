@@ -677,3 +677,31 @@ html[data-px-front="bottom"][data-px-status="1"] { --px-below-dock: calc(24px + 
   html[data-px-rail="right"] .px-info { right: 48px; }
   html[data-px-dock="1"][data-ui-look] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-below-dock) + 236px); }
 }
+
+/* ── Alters directory workspace (computer) ─────────────────────────── */
+/* AlterGrid's `workspace` layout: groups as a tree in a side panel. */
+.px-ws { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; align-items: start; }
+.px-ws-side {
+  position: sticky; top: 0; max-height: calc(100vh - 150px); display: flex; flex-direction: column;
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+.px-ws-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; flex: none;
+  min-height: 30px; padding: 0 4px 0 10px; font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+.px-ws-tree { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.px-ws-row { display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 4px 0 6px; font-size: 13px; text-align: left; }
+.px-ws-row:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.px-ws-row.sel { background: var(--color-primary); color: var(--color-bg); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
+.px-ws-row.sel .px-ws-name { color: var(--color-bg) !important; }
+.px-ws-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; min-height: 30px; text-align: left; }
+.px-ws-swatch { width: 10px; height: 10px; flex: none; background: var(--px-text-2); outline: 2px solid var(--px-line); }
+.px-ws-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.px-ws-count { font-family: var(--px-font); font-size: 11px; opacity: .8; }
+.px-ws-open { min-width: 24px; min-height: 26px; font-size: 16px; opacity: .75; }
+.px-ws-open:hover { opacity: 1; }
+.px-ws-row:focus-visible, .px-ws-pick:focus-visible, .px-ws-open:focus-visible { outline: 2px solid var(--color-primary); }
+.px-ws-empty { padding: 8px; font-size: 12.5px; color: var(--px-text-2); }
+.px-ws-main { min-width: 0; }
