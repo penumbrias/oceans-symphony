@@ -297,7 +297,7 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen, pix
           return (
             <div key={eff.id} className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{eff.label}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{eff.label}</p>
                 <button type="button" onClick={() => setPickingFor(open ? null : eff.id)}
                   className="text-xs text-primary hover:underline">{open ? "Done" : list.length ? "Change" : "Add feelings"}</button>
               </div>
