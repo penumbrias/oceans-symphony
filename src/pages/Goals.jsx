@@ -28,7 +28,7 @@ import { askGoalAddFocus } from "@/lib/goalStarters";
 import { useGoalCtx } from "@/lib/useGoalCtx";
 import { profilePageId } from "@/lib/profileBoard";
 import { WISHES_QUERY_KEY } from "@/lib/wishes";
-import { WorkspaceProvider } from "@/components/goals/workspace/WorkspaceContext";
+import { WorkspaceProvider, useWorkspace } from "@/components/goals/workspace/WorkspaceContext";
 import PageTree from "@/components/goals/workspace/PageTree";
 import BoardPageHeader from "@/components/profile/BoardPageHeader";
 import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
@@ -40,6 +40,13 @@ import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
 import ListSheet from "@/components/notes/ListSheet";
 import { NotesView } from "@/pages/Notes";
+import { useUiLook, usePixelDesk, UI_LOOKS } from "@/lib/uiLook";
+import { profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
+import { PAGE_BOARD_OWNER_TYPE } from "@/lib/profileBoard";
+import {
+  PixelPages, PixelOverview, PixelPhoneHome, PixelPageDesk, Panel, useAddPage,
+} from "@/components/goals/workspace/NotebookPixel";
+import "@/styles/pixel/notebook.css";
 
 const list = (entity, ...args) => () => base44.entities[entity].list(...args).catch(() => []);
 
@@ -84,12 +91,99 @@ function Home({ toCarry, onCarry, carrying }) {
   );
 }
 
+// The weekly-goals carry-over offer, as a pixel panel.
+function CarryOffer({ toCarry, onCarry, carrying }) {
+  const [hide, setHide] = useState(false);
+  if (hide) return null;
+  return (
+    <Panel title="Keep the weekly goals here?" bodyClass="pxn-pad pxn-col">
+      <p className="pxn-note">
+        {toCarry.length === 1 ? "1 weekly goal" : `${toCarry.length} weekly goals`} ({toCarry.map((s) => s.name).join(", ")})
+        {" "}can become goals that count up each week. The old weekly goals stay as they are.
+      </p>
+      <span className="pxn-row-gap">
+        <button type="button" className="pxn-btn on" onClick={onCarry} disabled={carrying}>Keep them as goals</button>
+        <button type="button" className="pxn-btn" onClick={() => setHide(true)}>Not now</button>
+      </span>
+    </Panel>
+  );
+}
+
+// The left "Pages" panel of the pixel desk.
+function PixelSideFrame({ currentId, onOpen }) {
+  const addPage = useAddPage(onOpen);
+  return (
+    <aside className="pxn-panel pxn-side">
+      <header className="pxn-ttl"><span className="pxn-ttl-name">Pages</span>
+        <button type="button" className="pxn-link" onClick={addPage}>+ new page</button></header>
+      <PixelPages currentId={currentId} onOpen={onOpen} />
+    </aside>
+  );
+}
+
+// The pixel Notebook front page: the overview (desk) or the phone board,
+// with the person's own Notebook board ("Edit page", "+ Add to this
+// page") in a panel underneath — Add a goal, the goal cards and anything
+// else they put there stay one tap away.
+function PixelHome({ range, setRange, carry, phone = false, onOpenTree = null }) {
+  const boardPage = useProfilePageState(NOTEBOOK_PAGES);
+  const { open } = useWorkspace();
+  const addPage = useAddPage(open);
+  const board = (
+    <Panel title="On this page" className="pxn-boardpanel"
+      action={<button type="button" className="pxn-link" onClick={openPageLayoutEditor}>{boardPage.layoutEditing ? "editing" : "edit page"}</button>}>
+      <PageBoardCanvas pageId="notebook" pages={NOTEBOOK_PAGES} page={boardPage} pageIcons={NOTEBOOK_ICONS} tourId="notebook-tabs" />
+    </Panel>
+  );
+  if (phone) {
+    return <PixelPhoneHome range={range} setRange={setRange} onOpenTree={onOpenTree} onAddPage={addPage} carry={carry} board={board} />;
+  }
+  return <PixelOverview range={range} setRange={setRange} onEditLayout={openPageLayoutEditor} carry={carry} board={board} />;
+}
+
 // A goal page: its header, then its widget board (v0.338.0). The board is
 // the standard four widgets until the first Edit page; Media, Text and the
 // rest can go beside them.
 const GOAL_PAGE_REGISTRY = { ...V2_WIDGETS, ...goalWidgetDefs({ onGoalPage: true }) };
+// Whether a board has its own saved layout (a ProfileBoard row): the
+// pixel desk shows the mockup's fixed panes until the person lays the page
+// out themselves, then their board.
+function useHasOwnBoard(boardId) {
+  const { data: rows = [] } = useQuery({
+    queryKey: profileBoardQueryKey(PAGE_BOARD_OWNER_TYPE, boardId),
+    queryFn: () => listProfileBoardRows(PAGE_BOARD_OWNER_TYPE, boardId),
+  });
+  return rows.length > 0;
+}
+
+// "Edit page" while the board isn't on screen: show it, then ask it into
+// edit mode once it has mounted (it listens for the editor event).
+function useEditWhenShown(layoutEditing) {
+  const [want, setWant] = useState(false);
+  const was = useRef(false);
+  useEffect(() => {
+    if (layoutEditing) { was.current = true; return undefined; }
+    if (was.current) { was.current = false; setWant(false); return undefined; }
+    if (!want) return undefined;
+    let tries = 0;
+    const t = setInterval(() => {
+      tries += 1;
+      openPageLayoutEditor();
+      if (tries > 20) { clearInterval(t); setWant(false); }
+    }, 150);
+    return () => clearInterval(t);
+  }, [want, layoutEditing]);
+  return { want, edit: () => setWant(true) };
+}
+
 function GoalPage({ page }) {
   const boardPage = useProfilePageState(GOAL_PAGE_PAGES);
+  const desk = usePixelDesk();
+  const own = useHasOwnBoard(goalBoardPageId(page.id));
+  const editShown = useEditWhenShown(boardPage.layoutEditing);
+  if (desk && !own && !boardPage.layoutEditing && !editShown.want) {
+    return <PageView page={page} onEditLayout={editShown.edit} layoutEditing={false} body={<PixelPageDesk page={page} />} />;
+  }
   return (
     <PageView page={page} onEditLayout={openPageLayoutEditor} layoutEditing={boardPage.layoutEditing}
       body={(
@@ -110,6 +204,9 @@ export default function Goals() {
   const madeFromWish = useRef(false);
   const [carrying, setCarrying] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  const desk = usePixelDesk();
+  const [range, setRange] = useState("week");
   // The sidebar's tag filter: tapping a #tag anywhere lists its pages there
   // (on a phone the pages sheet opens to show them).
   const [tag, setTag] = useState(null);
@@ -206,6 +303,36 @@ export default function Goals() {
   };
 
   const value = { goals, steps, index, ctx, alters, settings, refresh, open, isFetched, tag, showTag, openList, openNotes, notesOpen };
+  const carryCard = toCarry.length > 0 ? <CarryOffer toCarry={toCarry} onCarry={carry} carrying={carrying} /> : null;
+
+  if (pixel) {
+    const missing = pageId && !page && isFetched
+      ? <p className="pxn-empty">That page isn't here any more. It may be in the trash.</p> : null;
+    const main = page ? <GoalPage key={page.id} page={page} />
+      : notesOpen ? <NotesView onOpenNotebook={() => open(null)} />
+        : desk ? <>{missing}<PixelHome range={range} setRange={setRange} carry={carryCard} /></>
+          : <>{missing}<PixelHome phone range={range} setRange={setRange} carry={carryCard} onOpenTree={() => setTreeOpen(true)} /></>;
+    return (
+      <WorkspaceProvider value={value}>
+        <div className={`pxn-root${desk ? " desk" : " phone"}`} data-tour="goals-page">
+          {desk && <PixelSideFrame currentId={page?.id || null} onOpen={open} />}
+          <main className="pxn-mainwrap">
+            {!desk && (page || notesOpen) && (
+              <button type="button" className="pxn-link pxn-pagesbtn" onClick={() => setTreeOpen(true)} aria-label="All pages"><Menu className="w-4 h-4" /> Pages</button>
+            )}
+            {main}
+          </main>
+        </div>
+        <ListSheet listId={listId} onClose={() => openList(null)} />
+        <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
+          <SheetContent side="left" className="w-[85vw] max-w-xs overflow-y-auto pt-12">
+            <SheetTitle className="sr-only">Notebook pages</SheetTitle>
+            <PixelPages currentId={page?.id || null} onOpen={open} footer={false} />
+          </SheetContent>
+        </Sheet>
+      </WorkspaceProvider>
+    );
+  }
 
   return (
     <WorkspaceProvider value={value}>
