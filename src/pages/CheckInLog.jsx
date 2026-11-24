@@ -1390,16 +1390,9 @@ function PerAlterEntry({ entry, altersById }) {
   );
 }
 
-function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, onEdit, onEditDiary, onDeleteDiary, onAddNote, display = DEFAULT_DISPLAY }) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const dateObj = parseISO(date + "T12:00:00");
-
-  useEffect(() => {
-    if (highlightId && checkIns.some(ci => ci.id === highlightId)) {
-      setExpanded(true);
-    }
-  }, [highlightId, checkIns]);
-
+// Everything one day of the log shows, after the person's display toggles —
+// shared by the classic day card and the pixel log (one copy of the rules).
+function computeDay({ date, checkIns, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, display = DEFAULT_DISPLAY }) {
   const allEmotions = [...new Set(checkIns.flatMap(ci => ci.emotions || []))];
 
   // Use date-based filtering so quick-action symptoms (no check_in_id) are included
@@ -1483,6 +1476,81 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
     visibleStandaloneLocations.length +
     visibleStatusNotes.length +
     visiblePerAlter.length;
+  const entries = [
+            ...visibleCheckIns.map(ci => ({ kind: "checkin", data: ci, ts: new Date(ci.timestamp).getTime() })),
+            ...visibleStandaloneSymptoms.map(sc => ({ kind: "symptom", data: sc, ts: new Date(sc.timestamp).getTime() })),
+            ...visibleStandaloneActivities.map(act => ({ kind: "activity", data: act, ts: new Date(act.timestamp).getTime() })),
+            ...visibleStandaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
+            ...visibleStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
+            ...visiblePerAlter.map(e => ({ kind: "per-alter", data: e, ts: new Date(e.ts).getTime() })),
+            ...standaloneDiaryCards.map(dc => ({ kind: "diary", data: dc, ts: diaryTs(dc) })),
+  ].sort((a, b) => a.ts - b.ts);
+  return {
+    daySymptomCheckIns, dayActivities, dayLocations, dayDiaryCards, standaloneDiaryCards,
+    visibleCheckIns, visibleStatusNotes, visiblePerAlter, visibleDiaryCards,
+    summaryParts, totalVisibleEntries, matchDiaryCard, entries,
+  };
+}
+
+// One entry of a day, drawn the classic way (with its own ⋯ menu and
+// editors). The pixel log shows the same element in its side panel.
+function renderLogEntry(entry, i, { altersById, symptomsById, allSymptomCheckIns, dayActivities, dayLocations, matchDiaryCard, highlightId, onDelete, onEdit, onEditDiary, onDeleteDiary, display }) {
+  if (entry.kind === "diary") {
+    return <DiaryCardEntry key={`diary-${entry.data.id || i}`} card={entry.data} onEditDiary={onEditDiary} onDeleteDiary={onDeleteDiary} />;
+  }
+  if (entry.kind === "symptom") {
+    return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
+  }
+  if (entry.kind === "activity") {
+    return <ActivityEntry key={`act-${entry.data.id || i}`} act={entry.data} />;
+  }
+  if (entry.kind === "location") {
+    return <LocationEntry key={`loc-${entry.data.id || i}`} loc={entry.data} />;
+  }
+  if (entry.kind === "status") {
+    return <StatusNoteEntry key={`sn-${entry.data.id || i}`} sn={entry.data} alters={Object.values(altersById || {})} />;
+  }
+  if (entry.kind === "per-alter") {
+    return <PerAlterEntry key={entry.data.id} entry={entry.data} altersById={altersById} />;
+  }
+  const ci = entry.data;
+  const matchedDiaryCard = matchDiaryCard(ci);
+  return (
+    <CheckInCard
+      key={ci.id}
+      checkIn={ci}
+      altersById={altersById}
+      symptomsById={symptomsById}
+      symptomCheckIns={allSymptomCheckIns}
+      activities={dayActivities}
+      locations={dayLocations}
+      diaryCard={matchedDiaryCard || null}
+      highlighted={ci.id === highlightId}
+      onDelete={onDelete}
+      onEdit={onEdit}
+      onEditDiary={onEditDiary}
+      onDeleteDiary={onDeleteDiary}
+      display={display}
+    />
+  );
+}
+
+function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, onEdit, onEditDiary, onDeleteDiary, onAddNote, display = DEFAULT_DISPLAY }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const dateObj = parseISO(date + "T12:00:00");
+
+  useEffect(() => {
+    if (highlightId && checkIns.some(ci => ci.id === highlightId)) {
+      setExpanded(true);
+    }
+  }, [highlightId, checkIns]);
+
+  const {
+    daySymptomCheckIns, dayActivities, dayLocations,
+    visibleCheckIns, visibleStatusNotes, visiblePerAlter, visibleDiaryCards,
+    summaryParts, totalVisibleEntries, matchDiaryCard, entries: dayEntries,
+  } = computeDay({ date, checkIns, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, display });
+
   if (totalVisibleEntries === 0 && visibleDiaryCards.length === 0) return null;
 
   return (
@@ -1544,54 +1612,10 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
 
       {expanded && (
         <div className="border-t border-border/30 divide-y divide-border/20">
-          {[
-            ...visibleCheckIns.map(ci => ({ kind: "checkin", data: ci, ts: new Date(ci.timestamp).getTime() })),
-            ...visibleStandaloneSymptoms.map(sc => ({ kind: "symptom", data: sc, ts: new Date(sc.timestamp).getTime() })),
-            ...visibleStandaloneActivities.map(act => ({ kind: "activity", data: act, ts: new Date(act.timestamp).getTime() })),
-            ...visibleStandaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
-            ...visibleStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
-            ...visiblePerAlter.map(e => ({ kind: "per-alter", data: e, ts: new Date(e.ts).getTime() })),
-            ...standaloneDiaryCards.map(dc => ({ kind: "diary", data: dc, ts: diaryTs(dc) })),
-          ].sort((a, b) => a.ts - b.ts).map((entry, i) => {
-            if (entry.kind === "diary") {
-              return <DiaryCardEntry key={`diary-${entry.data.id || i}`} card={entry.data} onEditDiary={onEditDiary} onDeleteDiary={onDeleteDiary} />;
-            }
-            if (entry.kind === "symptom") {
-              return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
-            }
-            if (entry.kind === "activity") {
-              return <ActivityEntry key={`act-${entry.data.id || i}`} act={entry.data} />;
-            }
-            if (entry.kind === "location") {
-              return <LocationEntry key={`loc-${entry.data.id || i}`} loc={entry.data} />;
-            }
-            if (entry.kind === "status") {
-              return <StatusNoteEntry key={`sn-${entry.data.id || i}`} sn={entry.data} alters={Object.values(altersById || {})} />;
-            }
-            if (entry.kind === "per-alter") {
-              return <PerAlterEntry key={entry.data.id} entry={entry.data} altersById={altersById} />;
-            }
-            const ci = entry.data;
-            const matchedDiaryCard = matchDiaryCard(ci);
-            return (
-              <CheckInCard
-                key={ci.id}
-                checkIn={ci}
-                altersById={altersById}
-                symptomsById={symptomsById}
-                symptomCheckIns={allSymptomCheckIns}
-                activities={dayActivities}
-                locations={dayLocations}
-                diaryCard={matchedDiaryCard || null}
-                highlighted={ci.id === highlightId}
-                onDelete={onDelete}
-                onEdit={onEdit}
-                onEditDiary={onEditDiary}
-                onDeleteDiary={onDeleteDiary}
-                display={display}
-              />
-            );
-          })}
+          {dayEntries.map((entry, i) => renderLogEntry(entry, i, {
+            altersById, symptomsById, allSymptomCheckIns, dayActivities, dayLocations, matchDiaryCard,
+            highlightId, onDelete, onEdit, onEditDiary, onDeleteDiary, display,
+          }))}
         </div>
       )}
     </div>
