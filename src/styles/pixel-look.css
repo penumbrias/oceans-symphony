@@ -232,8 +232,9 @@ button.px-hitem:hover { background: var(--px-bar); }
 .px-doctab-x:hover { opacity: 1; }
 .px-doctab-new { padding: 5px 10px; min-height: 26px; }
 
-/* A page's own tabs, as subtabs fused to the open page's tab (computer).
-   The page's in-page strip hides while these show. */
+/* A page's own tabs, as subtabs beside the open page's tab. The page's
+   in-page strip hides while these show (the frame sets data-px-subtabs). */
+html[data-px-subtabs="1"] [data-px-chrome] .px-pages-sub { display: none !important; }
 .px-subtabs {
   display: flex; align-items: center; gap: 3px; flex-shrink: 0; align-self: stretch;
   margin: 2px 0 0 0; padding: 0 6px;
@@ -246,12 +247,12 @@ button.px-hitem:hover { background: var(--px-bar); }
   background: var(--px-sunk); box-shadow: var(--px-sunken);
 }
 .px-subtab:hover { color: var(--px-text); }
+@media (pointer: coarse) { .px-subtab { min-height: 26px; padding: 2px 12px; } }
 .px-subtab.sel { color: var(--color-bg); background: var(--color-primary); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
 .px-subtab:focus-visible { outline: 2px solid var(--color-primary); }
 @media (min-width: 1024px) {
   /* The frame already spaces the page from the tabs: a slim top gap, not 32px. */
   [data-px-chrome] #main-content { padding-top: 10px; }
-  html[data-px-subtabs="1"] [data-px-chrome] .px-pages-sub { display: none !important; }
 }
 
 /* The phone's bottom bar, in the frame's style. */
