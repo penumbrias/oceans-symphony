@@ -71,6 +71,9 @@ const EmergencyPage = lazy(() => import('@/pages/Emergency'));
 const ActivitiesPage = lazy(() => import('@/pages/Activities'));
 const ModsPage = lazy(() => import('@/pages/Mods'));
 const ModPage = lazy(() => import('@/pages/ModPage'));
+// The new house's step 1.1 sample (docs/house/building-code.md): unlinked,
+// lazy, reached only by typing /house/kit. It reads the look, writes nothing.
+const HouseKitSample = lazy(() => import('@/house/sample/KitSample'));
 
 
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
@@ -347,6 +350,8 @@ const AuthenticatedApp = () => {
             outside link shows, here inside the frame instead of a dead end. */}
         <Route path="/privacy" element={<Privacy />} />
       </Route>
+      {/* New house, step 1.1: its own root, outside the old frame. Unlinked. */}
+      <Route path="/house/kit" element={<HouseKitSample />} />
       <Route path="*" element={<PageNotFound />} />
       </Routes>
       </Suspense>
