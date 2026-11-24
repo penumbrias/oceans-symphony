@@ -5,6 +5,7 @@ import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useTerms } from "@/lib/useTerms";
 import { buildNavGroups } from "@/lib/navCatalogue";
@@ -93,11 +94,10 @@ export default function QuickJumpSettings() {
   }, [t.Alters, t.System, jump.path, jump.label]);
 
   const saveJump = async (patch) => {
-    const next = { ...jump, ...patch };
     try {
-      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { quick_jump: next });
-      else await base44.entities.SystemSettings.create({ quick_jump: next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings((fresh) => ({
+        quick_jump: { ...readQuickJump(fresh), ...patch },
+      }), { create: true, queryClient: qc });
     } catch (e) {
       toast.error(e?.message || "Couldn't save");
     }

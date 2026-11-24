@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tag, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { ALTER_LABEL_MODES, DEFAULT_ALTER_LABEL_MODE, isAlterLabelMode } from "@/lib/alterLabel";
@@ -47,12 +48,7 @@ export default function AlterLabelSettings({ embedded = false } = {}) {
     if (mode === current || saving) return;
     setSaving(true);
     try {
-      if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, { alter_label_mode: mode });
-      } else {
-        await base44.entities.SystemSettings.create({ alter_label_mode: mode });
-      }
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ alter_label_mode: mode }, { create: true, queryClient: qc });
     } finally {
       setSaving(false);
     }
