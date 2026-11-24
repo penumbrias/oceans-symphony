@@ -18,7 +18,6 @@
 
 import BulletinComposerModal from "@/components/bulletin/BulletinComposerModal";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { clockOpts } from "@/lib/timeFormat";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -42,7 +41,6 @@ import useLongPress from "@/hooks/useLongPress";
 import { V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
 import { isDesktop } from "@/lib/platform";
-import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT } from "@/lib/i18n";
 import { ALL_PAGES, DEFAULT_CONFIG, normalizeNavConfig, pageLabel } from "@/utils/navigationConfig";
@@ -65,7 +63,7 @@ import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/
 import { IconSlot } from "@/components/shared/LucideByName";
 import { readPinnedBar, pinnedBarPatch, openBarsEditor } from "@/lib/barsModel";
 import { saveStatusNote } from "@/lib/checkinEntry";
-import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
+import { useFrontPresence, useClock } from "@/lib/useFrontPresence";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -154,14 +152,6 @@ export function requestClassicHomeAction(navigate, pathname) {
   }
 }
 
-function useClock() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(id);
-  }, []);
-  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
-}
 
 // ── Display options ────────────────────────────────────────────────
 export const DOCK_KEY = "symphony_display_options_dock";
@@ -366,7 +356,6 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
   const location = useLocation();
   const t = useT();
   const terms = useTerms();
-  const formatAlter = useAlterLabel();
   const clock = useClock();
   const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
   // Upper-left button. Its default icon is the app logo, so people read it
@@ -387,25 +376,8 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { data: activeSessions = [] } = useQuery({
-    queryKey: ["activeFront"],
-    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
-  });
-  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: mentionLogs = [] } = useQuery(mentionLogsQuery);
-
-  const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
-  const fronters = activeSessions
-    .map((s) => ({ s, alter: altersById[s.alter_id || s.primary_alter_id] }))
-    .filter((x) => x.alter)
-    .sort((a, b) => (b.s.is_primary === true) - (a.s.is_primary === true));
-  const presenceText = fronters.length === 0
-    ? applyTerms(t("top.noFronter"), terms)
-    : fronters.length === 1
-      ? formatAlter(fronters[0].alter)
-      : `${formatAlter(fronters[0].alter)} +${fronters.length - 1}`;
-  // Unread for whoever is here now — the same rule as every other bell.
-  const hasUnread = pendingMentionsFor(mentionLogs, activeSessions.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean)).length > 0;
+  // Who's in front and the bell's dot: one copy, shared with the pixel header.
+  const { fronters, presenceText, hasUnread } = useFrontPresence();
 
   const openOptions = () => window.dispatchEvent(new CustomEvent("os-open-display-options"));
 

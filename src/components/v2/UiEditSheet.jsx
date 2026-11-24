@@ -609,6 +609,10 @@ function BarsTab({ v2, alignX }) {
   const topIds = Array.isArray(navConfig.topBar) ? navConfig.topBar : DEFAULT_CONFIG.topBar;
   const writeClassicTopBar = (next) => writeSettings({ navigation_config: { ...navConfig, topBar: next } });
   const classicTopBarShown = !v2ChromeNow && !isNative();
+  // Pixel look on: its header is always shown and draws the top bar's
+  // items in its own frame, so only the items list and the wave colour
+  // apply there (Penumbra: no rows that only change the other look).
+  const pixelTop = usePixelLook().on && !v2ChromeNow;
 
   // One page-list editor for both: icon (bottom tabs only) · name · ↑ ↓ · ×,
   // then "Add a tab…" while there is room.
@@ -744,12 +748,14 @@ function BarsTab({ v2, alignX }) {
 
       {/* ── Top bar ── */}
       {shownBar === "top" && (<div data-bar-section="top">
-        {!v2Chrome && <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="top" /></BarPart>}
-        <BarPart label={tr("editSheet.partSize")}>
-          {tokenRow("statusH", "editSheet.barHeight")}
-        </BarPart>
-        <BarPart label={tr("editSheet.partLook")}>
-          <BarLookRows v2={v2} barId="top" alignX={alignX} />
+        {!v2Chrome && !pixelTop && <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="top" /></BarPart>}
+        {!pixelTop && (
+          <BarPart label={tr("editSheet.partSize")}>
+            {tokenRow("statusH", "editSheet.barHeight")}
+          </BarPart>
+        )}
+        <BarPart label={tr("editSheet.partLook")} first={pixelTop}>
+          {!pixelTop && <BarLookRows v2={v2} barId="top" alignX={alignX} />}
           {v2Chrome && <BarShowSwitch barId="wave" label={tr("editSheet.wave")} />}
           {/* The classic header has the wave too ("Off" = the Background
               key); it was only ever reachable from Settings → Appearance. */}
@@ -783,9 +789,9 @@ function BarsTab({ v2, alignX }) {
             </StackedRow>
           )}
         </BarPart>
-        {(v2Chrome || classicTopBarShown) && (
+        {(v2Chrome || pixelTop || classicTopBarShown) && (
           <BarPart label={tr("editSheet.partContent")}>
-            {v2Chrome ? (
+            {v2Chrome || pixelTop ? (
               <>
                 {topBar.order.map((id, idx) => {
                   const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
@@ -800,6 +806,7 @@ function BarsTab({ v2, alignX }) {
                   );
                 })}
                 {/* The apps button: what it opens and the picture on it. */}
+                {!pixelTop && (<>
                 <ChoiceRow label={tr("options.appsView")} value={v2.uiV2.appsView || "grid"}
                   onChange={(val) => v2.write({ appsView: val })}
                   options={[{ value: "grid", label: tr("options.appsViewGrid") }, { value: "sidebar", label: tr("options.appsViewSidebar") }]} />
@@ -811,6 +818,7 @@ function BarsTab({ v2, alignX }) {
                   </span>
                   <AssetButton onPick={(url) => v2.write({ appsIcon: url || "" })} title={tr("options.appsIconPick")} allowFolders />
                 </Row>
+                </>)}
               </>
             ) : (
               // The classic top navigation bar: its pages (web only).

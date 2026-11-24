@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SystemAvatar from "@/components/shared/SystemAvatar";
-import { adjustForContrast, getSurfaceBackground } from "@/lib/contrast";
+import { alterNameColorVar } from "@/lib/useFrontPresence";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
@@ -22,13 +22,7 @@ function getContrastColor(hex) {
 // The alter's own colour for their name, nudged only as far as it needs to
 // be readable on a card. The pixel look shows names in it (os-alter-name in
 // pixel-look.css); the smooth look keeps the usual text colour.
-function nameColorVar(alter) {
-  const c = typeof alter?.color === "string" ? alter.color.trim() : "";
-  if (!/^#[0-9a-f]{6}$/i.test(c)) return undefined;
-  let v = c;
-  try { v = adjustForContrast(c, getSurfaceBackground(), { minRatio: 4.5 }); } catch { /* keep their colour */ }
-  return { "--alter-name": v };
-}
+const nameColorVar = alterNameColorVar;
 
 function AlterAvatar({ alter, size = "md" }) {
   const sz = size === "sm" ? "w-5 h-5" : "w-7 h-7";

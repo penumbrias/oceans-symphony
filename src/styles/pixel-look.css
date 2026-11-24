@@ -169,10 +169,30 @@ html[data-ui-look="pixel"][data-px-type="plain"] { --px-font: var(--font-sans); 
 .px-logo { width: 28px; height: 28px; object-fit: contain; outline: 2px solid var(--px-line); image-rendering: pixelated; }
 .px-appname { font-weight: 600; font-size: 17px; white-space: nowrap; }
 .px-brandbtn { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
-.px-phone-title { flex: 1; min-width: 0; font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 6px; }
+.px-phone-title { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding-left: 6px; line-height: 1.15; }
+.px-phone-title-text { font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.px-phone-front { font-size: 12px; color: var(--px-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The header's own items (Bars → Top bar). */
+.px-hitem { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 8px; font-size: 13px; color: var(--px-text); white-space: nowrap; background: transparent; }
+button.px-hitem:hover { background: var(--px-bar); }
+.px-hitem-muted { color: var(--px-text-2); }
+.px-hitem { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+.px-sysname { font-weight: 600; max-width: 200px; display: block; line-height: 32px; text-overflow: ellipsis; }
+.px-front { max-width: 320px; }
+.px-front { gap: 10px; }
+.px-front-one { min-width: 0; }
+.px-front-name { min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.px-search, .px-iconbtn, .px-clock { flex: none; }
+/* Narrow computer screens: the menus come first; the name and who's
+   fronting give way (still in the switcher and on the home screen). */
+@media (max-width: 1365px) { .px-chrome-desktop .px-sysname { max-width: 120px; } .px-chrome-desktop .px-front { max-width: 180px; } }
+@media (max-width: 1199px) { .px-chrome-desktop .px-sysname, .px-chrome-desktop .px-clock { display: none; } }
+.px-front-one { display: inline-flex; align-items: center; gap: 5px; }
+.px-front-swatch { width: 10px; height: 10px; flex: none; box-shadow: 0 0 0 1px var(--px-line); }
+.px-clock { color: var(--px-text-2); font-variant-numeric: tabular-nums; }
 
-.px-areas { display: flex; align-items: center; gap: 2px; font-size: 14px; }
-.px-area { padding: 4px 8px; color: var(--px-text); min-height: 30px; }
+.px-areas { display: flex; align-items: center; gap: 2px; font-size: 14px; flex: none; }
+.px-area { padding: 4px 8px; color: var(--px-text); min-height: 30px; white-space: nowrap; }
 .px-area:hover { background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
 .px-area.sel { background: var(--px-panel); outline: 2px solid var(--px-line); }
 .px-area:focus-visible, .px-doctab button:focus-visible, .px-menu-item:focus-visible, .px-search:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 0; }

@@ -17,7 +17,13 @@
 // They hold only paths, never anything a person wrote.
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { resolveUiV2 } from "@/lib/uiV2";
+import { useFrontPresence, useClock, alterNameColorVar } from "@/lib/useFrontPresence";
+import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
+import { ActiveNowChip } from "@/components/v2/ActiveNow";
 import { Bell, ChevronLeft, X, Plus, HelpCircle, Search } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { navAreaGroups, pageLabel, ALL_PAGES } from "@/utils/navigationConfig";
@@ -292,6 +298,67 @@ function PixelSearch({ phone = false }) {
   );
 }
 
+// The header's own items — the SAME arrangeable list as the new UI's top
+// bar (ui_v2.topBar, Display options → Bars → Top bar), so the old
+// headers' system name, who's fronting and clock come with the pixel look
+// and nothing gets a second editor. Hidden items are skipped; "spacer"
+// is where the row splits left and right.
+function useTopBarItems() {
+  const { data: list = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const row = pickPrimarySystemSettings(list);
+  const topBar = resolveUiV2(row?.ui_v2).topBar;
+  return { row, items: topBar.order.filter((id) => !topBar.hidden.includes(id)) };
+}
+
+function FrontingNames({ max = 3 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const terms = useTerms();
+  const { fronters, presenceText, formatAlter } = useFrontPresence();
+  const openFront = () => {
+    if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-set-front"));
+    else navigate("/?action=set-front");
+  };
+  const shown = fronters.slice(0, max);
+  return (
+    <button type="button" className="px-hitem px-front" onClick={openFront}
+      aria-label={`${presenceText}. Set ${terms.front}`} title={`Who's ${terms.fronting}: set ${terms.front}`}>
+      {shown.length === 0 && <span className="px-hitem-muted">{presenceText}</span>}
+      {/* Each name follows its own colour swatch, so no commas are needed. */}
+      {shown.map(({ s, alter }) => (
+        <span key={s.id} className="px-front-one">
+          <span className="px-front-swatch" style={{ background: /^#[0-9a-f]{6}$/i.test(alter.color || "") ? alter.color : "var(--color-muted)" }} aria-hidden="true" />
+          <span className="os-alter-name px-front-name" style={alterNameColorVar(alter)}>{formatAlter(alter)}</span>
+        </span>
+      ))}
+      {fronters.length > max && <span className="px-hitem-muted">+{fronters.length - max}</span>}
+    </button>
+  );
+}
+
+function HeaderItems({ items, row, search, bell }) {
+  const terms = useTerms();
+  const clock = useClock();
+  return items.map((id) => {
+    if (id === "spacer") return <span key={id} className="flex-1 min-w-2" />;
+    if (id === "name") return (
+      <button key={id} type="button" className="px-hitem px-sysname" onClick={() => openSystemSwitcher()} data-tour="px-header-items"
+        title={`Switch or manage ${terms.systems || "systems"}`}>
+        {row?.system_name || terms.System}
+      </button>
+    );
+    if (id === "presence") return <FrontingNames key={id} />;
+    if (id === "clock") return <span key={id} className="px-hitem px-clock tabular-nums">{clock}</span>;
+    if (id === "active") return <span key={id} className="px-hitem"><ActiveNowChip /></span>;
+    if (id === "search") return <React.Fragment key={id}>{search}</React.Fragment>;
+    if (id === "bell") return <React.Fragment key={id}>{bell}</React.Fragment>;
+    return null;
+  });
+}
+
 // Both headers are mounted (CSS shows one), so the parts that keep state or
 // listen for events — page tabs, search's Ctrl+K, the help panel — run only
 // in the one on screen. Otherwise "open in a new tab" would open two.
@@ -317,6 +384,7 @@ export function PixelDesktopHeader(props) {
 
 function DesktopHeader({ pendingCount = 0, todoAlertCount = 0, onHome, onAppGrid }) {
   const help = usePixelHelp();
+  const top = useTopBarItems();
   const extraMore = (
     <>
       <div className="px-menu-sep" />
@@ -339,16 +407,19 @@ function DesktopHeader({ pendingCount = 0, todoAlertCount = 0, onHome, onAppGrid
         <div className="px-headrow">
           <Link to="/" onClick={onHome} className="px-brand" aria-label="Oceans Symphony home">
             <img src="/logo.png" alt="" className="px-logo" />
-            <span className="px-appname">Oceans Symphony</span>
+            {/* The system name item names the header when it's shown. */}
+            {!top.items.includes("name") && <span className="px-appname">Oceans Symphony</span>}
           </Link>
           <AreaMenus extraMore={extraMore} pendingCount={pendingCount} todoAlertCount={todoAlertCount} />
-          <span className="flex-1" />
-          <PixelSearch />
-          <Link to="/reminders" className="px-iconbtn relative" aria-label="Reminders" title="Reminders">
-            <Bell className="w-4 h-4" />
-            {pendingCount > 0 && <span className="px-badge px-badge-corner">{pendingCount > 9 ? "9+" : pendingCount}</span>}
-          </Link>
-          <HeaderPageMenu className="px-iconbtn" />
+          <HeaderItems items={top.items} row={top.row}
+            search={<PixelSearch />}
+            bell={(
+              <Link to="/reminders" className="px-iconbtn relative" aria-label="Reminders" title="Reminders">
+                <Bell className="w-4 h-4" />
+                {pendingCount > 0 && <span className="px-badge px-badge-corner">{pendingCount > 9 ? "9+" : pendingCount}</span>}
+              </Link>
+            )} />
+          <HeaderPageMenu className="px-iconbtn ml-auto" />
         </div>
       </div>
       <PixelPageTabs help={help} />
@@ -361,6 +432,21 @@ export function PixelPhoneHeader(props) {
   return useDesk() ? null : <PhoneHeader {...props} />;
 }
 
+function PhonePresence() {
+  const { fronters, presenceText, formatAlter } = useFrontPresence();
+  return (
+    <span className="px-phone-front">
+      {fronters.length === 0 ? presenceText : fronters.slice(0, 3).map(({ s, alter }, i, arr) => (
+        <span key={s.id}>
+          <span className="os-alter-name" style={alterNameColorVar(alter)}>{formatAlter(alter)}</span>
+          {i < arr.length - 1 ? ", " : ""}
+        </span>
+      ))}
+      {fronters.length > 3 && ` +${fronters.length - 3}`}
+    </span>
+  );
+}
+
 // The phone gets the computer's parts in a phone shape: search behind an
 // icon, the page tabs under the header, and "How this page works" as a
 // sheet behind the ? (a dot on it when this page has tips you haven't
@@ -369,7 +455,10 @@ function PhoneHeader({ pendingCount = 0, canGoBack, onBack, onOpenMenu }) {
   const location = useLocation();
   const label = usePathLabel();
   const help = usePixelHelp({ auto: false });
-  const title = location.pathname === "/" ? "Oceans Symphony" : label(location.pathname);
+  const top = useTopBarItems();
+  const title = location.pathname === "/"
+    ? (top.items.includes("name") && top.row?.system_name) || "Oceans Symphony"
+    : label(location.pathname);
   return (
     <header className="px-chrome px-chrome-phone sticky top-0 z-50 lg:hidden">
       <div className="px-headbar px-headbar-phone">
@@ -384,8 +473,12 @@ function PhoneHeader({ pendingCount = 0, canGoBack, onBack, onOpenMenu }) {
               <img src="/logo.png" alt="" className="px-logo" />
             </button>
           )}
-          <span className="px-phone-title">{title}</span>
-          <PixelSearch phone />
+          <span className="px-phone-title">
+            <span className="px-phone-title-text">{title}</span>
+            {/* Who's fronting fits under the title (Bars → Top bar). */}
+            {top.items.includes("presence") && <PhonePresence />}
+          </span>
+          {top.items.includes("search") && <PixelSearch phone />}
           <button
             type="button"
             className={help.open ? "px-iconbtn px-iconbtn-lg relative sel" : "px-iconbtn px-iconbtn-lg relative"}

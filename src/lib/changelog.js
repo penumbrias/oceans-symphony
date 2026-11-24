@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: the header can show your system name, who's fronting, the time and what's running, arranged in Display options → Bars → Top bar." },
       { type: "improve", text: "Pixel look: change its corners, edge depth, lettering, outline, title bars and page floor in Display options." },
       { type: "feature", text: "Widgets: round each corner on its own, and set the space between items inside a widget." },
       { type: "fix", text: "Pixel look: a widget's own corners and text colour now show instead of being squared and recoloured." },

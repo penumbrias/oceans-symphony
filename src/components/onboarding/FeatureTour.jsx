@@ -292,6 +292,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/", target: "px-search",
     }),
     s("dashboard", {
+      emoji: "🧭", title: "Your header", pixelDeskOnly: true,
+      body: `The header can show your ${t.system}'s name, who's ${t.fronting}, the time and what's running now. Pick and order them in Display options → Bars → Top bar.`,
+      route: "/", target: ["px-header-items", "px-area-menus"],
+    }),
+    s("dashboard", {
       emoji: "❔", title: "How this page works", pixelDeskOnly: true,
       body: `How this page works opens a panel on the right with this page's tips and Show me around. It opens by itself on pages you haven't seen yet.`,
       route: "/", target: "px-help-toggle",
