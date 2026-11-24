@@ -1611,7 +1611,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("bulletin", {
       emoji: "📌", title: "The whole board",
-      body: `This page is the full bulletin board. New post writes one; pick which board it goes to inside the popup.`,
+      body: `This page is the full bulletin board. New post writes one and picks its board. In the Pixel look, pick a board on the left and write in the box at the top.`,
       route: "/bulletins", target: ["bulletins-new-post", "bulletins-page"],
     }),
     s("unblend", {
