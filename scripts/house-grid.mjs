@@ -104,18 +104,35 @@ async function goStory(page) {
   await sleep(1200);
 }
 
+// The look, switched the way a person does it (Display options → Shape →
+// App look), on the EXAMPLE system's settings: same steps as house-walk.mjs.
+async function setLook(page, look) {
+  const current = async () => page.evaluate(() => document.documentElement.getAttribute('data-ui-look') || 'smooth');
+  if ((await current()) === look) return true;
+  await page.evaluate(() => { history.pushState({}, '', '/settings'); dispatchEvent(new PopStateEvent('popstate')); });
+  await sleep(1500);
+  if (!(await clickIf(page, 'text=Display options', 5000))) return false;
+  await clickIf(page, '[role="tab"]:has-text("Shape")', 3000);
+  const label = look === 'pixel' ? 'Pixel' : 'Smooth';
+  await clickIf(page, `button:text-is("${label}"), [role="radio"]:has-text("${label}")`, 3000);
+  await page.waitForFunction((l) => (document.documentElement.getAttribute('data-ui-look') || 'smooth') === l, look, { timeout: 5000 }).catch(() => {});
+  await page.keyboard.press('Escape').catch(() => {});
+  await sleep(600);
+  await page.keyboard.press('Escape').catch(() => {});
+  return (await current()) === look;
+}
+
 // The paint and text size, set the way the old house's appliers set them
 // (classes on <html> and the device's theme mode); the house's token hook
 // watches <html> and re-reads.
 async function setPaint(page, { paint, text, look }) {
-  await page.evaluate(({ paint, textClass, look, wallpaper }) => {
+  await page.evaluate(({ paint, textClass, wallpaper }) => {
     const html = document.documentElement;
     try { localStorage.setItem('symphony_themeMode', paint === 'light' ? 'light' : 'dark'); } catch { /* */ }
     html.classList.toggle('dark', paint !== 'light');
     html.classList.toggle('a11y-high-contrast', paint === 'hc');
     for (const c of [...html.classList]) if (/^a11y-text-/.test(c)) html.classList.remove(c);
     if (textClass) html.classList.add(textClass);
-    html.setAttribute('data-ui-look', look);
     let st = document.getElementById('house-grid-wallpaper');
     if (!st) { st = document.createElement('style'); st.id = 'house-grid-wallpaper'; document.head.appendChild(st); }
     // The sheet scrolls inside its root; for a whole-page picture the root
@@ -123,7 +140,7 @@ async function setPaint(page, { paint, text, look }) {
     st.textContent = `[data-house].kit-root { height: auto; min-height: 100vh; overflow: visible; background-image: ${wallpaper}; background-size: 600px 600px; background-attachment: local; }
       html, body { height: auto; overflow: visible; }`;
     window.dispatchEvent(new StorageEvent('storage'));
-  }, { paint, textClass: TEXT_CLASS[text] ?? null, look, wallpaper: WALLPAPER });
+  }, { paint, textClass: TEXT_CLASS[text] ?? null, wallpaper: WALLPAPER });
   await sleep(700);
 }
 
@@ -233,6 +250,12 @@ try {
   await cdp.send('CSS.enable');
 
   for (const look of LOOKS) {
+    // Reset paint first so the settings page is reachable at 100% text.
+    await setPaint(page, { paint: 'dark', text: 100, look });
+    if (!(await setLook(page, look))) throw new Error(`Couldn't switch to the ${look} look through Display options.`);
+    await goStory(page);
+    const shownLook = await page.evaluate(() => document.querySelector('[data-house]')?.getAttribute('data-house-look'));
+    if (shownLook !== look) throw new Error(`The sheet shows the ${shownLook} look, not ${look}.`);
     for (const paint of PAINTS) {
       for (const text of TEXTS) {
         const shots = [];

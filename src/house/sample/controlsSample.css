@@ -6,3 +6,5 @@
 [data-house] .ks-cell-name { overflow-wrap: anywhere; }
 [data-house] .ks-rank { display: flex; flex-direction: column; gap: var(--house-space-2); }
 [data-house] .ks-rank-title { margin: var(--house-space-3) 0 0; }
+/* The page title sits on a panel: a wallpaper is only ever behind panels. */
+[data-house] .ks-head { background: var(--house-panel); border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner); padding: var(--house-space-4); }

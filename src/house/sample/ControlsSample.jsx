@@ -305,7 +305,7 @@ function Body() {
   const t = useTerms();
   return (
     <main className="kit-main">
-      <header className="kit-header">
+      <header className="kit-header ks-head">
         <h1 className="house-label house-text-xl">Controls and pickers</h1>
         <p className="house-text-sm house-muted">Every control of the new house in every state, in your colours. A preview: nothing here is saved.</p>
         <Link to="/house/kit" className="house-text-sm kit-link">Tokens and scales</Link>

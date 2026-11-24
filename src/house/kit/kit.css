@@ -34,7 +34,7 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
   transition: box-shadow var(--house-dur-fast) var(--house-ease-out), transform var(--house-dur-fast) var(--house-ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-[data-house][data-house-look="pixel"] .hk-btn { border-color: var(--house-outline); }
+[data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet) { border-color: var(--house-outline); }
 [data-house] .hk-btn--primary { background: var(--house-accent); color: var(--house-on-accent); border-color: var(--house-accent); }
 [data-house] .hk-btn--danger { background: var(--house-danger); color: var(--house-on-danger); border-color: var(--house-danger); }
 [data-house][data-house-look="pixel"] .hk-btn--primary,
@@ -43,7 +43,7 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 [data-house] .hk-btn--block { width: 100%; }
 /* Hover: an inner ring in the button's own text colour (a shape, not a tint). */
 @media (hover: hover) {
-  [data-house] .hk-btn:hover:not([aria-disabled="true"]) { box-shadow: var(--house-raise), inset 0 0 0 2px currentColor; }
+  [data-house] .hk-btn:hover:not([aria-disabled="true"]) { box-shadow: inset 0 0 0 3px currentColor, var(--house-raise); }
   [data-house] .hk-btn--quiet:hover:not([aria-disabled="true"]) { box-shadow: none; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.2em; }
 }
 /* Pressed: moves down 1 px and sinks. */
