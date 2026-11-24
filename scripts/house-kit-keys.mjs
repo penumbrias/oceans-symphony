@@ -203,6 +203,9 @@ try {
       await sleep(500);
       const still = await page.evaluate(() => [...document.querySelectorAll('.hk-sheet')].some((s) => !s.dataset.inline));
       check('half sheet: a press outside does not close it (decided no)', still);
+      // Focus is on the page now (a non-modal sheet doesn't hold it): close with its own button.
+      await page.locator('.hk-sheet:not([data-inline]) .hk-sheet-head button[aria-label^="Close"]').first().click().catch(() => {});
+      await sleep(400);
     }
     await page.keyboard.press('Escape');
     await sleep(600);
