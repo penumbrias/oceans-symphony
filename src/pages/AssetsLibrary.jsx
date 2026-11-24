@@ -43,6 +43,8 @@ import {
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { an } from "@/lib/articles";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import AssetsPixelDesk from "@/components/assets/AssetsPixelDesk";
 const ORDER_KEY = "asset_folder_order_v1";     // user-created folder order (incl. empty)
 const PAGE = 24; // lazy-load page size per folder
 
@@ -335,6 +337,7 @@ export default function AssetsLibrary() {
   const [moveOpen, setMoveOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [preview, setPreview] = useState(null); // song / video / file opened from its tile
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   // Folders ticked in select mode (on the folder grid), to delete.
   const [selectedFolders, setSelectedFolders] = useState(() => new Set());
   const [folderDeleteOpen, setFolderDeleteOpen] = useState(false);
@@ -932,6 +935,134 @@ export default function AssetsLibrary() {
     </>
   );
 
+  // The auto-organisation rules (the sliders button / the desk's footer).
+  const orgBody = (
+    <>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Auto-organisation</p>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={rules.perAlter} onChange={(e) => saveRules({ perAlter: e.target.checked })} className="w-4 h-4 rounded" />
+              File {an(t.alter)}'s own images under its 👤 folder
+            </label>
+            {rules.perAlter && (
+              <label className="flex items-center gap-2 text-sm cursor-pointer pl-6">
+                <input type="checkbox" checked={rules.alterRoleSplit} onChange={(e) => saveRules({ alterRoleSplit: e.target.checked })} className="w-4 h-4 rounded" />
+                Split those by kind (· Avatars / · Banners / · Backgrounds)
+              </label>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+              {Object.keys(DEFAULT_PREFIX_FOLDERS).filter((k) => k !== "fixed" && k !== "file" && k !== "chatfile").map((k) => (
+                <label key={k} className="flex items-center gap-2 text-xs">
+                  <span className="w-36 flex-shrink-0 text-muted-foreground truncate" title={PREFIX_LABELS[k] || k}>{PREFIX_LABELS[k] || k}</span>
+                  <Input value={rules.folders[k] ?? ""} placeholder="Other"
+                    onChange={(e) => saveRules({ folders: { [k]: e.target.value } })}
+                    className="h-7 text-xs flex-1" />
+                </label>
+              ))}
+            </div>
+            <button type="button" onClick={() => saveRules({ folders: { ...DEFAULT_PREFIX_FOLDERS }, perAlter: true, alterRoleSplit: false })}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Reset to defaults</button>
+    </>
+  );
+
+  // Select-mode bar and the dialogs — shared by the classic page and the
+  // pixel desk.
+  const overlays = (
+    <>
+      {/* Bulk action bar */}
+      {selecting && (
+        <div className="fixed left-0 right-0 z-40 px-3" style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px) + 8px)" }}>
+          <div className="max-w-3xl mx-auto rounded-2xl border border-border bg-card shadow-2xl p-2 flex items-center gap-1.5">
+            {!inFolder && !searching ? (
+              <span className="text-xs font-medium px-1.5 flex-shrink-0 min-w-0 truncate">
+                {selectedFolders.size ? `${selectedFolders.size} folder${selectedFolders.size === 1 ? "" : "s"} selected` : "Tap your own folders to delete them, or open one"}
+              </span>
+            ) : (
+              <span className="text-xs font-medium px-1.5 flex-shrink-0">{selectedKeys.size} selected</span>
+            )}
+            {(inFolder || searching) && selectableInView.length > 0 && (
+              <button type="button" onClick={() => setSelectedKeys(allSelected ? new Set() : new Set(selectableInView.map((i) => i.key)))}
+                className="text-xs px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 flex-shrink-0">
+                {allSelected ? "None" : "All"}
+              </button>
+            )}
+            <span className="flex-1" />
+            {!inFolder && !searching ? (
+              <button type="button" disabled={!selectedFolders.size || bulkBusy} onClick={() => setFolderDeleteOpen(true)}
+                className="h-8 px-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 text-xs flex items-center gap-1 disabled:opacity-40 flex-shrink-0">
+                {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
+              </button>
+            ) : (
+              <>
+                <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={() => setMoveOpen(true)}
+                  className="h-8 px-2.5 rounded-lg border border-border text-xs flex items-center gap-1 disabled:opacity-40">
+                  <FolderInput className="w-3.5 h-3.5" /> Move
+                </button>
+                <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={bulkDelete}
+                  className="h-8 px-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 text-xs flex items-center gap-1 disabled:opacity-40">
+                  {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
+                </button>
+              </>
+            )}
+            <button type="button" onClick={stopSelecting} aria-label="Stop selecting" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
+      {(moveOpen || moveItems) && (
+        <MoveDialog count={moveItems ? moveItems.length : selectedKeys.size} folders={userFolderNames}
+          onCancel={() => { setMoveOpen(false); setMoveItems(null); }} onMove={runMove} />
+      )}
+      {preview && <PreviewDialog item={preview} onClose={() => setPreview(null)} onSave={saveItem} />}
+      {folderDeleteOpen && (
+        <FolderDeleteDialog
+          folders={[...selectedFolders].filter(isUser).map((name) => ({ name, count: folderFiles(name).length }))}
+          onCancel={() => setFolderDeleteOpen(false)}
+          onKeepFiles={() => deleteSelectedFolders("keep")}
+          onDeleteAll={() => deleteSelectedFolders("all")}
+        />
+      )}
+
+      {ownershipDialog && (
+        <FolderOwnershipDialog
+          folderName={ownershipDialog}
+          alters={alters.filter((a) => !a.is_archived)}
+          initialOwnerIds={(assetFolderByName[ownershipDialog]?.owner_alter_ids) || []}
+          onCancel={() => setOwnershipDialog(null)}
+          onSave={async (ids) => { await saveOwners(ownershipDialog, ids); setOwnershipDialog(null); }}
+        />
+      )}
+    </>
+  );
+
+  if (pixel) {
+    return (
+      <AssetsPixelDesk
+        items={items} filtered={filtered} byFolder={byFolder} orderedFolders={orderedFolders}
+        openFolder={openFolder} goFolder={goFolder} inFolder={inFolder} searching={searching}
+        search={search} setSearch={setSearch} loading={loadingImages}
+        isUser={isUser} createFolder={createFolder} renameFolder={renameFolder} moveFolder={moveFolder}
+        openOwners={setOwnershipDialog} ownerIds={ownerIds} ownersOn={assetFolders.length > 0}
+        ownerFilter={ownerFilter} setOwnerFilter={setOwnerFilter} alters={alters}
+        folderSkipped={(name) => { const ks = [...new Set((byFolder[name] || []).map(backupKeyOf).filter(Boolean))]; return ks.length > 0 && ks.every((k) => backupSkipSet.has(k)); }}
+        folderHasBackupKeys={(name) => (byFolder[name] || []).some((i) => !!backupKeyOf(i))}
+        setFolderBackupSkip={setFolderBackupSkip}
+        selecting={selecting} startSelecting={() => setSelecting(true)} stopSelecting={stopSelecting}
+        selectedKeys={selectedKeys} toggleSelect={toggleSelect} selectedFolders={selectedFolders} toggleFolderSelect={toggleFolderSelect}
+        clearPicks={() => { setSelectedKeys(new Set()); setSelectedFolders(new Set()); }}
+        uploading={uploading} onUpload={() => fileRef.current?.click()} openUser={openUser}
+        uploadFolder={uploadFolder} setUploadFolder={setUploadFolder}
+        orgOpen={orgOpen} setOrgOpen={setOrgOpen} orgBody={orgBody}
+        limit={limit} showMore={(n) => setLimits((m) => ({ ...m, [limitKey]: limit + n }))} page={PAGE}
+        onView={setPreview} onRename={renameItem} onSave={saveItem} onMove={openMove} onDelete={del}
+        moveBlockedFor={moveBlockedFor} isBackupSkipped={isBackupSkipped} canSkipBackup={(item) => !!backupKeyOf(item)}
+        onToggleBackup={toggleBackupSkip} usedBy={(item) => { const lid = storedIdFor(item) || item.id; return usesSummary(findStoredFileUses([lid])[lid] || {}); }}
+        usageName={(item) => usage[item.id]?.name || ""}
+      >
+        <input ref={fileRef} type="file" multiple hidden onChange={handleFiles} />
+        {overlays}
+      </AssetsPixelDesk>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto pb-28" data-tour="assets-library">
       <div className="flex items-center gap-2 mb-3">
@@ -977,29 +1108,7 @@ export default function AssetsLibrary() {
             user's own folders always win over these. */}
         {orgOpen && !selecting && (
           <div className="rounded-xl border border-border/50 bg-card/50 p-3 space-y-3">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Auto-organisation</p>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={rules.perAlter} onChange={(e) => saveRules({ perAlter: e.target.checked })} className="w-4 h-4 rounded" />
-              File {an(t.alter)}'s own images under its 👤 folder
-            </label>
-            {rules.perAlter && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer pl-6">
-                <input type="checkbox" checked={rules.alterRoleSplit} onChange={(e) => saveRules({ alterRoleSplit: e.target.checked })} className="w-4 h-4 rounded" />
-                Split those by kind (· Avatars / · Banners / · Backgrounds)
-              </label>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
-              {Object.keys(DEFAULT_PREFIX_FOLDERS).filter((k) => k !== "fixed" && k !== "file" && k !== "chatfile").map((k) => (
-                <label key={k} className="flex items-center gap-2 text-xs">
-                  <span className="w-36 flex-shrink-0 text-muted-foreground truncate" title={PREFIX_LABELS[k] || k}>{PREFIX_LABELS[k] || k}</span>
-                  <Input value={rules.folders[k] ?? ""} placeholder="Other"
-                    onChange={(e) => saveRules({ folders: { [k]: e.target.value } })}
-                    className="h-7 text-xs flex-1" />
-                </label>
-              ))}
-            </div>
-            <button type="button" onClick={() => saveRules({ folders: { ...DEFAULT_PREFIX_FOLDERS }, perAlter: true, alterRoleSplit: false })}
-              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Reset to defaults</button>
+            {orgBody}
           </div>
         )}
         {/* Owner filter (folder grid only) — once any folder has owners. A
@@ -1070,68 +1179,7 @@ export default function AssetsLibrary() {
         </div>
       )}
 
-      {/* Bulk action bar */}
-      {selecting && (
-        <div className="fixed left-0 right-0 z-40 px-3" style={{ bottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px) + 8px)" }}>
-          <div className="max-w-3xl mx-auto rounded-2xl border border-border bg-card shadow-2xl p-2 flex items-center gap-1.5">
-            {!inFolder && !searching ? (
-              <span className="text-xs font-medium px-1.5 flex-shrink-0 min-w-0 truncate">
-                {selectedFolders.size ? `${selectedFolders.size} folder${selectedFolders.size === 1 ? "" : "s"} selected` : "Tap your own folders to delete them, or open one"}
-              </span>
-            ) : (
-              <span className="text-xs font-medium px-1.5 flex-shrink-0">{selectedKeys.size} selected</span>
-            )}
-            {(inFolder || searching) && selectableInView.length > 0 && (
-              <button type="button" onClick={() => setSelectedKeys(allSelected ? new Set() : new Set(selectableInView.map((i) => i.key)))}
-                className="text-xs px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 flex-shrink-0">
-                {allSelected ? "None" : "All"}
-              </button>
-            )}
-            <span className="flex-1" />
-            {!inFolder && !searching ? (
-              <button type="button" disabled={!selectedFolders.size || bulkBusy} onClick={() => setFolderDeleteOpen(true)}
-                className="h-8 px-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 text-xs flex items-center gap-1 disabled:opacity-40 flex-shrink-0">
-                {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
-              </button>
-            ) : (
-              <>
-                <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={() => setMoveOpen(true)}
-                  className="h-8 px-2.5 rounded-lg border border-border text-xs flex items-center gap-1 disabled:opacity-40">
-                  <FolderInput className="w-3.5 h-3.5" /> Move
-                </button>
-                <button type="button" disabled={!selectedKeys.size || bulkBusy} onClick={bulkDelete}
-                  className="h-8 px-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 text-xs flex items-center gap-1 disabled:opacity-40">
-                  {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete
-                </button>
-              </>
-            )}
-            <button type="button" onClick={stopSelecting} aria-label="Stop selecting" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-          </div>
-        </div>
-      )}
-      {(moveOpen || moveItems) && (
-        <MoveDialog count={moveItems ? moveItems.length : selectedKeys.size} folders={userFolderNames}
-          onCancel={() => { setMoveOpen(false); setMoveItems(null); }} onMove={runMove} />
-      )}
-      {preview && <PreviewDialog item={preview} onClose={() => setPreview(null)} onSave={saveItem} />}
-      {folderDeleteOpen && (
-        <FolderDeleteDialog
-          folders={[...selectedFolders].filter(isUser).map((name) => ({ name, count: folderFiles(name).length }))}
-          onCancel={() => setFolderDeleteOpen(false)}
-          onKeepFiles={() => deleteSelectedFolders("keep")}
-          onDeleteAll={() => deleteSelectedFolders("all")}
-        />
-      )}
-
-      {ownershipDialog && (
-        <FolderOwnershipDialog
-          folderName={ownershipDialog}
-          alters={alters.filter((a) => !a.is_archived)}
-          initialOwnerIds={(assetFolderByName[ownershipDialog]?.owner_alter_ids) || []}
-          onCancel={() => setOwnershipDialog(null)}
-          onSave={async (ids) => { await saveOwners(ownershipDialog, ids); setOwnershipDialog(null); }}
-        />
-      )}
+      {overlays}
     </div>
   );
 }

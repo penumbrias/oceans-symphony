@@ -46,7 +46,7 @@ function probeElement(kind, url) {
   });
 }
 
-async function loadDetails(item) {
+export async function loadAssetDetails(item) {
   const info = {};
   const kind = item.kind || "image";
   const local = item.url && isLocalImageUrl(item.url);
@@ -79,7 +79,7 @@ export default function AssetInfoDialog({ item, backupSkipped = false, onClose }
   useEffect(() => {
     let alive = true;
     setInfo(null);
-    loadDetails(item).then((v) => { if (alive) setInfo(v); }).catch(() => { if (alive) setInfo({}); });
+    loadAssetDetails(item).then((v) => { if (alive) setInfo(v); }).catch(() => { if (alive) setInfo({}); });
     return () => { alive = false; };
   }, [item]);
 
