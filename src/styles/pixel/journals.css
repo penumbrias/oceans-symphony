@@ -91,8 +91,6 @@ html[data-ui-look="pixel"] .pj-canvas {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px;
   display: flex; justify-content: center; align-items: flex-start;
   background-color: var(--px-sunk);
-  background-image: repeating-conic-gradient(color-mix(in srgb, var(--px-sunk) 88%, var(--px-text) 12%) 0 25%, var(--px-sunk) 0 50%);
-  background-size: 16px 16px;
   outline: 2px solid var(--px-line);
 }
 html[data-ui-look="pixel"] .pj-page {

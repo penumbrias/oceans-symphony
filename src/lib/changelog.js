@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: Journals is a three-pane desk with folders and entries on the left, the entry in the middle and its info on the right." },
+      { type: "improve", text: "Pixel look: Analytics opens on a board of panels (fronting time, feelings by day, who fronts together, symptoms, sleep) with range buttons and a Whose picker." },
+      { type: "improve", text: "Pixel look: home widgets get framed panels, edge-to-edge title bars and plain list rows." },
       { type: "improve", text: "Pixel look: the inner world map is rebuilt like the design, with a tool rail, Layers and Info panels, an overview and a status bar; phones get a tool bar and a place sheet." },
       { type: "fix", text: "Quick check-in: the rating's name beside the feelings wraps instead of being cut off." },
       { type: "fix", text: "Pixel look on a phone: the chat message box keeps the full width instead of squeezing beside who's speaking." },

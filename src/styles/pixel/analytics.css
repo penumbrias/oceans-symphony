@@ -57,12 +57,10 @@ html[data-ui-look="pixel"] .px-an-whose button.px-an-ins {
 html[data-ui-look="pixel"] .px-an-grow { flex-grow: 1; }
 html[data-ui-look="pixel"] .px-an-dates { padding: 8px 10px; margin-top: 2px; }
 
-/* Workspace: checkered floor the panels sit on */
+/* Workspace: plain floor (no checker grid, per Penumbra) the panels sit on */
 html[data-ui-look="pixel"] .px-an-floor {
   padding: 14px; min-height: 60vh;
   background-color: var(--px-sunk);
-  background-image: repeating-conic-gradient(color-mix(in srgb, var(--px-sunk) 88%, var(--px-text) 12%) 0 25%, transparent 0 50%);
-  background-size: 16px 16px;
   display: flex; flex-direction: column; gap: 14px;
 }
 html[data-ui-look="pixel"] .px-an-grid {

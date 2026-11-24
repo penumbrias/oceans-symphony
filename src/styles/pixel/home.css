@@ -10,14 +10,10 @@
    inner rows keep their borders when the widget has its own border width
    ([data-own-bw]). */
 
-/* The board floor: the mockups' faint 16px checkerboard, laid over the
+/* The board floor: no checker grid (Penumbra asked for none); the
    theme's own background. A wallpaper or page background (a fixed layer
    at -z-10 inside this same stacking context) paints over it. */
 html[data-ui-look="pixel"] [data-px-home] [data-tour="experimental-home"] {
-  background-image: repeating-conic-gradient(
-    color-mix(in srgb, var(--px-text, #e9e7f5) 3.5%, transparent) 0 25%,
-    transparent 0 50%);
-  background-size: 16px 16px;
   min-height: 100%;
 }
 
