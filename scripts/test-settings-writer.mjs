@@ -159,4 +159,34 @@ await test("a failing write rejects for its caller and doesn't jam the queue", a
   assert.equal(row().corner_mode, "rounded");
 });
 
+await test("an async change function fails loudly instead of being dropped", async () => {
+  reset([{ id: "main", system_name: "Us", ui_v2: { a: 1 } }]);
+  await assert.rejects(W.writeSettings(async () => ({ ui_v2: { a: 2 } })), /promise/);
+  assert.equal(row().ui_v2.a, 1);
+  await W.writeSettings({ corner_mode: "sharp" });
+  assert.equal(row().corner_mode, "sharp", "the queue still runs");
+});
+
+await test("creating the first row never writes a blank board", async () => {
+  reset([]);
+  await W.writeSettings({ classic_home: null, ui_v2_home: "x", board_snap: true }, { create: true });
+  assert.equal(rows.size, 1);
+  const only = [...rows.values()][0];
+  assert.equal(only.board_snap, true);
+  assert.ok(!("classic_home" in only) && !("ui_v2_home" in only), "null / non-object boards are left out");
+  // A patch that is ONLY a blank board creates nothing.
+  reset([]);
+  assert.equal(await W.writeSettings({ classic_home: null }, { create: true }), null);
+  assert.equal(rows.size, 0);
+});
+
+await test("function form: the result is written whole, sub-key removals included", async () => {
+  reset([{ id: "main", pinned_alters_config: { levelStyles: { a: { ring: "#fff" } }, keep: 1 } }]);
+  await W.writeSettings((fresh) => {
+    const cfg = { ...fresh.pinned_alters_config, levelStyles: {} };
+    return { pinned_alters_config: cfg };
+  });
+  assert.deepEqual(row().pinned_alters_config, { levelStyles: {}, keep: 1 }, "a deliberate reset to {} sticks");
+});
+
 console.log(`settings writer: ${passed} tests passed`);

@@ -102,6 +102,12 @@ async function doWrite(change, { create = false, replace = [], invalidate = true
   const fresh = pickPrimarySystemSettings(await Entity.list());
   const isFn = typeof change === "function";
   const raw = isFn ? change(fresh || {}) : change;
+  // An async function's promise would look like "nothing to write" and the
+  // change would be dropped without a word. Fail loudly instead: the patch
+  // must be computed synchronously from the fresh row.
+  if (raw && typeof raw.then === "function") {
+    throw new Error("writeSettings: the change function must return a patch, not a promise");
+  }
   if (!isPlainObject(raw)) return null;
   const out = isFn ? { ...raw } : mergeSettingsPatch(fresh, raw, { replace });
   if (!Object.keys(out).length) return null;
