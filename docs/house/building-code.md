@@ -224,6 +224,23 @@ The tokens live in `src/house/tokens/` (`tokens.css`, `look-smooth.css`, `look-p
 
 ---
 
+## 11. Controls and pickers (step 1.2): choices this page didn't make before
+
+The kit lives in `src/house/kit/` (import from `@/house/kit`); its story sheet is `/house/kit/controls` (unlinked, lazy) and its proof grid is `scripts/house-grid.mjs`. `scripts/test-house-kit.mjs` checks the logic below.
+
+- **Values keep their stored shape.** A date is `"YYYY-MM-DD"` (read at local noon), a time `"HH:mm"` 24-hour, a duration whole minutes, a number a number. The kit never changes what a record stores.
+- **Dates, times and durations are typed first, picked second.** The field reads "tomorrow", "fri", "23 Nov", "23/11" (in the locale's order), "9", "930", "9:30 pm", "noon", "90", "1:30", "1h 30m". It shows plain words ("Today, Tue 24 Nov", "9:30 pm" on a 12-hour clock, "1 h 30 min") and the full spoken form under it ("Tuesday 24 November 2026", "1 hour 30 minutes"). The calendar and the time list are kit-drawn pop-ups, never the browser's.
+- **Unreadable typing is kept.** When typed text can't be read, the text stays in the box with an error under it ("Couldn't read that as a date. Try “23 Nov”…"), and the value doesn't change until it reads cleanly.
+- **Hover, pressed and selected change shape.** Hover draws a 3 px inner ring in the control's own text colour (an underline on a quiet button). Pressed moves 1 px down and sinks. Selected adds a ✓ or bold text with the fill. Disabled is dashed, keeps its words readable, stays focusable (`aria-disabled`) and shows its reason beside it.
+- **Focus inside a filled or sunken part** (a segment, a menu item, a calendar day, the − / + inside a field) is an inset ring in that part's own text colour, because the focus role is only promised against page and panel (§10). Everywhere else it is the house's ring.
+- **Pop-ups sit on the panel colour**, not raised, so every text role is readable in them. They are portaled into a `[data-house]` layer so no scrolling panel clips them, and they never get wider than the screen less 1 rem.
+- **Calendar columns** are `minmax(44px, 1fr)`: they never go below a target, and don't grow with text size (seven 88 px columns won't fit a phone at 200%).
+- **Shadow tokens are never `none`.** They are combined in lists, and one `none` voids the whole shadow; "no shadow" is `0 0 0 0 transparent`.
+- **Pickers reuse today's shared components** (AlterSearchSelect, SearchableSelect, ColorPicker, IconPicker, AssetPickerModal, and MentionTextarea for authored text). The field around them is the house's; their own pop-ups keep the old look until the kit's sheets arrive (step 1.3). The two selects take an optional `triggerId` / `triggerLabelledBy` so the field's label names them.
+- **The proof grid** forces hover and focus with the browser's own element-state forcing on cells marked `data-force`, so the picture shows the real rule. It switches the look through Display options on the example system, as a person would.
+
+---
+
 ## Lantern review (2026-11-24)
 
 Reviewed for 200% text, 390 px phones, trauma-informed design, one-handed use and plain language. The code was already strong here: rem sizes, `max(44px, rem)` targets, effective width = width ÷ text scale, Support on every screen, and one attention line. What I changed:
