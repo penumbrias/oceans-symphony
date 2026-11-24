@@ -77,6 +77,11 @@
          vercel.json (the real header on the web deploy). `npm run build`
          fails with the correct new hash if either drifts. -->
     <script>
+      // Pixel look hint (a look name only): lets the unlock screen and the
+      // first paint use the person's look before the data is opened.
+      try { if (localStorage.getItem('symphony_ui_look_hint_v1') === 'pixel') document.documentElement.setAttribute('data-ui-look', 'pixel'); } catch (e) { /* storage blocked */ }
+    </script>
+    <script>
       (function () {
         setTimeout(function () {
           if (window.__OS_ALIVE) return;

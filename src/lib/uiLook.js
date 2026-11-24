@@ -153,6 +153,9 @@ export function pixelLookVars(px = {}) {
 }
 const ALL_PIXEL_VARS = ["--px-corner", "--px-bw", ...Object.values(PIXEL_COLOUR_VARS)];
 
+// localStorage key index.html reads before boot (see UiLookApplier).
+export const UI_LOOK_HINT_KEY = "symphony_ui_look_hint_v1";
+
 // Mount once near the top of the app tree (beside CornerModeApplier).
 export function UiLookApplier() {
   const { data: list = [] } = useQuery({
@@ -164,8 +167,15 @@ export function UiLookApplier() {
   const px = look === UI_LOOKS.PIXEL ? readPixelLook(row) : {};
   // Only the parts that draw CSS re-run the applier.
   const pxKey = JSON.stringify({ ...px, statusBar: undefined, statusHidden: undefined, rail: undefined, railSide: undefined, dock: undefined, dockHidden: undefined });
+  const ready = !!row;
   useEffect(() => {
+    // Until the settings row is read, keep whatever index.html applied from
+    // the device hint (so the unlock screen and first paint already match).
+    if (!ready) return;
     const el = document.documentElement;
+    // Device-only hint for the next launch's first paint and unlock screen.
+    // A look name only, never data; not backed up (the look itself is).
+    try { localStorage.setItem(UI_LOOK_HINT_KEY, look === UI_LOOKS.PIXEL ? "pixel" : "smooth"); } catch { /* storage blocked */ }
     if (look === UI_LOOKS.PIXEL) el.setAttribute("data-ui-look", "pixel");
     else el.removeAttribute("data-ui-look");
     for (const k of ALL_PIXEL_VARS) el.style.removeProperty(k);
@@ -175,7 +185,7 @@ export function UiLookApplier() {
     // The pixel look's body font applies only while none is chosen.
     reapplyFontFamily();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [look, pxKey]);
+  }, [ready, look, pxKey]);
   return null;
 }
 

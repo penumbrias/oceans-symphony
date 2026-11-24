@@ -63,10 +63,12 @@ const emitAssetList = () => ({
 // and also checks the duplicate policy in vercel.json. If the build tells you
 // the hash changed, paste the new one into BOTH this list and vercel.json.
 const WATCHDOG_SCRIPT_HASH = 'sha256-lmVjp2JPA/TkzzTbAfli2KiE3kkbmx0n7xOrd18yDrA='
+// The look hint (index.html's first inline script: sets data-ui-look before boot).
+const LOOK_HINT_SCRIPT_HASH = 'sha256-t1qZITBbI4T/3V3cQYshMr0g8cVcyKsQgYuivoHG4FA='
 
 const CSP_POLICY = [
   "default-src 'self'",
-  `script-src 'self' '${WATCHDOG_SCRIPT_HASH}'`,
+  `script-src 'self' '${WATCHDOG_SCRIPT_HASH}' '${LOOK_HINT_SCRIPT_HASH}'`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://fonts.gstatic.com",

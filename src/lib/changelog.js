@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: the set-front sheet, search results, unlock screen and Quick jump settings follow their new designs, and the unlock screen now opens in your look." },
       { type: "improve", text: "Pixel look: To-do is a table with an edit panel beside it, Activities shows the tree with each activity's details, and Routines has a level panel with square ticks." },
       { type: "improve", text: "Pixel look: Groups, Contacts and Assets open as desks with a list on the left and the chosen group, person or file beside it." },
       { type: "improve", text: "Pixel look: Needs, Sleep, Help me unblend, Safety plan and Emergency info follow their new designs; ending a night logs right on the Sleep page." },
