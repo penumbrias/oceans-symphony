@@ -203,6 +203,47 @@ await test("titles: the browser title says the page, then the app", () => {
   assert.equal(T.documentTitleFor(""), "Oceans Symphony");
 });
 
+// ── Open-page tabs ────────────────────────────────────────────────────
+const OT = await import("../src/house/frame/openTabs.js");
+await test("tabs: a fresh device opens one tab on the current page; junk is ignored", () => {
+  const a = OT.readTabs(null, "/journals");
+  assert.equal(a.tabs.length, 1);
+  assert.equal(a.tabs[0].path, "/journals");
+  assert.equal(a.active, a.tabs[0].id);
+  for (const raw of ["{", "[]", JSON.stringify({ tabs: [{ id: 1, path: "/x" }, { id: "a", path: "http://evil" }] })]) {
+    assert.equal(OT.readTabs(raw, "/").tabs.length, 1, raw);
+  }
+  const kept = OT.readTabs(JSON.stringify({ tabs: [{ id: "a", path: "/" }, { id: "b", path: "/Home" }], active: "zz" }), "/");
+  assert.equal(kept.tabs.length, 2);
+  assert.equal(kept.active, "a", "an unknown current tab falls back to the first");
+});
+await test("tabs: the current tab follows; + opens Home; closing the current goes to its neighbour; never the last", () => {
+  let s = OT.readTabs(null, "/");
+  s = OT.followTo(s, "/journals");
+  assert.equal(s.tabs[0].path, "/journals");
+  assert.equal(OT.followTo(s, "/journals"), s, "same page: no new state");
+  s = OT.openTab(s, "/", "t2");
+  assert.equal(s.active, "t2");
+  s = OT.openTab(s, "/goals", "t3");
+  const first = s.tabs[0].id;
+  let r = OT.closeTab(s, "t3");
+  assert.equal(r.state.active, "t2");
+  assert.equal(r.goTo, "/");
+  r = OT.closeTab(r.state, first);
+  assert.equal(r.goTo, null, "closing a background tab doesn't move");
+  assert.equal(r.state.tabs.length, 1);
+  const last = OT.closeTab(r.state, "t2");
+  assert.equal(last.state.tabs.length, 1, "the last tab never closes");
+  assert.equal(OT.selectTab(r.state, "nope"), r.state);
+  let many = OT.readTabs(null, "/");
+  for (let n = 0; n < 30; n++) many = OT.openTab(many, `/p${n}`, `id${n}`);
+  assert.equal(many.tabs.length, OT.MAX_TABS);
+  assert.equal(many.active, "id29");
+});
+await test("tabs: runtime state only, not a backed-up preference", () => {
+  assert.ok(!BACKUP_LS_KEYS.includes(OT.HOUSE_TABS_KEY));
+});
+
 // ── The lazy boundary ─────────────────────────────────────────────────
 await test("old house: only the tiny switch module is imported eagerly; the frame is a lazy import", () => {
   const layout = read("src/components/layout/AppLayout.jsx");

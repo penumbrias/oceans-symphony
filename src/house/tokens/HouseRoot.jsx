@@ -34,3 +34,27 @@ export default function HouseRoot({ children, className, style, as: Tag = "div",
     </HouseTokensContext.Provider>
   );
 }
+
+// Several separate house roots sharing ONE reading of the paint (step 2.1).
+// The frame's bars, rail and docks are house; the old page between them is
+// not (the house's root rules would change its fonts and colours). The frame
+// reads the tokens once (`useHouseTokens()`) and wraps each piece of chrome
+// in a HouseScope, so every piece is a real [data-house] root without the
+// page in the middle being one.
+export function HouseScope({ tokens, children, className, style, as: Tag = "div", ...rest }) {
+  return (
+    <HouseTokensContext.Provider value={tokens}>
+      <Tag
+        data-house=""
+        data-house-look={tokens.look}
+        data-house-variant={tokens.variant}
+        data-house-label={tokens.fonts.labelIsPixel ? "pixel" : "body"}
+        className={className}
+        style={{ ...tokens.vars, colorScheme: tokens.variant, ...(style || {}) }}
+        {...rest}
+      >
+        {children}
+      </Tag>
+    </HouseTokensContext.Provider>
+  );
+}

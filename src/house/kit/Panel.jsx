@@ -107,7 +107,7 @@ export function PageTabs({ label, tabs = [], value, onChange, idPrefix, withPane
             >
               {t.icon ? <HouseIcon icon={t.icon} /> : null}
               <span>{t.label}</span>
-              {t.dot ? <span className="hk-tab-dot" aria-label="has its own settings" role="img" /> : null}
+              {t.dot ? <span className="hk-tab-dot" aria-label={t.dotLabel || "has its own settings"} role="img" /> : null}
             </button>
           );
         })}

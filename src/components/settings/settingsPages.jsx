@@ -14,6 +14,7 @@ import {
   Sparkles, BarChart2, BellRing, Bell, PanelTop, MessageSquare, Wrench, Server, ShieldCheck, Upload, Download,
   RefreshCw, Eraser, Lock, Table2, LifeBuoy, EyeOff, Megaphone, Map, Eye, Bug, Stethoscope,
   MessageSquareHeart, ClipboardList, Package, FileStack,
+  PanelsTopLeft,
 } from "lucide-react";
 import { isNative } from "@/lib/platform";
 import ProfileSettings from "@/components/settings/ProfileSettings";
@@ -26,6 +27,7 @@ import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
 import ExperimentalFeaturesSettings from "@/components/settings/ExperimentalFeaturesSettings";
 import { openDisplayOptions } from "@/components/settings/AppearanceSection";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
+import NewHouseSettings from "@/components/settings/NewHouseSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import TextTemplatesSettings from "@/components/settings/TextTemplatesSettings";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
@@ -132,6 +134,9 @@ export function buildSettingsGroups(ctx) {
         { id: "accessibility", label: "Accessibility", hint: "Low-vision layout, reduce motion, high contrast", icon: Accessibility, tour: "settings-accessibility",
           keywords: "accessibility low vision contrast motion animations screen reader tap targets text size bar height grounding bubble",
           render: () => <AccessibilitySettings /> },
+        { id: "new-house", label: "Try the new house", hint: "A new desktop and tablet layout, on this device only", icon: PanelsTopLeft,
+          keywords: "new house layout desktop tablet frame studio menus panels dock status bar old house switch back beta",
+          render: () => <NewHouseSettings /> },
       ],
     },
     {

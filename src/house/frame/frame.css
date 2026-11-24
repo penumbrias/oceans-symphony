@@ -1,0 +1,91 @@
+/* The new house's desktop and tablet frame (step 2.1). House tokens only.
+   The frame itself is transparent so the person's wallpaper shows behind
+   the page; every piece of chrome is its own [data-house] root (HouseScope)
+   painted with the panel colour. */
+
+[data-house-frame].hf {
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+  min-width: 0; overflow: hidden;
+}
+
+/* Hosts that only carry the paint to what's inside (the skip link, the
+   sheet): no box of their own. Custom properties still inherit. */
+[data-house].hf-skips,
+[data-house].hf-sheet-host { display: contents; }
+
+/* ── Skip link and the screen-reader announcer ───────────────────── */
+[data-house] .hf-skip {
+  position: fixed; left: var(--house-space-2); top: var(--house-space-2); z-index: 80;
+  padding: var(--house-space-2) var(--house-space-3);
+  background: var(--house-raised); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-accent); border-radius: var(--house-corner-sm);
+  font-family: var(--house-font-label); font-weight: 700;
+  transform: translateY(-200%);
+}
+[data-house] .hf-skip:focus,
+[data-house] .hf-skip:focus-visible { transform: none; }
+[data-house-frame] .hf-sr,
+[data-house] .hf-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ── Top: the bar and the open-page tabs ─────────────────────────── */
+[data-house].hf-top { flex: 0 0 auto; background: var(--house-panel); position: relative; z-index: 3; }
+[data-house] .hf-topbar {
+  display: flex; align-items: center; gap: var(--house-space-2);
+  min-width: 0; padding: var(--house-space-1) var(--house-space-2);
+}
+[data-house] .hf-home {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: var(--house-target); height: var(--house-target); border-radius: var(--house-corner-sm);
+}
+[data-house] .hf-logo { width: 1.75rem; height: 1.75rem; object-fit: contain; }
+[data-house] .hf-areas {
+  display: flex; align-items: center; gap: var(--house-space-1);
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+}
+[data-house] .hf-areas > * { flex: 0 0 auto; }
+[data-house] .hf-search-btn { flex: 0 0 auto; }
+[data-house] .hf-kbd {
+  margin-left: var(--house-space-2); padding: 0 var(--house-space-1);
+  border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner-sm);
+  color: var(--house-muted); font-size: var(--house-frame-text-xs);
+}
+[data-house] .hf-search-pop { width: min(36rem, calc(100vw - 2rem)); max-height: min(36rem, 80vh); overflow: auto; padding: var(--house-space-3); }
+
+/* ── Body: rail · left panel · page · right dock ─────────────────── */
+[data-house-frame] .hf-body { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0; }
+[data-house].hf-rail {
+  display: flex; flex-direction: column; align-items: center; gap: var(--house-space-2);
+  flex: 0 0 3rem; width: 3rem; padding: var(--house-space-2) 0;
+  background: var(--house-panel);
+  border-right: var(--house-border-w) solid var(--house-divider);
+  overflow-y: auto; overflow-x: hidden;
+}
+[data-house] .hf-rail-gap { flex: 1 1 auto; }
+[data-house].hf-left,
+[data-house].hf-right {
+  display: flex; flex: 0 0 auto; min-height: 0; min-width: 0;
+  background: var(--house-panel);
+}
+[data-house].hf-left { border-right: var(--house-border-w) solid var(--house-divider); }
+[data-house].hf-right { border-left: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hf-dock-scroll { flex: 1 1 auto; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: var(--house-space-3); }
+
+/* The page: the old room, outside any house root, over the wallpaper. */
+[data-house-frame] .hf-canvas { min-height: 0; }
+
+/* ── Panels' insides ─────────────────────────────────────────────── */
+[data-house] .hf-panel-title { margin: 0 0 var(--house-space-2); font-size: var(--house-frame-text-sm); color: var(--house-muted); }
+[data-house] .hf-browse { display: flex; flex-direction: column; min-width: 0; }
+[data-house] .hf-dock { display: flex; flex-direction: column; gap: var(--house-space-3); min-width: 0; }
+[data-house] .hf-dock-body { min-width: 0; }
+[data-house] .hf-dock-list { display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hf-plain-list { list-style: none; margin: 0; padding: 0; }
+[data-house] .hf-help { display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hf-help-steps { margin: 0; padding-left: var(--house-space-5); display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hf-help-step-title { margin: 0; font-size: var(--house-text-md); }
+[data-house] .hf-help-step-body { margin: var(--house-space-1) 0 0; color: var(--house-muted); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
+[data-house] .hf-muted { color: var(--house-muted); }

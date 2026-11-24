@@ -42,6 +42,10 @@ import { onColorVars } from "@/lib/contrast";
 // installs with legacy data-URI images). Fresh installs never load it.
 // The tour is big and opens only on request (v0.357.0).
 const FeatureTour = React.lazy(() => import("@/components/onboarding/FeatureTour"));
+// The new house's desktop/tablet frame (step 2.1). Lazy: with "Try the new
+// house" off, nothing under src/house is downloaded.
+const HouseFrame = React.lazy(() => import("@/house/frame/HouseFrame"));
+import { useHouseSwitch, useHouseSizeClass } from "@/lib/houseSwitch";
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, normalizeNavConfig, applySidebarConfig, pageLabel } from "@/utils/navigationConfig";
 import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
@@ -810,6 +814,109 @@ const handleNotifClick = (mentionLog) => {
   };
   const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
+  // The new house (step 2.1): on when the person turned it on for this
+  // device and the window is studio-sized. Phones keep this chrome until
+  // the phone frame (step 2.2).
+  const houseSwitchOn = useHouseSwitch();
+  const houseSize = useHouseSizeClass(houseSwitchOn);
+  const houseOn = houseSwitchOn && houseSize !== "phone";
+
+  // The app-wide hosts after the page (players, sheets, toasts, the tour).
+  // One list for both houses; `house` leaves out what the new frame
+  // replaces (the classic drawer, the floating Support bubble: Support is
+  // on the frame's rail).
+  const renderTailHosts = (house) => (
+    <>
+      {/* The Song widget's "play on every page" track. */}
+      <GlobalSongHost />
+      {!house && <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+      {/* System switcher sheet — ONE host for every chrome trigger (top-bar
+          name, sidebar app icon). */}
+      <SystemSwitcherSheetHost />
+      {/* "Try it" safety net — offers Keep / Put it back after a pack
+          is trialled, from anywhere in the app. */}
+      <PackRestoreBar />
+      {/* The floating support bubble is the always-there crisis path in the
+          classic UI. In v2 the quick actions carry a Support anchor in every
+          placement (handle row, floating bar, bubble, rail), so showing both
+          is redundant — but if the user hides quick actions entirely, the
+          bubble comes back rather than leaving no support entry at all. */}
+      {!house && !(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
+      <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>
+      <GroceryListPanel />
+      <QuietBoundary name="QuickJumpHost"><QuickJumpHost /></QuietBoundary>
+      <QuietBoundary name="ActivityPromptsHost"><ActivityPromptsHost /></QuietBoundary>
+      {/* Devices that disagree about who's fronting — the person picks. */}
+      <QuietBoundary name="FrontConflictCard"><FrontConflictCard variant="floating" /></QuietBoundary>
+      {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
+      <QuickActionsHost />
+      {!v2HomeNotices && <ReminderToast />}
+      <SoundscapeGlobalBar />
+      {/* Running activity timers stay in sight. Steps aside when the v2
+          Active-now bubble is switched on, which already shows them. */}
+      <QuietBoundary name="ActiveActivityBubble">
+        <ActiveActivityBubble hidden={uiV2On && (uiV2.tokens.activeBubble || "off") !== "off"} />
+      </QuietBoundary>
+      <Suspense fallback={null}>
+        {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
+        {pageScopedTourRoute && !showFeatureTour && (
+          <FeatureTour
+            restrictToRoute={pageScopedTourRoute}
+            onClose={() => setPageScopedTourRoute(null)}
+          />
+        )}
+      </Suspense>
+      {!v2HomeNotices && (
+        <NotificationPopups
+          mentionLogs={mentionLogs}
+          alters={alters}
+          frontingAlterIds={frontingAlterIds}
+          onNotifClick={handleNotifClick}
+        />
+      )}
+    </>
+  );
+
+  if (houseOn) {
+    return (
+      <>
+        <GlobalPullToRefresh />
+        {UI_V2_ENABLED && <DisplayOptionsHost />}
+        <ProfileLookHost />
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-screen" role="status" aria-live="polite">
+            <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading the new house" />
+          </div>
+        }>
+          <HouseFrame mainRef={mainScrollRef}>
+            {bannerVisible && (
+              <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} framing={bannerFraming} />
+            )}
+            <PageLookHost />
+            <div className="relative z-10">
+              {!v2HomeNotices && <AnnouncementBanner />}
+              <A11yModeBanner />
+            </div>
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-24" role="status" aria-live="polite" data-launch-pending="">
+                <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
+              </div>
+            }>
+              <QuietBoundary name="ModNavSync"><ModNavSync /></QuietBoundary>
+              <Outlet context={{ setShowFeatureTour }} />
+            </Suspense>
+          </HouseFrame>
+        </Suspense>
+        {showBlobMigration && (
+          <React.Suspense fallback={null}>
+            <LazyBlobStorageMigrationModal onClose={() => setShowBlobMigration(false)} />
+          </React.Suspense>
+        )}
+        {renderTailHosts(true)}
+      </>
+    );
+  }
+
   return (
     // Root is pinned to EXACTLY viewport height (h-screen) and clips
     // overflow. This forces the document body to be unscrollable —
@@ -1299,53 +1406,7 @@ const handleNotifClick = (mentionLog) => {
         </div>
       )}
 
-      {/* The Song widget's "play on every page" track. */}
-      <GlobalSongHost />
-      <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      {/* System switcher sheet — ONE host for every chrome trigger (top-bar
-          name, sidebar app icon). */}
-      <SystemSwitcherSheetHost />
-      {/* "Try it" safety net — offers Keep / Put it back after a pack
-          is trialled, from anywhere in the app. */}
-      <PackRestoreBar />
-      {/* The floating support bubble is the always-there crisis path in the
-          classic UI. In v2 the quick actions carry a Support anchor in every
-          placement (handle row, floating bar, bubble, rail), so showing both
-          is redundant — but if the user hides quick actions entirely, the
-          bubble comes back rather than leaving no support entry at all. */}
-      {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
-      <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>
-      <GroceryListPanel />
-      <QuietBoundary name="QuickJumpHost"><QuickJumpHost /></QuietBoundary>
-      <QuietBoundary name="ActivityPromptsHost"><ActivityPromptsHost /></QuietBoundary>
-      {/* Devices that disagree about who's fronting — the person picks. */}
-      <QuietBoundary name="FrontConflictCard"><FrontConflictCard variant="floating" /></QuietBoundary>
-      {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
-      <QuickActionsHost />
-      {!v2HomeNotices && <ReminderToast />}
-      <SoundscapeGlobalBar />
-      {/* Running activity timers stay in sight. Steps aside when the v2
-          Active-now bubble is switched on, which already shows them. */}
-      <QuietBoundary name="ActiveActivityBubble">
-        <ActiveActivityBubble hidden={uiV2On && (uiV2.tokens.activeBubble || "off") !== "off"} />
-      </QuietBoundary>
-      <Suspense fallback={null}>
-        {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
-        {pageScopedTourRoute && !showFeatureTour && (
-          <FeatureTour
-            restrictToRoute={pageScopedTourRoute}
-            onClose={() => setPageScopedTourRoute(null)}
-          />
-        )}
-      </Suspense>
-      {!v2HomeNotices && (
-        <NotificationPopups
-          mentionLogs={mentionLogs}
-          alters={alters}
-          frontingAlterIds={frontingAlterIds}
-          onNotifClick={handleNotifClick}
-        />
-      )}
+      {renderTailHosts(false)}
     </div>);
 
 }

@@ -86,10 +86,14 @@ function readSize() {
 }
 
 /** "phone" | "compact" | "full", kept live through resizes and text-size changes. */
-export function useHouseSizeClass() {
+// `enabled` false (the switch is off): no listeners at all, so the old
+// house pays nothing for the new one.
+export function useHouseSizeClass(enabled = true) {
   const [size, setSize] = useState(readSize);
   useEffect(() => {
+    if (!enabled) return undefined;
     const on = () => setSize(readSize());
+    on();
     window.addEventListener("resize", on);
     let mo;
     try {
@@ -98,6 +102,6 @@ export function useHouseSizeClass() {
       mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
     } catch { /* no DOM */ }
     return () => { window.removeEventListener("resize", on); mo?.disconnect(); };
-  }, []);
+  }, [enabled]);
   return size;
 }
