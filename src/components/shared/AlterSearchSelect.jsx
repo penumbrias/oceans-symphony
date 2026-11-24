@@ -29,6 +29,8 @@ export default function AlterSearchSelect({
   buttonClassName = "",
   zIndex = 60,               // raise when nested inside another overlay
   frontingFirst = true,      // float current fronters to the top
+  triggerId,                 // optional: id + aria-labelledby for the trigger,
+  triggerLabelledBy,         // so a field label names it (the house kit's AlterPicker)
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -117,6 +119,9 @@ export default function AlterSearchSelect({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        id={triggerId}
+        aria-labelledby={triggerLabelledBy}
+        aria-expanded={open}
         className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-input bg-background text-sm text-left ${buttonClassName}`}
       >
         {selected ? (

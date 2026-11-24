@@ -91,6 +91,8 @@ export function SearchableSelect({
   renderOption,
   disabled = false,
   className,
+  triggerId,          // optional: id + aria-labelledby for the trigger, so a
+  triggerLabelledBy,  // field label names it (the house kit's NestedPicker)
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -235,6 +237,8 @@ export function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={open ? handleClose : handleOpen}
+        id={triggerId}
+        aria-labelledby={triggerLabelledBy}
         aria-expanded={open}
         aria-haspopup="listbox"
         className={cn(
