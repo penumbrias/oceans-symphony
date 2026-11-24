@@ -429,6 +429,7 @@ function InlineActionsFields({ form, set, actionTypeOptions, symptoms }) {
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
+              {/* ui-ok: moved unchanged from the smooth editor into a shared part */}
               <select
                 className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
                 value={action.action_type || "open_check_in"}
@@ -497,6 +498,7 @@ function AutoResolveFields({ form, set, hasAutoResolve, setHasAutoResolve, autoR
             <div className="space-y-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Resolve when…</Label>
+                {/* ui-ok: moved unchanged from the smooth editor into a shared part */}
                 <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
                   value={rule.on || "check_in"}
                   onChange={e => setRule({ on: e.target.value, lookback_minutes: defaultLookback[e.target.value] || 60, symptom_id: undefined, category_id: undefined })}>

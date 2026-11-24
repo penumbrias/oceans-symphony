@@ -50,6 +50,25 @@ function AlterDot({ alter }) {
   );
 }
 
+// The pixel list's one-line "when": the shared summary, with the
+// contextual kinds spelled out in the person's words.
+function pixelSummary(r, terms, alterMap, formatAlter) {
+  if (r.trigger_type !== "contextual") return triggerSummary(r);
+  const cfg = r.trigger_config || {};
+  const after = cfg.delay_minutes ? `, then ${cfg.delay_minutes} min later` : "";
+  switch (cfg.on) {
+    case "no_front_update": return `No ${terms.front} update for ${cfg.threshold_minutes || 120} min`;
+    case "emotion_logged": return `When a feeling is logged${after}`;
+    case "symptom_logged": return `When a symptom is logged${after}`;
+    case "alter_fronts": {
+      const a = cfg.alter_id ? alterMap[cfg.alter_id] : null;
+      return `When ${a ? formatAlter(a) : `any ${terms.alter}`} ${terms.fronts}${after}`;
+    }
+    case "sleep_ended": return `After sleep ends${after}`;
+    default: return triggerSummary(r);
+  }
+}
+
 // `before` (pixel look only): what sits above "Your reminders" in the same
 // column — the Inbox tab puts its "Due now" panel there.
 export default function RemindersManage({ before = null } = {}) {
@@ -176,7 +195,7 @@ export default function RemindersManage({ before = null } = {}) {
               <button type="button" className="prm-rrow-main" onClick={() => openEdit(r)} aria-label={`Change ${r.title}`}>
                 <span className="prm-rrow-text">
                   <span className={r.is_active ? "prm-rrow-title" : "prm-rrow-title off"}>{r.title}</span>
-                  <span className="prm-rrow-how">{triggerSummary(r)}</span>
+                  <span className="prm-rrow-how">{pixelSummary(r, terms, alterMap, formatAlter)}</span>
                   {archived && <span className="prm-rrow-warn">Tied to archived {terms.alter} — currently paused</span>}
                 </span>
                 <span className="prm-rrow-who" style={alter && !archived ? { color: alter.color || undefined } : undefined}>

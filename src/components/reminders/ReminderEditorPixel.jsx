@@ -112,6 +112,7 @@ export default function ReminderEditorPixel({
           <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Morning meds" />
         </Row>
         <Row label="Message" top>
+          {/* ui-ok: same field as the smooth editor; a reminder's message is shown as written, with no save pipeline */}
           <Textarea value={form.body || ""} onChange={(e) => set("body", e.target.value)} placeholder="What it says when it fires (optional)" className="min-h-[56px]" />
         </Row>
         <Row label="Kind" top>
@@ -191,7 +192,7 @@ export default function ReminderEditorPixel({
 
       <div className="prm-ed-foot">
         <span className="prm-mut">
-          {lastFired ? `Last fired ${format(lastFired, clockPattern("MMM d, h:mm a"))}` : existing ? "Hasn't fired yet" : "New reminder"}
+          {lastFired ? `Last fired ${format(lastFired, clockPattern("MMM d, h:mm a"))}` : existing ? "Hasn't fired yet" : ""}
         </span>
         {existing && onDelete && (
           <button type="button" className="prm-btn prm-danger" onClick={() => onDelete(existing)}>… Delete</button>
