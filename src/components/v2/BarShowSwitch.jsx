@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Settings2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Switch } from "@/components/ui/switch";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import { useT } from "@/lib/i18n";
@@ -25,10 +26,11 @@ export function useBarsChrome() {
   const row = pickPrimarySystemSettings(rows) || null;
   const v2Chrome = isV2Chrome(row, UI_V2_ENABLED);
   const writePatch = async (patch) => {
+    // `patch` may be a function of the fresh row (the one settings writer
+    // calls it inside its queue).
     if (!patch || !row?.id) return;
     try {
-      await base44.entities.SystemSettings.update(row.id, patch);
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings(patch, { queryClient: qc });
     } catch (e) { toast.error(e?.message || "Couldn't save"); }
   };
   return { row, v2Chrome, writePatch };
@@ -58,7 +60,7 @@ export default function BarShowSwitch({ barId, label = null, size = "sm" }) {
       <label className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5 cursor-pointer">
         <span className="text-sm font-medium">{text}</span>
         <Switch checked={on} aria-label={text}
-          onCheckedChange={(v) => writePatch(barShownPatch(row, barId, !!v, v2Chrome))} />
+          onCheckedChange={(v) => writePatch((fresh) => barShownPatch(fresh, barId, !!v, v2Chrome))} />
       </label>
     );
   }
@@ -66,7 +68,7 @@ export default function BarShowSwitch({ barId, label = null, size = "sm" }) {
     <label className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
       <span>{text}</span>
       <input type="checkbox" checked={on} aria-label={text}
-        onChange={(e) => writePatch(barShownPatch(row, barId, e.target.checked, v2Chrome))}
+        onChange={(e) => { const on = e.target.checked; writePatch((fresh) => barShownPatch(fresh, barId, on, v2Chrome)); }}
         className="w-4 h-4 rounded accent-primary" />
     </label>
   );

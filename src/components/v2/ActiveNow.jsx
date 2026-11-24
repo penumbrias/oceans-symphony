@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Activity as ActivityIcon, Moon, Zap, X, Timer, Users, Square } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { useCurrentFocus } from "@/lib/currentFocus";
 import { useT } from "@/lib/i18n";
 import { EdgeDock } from "@/components/v2/EdgeDock";
@@ -212,8 +212,7 @@ export function ActiveNowBubble({ uiV2, settingsRow }) {
   const savePos = async (pos) => {
     try {
       if (!settingsRow?.id) return;
-      await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2: { ...(settingsRow.ui_v2 || {}), activeDockPos: pos } });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ ui_v2: { activeDockPos: pos } }, { queryClient: qc });
     } catch { /* best-effort */ }
   };
   return (
