@@ -12,12 +12,12 @@ import {
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { an } from "@/lib/articles";
-import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
+import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import HouseRoot from "@/house/tokens/HouseRoot";
 import HouseIcon from "@/house/tokens/HouseIcon";
 import {
   Button, Panel, PageTabs, ListView, TreeView, RowText, Info, Inspector, InspectorGroup, Layers,
-  Row, Card, Stat, AlterChip, AlterChips, EmptyBlock, LoadingBlock, ErrorBlock, ToastHost, ToastCard, showToast,
+  Row, Card, Stat, AlterChip, AlterChips, AlterAvatar, EmptyBlock, LoadingBlock, ErrorBlock, ToastHost, ToastCard, showToast,
   Sheet, ConfirmSheet, SafetySheet, Switch, Segmented, SliderRow, TextField, AlterPicker, NestedPicker, ColourField,
 } from "@/house/kit";
 import Chart from "@/house/kit/Charts";
@@ -161,9 +161,9 @@ function Trees({ groups }) {
 function InfoStory({ alters }) {
   const t = useTerms();
   const a = alters[0];
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState("pronouns");
   const [pronouns, setPronouns] = useState("they/them");
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState("they/them");
   const menu = [
     { id: "dup", label: "Duplicate", icon: Copy, onSelect: noop },
     { id: "del", label: `Delete ${a?.name || t.alter}`, icon: Trash2, danger: true, onSelect: noop },
@@ -171,7 +171,7 @@ function InfoStory({ alters }) {
   return (
     <Grid>
       <Cell name="Filled, one row editing" wide>
-        <Info title={a?.name || "River"} kind={t.Alter} lead={a ? <AlterChip alter={a} size="lg" /> : null} menu={menu}
+        <Info title={a?.name || "River"} kind={t.Alter} lead={a ? <AlterAvatar alter={a} size="lg" /> : null} menu={menu}
           editing={editing}
           renderEditor={() => <TextField label="Pronouns" value={draft} onChange={setDraft} />}
           sections={[
@@ -333,7 +333,7 @@ function SheetsStory() {
   const card = (
     <>
       <p className="ps-p">Call Sam: 0123 456 789. The calm room is the second door on the left.</p>
-      <MedicalDisclaimer compact />
+      <MedicalDisclaimerFooter />
     </>
   );
   return (
