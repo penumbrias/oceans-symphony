@@ -262,8 +262,8 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
         ) : null}
       </div>
       <div className="hk-slider-track">
-        <input
-          type="range"
+        {/* ui-ok: this IS the house's SliderRow (number beside it, edge-safe). */}
+        <input type="range"
           className="hk-range"
           min={min}
           max={max}
