@@ -336,7 +336,7 @@ export default function LocationHistory() {
                     </button>
                     {hasMap && (
                       <a className="pxg-maplink" href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
-                        target="_blank" rel="noopener noreferrer" title={`${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}>open in Maps</a>
+                        target="_blank" rel="noopener noreferrer" title={`${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}><span className="pxg-hide-phone">open in </span>Maps</a>
                     )}
                     {loc.source === "gps" && <span className="pxg-gpstag">GPS</span>}
                     <span className="pxg-sq pxg-locsq" style={{ background: cat.color }} aria-hidden="true" />

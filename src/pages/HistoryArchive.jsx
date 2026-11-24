@@ -162,7 +162,7 @@ export default function HistoryArchive() {
     const tone = (e) => (e.action === "deleted" ? "bad" : e.action === "synced" || e.category === "sync" ? "info" : "warn");
     return (
       <div className="pxg-hist" data-tour="history-archive">
-        <PageStrip label="Kinds of change" className="pxg-histtabs" value={cat.id} onChange={setOpenCat}
+        <PageStrip subtabs label="Kinds of change" className="pxg-histtabs" value={cat.id} onChange={setOpenCat}
           items={CATS.map((c) => ({ id: c.id, label: c.label, count: (byCat[c.id] || []).length || null }))} />
         <section className="pxg-pn" aria-label="Recent changes">
           <div className="pxg-ttl"><span>Recent changes</span><span className="pxg-ttl-sub">newest first</span></div>
