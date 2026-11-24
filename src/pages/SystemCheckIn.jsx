@@ -678,8 +678,12 @@ export default function SystemCheckInPage() {
         </div>
       </div>
     );
+    const ci = currentCheckIn || {};
+    const hasWritten = !!(ci.step1_arrive || ci.step2_notice || ci.step3_greet?.notes || ci.step4_share || ci.step5_closing
+      || normalizeParticipants(ci.participants).length || normalizeDialogue(ci.dialogue).length);
+    const looseNote = clip(ci.overall_notes || ci.note);
     const viewer = currentCheckIn && (
-      <div className="pxm-pn pxm-meet-panel">
+      <div className="pxm-pn">
         <div className="pxm-ttl pxm-ttl-lg">
           <span className="pxm-ttl-name">{fmtDate(currentCheckIn, true)}</span>
           <span className="pxm-row" style={{ gap: 8 }}>
@@ -687,7 +691,11 @@ export default function SystemCheckInPage() {
             <button type="button" className="pxm-btn sm on" onClick={() => { setPxStep(1); setView("create"); }}>Edit</button>
           </span>
         </div>
-        <div className="pxm-body pxm-flat">{viewSections}</div>
+        <div className="pxm-body pxm-flat">
+          {looseNote && <div>{looseNote}</div>}
+          {viewSections}
+          {!hasWritten && !looseNote && <div className="pxm-mut">Nothing was written down in this meeting. Showing up counts.</div>}
+        </div>
       </div>
     );
     const newBtn = (

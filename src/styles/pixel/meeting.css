@@ -5,7 +5,7 @@
    Colours come from the person's theme through the --px-* variables;
    alters keep their own colours (inline). */
 
-html[data-ui-look="pixel"] .pxm { color: var(--px-text); font-size: 15px; display: flex; flex-direction: column; gap: 12px; }
+html[data-ui-look="pixel"] .pxm { padding-top: 4px; color: var(--px-text); font-size: 15px; display: flex; flex-direction: column; gap: 12px; }
 html[data-ui-look="pixel"] .pxm-pf { font-family: var(--px-font); }
 html[data-ui-look="pixel"] .pxm-mut { color: var(--px-text-2); }
 html[data-ui-look="pixel"] .pxm-intro { font-size: 14px; color: var(--px-text-2); line-height: 1.4; }
