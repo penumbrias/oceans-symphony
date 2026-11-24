@@ -17,6 +17,11 @@
 //   --routes /journals,/todo     only these routes (default: every route in src/App.jsx)
 //   --out /tmp/house-walk        report folder
 //   --shots                      a screenshot of every visit (default: only visits with findings)
+//   --house                      walk inside the new house's frame (step 2.1): turns on
+//                                "Try the new house" (symphony_new_house_v1) with the
+//                                example data, walks 1280x800 and 820x1180 by default, and
+//                                also FAILS on a missing page title, a missing frame and
+//                                sideways scroll (not only on page errors).
 //
 // Example data only. The walk starts a fresh, empty browser profile, gets past
 // the welcome screen with "Not now" (no backup, no import) and turns Preview
@@ -59,7 +64,8 @@ const opt = (name, fallback) => {
 const BASE = `http://localhost:${port}`;
 const OUT = path.resolve(opt('--out', '/tmp/house-walk'));
 const LOOKS = opt('--looks', 'smooth,pixel').split(',');
-const SIZES = opt('--sizes', '390x844,820x1180,1280x800').split(',').map((s) => {
+const HOUSE = args.includes('--house');
+const SIZES = opt('--sizes', HOUSE ? '1280x800,820x1180' : '390x844,820x1180,1280x800').split(',').map((s) => {
   const [w, h] = s.split('x').map(Number);
   return { w, h, name: s };
 });
@@ -212,7 +218,8 @@ async function measure(page) {
       crashed: /Something went wrong on this screen/.test(bodyText),
       sectionCrashes: (bodyText.match(/Something went wrong rendering this section/g) || []).length,
       mainTextLen: main ? (main.innerText || '').trim().length : 0,
-      previewOn: /Preview Mode/.test(bodyText) || !!document.querySelector('[data-preview-banner]'),
+      previewOn: /Preview Mode/.test(bodyText) || !!document.querySelector('[data-preview-banner]') || !!document.querySelector('[data-house-example]'),
+      houseFrame: !!document.querySelector('[data-house-frame]'),
     };
   });
 }
@@ -228,12 +235,17 @@ async function enterExampleData(page) {
     await sleep(1500);
   }
   // Preview Mode by its own switch, read by restorePreviewIfActive() on boot.
-  await page.evaluate(() => localStorage.setItem('symphony_preview_active_system', 'guide'));
+  await page.evaluate((house) => {
+    localStorage.setItem('symphony_preview_active_system', 'guide');
+    if (house) localStorage.setItem('symphony_new_house_v1', '1');
+  }, HOUSE);
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await waitForApp(page);
   await clearOverlays(page);
-  const ok = await page.waitForFunction(() => /Preview Mode/.test(document.body.innerText), null, { timeout: 15000 }).then(() => true).catch(() => false);
-  if (!ok) throw new Error('Preview Mode did not come on (no "Preview Mode" banner after boot).');
+  // The old house says "Preview Mode" in a banner; the new house says
+  // "Example system" in its status bar.
+  const ok = await page.waitForFunction(() => /Preview Mode/.test(document.body.innerText) || !!document.querySelector('[data-house-example]'), null, { timeout: 15000 }).then(() => true).catch(() => false);
+  if (!ok) throw new Error('Preview Mode did not come on (no "Preview Mode" banner or "Example system" label after boot).');
 }
 
 async function setLook(page, look) {
@@ -365,6 +377,8 @@ try {
           !v.frameSupport.length && (v.frameSupportScroll.length ? 'Support in frame only after a scroll' : 'no Support in frame'),
           v.ttcMs == null && 'no content in 10 s',
           !v.notFoundWall && v.look !== look && `look is ${v.look}`,
+          HOUSE && !v.houseFrame && 'no house frame',
+          HOUSE && (!v.title || /^Oceans Symphony$|^Page not found\b/.test(v.title)) && `no page title ("${v.title}")`,
         ].filter(Boolean);
         if (ALL_SHOTS || v.findings.some((f) => !/Support in frame/.test(f))) {
           const file = `${look}-${size.name}-${route.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'root'}.png`;
@@ -377,7 +391,7 @@ try {
         // start this look again from a fresh boot so later routes are fair.
         // (The 404 wall is drawn outside the frame, so it has no banner and no
         // look: that is not a reason to start again.)
-        if (v.crashed || (!v.notFoundWall && (v.look !== look || !v.previewOn))) {
+        if (v.crashed || (!v.notFoundWall && (v.look !== look || !v.previewOn)) || (HOUSE && !v.houseFrame)) {
           v.restarted = true;
           await setup();
           ids = await resolveParams(page); // the example system mints new ids every boot
@@ -452,4 +466,10 @@ for (const v of visits) {
 fs.writeFileSync(path.join(OUT, 'walk.md'), L.join('\n') + '\n');
 console.log(`\n[walk] ${visits.length} visits → ${path.join(OUT, 'walk.md')}`);
 console.log(`[walk] page errors on ${summary.pageErrorRoutes.length} routes; 404 wall: ${summary.notFoundWallRoutes.join(', ') || 'none'}; sideways scroll: ${summary.hScrollRoutes.length} visits.`);
-process.exit(errorVisits.length ? 1 : 0);
+// The house walk also fails on what the frame promises: a real title on
+// every page, the frame itself, and no sideways scroll.
+const houseFails = HOUSE
+  ? visits.filter((v) => v.route !== '/__walk_missing_room__' && v.route !== '/privacy' && (v.hOverflow || !v.houseFrame || v.findings.some((f) => /^no page title/.test(f))))
+  : [];
+if (HOUSE) console.log(`[walk] house: ${houseFails.length} visits with a missing title, a missing frame or sideways scroll${houseFails.length ? `: ${houseFails.slice(0, 10).map((v) => `${v.route} ${v.look} ${v.size} (${v.findings.join(', ')})`).join('; ')}` : ''}.`);
+process.exit(errorVisits.length || houseFails.length ? 1 : 0);

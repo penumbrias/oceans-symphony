@@ -8,7 +8,11 @@
 //                   index.html's modulepreload links AND the entry's static
 //                   `import … from "./x.js"` graph (dynamic import() excluded)
 // Also listed (information only): the biggest lazy chunks against the house
-// room budget, and the total JS + CSS the service worker warms for offline.
+// room budget, the total JS + CSS the service worker warms for offline, and
+// the new house's frame chunk (step 2.1): HouseFrame-*.js and everything it
+// statically pulls in that isn't already loaded at first paint, i.e. what
+// turning on "Try the new house" downloads. The run FAILS if the frame chunk
+// is part of first paint (the old house must not load it).
 //
 // Budgets live in scripts/house-budget.json:
 //   - baseline.*  today's numbers. They are SOFT limits: the script fails
@@ -106,6 +110,28 @@ const assetsDir = path.join(outDir, 'assets');
 const all = fs.readdirSync(assetsDir).filter((f) => /\.(js|css)$/.test(f)).map((f) => sizes(`assets/${f}`));
 const lazyJs = all.filter((s) => s.file.endsWith('.js') && !firstPaint.has(s.file)).sort((a, b) => b.gz - a.gz);
 
+// --- The new house's frame chunk (step 2.1) ---
+const frameEntry = all.find((s) => /^assets\/HouseFrame-[^/]+\.js$/.test(s.file));
+let frame = null;
+if (frameEntry) {
+  const seen = new Set();
+  const q = [frameEntry.file];
+  while (q.length) {
+    const f = q.shift();
+    if (seen.has(f) || firstPaint.has(f) || !fs.existsSync(path.join(outDir, f))) continue;
+    seen.add(f);
+    q.push(...staticImports(f));
+  }
+  const css = all.filter((s) => /^assets\/HouseFrame-[^/]+\.css$/.test(s.file));
+  const js = [...seen].map(sizes);
+  frame = {
+    file: frameEntry.file, gz: frameEntry.gz, raw: frameEntry.raw,
+    withImportsGz: sum(js, 'gz'), withImportsFiles: js.length,
+    cssGz: sum(css, 'gz'),
+    inFirstPaint: firstPaint.has(frameEntry.file),
+  };
+}
+
 const measured = {
   entryGz: entry.gz,
   startupCssGz: sum(cssList, 'gz'),
@@ -159,6 +185,7 @@ for (const [key, label, houseKey] of METRICS) {
     houseGap: house ? now - house : null,
   });
 }
+if (frame?.inFirstPaint) failed = true;
 const roomLimit = budget.house?.roomChunkGz;
 const overRoom = roomLimit ? lazyJs.filter((s) => s.gz > roomLimit) : [];
 
@@ -172,6 +199,7 @@ const report = {
   rows,
   biggestLazyChunks: lazyJs.slice(0, 12),
   lazyChunksOverHouseRoomBudget: overRoom.length,
+  houseFrame: frame,
   failed,
 };
 
@@ -189,6 +217,10 @@ for (const r of rows) {
 lines.push('');
 lines.push(`Raw (minified): entry ${kb(raw.entry)}, startup CSS ${kb(raw.startupCss)}, first-paint JS ${kb(raw.firstPaintJs)} across ${firstPaint.size} file(s).`);
 lines.push(`Offline warm payload (all JS + CSS): ${kb(measured.offlineWarmGz)} gzip / ${kb(raw.offlineWarm)} raw${budget.house?.offlineWarmGz ? ` (house target ≤ ${kb(budget.house.offlineWarmGz)})` : ''}.`);
+lines.push('');
+lines.push(frame
+  ? `New house frame (lazy, step 2.1): \`${frame.file}\` ${kb(frame.gz)} gzip; with what it pulls in beyond first paint ${kb(frame.withImportsGz)} gzip across ${frame.withImportsFiles} file(s); its CSS ${kb(frame.cssGz)} gzip.${frame.inFirstPaint ? ' **FAIL: the frame loads at first paint.**' : ' Not loaded at first paint.'}`
+  : 'New house frame: no HouseFrame chunk in this build.');
 lines.push('');
 lines.push(`Biggest lazy chunks (house room target ≤ ${roomLimit ? kb(roomLimit) : '—'} gzip; ${overRoom.length} over):`);
 lines.push('');

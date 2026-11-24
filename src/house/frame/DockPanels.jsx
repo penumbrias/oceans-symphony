@@ -151,7 +151,8 @@ function HelpTab({ active }) {
 
 export default function DockPanels({ tab, onTab, page, fresh }) {
   const idPrefix = "hf-dock";
-  const tabs = DOCK_TAB_LIST.map((d) => ({ ...d, dot: d.id === "help" && fresh && tab !== "help", dotLabel: "has a walk-through you haven't seen" }));
+  // Words only (no icons), so all four fit the narrowest dock.
+  const tabs = DOCK_TAB_LIST.map(({ icon: _icon, ...d }) => ({ ...d, dot: d.id === "help" && fresh && tab !== "help", dotLabel: "has a walk-through you haven't seen" }));
   return (
     <div className="hf-dock">
       <PageTabs label={`Panels for ${page.title}`} tabs={tabs} value={tab} onChange={onTab} idPrefix={idPrefix} withPanels />
