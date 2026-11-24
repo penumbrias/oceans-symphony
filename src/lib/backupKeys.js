@@ -23,6 +23,12 @@
 //     device restoring it would aim at the same cloud file
 
 export const BACKUP_LS_KEYS = [
+  // "Try the new house" (step 2.1, src/lib/houseSwitch.js) and the new
+  // house's fixed docks per page (src/house/frame/dockPrefs.js). Device
+  // preferences like the theme: mirrored so an Android cache clear doesn't
+  // drop them. Neither holds any record; both houses share every record.
+  "symphony_new_house_v1",
+  "symphony_house_layout_v1",
   "symphony_pixel_help_open_v1",
   "symphony_time_format_v1",
   "symphony_experimental_features_v1",

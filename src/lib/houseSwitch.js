@@ -1,0 +1,103 @@
+// "Try the new house" (new house, step 2.1): the per-device switch, and the
+// one size rule the frame is chosen by.
+//
+// This file is the ONLY new-house code in the main bundle, and it is tiny on
+// purpose: AppLayout reads the switch and the size class here, and only when
+// both say so does it lazily load src/house/ (the frame and the kit). With
+// the switch off, nothing of src/house is downloaded or run.
+//
+// The switch is a device preference, like the theme: it lives in
+// localStorage under HOUSE_SWITCH_KEY and is listed in BACKUP_LS_KEYS
+// (src/lib/backupKeys.js). That makes it durable (the settings mirror puts it
+// back after an Android cache clear) and lets it ride along in a backup the
+// way every other look preference does. It never touches a record or a
+// settings row: both houses read and write the same records through the same
+// save paths, so switching back shows everything as it was. Preview Mode
+// leaves it alone (previewMode.js only stashes theme and font keys), so the
+// switch is remembered in and out of the example system.
+//
+// Writes "1" or "0", never removes the key, so the mirror can't resurrect an
+// old value over a deliberate "off".
+
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+export const HOUSE_SWITCH_KEY = "symphony_new_house_v1";
+export const HOUSE_SWITCH_EVENT = "symphony-house-switch";
+
+export function parseHouseSwitch(raw) {
+  return raw === "1";
+}
+
+export function readHouseSwitch(storage) {
+  try {
+    const s = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+    return parseHouseSwitch(s ? s.getItem(HOUSE_SWITCH_KEY) : null);
+  } catch { return false; }
+}
+
+/** Turn the new house on or off on this device. Returns false if storage refused. */
+export function setHouseSwitch(on, storage) {
+  try {
+    const s = storage || localStorage;
+    s.setItem(HOUSE_SWITCH_KEY, on ? "1" : "0");
+  } catch { return false; }
+  try { window.dispatchEvent(new CustomEvent(HOUSE_SWITCH_EVENT, { detail: { on: !!on } })); } catch { /* no window */ }
+  return true;
+}
+
+function subscribe(cb) {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (e) => { if (!e || e.key == null || e.key === HOUSE_SWITCH_KEY) cb(); };
+  window.addEventListener(HOUSE_SWITCH_EVENT, cb);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(HOUSE_SWITCH_EVENT, cb);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+/** The switch, kept live (this tab and other tabs). */
+export function useHouseSwitch() {
+  return useSyncExternalStore(subscribe, () => readHouseSwitch(), () => false);
+}
+
+// ── Three sizes of the same house (building code §4) ─────────────────────
+// Effective width = viewport width ÷ text scale, so 1280 px at 200% text is
+// laid out as 640 and large text reflows instead of squeezing. A phone held
+// sideways (touch pointer, under 480 tall) is a phone.
+export const HOUSE_PHONE_BELOW = 640;
+export const HOUSE_FULL_FROM = 1024;
+
+export function houseSizeClass({ width, height = 800, textScale = 1, coarse = false }) {
+  const scale = Number(textScale) > 0 ? Number(textScale) : 1;
+  const eff = Number(width) / scale;
+  if (!(eff >= HOUSE_PHONE_BELOW) || (coarse && Number(height) < 480)) return "phone";
+  if (eff < HOUSE_FULL_FROM) return "compact";
+  return "full";
+}
+
+function readSize() {
+  if (typeof window === "undefined") return "full";
+  let textScale = 1;
+  let coarse = false;
+  try { textScale = (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16; } catch { /* default */ }
+  try { coarse = window.matchMedia("(pointer: coarse)").matches; } catch { /* default */ }
+  return houseSizeClass({ width: window.innerWidth, height: window.innerHeight, textScale, coarse });
+}
+
+/** "phone" | "compact" | "full", kept live through resizes and text-size changes. */
+export function useHouseSizeClass() {
+  const [size, setSize] = useState(readSize);
+  useEffect(() => {
+    const on = () => setSize(readSize());
+    window.addEventListener("resize", on);
+    let mo;
+    try {
+      // The text size is a class (and style) on <html>.
+      mo = new MutationObserver(on);
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+    } catch { /* no DOM */ }
+    return () => { window.removeEventListener("resize", on); mo?.disconnect(); };
+  }, []);
+  return size;
+}
