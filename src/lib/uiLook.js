@@ -4,6 +4,13 @@ import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { writeSettings } from "@/lib/settingsWriter";
 import { reapplyFontFamily } from "@/lib/useAccessibility";
+import { UI_LOOKS, readPixelLook, PIXEL_COLOUR_VARS } from "@/lib/pixelLook";
+
+// The pure readers and constants live in pixelLook.js (no React), so the
+// new house's paint translator and its tests can use them; re-exported here
+// so every existing import keeps working.
+export { UI_LOOKS, DEFAULT_UI_LOOK, readUiLook, PIXEL_LOOK_DEFAULTS, readPixelLook, PIXEL_DOCK_LAYERS, PIXEL_STATUS_ITEMS } from "@/lib/pixelLook";
+import { readUiLook } from "@/lib/pixelLook";
 
 // The app's overall look (Display options → Shape → App look):
 //   "smooth" — the look the app has always had (the default)
@@ -20,13 +27,6 @@ import { reapplyFontFamily } from "@/lib/useAccessibility";
 // phone and a desktop can each have their own. The applier sets
 // data-ui-look on <html>; index.css carries every rule, all scoped to
 // html[data-ui-look="pixel"], so the smooth look is untouched.
-
-export const UI_LOOKS = Object.freeze({ SMOOTH: "smooth", PIXEL: "pixel" });
-export const DEFAULT_UI_LOOK = UI_LOOKS.SMOOTH;
-
-export function readUiLook(settings) {
-  return settings?.ui_look === UI_LOOKS.PIXEL ? UI_LOOKS.PIXEL : DEFAULT_UI_LOOK;
-}
 
 export function useUiLook() {
   const { data: list = [] } = useQuery({
@@ -53,70 +53,6 @@ export function usePixelDesk() {
   }, []);
   return pixel && wide;
 }
-
-// The pixel look's own defaults, which the person can change
-// (Display options → Shape → App look). Stored on SystemSettings.ui_pixel,
-// a device look field like ui_look. Every key is optional: unset means the
-// pixel look's built-in value. A widget's own look still wins over these.
-export const PIXEL_LOOK_DEFAULTS = Object.freeze({ corners: 0, bevel: 2 });
-const PIXEL_COLOUR_VARS = {
-  outline: "--px-line",       // the dark outline round panels and buttons
-  titleBar: "--px-bar",       // title bars of widgets, menus and the header
-  floorTop: "--px-floor-top", // the page floor's gradient, top
-  floorBottom: "--px-floor-bottom", // …and bottom
-};
-const HEX = /^#[0-9a-f]{3,8}$/i;
-const num = (v, lo, hi) => {
-  const n = Number(v);
-  return v === "" || v == null || !Number.isFinite(n) ? null : Math.min(hi, Math.max(lo, n));
-};
-
-export function readPixelLook(settings) {
-  const raw = settings?.ui_pixel && typeof settings.ui_pixel === "object" ? settings.ui_pixel : {};
-  const out = {};
-  const corners = num(raw.corners, 0, 16);
-  if (corners != null) out.corners = corners;
-  const bevel = num(raw.bevel, 0, 4);
-  if (bevel != null) out.bevel = bevel;
-  for (const k of Object.keys(PIXEL_COLOUR_VARS)) if (HEX.test(raw[k] || "")) out[k] = raw[k];
-  if (raw.type === "plain") out.type = "plain";
-  // The status bar along the bottom (computer): on unless switched off,
-  // and which of its items are hidden.
-  out.statusBar = raw.statusBar !== false;
-  out.statusHidden = Array.isArray(raw.statusHidden) ? raw.statusHidden.filter((id) => PIXEL_STATUS_ITEMS.some((i) => i.id === id)) : [];
-  // The tool rail (computer): quick actions and this page's tools down one
-  // edge. On unless switched off; left unless moved right.
-  out.rail = raw.rail !== false;
-  out.railSide = raw.railSide === "right" ? "right" : "left";
-  // The timeline dock along the bottom of Home (computer): off unless
-  // switched on, and which of its layers are hidden.
-  out.dock = raw.dock === true;
-  out.dockHidden = Array.isArray(raw.dockHidden) ? raw.dockHidden.filter((id) => PIXEL_DOCK_LAYERS.some((l) => l.id === id)) : [];
-  return out;
-}
-
-// The timeline dock's layers, top to bottom. Each reads one kind of record;
-// "fronting" draws one row per {alter} who was in front that day.
-export const PIXEL_DOCK_LAYERS = [
-  { id: "fronting", label: "{{Fronting}}" },
-  { id: "activities", label: "Activities" },
-  { id: "feelings", label: "Feelings" },
-  { id: "symptoms", label: "Symptoms" },
-  { id: "sleep", label: "Sleep" },
-  { id: "locations", label: "Locations" },
-  { id: "statuses", label: "Statuses" },
-  { id: "journals", label: "Journals" },
-];
-
-// The status bar's items, in order (Display options → Bars → Status bar).
-export const PIXEL_STATUS_ITEMS = [
-  { id: "saved", label: "Saved" },
-  { id: "synced", label: "Last sync" },
-  { id: "nextPlan", label: "Next plan" },
-  { id: "nextMeds", label: "Next medication" },
-  { id: "look", label: "Look" },
-  { id: "version", label: "Version" },
-];
 
 // The editor's handle on the pixel defaults: Display options shows these
 // rows IN PLACE OF the usual corner/edge rows while the pixel look is on.
