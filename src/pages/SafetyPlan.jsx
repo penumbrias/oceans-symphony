@@ -7,6 +7,8 @@ import { ChevronDown, Shield, Lightbulb, BarChart3, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import EmergencyCardLink from "@/components/emergency/EmergencyCardLink";
+import { useUiLook } from "@/lib/uiLook";
+import SafetyPlanPixel from "@/components/safety/SafetyPlanPixel";
 
 export default function SafetyPlan() {
   const navigate = useNavigate();
@@ -40,6 +42,12 @@ export default function SafetyPlan() {
       [section]: !prev[section],
     }));
   };
+
+  const pixel = useUiLook() === "pixel";
+  if (pixel) {
+    // Pixel look (SafetyPlanPhone): the same answers, drawn as panels.
+    return <SafetyPlanPixel safetyPlanEntry={safetyPlanEntry} copingCardsEntry={copingCardsEntry} windowEntry={windowEntry} />;
+  }
 
   if (!hasSafetyPlan) {
     return (

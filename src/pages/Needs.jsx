@@ -23,6 +23,8 @@ import { profilePageId } from "@/lib/profileBoard";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import { WISHES_QUERY_KEY } from "@/lib/wishes";
 import { TURNS_QUERY_KEY } from "@/lib/needs";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/care.css";
 
 // The page's standard layout (what shows until the first edit).
 export const NEEDS_PAGES = [
@@ -48,9 +50,13 @@ export default function Needs() {
   const [settled, setSettled] = useState(false);
   useEffect(() => { const id = setTimeout(() => setSettled(true), 600); return () => clearTimeout(id); }, []);
   useHighlightScroll([page.currentPageId, wishesReady, turnsReady, settled]);
+  const pixel = useUiLook() === "pixel";
+  // Pixel look (NeedsPhone): under the balance, the two ways to add —
+  // each opens its own page of the board.
+  const onBalance = page.currentPageId === profilePageId("balance");
 
   return (
-    <div className="min-h-screen px-4 pt-4"
+    <div className={`min-h-screen px-4 pt-4${pixel ? " px-needs" : ""}`}
       style={{ paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + var(--os-sab))" }}>
       <div className="max-w-2xl mx-auto" data-tour="needs-page">
         <div className="mb-3">
@@ -58,6 +64,12 @@ export default function Needs() {
             onEditLayout={openPageLayoutEditor} tourId="needs-layout-btn" />
         </div>
         <PageBoardCanvas pageId="needs" pages={NEEDS_PAGES} page={page} pageIcons={PAGE_ICONS} tourId="needs-tabs" />
+        {pixel && onBalance && !page.layoutEditing && (
+          <div className="px-needs-foot">
+            <button type="button" className="px-cr-btn on" onClick={() => page.onPageChange(profilePageId("wishes"))}>+ Add a wish</button>
+            <button type="button" className="px-cr-btn" onClick={() => page.onPageChange(profilePageId("turns"))}>New turn agreement</button>
+          </div>
+        )}
       </div>
     </div>
   );
