@@ -30,7 +30,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { installExtraFonts, uninstallExtraFonts } from "@/lib/fontPacks";
 import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFaces";
 import { CORNER_MODES } from "@/lib/useCornerMode";
-import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS } from "@/lib/uiLook";
+import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS, PIXEL_STATUS_ITEMS } from "@/lib/uiLook";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, useInspectorPages } from "@/components/shared/SettingRows";
@@ -612,7 +612,8 @@ function BarsTab({ v2, alignX }) {
   // Pixel look on: its header is always shown and draws the top bar's
   // items in its own frame, so only the items list and the wave colour
   // apply there (Penumbra: no rows that only change the other look).
-  const pixelTop = usePixelLook().on && !v2ChromeNow;
+  const pixelLook = usePixelLook();
+  const pixelTop = pixelLook.on && !v2ChromeNow;
 
   // One page-list editor for both: icon (bottom tabs only) · name · ↑ ↓ · ×,
   // then "Add a tab…" while there is room.
@@ -710,7 +711,7 @@ function BarsTab({ v2, alignX }) {
   const [bar, setBar] = useState(() => {
     let id = null;
     try { id = sessionStorage.getItem("os_bars_focus"); sessionStorage.removeItem("os_bars_focus"); } catch { /* storage off */ }
-    return ["top", "tabs", "actions", "alters", "rail", "sidebar"].includes(id) ? id : "top";
+    return ["top", "tabs", "actions", "alters", "rail", "sidebar", "status"].includes(id) ? id : "top";
   });
 
   // Top-bar arrangement — order + per-item show/hide (the wireframe's
@@ -733,8 +734,10 @@ function BarsTab({ v2, alignX }) {
     { value: "top", label: labels.top }, { value: "tabs", label: labels.tabs },
     { value: "actions", label: labels.actions }, { value: "alters", label: labels.alters },
     ...(v2Chrome ? [{ value: "rail", label: labels.rail }] : [{ value: "sidebar", label: tr("editSheet.barSidebar") }]),
+    // The pixel look's status bar along the bottom (computer only).
+    ...(pixelTop ? [{ value: "status", label: tr("editSheet.barStatus") }] : []),
   ];
-  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) ? "top" : bar;
+  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) || (bar === "status" && !pixelTop) ? "top" : bar;
 
   return (
     <div>
@@ -824,6 +827,28 @@ function BarsTab({ v2, alignX }) {
               // The classic top navigation bar: its pages (web only).
               pageList(topIds, writeClassicTopBar, 6, false)
             )}
+          </BarPart>
+        )}
+      </div>)}
+
+      {/* ── Status bar (pixel look, computer) ── */}
+      {shownBar === "status" && (<div data-bar-section="status">
+        <BarPart label={tr("editSheet.show")} first>
+          <SwitchRow label={tr("editSheet.barStatus")} hint={tr("editSheet.barStatusHint")}
+            checked={pixelLook.px.statusBar} onChange={(on) => pixelLook.write({ statusBar: on ? "" : false })} />
+        </BarPart>
+        {pixelLook.px.statusBar && (
+          <BarPart label={tr("editSheet.partContent")}>
+            {PIXEL_STATUS_ITEMS.map((item) => {
+              const hidden = pixelLook.px.statusHidden;
+              return (
+                <SwitchRow key={item.id} label={item.label} checked={!hidden.includes(item.id)}
+                  onChange={(on) => {
+                    const next = on ? hidden.filter((x) => x !== item.id) : [...hidden, item.id];
+                    pixelLook.write({ statusHidden: next.length ? next : "" });
+                  }} />
+              );
+            })}
           </BarPart>
         )}
       </div>)}

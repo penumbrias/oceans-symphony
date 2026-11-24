@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "feature", text: "Pixel look on a computer: a status bar along the bottom shows saving, last sync, the next plan and the next medication. Turn it or its items off in Display options → Bars." },
       { type: "feature", text: "New alters: add just the basics, then their profile opens with a short guide to Info for the rest." },
       { type: "improve", text: "Add several: type names with commas, like \"mark, amy, susan, carol\", to add them all at once." },
       { type: "improve", text: "Pixel look: the header can show your system name, who's fronting, the time and what's running, arranged in Display options → Bars → Top bar." },

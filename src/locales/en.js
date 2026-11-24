@@ -929,6 +929,8 @@ export default {
   "editSheet.appLookHint": "How panels, buttons and fields are drawn. Your colours stay yours.",
   "editSheet.appLookPixelHint": "Square bevelled panels and pixel headings. For pixel colours too, pick \"pixel\" in Styles.",
   "editSheet.corners": "Corners",
+  "editSheet.barStatus": "Status bar",
+  "editSheet.barStatusHint": "Along the bottom on a computer: saved, last sync, next plan, next medication",
   "editSheet.pixelType": "Lettering",
   "editSheet.pixelTypeHint": "Pixel letters, or the app's own type with the pixel frame",
   "editSheet.pixelTypePixel": "Pixel",

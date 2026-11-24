@@ -439,3 +439,20 @@ html[data-ui-look="pixel"] .os-head-label {
   [data-px-chrome] .os-page-tip { display: none !important; }
   .px-help { left: 0; width: auto; z-index: 210; /* over toasts while open */ top: calc(86px + min(env(safe-area-inset-top, 0px), 64px)); bottom: calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px)); }
 }
+
+/* ── Status bar (computer) ─────────────────────────────────────────── */
+.px-status {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  align-items: center; gap: 2px; height: 24px; padding: 0 6px;
+  background: var(--px-bar); box-shadow: inset 0 2px 0 var(--px-line);
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text-2);
+}
+.px-status-item { padding: 0 8px; white-space: nowrap; line-height: 24px; color: inherit; text-decoration: none; background: transparent; }
+a.px-status-item:hover, button.px-status-item:hover { color: var(--px-text); background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
+.px-status-warn { color: var(--color-warning, #f0b35a) !important; }
+@media (min-width: 1024px) {
+  html[data-px-status="1"] [data-px-chrome] #main-content { padding-bottom: 28px; }
+  html[data-px-status="1"] .px-help { bottom: 24px; }
+  html[data-px-status="1"] .os-float-right, html[data-px-status="1"] .os-float-btn { margin-bottom: 24px; }
+  html[data-px-status="1"] [data-sonner-toaster][data-y-position="bottom"] { bottom: 40px !important; }
+}

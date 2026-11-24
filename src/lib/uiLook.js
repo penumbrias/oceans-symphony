@@ -61,8 +61,22 @@ export function readPixelLook(settings) {
   if (bevel != null) out.bevel = bevel;
   for (const k of Object.keys(PIXEL_COLOUR_VARS)) if (HEX.test(raw[k] || "")) out[k] = raw[k];
   if (raw.type === "plain") out.type = "plain";
+  // The status bar along the bottom (computer): on unless switched off,
+  // and which of its items are hidden.
+  out.statusBar = raw.statusBar !== false;
+  out.statusHidden = Array.isArray(raw.statusHidden) ? raw.statusHidden.filter((id) => PIXEL_STATUS_ITEMS.some((i) => i.id === id)) : [];
   return out;
 }
+
+// The status bar's items, in order (Display options → Bars → Status bar).
+export const PIXEL_STATUS_ITEMS = [
+  { id: "saved", label: "Saved" },
+  { id: "synced", label: "Last sync" },
+  { id: "nextPlan", label: "Next plan" },
+  { id: "nextMeds", label: "Next medication" },
+  { id: "look", label: "Look" },
+  { id: "version", label: "Version" },
+];
 
 // The editor's handle on the pixel defaults: Display options shows these
 // rows IN PLACE OF the usual corner/edge rows while the pixel look is on.
@@ -109,7 +123,8 @@ export function UiLookApplier() {
   const row = pickPrimarySystemSettings(list);
   const look = readUiLook(row);
   const px = look === UI_LOOKS.PIXEL ? readPixelLook(row) : {};
-  const pxKey = JSON.stringify(px);
+  // Only the parts that draw CSS re-run the applier.
+  const pxKey = JSON.stringify({ ...px, statusBar: undefined, statusHidden: undefined });
   useEffect(() => {
     const el = document.documentElement;
     if (look === UI_LOOKS.PIXEL) el.setAttribute("data-ui-look", "pixel");

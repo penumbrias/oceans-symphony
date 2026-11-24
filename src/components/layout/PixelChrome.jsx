@@ -24,6 +24,13 @@ import { resolveUiV2 } from "@/lib/uiV2";
 import { useFrontPresence, useClock, alterNameColorVar } from "@/lib/useFrontPresence";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { ActiveNowChip } from "@/components/v2/ActiveNow";
+import { readPixelLook } from "@/lib/uiLook";
+import { APP_VERSION } from "@/lib/appVersion";
+import { getSaveHealth, retrySave } from "@/lib/localDb";
+import { getLastRun, getSyncFolder } from "@/lib/deviceSyncRunner";
+import { useMedications, useMedicationDoses, dosesOnDay, MEDICATIONS_PATH } from "@/lib/medications";
+import { clockOpts } from "@/lib/timeFormat";
+import { isScheduled } from "@/lib/activityStatus";
 import { Bell, ChevronLeft, X, Plus, HelpCircle, Search } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { navAreaGroups, pageLabel, ALL_PAGES } from "@/utils/navigationConfig";
@@ -500,5 +507,90 @@ function PhoneHeader({ pendingCount = 0, canGoBack, onBack, onOpenMenu }) {
       <PixelPageTabs />
       <PixelHelpPanel open={help.open} onClose={() => help.setOpen(false)} />
     </header>
+  );
+}
+
+// ── Status bar (computer, pixel look) ──────────────────────────────
+// The mockup's bottom bar: whether the last save got through, the last
+// device sync, the next plan and the next medication, the look and the
+// version. On by default in the pixel look; switched off, or items hidden,
+// in Display options → Bars → Status bar (SystemSettings.ui_pixel).
+const timeOf = (d) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() });
+
+function useSaveHealth() {
+  const [health, setHealth] = React.useState(getSaveHealth);
+  React.useEffect(() => {
+    const on = (e) => setHealth(e.detail || getSaveHealth());
+    window.addEventListener("symphony-save-health", on);
+    return () => window.removeEventListener("symphony-save-health", on);
+  }, []);
+  return health;
+}
+
+function useMinuteTick() {
+  const [, tick] = React.useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+}
+
+export function PixelStatusBar() {
+  return useDesk() ? <StatusBar /> : null;
+}
+
+function StatusBar() {
+  useMinuteTick();
+  const { data: list = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const px = readPixelLook(pickPrimarySystemSettings(list));
+  const on = (id) => !px.statusHidden.includes(id);
+  const health = useSaveHealth();
+  const { data: plans = [] } = useQuery({
+    queryKey: ["activities", "statusbar-next"],
+    // Newest timestamps first: plans ahead sort to the top, and older rows
+    // without a status are still read as plans (isScheduled).
+    queryFn: () => base44.entities.Activity.list("-timestamp", 200),
+    enabled: px.statusBar && on("nextPlan"),
+  });
+  const { medications: meds } = useMedications({ enabled: px.statusBar && on("nextMeds") });
+  const { doses } = useMedicationDoses({ enabled: px.statusBar && on("nextMeds") });
+
+  React.useEffect(() => {
+    if (!px.statusBar) return undefined;
+    document.documentElement.setAttribute("data-px-status", "1");
+    return () => document.documentElement.removeAttribute("data-px-status");
+  }, [px.statusBar]);
+  if (!px.statusBar) return null;
+
+  const now = new Date();
+  const nextPlan = plans
+    .filter((a) => !a.trashed_at && a.timestamp && new Date(a.timestamp) > now && isScheduled(a))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
+  const nextDose = dosesOnDay(meds, doses, { now }).find((d) => d.state === "later" || d.state === "due");
+  const lastSync = getSyncFolder() ? getLastRun() : "";
+
+  return (
+    <footer className="px-status hidden lg:flex" aria-label="Status">
+      {on("saved") && (health.ok
+        ? <span className="px-status-item">Saved</span>
+        : <button type="button" className="px-status-item px-status-warn" onClick={() => retrySave()} title="A save didn't get through. Try again.">Not saved · try again</button>)}
+      {on("synced") && lastSync && (
+        <Link to="/settings" className="px-status-item" title="Sync between devices is in Settings">Synced {timeOf(new Date(lastSync))}</Link>
+      )}
+      {on("nextPlan") && nextPlan && (
+        <Link to="/activities" className="px-status-item">Next: {nextPlan.activity_name || "Plan"} {timeOf(new Date(nextPlan.timestamp))}</Link>
+      )}
+      {on("nextMeds") && nextDose && (
+        <Link to={MEDICATIONS_PATH} className={nextDose.state === "due" ? "px-status-item px-status-warn" : "px-status-item"}>
+          {nextDose.state === "due" ? "Due" : "Meds"}: {nextDose.med.name} {timeOf(nextDose.at)}
+        </Link>
+      )}
+      <span className="flex-1" />
+      {on("look") && <span className="px-status-item">Look: Pixel</span>}
+      {on("version") && <span className="px-status-item">v{APP_VERSION}</span>}
+    </footer>
   );
 }
