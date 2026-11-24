@@ -1,0 +1,19 @@
+/* The pixel look over the house's roles (step 1.1). Square corners (unless
+   the person set their own), a 2 px outline and a bevel: light along the
+   top and left, dark along the bottom and right. The same Lucide icons with
+   square caps and mitred joins (building code §8). */
+[data-house][data-house-look="pixel"] {
+  --house-surface-shadow: none;
+  --house-raise:
+    inset var(--house-bevel) var(--house-bevel) 0 0 var(--house-bevel-light),
+    inset calc(var(--house-bevel) * -1) calc(var(--house-bevel) * -1) 0 0 var(--house-bevel-dark);
+  --house-sink:
+    inset var(--house-bevel) var(--house-bevel) 0 0 var(--house-bevel-dark),
+    inset calc(var(--house-bevel) * -1) calc(var(--house-bevel) * -1) 0 0 var(--house-bevel-light);
+  --house-icon-cap: square;
+  --house-icon-join: miter;
+}
+[data-house][data-house-look="pixel"] svg.lucide {
+  stroke-linecap: var(--house-icon-cap);
+  stroke-linejoin: var(--house-icon-join);
+}

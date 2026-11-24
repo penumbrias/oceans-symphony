@@ -1,0 +1,10 @@
+/* The smooth look over the house's roles (step 1.1). Same roles as the
+   pixel look; only the shape of things changes. Corners and the person's
+   own corner setting arrive as --house-corner from HouseRoot. */
+[data-house][data-house-look="smooth"] {
+  --house-surface-shadow: 0 1px 2px rgb(0 0 0 / 0.18), 0 4px 12px rgb(0 0 0 / 0.12);
+  --house-raise: none;
+  --house-sink: inset 0 1px 2px rgb(0 0 0 / 0.18);
+  --house-icon-cap: round;
+  --house-icon-join: round;
+}
