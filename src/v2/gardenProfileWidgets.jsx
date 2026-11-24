@@ -36,7 +36,9 @@ import RichText from "@/components/shared/RichText";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { isLogCommandError } from "@/lib/authoredText";
 import { saveAlterNote, deleteAlterNote, alterNotesKey } from "@/lib/alterNotes";
-import { boxStyle, valignBoxStyle } from "@/v2/primitives";
+import { boxStyle, valignBoxStyle, useWidgetChrome } from "@/v2/primitives";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/alters.css";
 import { useTerms } from "@/lib/useTerms";
 import { useInfoAlter, EditableValue } from "@/v2/infoWidgets";
 import { alterRoles } from "@/lib/alterRoles";
@@ -59,16 +61,30 @@ const flush = () => boxStyle({ borderFallback: false, padFallback: false });
 // The one box. With nothing to show it's empty on the page and names
 // itself while the layout is edited (.pf-widget-empty, index.css).
 export function GardenBox({ empty, name, children, ...rest }) {
+  // Pixel look (the profile mockup): a window with a title bar named after
+  // the widget (the person's own name for it first; none when they hid the
+  // label, and none on the identity box, which passes no name). The
+  // padding — the person's own, or the window's — moves onto the body so
+  // the bar runs edge to edge.
+  const pixel = useUiLook() === "pixel";
+  const chrome = useWidgetChrome();
+  const ownName = typeof chrome.label === "string" ? chrome.label.trim() : "";
+  const band = pixel && !empty && !chrome.hideLabel && name ? (ownName || name) : "";
+  const box = { ...flush(), ...valignBoxStyle() };
+  if (pixel) box.padding = 0;
   return (
-    <section className="h-full min-h-0 overflow-y-auto text-[0.875em] leading-relaxed" style={{ ...flush(), ...valignBoxStyle() }} {...rest}>
+    <section className="h-full min-h-0 overflow-y-auto text-[0.875em] leading-relaxed" style={box}
+      data-pxp-box={pixel ? (name ? "1" : "head") : undefined} data-pxp-empty={pixel && empty ? "1" : undefined} {...rest}>
+      {band && <h2 data-widget-label="" className="os-head-row os-head-label pxp-band flex-shrink-0">{band}</h2>}
       {empty ? (
         <div className="pf-widget-empty h-full items-center justify-center rounded-xl border border-dashed border-current opacity-50 text-[0.8125em] px-3 text-center" aria-hidden="true">
           {name} — nothing to show yet
         </div>
-      ) : <div className="min-w-0">{children}</div>}
+      ) : <div className="min-w-0" style={pixel ? { padding: PIXEL_BODY_PAD } : undefined}>{children}</div>}
     </section>
   );
 }
+const PIXEL_BODY_PAD = "var(--v2-pad-t, var(--v2-pad, 10px)) var(--v2-pad-r, var(--v2-pad, 12px)) var(--v2-pad-b, var(--v2-pad, 10px)) var(--v2-pad-l, var(--v2-pad, 12px))";
 
 export const Heading = ({ children }) => (
   <h3 className="text-[0.75em] font-semibold uppercase tracking-wide opacity-70 mb-1">{children}</h3>

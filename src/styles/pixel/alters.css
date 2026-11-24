@@ -98,12 +98,10 @@ html[data-ui-look="pixel"] .pxa-find input::placeholder { color: var(--px-text-2
 html[data-ui-look="pixel"] .pxa-select { flex: 0 0 auto; max-width: 200px; text-align: left; }
 html[data-ui-look="pixel"] .pxa-seg { display: flex; gap: 4px; }
 
-/* The cards' floor: the mockup's checkerboard. */
+/* The cards' floor: a solid sunk colour (no checkerboard, by request). */
 html[data-ui-look="pixel"] .pxa-floor {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px;
   background-color: var(--px-sunk);
-  background-image: repeating-conic-gradient(color-mix(in srgb, var(--px-panel) 70%, var(--px-sunk)) 0 25%, transparent 0 50%);
-  background-size: 16px 16px;
   outline: 2px solid var(--px-line);
 }
 html[data-ui-look="pixel"] .pxa-grid {
@@ -170,3 +168,64 @@ html[data-ui-look="pixel"] .pxa-week-days { display: flex; gap: 4px; margin-top:
 html[data-ui-look="pixel"] .pxa-week-days > span { flex: 1; text-align: center; font-family: var(--px-font); font-size: 10px; color: var(--px-text-2); }
 html[data-ui-look="pixel"] .pxa-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 html[data-ui-look="pixel"] .pxa-info h1 { font-size: 20px !important; }
+
+/* ══ Alter profile (the "AlterProfilePhone" mockup) ══════════════════ */
+/* Title bar: back · name · Front · Info · ⋯ */
+html[data-ui-look="pixel"] .pxp-bar {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 6px 10px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line), inset 2px 2px 0 var(--px-hi);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxp-bar .pxa-btn { min-height: 40px; }
+html[data-ui-look="pixel"] .pxp-sq { width: 44px; padding: 0; }
+html[data-ui-look="pixel"] .pxp-sq svg { width: 18px; height: 18px; }
+html[data-ui-look="pixel"] .pxp-bar-name { flex: 1; min-width: 0; font-family: var(--px-font); font-size: 18px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxp-bar > button.rounded-full { min-height: 40px; height: 40px; outline: 2px solid var(--px-line); }
+
+/* Action bar along the bottom: Edit page · Profile style · Write note */
+html[data-ui-look="pixel"] .pxp-actions {
+  position: sticky; bottom: 0; z-index: 20; display: flex; gap: 8px; margin-top: 14px; padding: 8px 12px;
+  background: var(--px-panel); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxp-actions .pxa-btn { flex: 1 1 0; min-width: 0; min-height: 44px; font-size: 14px; white-space: normal; }
+
+/* Sections: a window with a title bar. Box padding moves onto the body
+   (ProfileBox), so the bar runs edge to edge. */
+html[data-ui-look="pixel"] .pxp-band {
+  margin: 0 !important; min-height: 24px; padding: 3px 10px !important;
+  font-size: 13px; color: var(--v2-text, var(--px-text));
+}
+/* A section's own inner card would be a box in a box: flatten it (a
+   colour the person gave the sections still shows, it's inline). */
+html[data-ui-look="pixel"] [data-pxp-box="1"] .pxp-body > :is(.bg-muted\/20, .bg-muted\/30) {
+  background-color: transparent; border-width: 0; padding: 0;
+}
+/* Header card: square bevelled picture, pixel name, square chips. */
+html[data-ui-look="pixel"] [data-pxp-box="head"] .w-24.h-24 {
+  width: 72px; height: 72px; border: 0; outline: 2px solid var(--px-line);
+  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .3), inset -3px -3px 0 rgba(0, 0, 0, .35);
+}
+html[data-ui-look="pixel"] [data-pxp-box="head"] h2 { font-family: var(--px-font); font-size: 20px; font-weight: 500; }
+html[data-ui-look="pixel"] [data-pxp-box="head"] .gap-4 { gap: 12px; align-items: center; }
+html[data-ui-look="pixel"] [data-pxp-box="head"] [data-alter-roles] > span,
+html[data-ui-look="pixel"] .pxp-chip {
+  border-radius: 0 !important; font-family: var(--px-font); font-size: 12px; padding: 1px 6px;
+  outline: 2px solid var(--px-line); line-height: 1.35;
+}
+html[data-ui-look="pixel"] .pxp-chip-on { background: var(--color-primary); color: var(--color-bg); margin-top: 4px; }
+
+/* An empty section (no tags, no groups…) draws nothing outside the
+   layout editor, as it always did. */
+html[data-ui-look="pixel"]:not([data-home-edit]) [data-pxp-empty="1"] { background: transparent !important; box-shadow: none !important; border-color: transparent !important; }
+html[data-ui-look="pixel"]:not([data-home-edit]) [data-pxp-empty="1"]::after,
+html[data-ui-look="pixel"]:not([data-home-edit]) [data-pxp-empty="1"] .pxp-band { display: none; }
+/* Page tabs read as plain folder tabs, like the mockup. */
+html[data-ui-look="pixel"] [data-tour="alter-profile-tabs"] svg { display: none; }
+/* The new profile's boxes (GardenBox) get the same window bevel the
+   other widget boxes get from the pixel look. */
+html[data-ui-look="pixel"] section[data-pxp-box]:not([data-widget-box]) { position: relative; }
+html[data-ui-look="pixel"] section[data-pxp-box]:not([data-widget-box])::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: var(--px-bevel);
+}
+html[data-ui-look="pixel"] section[data-pxp-box="head"]:not([data-widget-box]) > div { padding: 12px; }

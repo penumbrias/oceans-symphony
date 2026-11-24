@@ -47,6 +47,8 @@ import {
 } from "@/components/systemmap/LocationSections";
 import { PROFILE_OWNER_TYPES } from "@/lib/profileBoard";
 import { useTerms } from "@/lib/useTerms";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/alters.css";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import {
   ProfileHeaderSection, ProfilePreferencesSection, ProfileBioSection, ProfileGroupsSection,
@@ -121,10 +123,22 @@ const useSystemFields = () => useQuery({ ...sharedList("customFields") }).data |
 
 // The one visible box. `label` is only drawn when the person named the
 // widget (the sections carry their own headings, as the page always did).
-export function ProfileBox({ children, name = "" }) {
+// The kind of widget a ProfileBox is in ("Bio", "Notes"…), for the pixel
+// title bar when the section itself passes no name.
+const ProfileWidgetName = React.createContext("");
+
+export function ProfileBox({ children, name: nameProp = "", band = true }) {
   const chrome = useWidgetChrome();
+  const kind = React.useContext(ProfileWidgetName);
+  const t = useTerms();
+  const name = nameProp || (kind ? applyTerms(kind, t) : "");
   const ownName = typeof chrome.label === "string" ? chrome.label.trim() : "";
-  const showLabel = !!ownName && !chrome.hideLabel;
+  // The pixel look draws every section as a window with a title bar (the
+  // profile mockup): the widget's own name, else its kind ("Bio", "Notes"),
+  // unless the person hid the label. The header is the one without a bar.
+  const pixel = useUiLook() === "pixel";
+  const bandName = pixel && band && !chrome.hideLabel ? (ownName || name) : "";
+  const showLabel = !bandName && !!ownName && !chrome.hideLabel;
   // A section with nothing to show (no groups, no tags…) renders nothing,
   // as the page always did. While the layout is being edited it shows its
   // name instead, so the person can tell the empty box apart from a gap
@@ -135,15 +149,25 @@ export function ProfileBox({ children, name = "" }) {
     const isEmpty = !!bodyRef.current && bodyRef.current.childElementCount === 0 && !bodyRef.current.textContent;
     if (isEmpty !== empty) setEmpty(isEmpty);
   });
+  const box = boxStyle({ borderFallback: false, padFallback: false });
+  // Pixel: the bar runs edge to edge, so the padding (the person's own, or
+  // the window's 10/12px) moves from the box onto the body.
+  const pad = pixel ? PIXEL_BODY_PAD : null;
+  if (pixel) box.padding = 0;
   return (
-    <section className="h-full flex flex-col min-h-0" data-widget-box="1" style={boxStyle({ borderFallback: false, padFallback: false })}>
+    <section className="h-full flex flex-col min-h-0" data-widget-box="1" data-pxp-box={pixel ? (band ? "1" : "head") : undefined}
+      data-pxp-empty={pixel && empty ? "1" : undefined}
+      style={box}>
+      {bandName && (
+        <h2 data-widget-label="" className="os-head-row os-head-label pxp-band flex-shrink-0">{bandName}</h2>
+      )}
       {showLabel && (
         <h2 data-widget-label="" className="os-head-row os-head-label text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex-shrink-0">{ownName}</h2>
       )}
       {/* Body moves with the board's "Down" alignment; the ref'd child is
           what the empty check reads. */}
-      <div className="min-h-0 flex-1 overflow-y-auto" style={valignBoxStyle()}>
-        <div ref={bodyRef} className="min-w-0">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto" style={{ ...valignBoxStyle(), ...(pad ? { padding: pad } : {}) }}>
+        <div ref={bodyRef} className="min-w-0 pxp-body">{children}</div>
       </div>
       {empty && (
         <div className="pf-widget-empty flex-1 items-center justify-center rounded-xl border border-dashed border-border/60 text-[0.75em] text-muted-foreground px-3 text-center" aria-hidden="true">
@@ -153,16 +177,17 @@ export function ProfileBox({ children, name = "" }) {
     </section>
   );
 }
+const PIXEL_BODY_PAD = "var(--v2-pad-t, var(--v2-pad, 10px)) var(--v2-pad-r, var(--v2-pad, 12px)) var(--v2-pad-b, var(--v2-pad, 10px)) var(--v2-pad-l, var(--v2-pad, 12px))";
 
 // A widget for one section of a `type` profile. The section gets the
 // record under the type's own prop name (`alter`, `group`, `contact`,
 // `location`).
-const sectionOf = (type) => (SectionView, { needsFields = false, name = "" } = {}) => function ProfileSectionWidget() {
+const sectionOf = (type) => (SectionView, { needsFields = false, name = "", band = true } = {}) => function ProfileSectionWidget() {
   const record = useSubjectRecord(type);
   const systemFields = useSystemFields();
   const t = useTerms();
   if (!record) return null;
-  return <ProfileBox name={applyTerms(name, t)}><SectionView {...{ [type]: record }} {...(needsFields ? { systemFields } : {})} /></ProfileBox>;
+  return <ProfileBox name={applyTerms(name, t)} band={band}><SectionView {...{ [type]: record }} {...(needsFields ? { systemFields } : {})} /></ProfileBox>;
 };
 const section = sectionOf("alter");
 
@@ -178,7 +203,7 @@ const tab = (render) => function ProfileTabWidget() {
 
 const widgetOf = (type) => (label, description, icon, Component, spans = {}) => ({
   label, description, icon, category: "profile", subjects: [type],
-  render: () => <Component />,
+  render: () => <ProfileWidgetName.Provider value={label}><Component /></ProfileWidgetName.Provider>,
   supportsModes: ["normal"], supportsMultiInstance: false,
   defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 40 },
   ...spans,
@@ -189,7 +214,7 @@ const info = (section) => ({ configFields: [infoEditorField(section)] });
 
 export const ALTER_PROFILE_WIDGETS = {
   profile_header: W("Header", "Avatar, name, pronouns, birthday and role — the top of the {{alter}}'s page.", User,
-    section(ProfileHeaderSection, { needsFields: true, name: "Header" }), info("header")),
+    section(ProfileHeaderSection, { needsFields: true, name: "Header", band: false }), info("header")),
   profile_preferences: W("Preferences & boundaries", "The {{alter}}'s comfort levels, as chips.", HeartHandshake,
     section(ProfilePreferencesSection, { name: "Preferences & boundaries" }), info("preferences")),
   profile_bio: W("Bio", "The {{alter}}'s bio.", AlignLeft, section(ProfileBioSection, { name: "Bio" }), info("bio")),
@@ -237,7 +262,7 @@ const TAB = { defaultSpan: { cols: 4, rows: 4 } };
 const GW = widgetOf("group");
 const gsection = sectionOf("group");
 export const GROUP_PROFILE_WIDGETS = {
-  profile_header: GW("Header", "Avatar, name, root and parent — the top of the group's page.", Folder, gsection(GroupHeaderSection, { name: "Header" })),
+  profile_header: GW("Header", "Avatar, name, root and parent — the top of the group's page.", Folder, gsection(GroupHeaderSection, { name: "Header", band: false })),
   profile_bio: GW("Description", "The group's description.", AlignLeft, gsection(GroupBioSection, { name: "Description" })),
   profile_nested_groups: GW("Nested groups", "The groups inside this one.", Folder, gsection(GroupNestedSection, { name: "Nested groups" })),
   profile_members: GW("{{Alters}}", "Who is in this group, with Manage.", Users, gsection(GroupMembersSection, { name: "{{Alters}}" })),
@@ -250,7 +275,7 @@ export const GROUP_PROFILE_WIDGETS = {
 const CW = widgetOf("contact");
 const csection = sectionOf("contact");
 export const CONTACT_PROFILE_WIDGETS = {
-  profile_header: CW("Header", "Avatar, name, safety, categories and ways to reach them.", User, csection(ContactHeaderSection, { name: "Header" })),
+  profile_header: CW("Header", "Avatar, name, safety, categories and ways to reach them.", User, csection(ContactHeaderSection, { name: "Header", band: false })),
   profile_encounter: CW("I'm with them", "Start or end time together with this person.", UserCheck, csection(ContactEncounterSection, { name: "I'm with them" }), { supportsMultiInstance: true }),
   profile_about: CW("About", "About, what's safe to share and the custom fields — the About tab.", Info, csection(ContactAboutSection, { name: "About" })),
   profile_relationships: CW("Relationships", "How this person relates to each {{alter}} — the Relationships tab.", Link2, csection(ContactRelationshipsSection, { name: "Relationships" }), TAB),
@@ -263,7 +288,7 @@ export const CONTACT_PROFILE_WIDGETS = {
 const LW = widgetOf("location");
 const lsection = sectionOf("location");
 export const LOCATION_PROFILE_WIDGETS = {
-  profile_header: LW("Header", "Name, map and layer, parent and counts — the top of the location's page.", Landmark, lsection(LocationHeaderSection, { name: "Header" })),
+  profile_header: LW("Header", "Name, map and layer, parent and counts — the top of the location's page.", Landmark, lsection(LocationHeaderSection, { name: "Header", band: false })),
   profile_bio: LW("Description", "The location's description.", AlignLeft, lsection(LocationBioSection, { name: "Description" })),
   profile_sub_locations: LW("Sub-locations", "The locations inside this one on the map.", MapPin, lsection(LocationSubLocationsSection, { name: "Sub-locations" })),
   profile_members: LW("{{Alters}} here", "Who is placed in this location.", Users, lsection(LocationMembersSection, { name: "{{Alters}} here" })),

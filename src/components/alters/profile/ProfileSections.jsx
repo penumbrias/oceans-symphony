@@ -35,6 +35,7 @@ import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
 import { alterRoles } from "@/lib/alterRoles";
+import { useUiLook } from "@/lib/uiLook";
 import { alterPictureStyle, framedBackgroundStyle } from "@/lib/imageFraming";
 
 
@@ -127,6 +128,16 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const { resolvedGroups, ownedSubsystems } = useAlterGroups(alter);
+  // Pixel look (the profile mockup): pronouns · age on one line and a
+  // "fronting" chip beside the roles while they're in front.
+  const pixel = useUiLook() === "pixel";
+  const terms = useTerms();
+  const { data: activeFront = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+    enabled: pixel,
+  });
+  const inFront = pixel && activeFront.some((s) => s.alter_id === alter.id || s.primary_alter_id === alter.id || (s.co_fronter_ids || []).includes(alter.id));
   const cf = alter.custom_fields || {};
   const headerText = cf[PS.HEADER_TEXT] || null;
   const headerBgColor = readProfileBg(cf).headerBgColorWithAlpha || cf[PS.HEADER_BG] || "";
@@ -293,10 +304,20 @@ export function ProfileHeaderSection({ alter, systemFields = [] }) {
             <p className="text-sm" style={{ color: headerText ? `${headerText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
           )}
           {alter.pronouns && (extras.pronouns || !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase())) && (
-            <p className="text-sm" style={{ color: headerText ? `${headerText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>
+            <p className="text-sm" style={{ color: headerText ? `${headerText}cc` : "hsl(var(--muted-foreground))" }}>
+              {alter.pronouns}{pixel && alter.age ? `  ·  ${alter.age}` : ""}
+            </p>
+          )}
+          {pixel && alter.age && !(alter.pronouns && (extras.pronouns || !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase()))) && (
+            <p className="text-sm" style={{ color: headerText ? `${headerText}cc` : "hsl(var(--muted-foreground))" }}>{alter.age}</p>
           )}
           {alter.birthday && <p className="text-xs" style={{ color: headerText ? `${headerText}99` : "hsl(var(--muted-foreground))" }}>🎂 {alter.birthday}</p>}
-          {rolePill}
+          {pixel && inFront ? (
+            <span className="flex flex-wrap items-center gap-1 mt-1">
+              {rolePill}
+              <span className="pxp-chip pxp-chip-on">{terms.fronting}</span>
+            </span>
+          ) : rolePill}
           {extrasRow}
         </div>
       </div>

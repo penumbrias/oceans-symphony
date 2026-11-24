@@ -40,6 +40,9 @@ import NewAlterGuide, { useNewAlterGuide } from "@/components/profile/NewAlterGu
 import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import { Row } from "@/components/shared/SettingRows";
 import { useProfileViewPrefs } from "@/lib/profileViewPrefs";
+import { useUiLook } from "@/lib/uiLook";
+import { openProfileLook } from "@/lib/lookSubject";
+import { PixelProfileTopBar, PixelProfileActionBar } from "@/components/alters/profile/PixelProfileChrome";
 
 import { framedBackgroundStyle, framingFor } from "@/lib/imageFraming";
 import { sharedList } from "@/lib/sharedLists";
@@ -137,6 +140,7 @@ function AlterProfileInner() {
   const saveRef = useRef(null);
 
   const terms = useTerms();
+  const pixel = useUiLook() === "pixel";
   const viewPrefs = useProfileViewPrefs();
   const newGuide = useNewAlterGuide();
   const { data: alter, isLoading } = useQuery({
@@ -150,6 +154,13 @@ function AlterProfileInner() {
   });
 
   useEffect(() => { if (alter) setOnNewLayout(usesNewProfile(alter)); }, [alter]);
+  // ?edit=1 (the alters directory's Info panel "Edit") opens Alter info.
+  const wantsEdit = searchParams.get("edit") === "1";
+  useEffect(() => {
+    if (!wantsEdit || !alter) return;
+    setEditMode(viewPrefs.classicForm ? "classic" : "info");
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete("edit"); return next; }, { replace: true });
+  }, [wantsEdit, alter, viewPrefs.classicForm, setSearchParams]);
   // Display options offers this alter's look while the page is open
   // (v0.310.0 — the profile scope, ProfileLookTabs).
   useRegisterLookSubject("alter", alter, alter?.name);
@@ -294,6 +305,41 @@ function AlterProfileInner() {
   const prevAlter = currentIndex > 0 ? sortedAlters[currentIndex - 1] : null;
   const nextAlter = currentIndex >= 0 && currentIndex < sortedAlters.length - 1 ? sortedAlters[currentIndex + 1] : null;
 
+  const togglePin = async () => {
+    try {
+      await base44.entities.Alter.update(alter.id, { is_pinned: !alter.is_pinned });
+      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      toast.success(alter.is_pinned ? `${alter.name} unpinned` : `${alter.name} pinned to the top of the ${terms.alters} page`);
+    } catch (e) {
+      toast.error(e?.message || "Failed to update pin");
+    }
+  };
+  // Open the Messages page with its compose form (the page reads ?compose=1).
+  const openMessage = () => {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", onNewLayout ? "messages" : "private-messages");
+    params.set("compose", "1");
+    setSearchParams(params, { replace: true });
+  };
+  const onInfo = () => {
+    if (layoutEditing) { setInfoOverlay(true); return; }
+    // The classic form has a Save step: leaving it saves
+    // (only what changed), so nothing typed is dropped.
+    if (editMode === "classic") { saveRef.current?.(); return; }
+    setEditMode(editMode ? false : (viewPrefs.classicForm ? "classic" : "info"));
+  };
+  const infoLabel = editMode === "classic" ? "Save" : editMode ? "Done" : "Info";
+  const infoTitle = editMode === "classic" ? `Save and go back to ${alter.name}'s page` : editMode ? `Back to ${alter.name}'s page` : `Everything about ${alter.name}: name, pronouns, bio, custom fields, pictures, groups…`;
+  // The notes page (classic and new profile both call it "notes").
+  const openNotes = () => {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", "notes");
+    params.delete("compose");
+    setEditMode(false);
+    setSearchParams(params, { replace: true });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -351,6 +397,15 @@ function AlterProfileInner() {
             layout). data-pf-chrome backs this row with the profile bg
             colour when a background image is set, so the buttons stay
             legible over it. */}
+        {pixel ? (
+          <PixelProfileTopBar
+            alter={alter} prevAlter={prevAlter} nextAlter={nextAlter}
+            activeSessions={activeSessions} isFronting={isFronting}
+            layoutEditing={layoutEditing} editMode={editMode} onProfilePage={onProfilePage}
+            infoLabel={infoLabel} infoTitle={infoTitle} infoPressed={!!editMode || infoOverlay} onInfo={onInfo}
+            onTogglePin={togglePin} onMessage={openMessage} onEditPage={openProfileLayoutEditor}
+          />
+        ) : (
         <div data-pf-chrome data-profile-header-actions="" className="flex flex-wrap items-center justify-between gap-y-2 mb-4 px-1 py-1.5">
           <div className="flex items-center gap-0.5">
             {prevAlter ? (
@@ -367,16 +422,7 @@ function AlterProfileInner() {
             ) : <span className="w-8 h-10" aria-hidden="true" />}
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  await base44.entities.Alter.update(alter.id, { is_pinned: !alter.is_pinned });
-                  queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
-                  queryClient.invalidateQueries({ queryKey: ["alters"] });
-                  toast.success(alter.is_pinned ? `${alter.name} unpinned` : `${alter.name} pinned to the top of the ${terms.alters} page`);
-                } catch (e) {
-                  toast.error(e?.message || "Failed to update pin");
-                }
-              }}
+              onClick={togglePin}
               aria-pressed={!!alter.is_pinned}
               aria-label={alter.is_pinned ? `Unpin from the top of the ${terms.alters} page` : `Pin to the top of the ${terms.alters} page`}
               title={alter.is_pinned ? `Unpin from the top of the ${terms.alters} page` : `Pin to the top of the ${terms.alters} page`}
@@ -397,14 +443,7 @@ function AlterProfileInner() {
                 variant="outline"
                 size="sm"
                 className="h-9 px-2.5 gap-1.5"
-                onClick={() => {
-                  // Open the Messages page with its compose form (the page
-                  // reads ?compose=1).
-                  const params = new URLSearchParams(searchParams);
-                  params.set("tab", onNewLayout ? "messages" : "private-messages");
-                  params.set("compose", "1");
-                  setSearchParams(params, { replace: true });
-                }}
+                onClick={openMessage}
                 aria-label="Message"
                 title={`Message ${alter.name}`}
               >
@@ -417,13 +456,7 @@ function AlterProfileInner() {
                 variant={editMode ? "default" : "outline"}
                 size="sm"
                 className="h-9 px-2.5 gap-1.5"
-                onClick={() => {
-                  if (layoutEditing) { setInfoOverlay(true); return; }
-                  // The classic form has a Save step: leaving it saves
-                  // (only what changed), so nothing typed is dropped.
-                  if (editMode === "classic") { saveRef.current?.(); return; }
-                  setEditMode(editMode ? false : (viewPrefs.classicForm ? "classic" : "info"));
-                }}
+                onClick={onInfo}
                 aria-pressed={!!editMode || infoOverlay}
                 title={editMode === "classic" ? `Save and go back to ${alter.name}'s page` : editMode ? `Back to ${alter.name}'s page` : `Everything about ${alter.name}: name, pronouns, bio, custom fields, pictures, groups…`}
               >
@@ -444,6 +477,7 @@ function AlterProfileInner() {
             )}
           </div>
         </div>
+        )}
 
           {!onProfilePage && (
           <div
@@ -550,6 +584,9 @@ function AlterProfileInner() {
               pageIcons={onNewLayout ? NEW_PAGE_ICONS : PAGE_ICONS}
               layoutSuffix={layoutSuffixFor(alter)} />}
           </>
+        )}
+        {pixel && !layoutEditing && !editMode && (
+          <PixelProfileActionBar onEditPage={openProfileLayoutEditor} onStyle={openProfileLook} onWriteNote={openNotes} />
         )}
       </div>
     </motion.div>
