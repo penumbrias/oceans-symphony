@@ -48,6 +48,8 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/phone3.css";
 
 // One row in the Quick Check-In "Who's fronting?" picker. Uses the SAME
 // hold-and-slide level rail as every other {front} surface (the swipe
@@ -125,6 +127,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const enabledSectionIds = useMemo(() => enabledCheckinSectionIds(pickPrimarySystemSettings(ssList)), [ssList]);
+  // Pixel look: drawn as the CheckInPhone mockup (title-bar sections with a
+  // summary, Cancel · title · Save). Same state and handlers.
+  const pixel = useUiLook() === "pixel";
   const visiblePills = useMemo(() => PILLS.filter((p) => enabledSectionIds.includes(p.id)), [enabledSectionIds]);
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   // The section the bottom prev/next arrows currently step from. Tracks the
@@ -355,6 +360,23 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     if (id === "fronting") setHadFrontingOpen(true);
   };
 
+  // Pixel section heads say what's in each section, like the mockup.
+  const sectionSummary = (id) => {
+    switch (id) {
+      case "feeling": return selectedEmotions.length ? `${selectedEmotions.length} picked` : "none";
+      case "fronting": {
+        const names = [...selectedAlterIds].map((x) => activeAlters.find((a) => a.id === x)).filter(Boolean).map((a) => formatAlter(a));
+        return names.length ? names.join(", ") : "nobody";
+      }
+      case "activity": return selectedActivityCategories.length ? `${selectedActivityCategories.length} picked` : "none";
+      case "diary": return hasDiaryData(diaryData) ? "filled in" : "not filled";
+      case "note": { const n = note.trim(); return n ? (n.length > 22 ? `${n.slice(0, 22)}…` : n) : "empty"; }
+      case "contacts": return selectedContactIds.length ? `${selectedContactIds.length} with you` : "alone";
+      case "location": return locationName.trim() || (locationCategory ? getCategoryMeta(locationCategory)?.label || "" : "") || "none";
+      default: return "";
+    }
+  };
+
   // Each section is a worded row that opens in place, one list top to
   // bottom (UI critique H4) — the old chip row plus a Prev/Next pager were
   // two ways of moving around the same form, and nothing slides now.
@@ -364,6 +386,16 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     const Icon = pill.icon;
     const open = openSections.has(id);
     const label = id === "fronting" ? terms.Fronting : pill.label;
+    if (pixel) {
+      return (
+        <button type="button" onClick={() => toggleSection(id)} aria-expanded={open}
+          className="px-ci-head">
+          <span className="px-ci-chev" aria-hidden>{open ? "v" : ">"}</span>
+          <span className="px-ci-label">{id === "fronting" ? `Who's ${terms.fronting}` : label}</span>
+          <span className="px-ci-sum">{sectionSummary(id)}</span>
+        </button>
+      );
+    }
     return (
       <button type="button" onClick={() => toggleSection(id)} aria-expanded={open}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-sm transition-colors ${open ? "border-primary/40 bg-primary/5 text-foreground" : "border-border/50 bg-card text-muted-foreground hover:text-foreground"}`}>
@@ -1313,7 +1345,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0"
+        className={`max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0${pixel ? " px-ci" : ""}`}
+        // Pixel look: Cancel sits top-left in place of the corner X.
+        showCloseButton={!pixel}
         // Block accidental dismissal — testers were tapping off-canvas
         // mid-entry and losing the whole check-in. The user has to use
         // the X, Cancel, or Save button to close. Escape is blocked for
@@ -1340,6 +1374,41 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             without scrolling past the whole form (tap-fatigue from the
             old bottom-footer placement was producing accidental early
             saves). */}
+        {pixel ? (
+          <div className="px-ci-top">
+            <div className="px-ci-toprow">
+              <button type="button" className="px-p3-btn px-ci-topbtn" onClick={onClose}>Cancel</button>
+              <DialogTitle className="px-ci-title">{isEditing ? "Edit check\u2011in" : "Quick check\u2011in"}</DialogTitle>
+              <button type="button" className="px-p3-btn px-ci-topbtn on" onClick={handleSubmit} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 animate-spin mr-1 inline" />}
+                {isEditing ? "Save changes" : "Save"}
+              </button>
+            </div>
+            <DialogDescription asChild>
+              <div className="px-ci-subrow">
+                {!isEditing && (
+                  <button type="button" className="px-p3-btn px-ci-manage"
+                    onClick={() => { onClose(); navigate("/manage-checkin"); }}
+                    aria-label="Open check-in manager" title="Manage check-in">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </button>
+                )}
+                <input
+                  type="datetime-local"
+                  aria-label="Check-in date and time"
+                  value={entryTime}
+                  onChange={e => setEntryTime(e.target.value)}
+                  className="px-ci-when"
+                />
+                {!isEditing && lastCheckInAt && (
+                  <span className="px-ci-last">
+                    last check-in {formatDistanceToNow(new Date(lastCheckInAt), { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+            </DialogDescription>
+          </div>
+        ) : (
         <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-border/50 space-y-3">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1383,9 +1452,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             </Button>
           </div>
         </div>
+        )}
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
+        <div className={`flex-1 overflow-y-auto min-h-0 space-y-3 ${pixel ? "px-ci-body" : "px-6 py-4"}`}>
           {/* Feeling */}
           {sectionRow("feeling")}
           {openSections.has("feeling") &&
@@ -1404,11 +1474,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   onAddCustom={(label, category, color) => addCustomEmotionMutation.mutate({ label, category, color })}
                   onEmotionHold={alters.length > 0 ? holdEmotionOpen : null}
                   emotionDots={emotionDots}
-                  holdAriaLabel={emotionHoldAria} />
+                  holdAriaLabel={emotionHoldAria}
+                  hint={pixel && alters.length > 0 ? `Hold a feeling to choose which ${terms.alters} feel it. A dot means it isn't everyone in the check-in.` : null} />
                   <AlterAssignPopup
                     open={!!holdEmotion}
                     onOpenChange={(o) => { if (!o) setHoldEmotion(null); }}
                     title={holdEmotion ? `Who feels ${holdEmotion}?` : null}
+                    titleNode={holdEmotion ? <>Who feels <span className="px-ci-accent">{holdEmotion}</span>?</> : null}
+                    footer={`Feelings you don't hold belong to whoever "Entries belong to" says in Settings. You can change this later from the check-in log.`}
                     alters={alters}
                     value={holdEmotion ? (emotionAlters[holdEmotion] ?? null) : null}
                     defaultIds={defaultEmotionIds}
@@ -1442,7 +1515,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Fronting */}
-          {visiblePills.some((p) => p.id !== "feeling") && (
+          {!pixel && visiblePills.some((p) => p.id !== "feeling") && (
             <p className="text-xs font-medium text-muted-foreground pt-1">Add more (optional)</p>
           )}
           {sectionRow("fronting")}
@@ -1834,6 +1907,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 </a>
               )}
             </div>
+          )}
+          {pixel && !isEditing && (
+            <p className="px-ci-foot">Pick which sections show, and their order, in Manage check-in.</p>
           )}
         </div>
 
