@@ -21,13 +21,16 @@ import { newInstanceId, newPageId, flowRepack } from "@/lib/experimentalHome";
 // status · routines · quick check-in. The mockup's Timeline and Info
 // panels are the pixel frame's own timeline dock and side panel, so they
 // are not widgets here.
+// Desk panels are window-sized like the mockup's (`rows` of the home
+// board's 40px unit, sized "by hand" so a long list scrolls inside its
+// panel instead of stretching the whole row); the person can resize them.
 export const PIXEL_DESK_WIDGETS = [
-  { widgetId: "current_fronters", cols: 1.25 },
-  { widgetId: "upcoming_top", cols: 1.5 },
-  { widgetId: "current_focus", cols: 1.25 },
-  { widgetId: "status_note", cols: 1.25 },
-  { widgetId: "pinned_daily_tasks", cols: 1.5 },
-  { widgetId: "quick_checkin", cols: 1.25 },
+  { widgetId: "current_fronters", cols: 1.25, rows: 4 },
+  { widgetId: "upcoming_top", cols: 1.5, rows: 4 },
+  { widgetId: "current_focus", cols: 1.25, rows: 4 },
+  { widgetId: "status_note", cols: 1.25, rows: 4 },
+  { widgetId: "pinned_daily_tasks", cols: 1.5, rows: 4 },
+  { widgetId: "quick_checkin", cols: 1.25, rows: 4 },
 ];
 
 // Phone (08-Phone): one column — who's fronting, status, today on the
@@ -69,10 +72,13 @@ export function buildPixelHomePage(registry = {}, shape = "desk", pages = []) {
     widgets.push({
       instanceId: newInstanceId(),
       widgetId: s.widgetId,
-      // One row each: the flow page sizes every card to its content.
-      span: { cols, rows: 1 },
+      // Without `rows`, one row: the flow page sizes the card to its
+      // content. With it, that height, kept (autoFit off = sized by hand).
+      span: { cols, rows: s.rows || 1 },
       mode: s.mode && supported.includes(s.mode) ? s.mode : "normal",
-      settings: {},
+      // Panels read from the top like the mockup windows (the widget's own
+      // "vertical alignment" option, so the person can change it back).
+      settings: s.rows ? { autoFit: false, valign: "top" } : {},
     });
   }
   // Positions from the order, the same rule the flow page itself uses.

@@ -29,7 +29,8 @@ const { resolveExperimentalHome } = await import("../src/lib/experimentalHome.js
 
 let passed = 0;
 const test = (name, fn) => { fn(); passed += 1; console.log(`ok  ${name}`); };
-const def = (extra = {}) => ({ minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 8 }, supportsModes: ["minimal", "normal"], ...extra });
+// maxSpan rows are in the 80px unit (the smallest the home cards declare is 2).
+const def = (extra = {}) => ({ minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 }, supportsModes: ["minimal", "normal"], ...extra });
 const registry = Object.fromEntries(
   [...PIXEL_DESK_WIDGETS, ...PIXEL_PHONE_WIDGETS].map((s) => [s.widgetId, def()]),
 );
@@ -107,6 +108,8 @@ test("the new page survives the board's own reader unchanged in shape", () => {
   const p = read.pages[2];
   assert.equal(p.widgets.length, PIXEL_DESK_WIDGETS.length);
   assert.deepEqual(p.widgets.map((w) => w.span.cols), PIXEL_DESK_WIDGETS.map((s) => s.cols));
+  assert.deepEqual(p.widgets.map((w) => w.span.rows), PIXEL_DESK_WIDGETS.map((s) => s.rows), "panel heights kept on the 40px grid");
+  assert.ok(p.widgets.every((w) => w.settings.autoFit === false), "sized by hand, so lists scroll inside");
   assert.equal(read.defaultPageId, "p1", "default page stays the person's");
   assert.equal(read.pages[0].unknownWidgets.length, 1, "unknown widgets kept");
 });
