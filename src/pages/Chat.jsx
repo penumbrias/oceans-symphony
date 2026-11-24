@@ -20,6 +20,9 @@ import { AlterAvatar } from "@/components/chat/ChatSurface";
 import ChannelView from "@/components/chat/ChannelView";
 import { TRASH_HINT_MANY } from "@/lib/trashSettings";
 import { withTrashBatch } from "@/lib/localDb";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import "@/styles/pixel/chat.css";
 
 // System Chat — Discord-style multi-channel chat for the system.
 //
@@ -47,6 +50,10 @@ export default function Chat() {
   const terms = useTerms();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  // Pixel look: the phone gets the mockup's title bar + channel tabs; a
+  // computer gets the channel side panel + message panel (CSS in chat.css).
+  const pixel = useUiLook() === "pixel";
+  const pixelDesk = usePixelDesk();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: channels = [], isSuccess: channelsLoaded } = useQuery({
@@ -251,6 +258,20 @@ export default function Chat() {
     }
   };
 
+  // Pixel phone: every channel as a tab, in sidebar order (categories walked
+  // depth-first, then uncategorised, then private channels).
+  const pixelTabs = useMemo(() => {
+    const out = [];
+    const walk = (node, depth) => {
+      if (!node || depth > 12) return;
+      for (const sub of node.subNodes || []) walk(sub, depth + 1);
+      out.push(...(node.channels || []));
+    };
+    for (const n of tree.rootNodes) walk(n, 0);
+    out.push(...tree.uncategorized, ...privateChannels);
+    return out;
+  }, [tree, privateChannels]);
+
   return (
     // Fill the scroll container exactly — `.app-content-main` already
     // reserves space for the fixed bottom nav (and the safe-area) via its
@@ -259,8 +280,61 @@ export default function Chat() {
     // `minHeight: 100dvh - header` AND a second `paddingBottom` for the nav,
     // double-counting the reserved space — that overflow was the empty gap
     // that appeared below the channel list / composer until you scrolled.
-    <div className="flex flex-col h-full min-h-0">
-      <div className="px-2 py-2 border-b border-border/50 flex items-center gap-1.5 flex-shrink-0">
+    <div className={`flex flex-col h-full min-h-0 ${pixel ? "px-chat" : ""} ${pixelDesk ? "px-chat-desk" : ""}`}>
+      {pixel && !pixelDesk && (
+        <div className="px-chat-bar">
+          <span className="px-chat-title">{`${terms.System || "System"} chat`}</span>
+          <button type="button" className="px-chat-btn" onClick={() => setShowChannels((v) => !v)} aria-label="Channels" aria-expanded={showChannels}>#</button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="px-chat-btn" aria-label="Page menu">...</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[12rem]">
+              <DropdownMenuItem onSelect={() => setCreateOpen(true)} className="gap-2 cursor-pointer">
+                <Plus className="w-4 h-4" /> New channel or category
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => { setEditMode(true); setShowChannels(true); }} className="gap-2 cursor-pointer">
+                <GripVertical className="w-4 h-4" /> Edit channels
+              </DropdownMenuItem>
+              {activeChannel && privateVisible(activeChannel) && (
+                <DropdownMenuItem onSelect={() => setEditingChannel(activeChannel)} className="gap-2 cursor-pointer">
+                  <Pencil className="w-4 h-4" /> {`Edit #${activeChannel.name}`}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+      {pixel && !pixelDesk && (
+        <div className="px-chat-tabs" role="tablist" aria-label="Channels">
+          {pixelTabs.map((c) => {
+            const visible = privateVisible(c);
+            const sel = activeChannel?.id === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={sel}
+                data-sel={sel ? "true" : undefined}
+                className="px-chat-tab"
+                title={visible ? (c.description || c.name) : "Private channel"}
+                onClick={() => {
+                  if (c.is_private) { openPrivate(c); return; }
+                  setSearchParams({ channel: c.id }, { replace: true });
+                  setShowChannels(false);
+                }}
+                onContextMenu={(e) => { e.preventDefault(); if (visible) setEditingChannel(c); }}
+              >
+                {c.is_private
+                  ? <><Lock className="w-3 h-3 flex-shrink-0" />{visible ? <span>{c.name}</span> : <span className="px-chat-tab-hidden" aria-label="Private channel — hidden">{c.name || "Private"}</span>}</>
+                  : <span>{`# ${c.name}`}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className={`px-2 py-2 border-b border-border/50 flex items-center gap-1.5 flex-shrink-0 ${pixel ? "hidden" : ""}`}>
         {/* Channels toggle — on the LEFT, where the sidebar slides in from. */}
         <Button variant="ghost" size="sm" onClick={() => setShowChannels((v) => !v)} className="lg:hidden flex-shrink-0 px-2" aria-label="Channels">
           <PanelLeft className="w-4 h-4" />
@@ -278,11 +352,11 @@ export default function Chat() {
         )}
         {/* Channels rail — a persistent rail on desktop, a slide-in drawer that
             OVERLAYS the chat (rather than replacing it) on mobile. */}
-        <aside className={`w-64 lg:w-56 flex-shrink-0 border-r border-border/50 bg-background lg:bg-muted/20 flex flex-col
+        <aside className={`px-chat-side w-64 lg:w-56 flex-shrink-0 border-r border-border/50 bg-background lg:bg-muted/20 flex flex-col
           absolute inset-y-0 left-0 z-40 shadow-xl transition-[transform,visibility] duration-200
           ${showChannels ? "translate-x-0" : "-translate-x-full invisible"}
           lg:static lg:translate-x-0 lg:visible lg:z-auto lg:shadow-none`}>
-          <div className="p-2 border-b border-border/40 flex items-center justify-between gap-1">
+          <div className="px-chat-side-ttl p-2 border-b border-border/40 flex items-center justify-between gap-1">
             <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground px-2">Channels</p>
             <div className="flex items-center gap-1">
               <button
@@ -348,7 +422,7 @@ export default function Chat() {
               );
             })()}
             {privateChannels.length > 0 && (
-              <div className="mb-1.5 last:mb-0">
+              <div className="px-chat-privgrp mb-1.5 last:mb-0">
                 <div className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1">
                   <Lock className="w-3 h-3" /> Private channels
                 </div>
@@ -358,7 +432,8 @@ export default function Chat() {
                     return (
                       <li key={c.id}>
                         <div
-                          className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${
+                          data-sel={activeChannel?.id === c.id ? "true" : undefined}
+                          className={`px-chat-row w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${
                             activeChannel?.id === c.id
                               ? "bg-primary/15 text-foreground"
                               : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -401,7 +476,7 @@ export default function Chat() {
         </aside>
 
         {/* Active channel */}
-        <section className="flex flex-1 min-w-0 flex-col">
+        <section className="px-chat-main flex flex-1 min-w-0 flex-col">
           {!activeChannel ? (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground italic px-6 text-center">
               Create a channel from the panel on the left to start chatting.
@@ -500,7 +575,8 @@ function ChatChannelRow({ channel, activeId, indent = 0, editMode, onOpen, onEdi
     <div
       ref={editMode ? setNodeRef : undefined}
       style={style}
-      className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${isActive ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"} ${editMode ? "border border-dashed border-primary/30 my-0.5 bg-muted/10" : ""}`}
+      data-sel={isActive ? "true" : undefined}
+      className={`px-chat-row w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${isActive ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"} ${editMode ? "border border-dashed border-primary/30 my-0.5 bg-muted/10" : ""}`}
     >
       {editMode && (
         <span {...attributes} {...listeners} className="pl-1 text-muted-foreground cursor-grab active:cursor-grabbing touch-none" aria-label="Drag to reorder" style={{ marginLeft: indent * 12 }}>
@@ -534,7 +610,7 @@ function ChatCategoryNode({ node, depth, activeId, editMode, onOpen, onEditChann
   const chanIds = node.channels.map((c) => c.id);
   return (
     <div className="mb-0.5" ref={editMode ? setNodeRef : undefined} style={style}>
-      <div className={`flex items-center gap-0.5 group rounded-md hover:bg-muted/40 ${editMode ? "border border-dashed border-primary/30 my-0.5" : ""}`} style={{ paddingLeft: depth * 12 }}>
+      <div className={`px-chat-cathead flex items-center gap-0.5 group rounded-md hover:bg-muted/40 ${editMode ? "border border-dashed border-primary/30 my-0.5" : ""}`} style={{ paddingLeft: depth * 12 }}>
         {editMode && (
           <span {...attributes} {...listeners} className="pl-1 text-muted-foreground cursor-grab active:cursor-grabbing touch-none" aria-label="Drag to reorder">
             <GripVertical className="w-3.5 h-3.5" />

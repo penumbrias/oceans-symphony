@@ -17,10 +17,11 @@ import { renderRichContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, hasWhisperCommand } from "@/lib/whisperUtils";
-import { whisperWordPattern, getWhisperWord } from "@/lib/commandTerms";
+import { whisperWordPattern, getWhisperWord, getCommandSign } from "@/lib/commandTerms";
 import { applyLogCommands } from "@/lib/logCommands";
 import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
+import { useUiLook } from "@/lib/uiLook";
 
 // Lift the composer so it rides just above the on-screen keyboard (and
 // above the format toolbar's keyboard dock, via --os-kb-dock-pad) on
@@ -154,7 +155,7 @@ export function AlterAvatar({ alter, size = 28 }) {
   const px = `${size}px`;
   return (
     <div
-      className="rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30 text-white"
+      className="px-chat-mark rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30 text-white"
       style={{ width: px, height: px, backgroundColor: alter?.color || "hsl(var(--muted))", fontSize: Math.max(10, Math.floor(size * 0.4)) }}
       title={alter?.name}
     >
@@ -270,19 +271,21 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
   return (
     <div
       data-msg-id={msg.id}
-      className={`group flex gap-2 px-1 py-1 rounded-md transition-colors hover:bg-muted/30 ${highlighted ? "ring-2 ring-primary bg-primary/10" : ""} ${isWhisper && !isDeleted ? "bg-muted/20 border-l-2 border-dashed border-primary/40 pl-2" : ""}`}
+      className={`px-chat-msg group flex gap-2 px-1 py-1 rounded-md transition-colors hover:bg-muted/30 ${isWhisper && !isDeleted ? "px-chat-msg-whisper" : ""} ${highlighted ? "ring-2 ring-primary bg-primary/10" : ""} ${isWhisper && !isDeleted ? "bg-muted/20 border-l-2 border-dashed border-primary/40 pl-2" : ""}`}
     >
       <AuthorAvatars authors={authors} size={28} />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-sm font-semibold" style={{ color: primaryColor }}>{authorNames}</span>
+          <span className="px-chat-name text-sm font-semibold" style={{ color: primaryColor }}>{authorNames}</span>
           {isWhisper && (
             <span className="inline-flex items-center gap-1 text-[0.6875rem] text-primary/80 italic" title="Private whisper">
               <Lock className="w-3 h-3" />
               whisper{whisperNames ? <> →&nbsp;<span className="font-medium not-italic">{whisperNames}</span></> : null}
             </span>
           )}
+          <span className="px-chat-time">
           <span className="text-[0.6875rem] text-muted-foreground">{format(new Date(msg.timestamp), clockPattern("h:mm a"))}</span>
+          </span>
           {msg.edited_at && !isDeleted && (
             <span className="text-[0.6875rem] text-muted-foreground/70 italic">edited</span>
           )}
@@ -319,7 +322,7 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
             </div>
           </div>
         ) : whisperHidden ? (
-          <button type="button" onClick={revealWhisper} className="block text-left w-full" title="Private whisper — tap to view">
+          <button type="button" onClick={revealWhisper} className="px-chat-wbody block text-left w-full" title="Private whisper — tap to view">
             <div
               className="text-sm whitespace-pre-wrap break-words wysiwyg-content select-none pointer-events-none"
               style={{ filter: "blur(6px)", opacity: 0.75 }}
@@ -334,7 +337,7 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
             </span>
           </button>
         ) : (
-          <div className={`text-sm whitespace-pre-wrap break-words wysiwyg-content ${isDeleted ? "italic text-muted-foreground" : ""}`}>
+          <div className={`text-sm whitespace-pre-wrap break-words wysiwyg-content ${isDeleted ? "italic text-muted-foreground" : ""} ${isWhisper && !isDeleted ? "px-chat-wbody" : ""}`}>
             {isDeleted
               ? "[message deleted]"
               : renderRichContent(msg.content, {
@@ -356,7 +359,7 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
       </div>
 
       {!editing && !isDeleted && (
-        <div className="flex items-start gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="px-chat-acts flex items-start gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {onReply && (
             <button onClick={onReply} aria-label="Reply" title="Reply" className="p-1 text-muted-foreground hover:text-foreground">
               <Reply className="w-3.5 h-3.5" />
@@ -405,12 +408,27 @@ function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
 
 // Multi-select speaker picker — searchable, scrollable, top-anchored modal,
 // "-system" pseudo-option on top.
-export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, terms }) {
+export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, terms, pixel = false }) {
   const formatAlter = useAlterLabel();
   const chipColor = useReadableColor(selectedAuthors[0]?.color);
+  const speakerNames = selectedAuthors.map((a) => (a.id === SYSTEM_AUTHOR.id ? (terms.System || "System") : formatAlter(a))).join(", ");
 
   return (
     <>
+      {pixel ? (
+        <button
+          type="button"
+          onClick={() => onOpenChange(!open)}
+          className="px-chat-speaker"
+          style={{ borderLeftColor: selectedAuthors[0]?.color || "#94a3b8" }}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={`Speaking: ${speakerNames}. Choose speaker`}
+        >
+          <span className="px-chat-speaker-name">{speakerNames}</span>
+          <span aria-hidden>v</span>
+        </button>
+      ) : (
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
@@ -424,6 +442,7 @@ export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, sel
         </span>
         <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
       </button>
+      )}
       {open && (
         <div className="fixed inset-0 z-[70] bg-black/40 flex items-start justify-center p-4 pt-[10vh]" onClick={() => onOpenChange(false)}>
           <div
@@ -474,6 +493,7 @@ export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, sel
 export function Composer({ channelLabel, alters, speakerAlters = alters, defaultAuthorId, replyTo, onCancelReply, onSubmit, terms, placeholderText }) {
   const kbInset = useKeyboardInset();
   const composerLift = useComposerLift(kbInset);
+  const pixel = useUiLook() === "pixel";
   const formatAlter = useAlterLabel();
   const [speakerIds, setSpeakerIds] = useState(() => defaultAuthorId ? [defaultAuthorId] : [SYSTEM_AUTHOR.id]);
   useEffect(() => {
@@ -600,10 +620,15 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
   const replyColor = useReadableColor(replyAuthors[0]?.color);
 
   const placeholder = placeholderText
-    || `Message ${channelLabel || ""}…  (@ mention · ${terms.signpostReplace || "-"} signpost · /w @name [secret] to whisper)`;
+    || (pixel
+      ? `Message ${channelLabel || ""}`
+      : `Message ${channelLabel || ""}…  (@ mention · ${terms.signpostReplace || "-"} signpost · /w @name [secret] to whisper)`);
+  // Pixel look: the grammar hint sits on its own line beside the speaker,
+  // spelled with the person's own signs and words.
+  const grammarHint = `@ mention · ${terms.signpostReplace || "-"} sign · ${terms.commandSign || getCommandSign()} command · /${getWhisperWord()} whisper`;
 
   return (
-    <div ref={composerLift.ref} className="border-t border-border/50 p-2 flex-shrink-0 bg-background"
+    <div ref={composerLift.ref} className={`border-t border-border/50 p-2 flex-shrink-0 bg-background ${pixel ? "px-chat-comp" : ""}`}
       style={composerLift.lift ? { position: "relative", bottom: composerLift.lift, zIndex: 35 } : undefined}>
       {replyTo && (
         <div className="flex items-center gap-2 px-2 py-1 mb-1 text-xs bg-muted/40 rounded-md">
@@ -633,6 +658,44 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
           </button>
         </div>
       )}
+      {pixel ? (
+        <>
+          <div className="px-chat-comp-top">
+            <SpeakerPicker
+              pixel
+              selectedAuthors={selectedAuthors}
+              open={pickerOpen}
+              onOpenChange={setPickerOpen}
+              alters={speakerAlters}
+              selectedSet={selectedSet}
+              onToggle={toggleSpeaker}
+              terms={terms}
+            />
+            <span className="px-chat-hint">{grammarHint}</span>
+          </div>
+          <div className="px-chat-comp-row">
+            <div className="flex-1 min-w-0">
+              <RichMentionInput
+                ref={editorRef}
+                value={text}
+                onChange={setText}
+                alters={alters}
+                signposts
+                systemName={terms.System}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                placeholder={placeholder}
+                className="px-chat-field text-sm min-h-[44px] max-h-32 overflow-y-auto px-3 py-2.5 leading-relaxed"
+              />
+            </div>
+            <button type="button" onClick={handleSubmit} disabled={!text.trim()} className="px-chat-send">Send</button>
+          </div>
+        </>
+      ) : (
       <div className="px-chat-composer flex items-end gap-2">
         <SpeakerPicker
           selectedAuthors={selectedAuthors}
@@ -666,9 +729,10 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
           <Send className="w-4 h-4" />
         </Button>
       </div>
+      )}
 
       {/* Formatting + image/GIF toolbar. */}
-      <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">
+      <div className="px-chat-tools mt-1.5 rounded-lg border border-border/40 overflow-hidden">
         <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
           <button type="button" title="Insert image / GIF" disabled={uploadingImage}
             onMouseDown={(e) => e.preventDefault()}
@@ -910,7 +974,7 @@ export default function ChatSurface({
   return (
     <>
       {headerSlot}
-      <div ref={streamRef} className={streamClassName || "flex-1 overflow-y-auto px-3 py-3 space-y-4"}>
+      <div ref={streamRef} className={`${streamClassName || "flex-1 overflow-y-auto px-3 py-3 space-y-4"} px-chat-stream`}>
         {grouped.length === 0 ? (
           emptyState || (
             <p className="text-center text-sm text-muted-foreground italic mt-12">
@@ -919,7 +983,7 @@ export default function ChatSurface({
           )
         ) : grouped.map((g) => (
           <section key={g.key} className="space-y-1">
-            <div className="flex items-center gap-2 my-2">
+            <div className="px-chat-day flex items-center gap-2 my-2">
               <div className="flex-1 h-px bg-border/40" />
               <span className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">{dayHeader(g.date)}</span>
               <div className="flex-1 h-px bg-border/40" />
