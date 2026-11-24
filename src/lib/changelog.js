@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: chat has channel folder tabs on a phone and a channel panel on a computer, with name marks in each alter's colour and a new message box." },
       { type: "improve", text: "Pixel look: Settings on a computer has a side list, the page in the middle and a live preview; Display options opens right in the page." },
       { type: "improve", text: "Pixel look: Journals is a three-pane desk with folders and entries on the left, the entry in the middle and its info on the right." },
       { type: "improve", text: "Pixel look: Analytics opens on a board of panels (fronting time, feelings by day, who fronts together, symptoms, sleep) with range buttons and a Whose picker." },
