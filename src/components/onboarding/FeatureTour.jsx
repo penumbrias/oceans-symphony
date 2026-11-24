@@ -255,11 +255,6 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
 
     // ─── HOME ───────────────────────────────────────────────────────────────
     s("dashboard", {
-      emoji: "🔄", title: "Pull down to refresh",
-      body: `On a phone, pull down from the top of any page and let go to refresh it. Handy after restoring a backup, or when a friend's ${t.front} feels a beat behind.`,
-      route: "/", look: `nothing to find — just drag down from the top of the page and release`,
-    }),
-    s("dashboard", {
       emoji: "📥", title: "Notifications inbox",
       body: `The 📥 inbox in the header holds @ mentions, messages and reminders that have fired. A dot means something's unread. Tap a notification to jump straight to it.`,
       route: "/", look: `the 📥 inbox icon in the top-right of the header`,

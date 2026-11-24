@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "feature", text: "Pixel look on a computer: the pinned bar sits in the frame as a strip, under the page tabs or above the status bar." },
+      { type: "improve", text: "Pixel look: bars are solid so the page no longer shows through them, and the \"Pull down to refresh\" tip is gone from the tour." },
       { type: "feature", text: "Pixel look on a computer: a tool rail down the left holds your quick actions and this page's tools. Move it right or turn it off in Display options → Bars → Tool rail." },
       { type: "feature", text: "Pixel look on a computer: a status bar along the bottom shows saving, last sync, the next plan and the next medication. Turn it or its items off in Display options → Bars." },
       { type: "feature", text: "New alters: add just the basics, then their profile opens with a short guide to Info for the rest." },

@@ -39,7 +39,8 @@ import { IconSlot } from "@/components/shared/LucideByName";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT } from "@/lib/i18n";
 import { useBoardsOnScreen } from "@/lib/boardPresence";
-import { openBarsEditor } from "@/lib/barsModel";
+import { openBarsEditor, readPinnedBar, pinnedBarPatch } from "@/lib/barsModel";
+import AltersBarCard from "@/components/v2/AltersBarCard";
 import { useTerms } from "@/lib/useTerms";
 import { navAreaGroups, pageLabel, ALL_PAGES } from "@/utils/navigationConfig";
 import { pageForPath } from "@/lib/pageLooks";
@@ -729,5 +730,74 @@ function ToolRail() {
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
       <ActiveNowPopover anchorRef={activeAnchor} open={activeOpen} onClose={() => setActiveOpen(false)} />
     </nav>
+  );
+}
+
+// ── Pinned strip (computer) ────────────────────────────────────────────
+// The pinned {alters} bar, drawn as a strip in the frame: under the page
+// tabs when its place is the top, above the status bar otherwise. It is the
+// SAME bar (AltersBarCard: chips, gestures, look) with the same placement,
+// show switch and fold (Display options → Bars → pinned bar); only where it
+// sits is the frame's. `answerToggle`: fold in and out on the shared event
+// (the Front key's hold) when no other bar host is listening.
+export function PixelFrontStrip({ answerToggle = false }) {
+  return useDesk() ? <FrontStrip answerToggle={answerToggle} /> : null;
+}
+
+function FrontStrip({ answerToggle }) {
+  const qc = useQueryClient();
+  const { data: list = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const row = pickPrimarySystemSettings(list);
+  const cfg = readPinnedBar(row);
+  const shown = !!row && cfg.enabled && !cfg.collapsed;
+  const place = cfg.position === "top" ? "top" : "bottom";
+  const ref = React.useRef(null);
+
+  const setCollapsed = React.useCallback(async (collapsed) => {
+    // A fresh row, so a change made elsewhere a moment ago is kept.
+    const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
+    if (!fresh?.id) return;
+    await base44.entities.SystemSettings.update(fresh.id, pinnedBarPatch(fresh, { enabled: true, collapsed }));
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  }, [qc]);
+
+  React.useEffect(() => {
+    if (!answerToggle || !cfg.enabled) return undefined;
+    const on = (e) => {
+      const open = e.detail?.open;
+      setCollapsed(open === undefined ? !cfg.collapsed : !open);
+    };
+    window.addEventListener("os-v2-toggle-alters-bar", on);
+    return () => window.removeEventListener("os-v2-toggle-alters-bar", on);
+  }, [answerToggle, cfg.enabled, cfg.collapsed, setCollapsed]);
+
+  // Tell the page how tall the strip is, so nothing hides under it.
+  React.useEffect(() => {
+    const root = document.documentElement;
+    if (!shown) return undefined;
+    root.setAttribute("data-px-front", place);
+    const el = ref.current;
+    const set = () => root.style.setProperty("--px-front-h", `${el?.offsetHeight || 0}px`);
+    set();
+    let ro;
+    if (el && typeof ResizeObserver !== "undefined") { ro = new ResizeObserver(set); ro.observe(el); }
+    return () => {
+      ro?.disconnect();
+      root.removeAttribute("data-px-front");
+      root.style.removeProperty("--px-front-h");
+    };
+  }, [shown, place]);
+  if (!shown) return null;
+
+  return (
+    <div ref={ref} className={`px-front-strip px-front-${place}`}>
+      <AltersBarCard settingsRow={row} home={row?.ui_v2_home || {}} attached
+        className="w-full"
+        onCollapse={() => setCollapsed(true)}
+        onGear={() => openBarsEditor("alters")} />
+    </div>
   );
 }

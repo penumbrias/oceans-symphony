@@ -138,7 +138,7 @@ html[data-ui-look="pixel"] ::-webkit-scrollbar-thumb { border-radius: 0; }
 
 html[data-ui-look="pixel"] {
   --px-panel: var(--color-surface, #26293e);
-  --px-bar: color-mix(in srgb, var(--color-surface, #26293e) 78%, var(--color-text-primary, #e9e7f5) 8%);
+  --px-bar: color-mix(in srgb, var(--color-surface, #26293e) 91%, var(--color-text-primary, #e9e7f5) 9%);
   --px-sunk: var(--color-bg, #1a1c2b);
   --px-text: var(--color-text-primary, #e9e7f5);
   --px-text-2: var(--color-text-secondary, #cfd1ea);
@@ -492,4 +492,25 @@ a.px-status-item:hover, button.px-status-item:hover { color: var(--px-text); bac
   html[data-px-rail="right"] .px-help { right: 48px; }
   html[data-px-rail="right"] .os-float-right, html[data-px-rail="right"] .os-float-btn[style*="right"] { margin-right: 48px; }
   html[data-px-rail="left"] .os-float-btn[style*="left"] { margin-left: 48px; }
+}
+
+/* ── Pinned strip (computer) ───────────────────────────────────────── */
+.px-front-strip {
+  position: fixed; z-index: 39; display: none;
+  left: 0; right: 0; padding: 2px 6px;
+  background: var(--px-bar);
+}
+.px-front-strip [data-widget-box] { background: transparent !important; box-shadow: none !important; }
+.px-front-top { top: calc(78px + min(env(safe-area-inset-top, 0px), 64px)); box-shadow: inset 0 -2px 0 var(--px-line); }
+.px-front-bottom { bottom: 0; box-shadow: inset 0 2px 0 var(--px-line); }
+@media (min-width: 1024px) {
+  .px-front-strip { display: block; }
+  html[data-px-status="1"] .px-front-bottom { bottom: 24px; }
+  html[data-px-rail="left"] .px-front-strip { left: 48px; }
+  html[data-px-rail="right"] .px-front-strip { right: 48px; }
+  html[data-px-help="1"] .px-front-strip { right: 300px; }
+  html[data-px-help="1"][data-px-rail="right"] .px-front-strip { right: 348px; }
+  html[data-px-front="top"] [data-px-chrome] #main-content { padding-top: var(--px-front-h, 0px); }
+  html[data-px-front="bottom"] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-front-h, 0px) + 4px); }
+  html[data-px-front="bottom"][data-px-status="1"] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-front-h, 0px) + 28px); }
 }
