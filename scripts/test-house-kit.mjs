@@ -336,4 +336,61 @@ test("kit 1.3: panels, content and sheets are built from the kit and stay lazy",
   }
 });
 
+// ── Kit gate fixes (phase 1 gate, items 1–7) ─────────────────────────
+test("gate 1: a value box is at least as wide as its words (or placeholder)", () => {
+  assert.equal(V.valueChars("1 h 30 min"), 10);
+  assert.equal(V.valueChars("", "45 min, 1h 30m…"), 12);
+  assert.equal(V.valueChars("3"), 2);
+  assert.equal(V.valueChars(null, null), 2);
+  const css = read("src/house/kit/kit.css");
+  assert.match(css, /min-width: min\(100%, calc\(\(var\(--hk-chars/);
+  assert.match(css, /@container \(max-width: 18rem\)[\s\S]*hk-inputwrap--stepper/);
+  const field = read("src/house/kit/Field.jsx");
+  assert.equal((field.match(/"--hk-chars": valueChars\(/g) || []).length, 4, "number, date, time and duration set --hk-chars");
+});
+test("gate 1: words break between words, never inside one", () => {
+  for (const f of ["kit.css", "panels.css"]) assert.ok(!/overflow-wrap:\s*anywhere/.test(read(`src/house/kit/${f}`)), f);
+});
+test("gate 3: the toast sits above an open sheet when it fits whole, else waits", () => {
+  assert.deepEqual(L.toastPlacement({ viewportH: 844, sheetTop: null, toastH: 120 }), { mode: "free" });
+  assert.deepEqual(L.toastPlacement({ viewportH: 844, sheetTop: 400, toastH: 120 }), { mode: "above", bottom: 452 });
+  assert.deepEqual(L.toastPlacement({ viewportH: 844, sheetTop: 200, toastH: 225 }), { mode: "held" });
+  assert.deepEqual(L.toastPlacement({ viewportH: 844, sheetTop: 0, toastH: 60 }), { mode: "held" });
+  // held stops the clock ("sheet" reason) until the sheet closes
+  let c = L.toastPause(L.toastTick(L.toastClock(), 0), "sheet", 1000);
+  c = L.toastTick(c, 60000);
+  assert.ok(!L.toastExpired(c));
+  const toast = read("src/house/kit/Toast.jsx");
+  assert.match(toast, /toastPause\(clockRef\.current, "sheet"/);
+  assert.match(read("src/house/kit/panels.css"), /\.hk-toast \{[\s\S]*?max-height: 40dvh/);
+  const sheet = read("src/house/kit/Sheet.jsx");
+  assert.equal((sheet.match(/useRegisterSheet\(open && !inline, boxRef\)/g) || []).length, 2, "Sheet and SafetySheet register");
+});
+test("gate 4: Tab off a floating pop-up closes it and returns to the trigger", () => {
+  const layer = read("src/house/kit/KitLayer.jsx");
+  assert.match(layer, /e\.key === "Tab"[\s\S]*tabLeavesPop[\s\S]*onClose\(\);\s*anchorRef\.current\?\.focus/);
+  assert.match(read("src/house/kit/Field.jsx"), /e\.key === "Tab"\) \{ e\.preventDefault\(\); onClose\(\); \}/);
+});
+test("gate 5: the tree's fold target is the row's height and never under 44 px", () => {
+  const css = read("src/house/kit/panels.css");
+  assert.match(css, /\.hk-tree-toggle \{[^}]*width: max\(44px,[^}]*min-height: var\(--house-h-row\)/);
+  assert.match(read("src/house/kit/TreeList.jsx"), /hk-tree-toggle" aria-hidden="true" data-fold=""/);
+});
+test("gate 6: the Layers eye has one name and says its state with aria-pressed", () => {
+  const src = read("src/house/kit/Layers.jsx");
+  assert.match(src, /label=\{`Show \$\{name\}`\}\s*aria-pressed=\{visible\}/);
+  assert.ok(!/`Hide \$\{name\}`/.test(src));
+});
+test("gate 7: stacked confirm buttons put Keep it at the bottom", () => {
+  const css = read("src/house/kit/panels.css");
+  assert.match(css, /\.hk-confirm-actions \{ display: flex; flex-wrap: wrap;/);
+  assert.ok(!/hk-confirm-actions[^}]*wrap-reverse/.test(css));
+  const sheet = read("src/house/kit/Sheet.jsx");
+  assert.ok(sheet.indexOf('rank="danger"') < sheet.indexOf("Keep it</Button>"), "Delete first in the DOM, so Keep it is the lower line");
+});
+test("typed dates: number, date, time and duration report words they couldn't read", () => {
+  const field = read("src/house/kit/Field.jsx");
+  assert.equal((field.match(/^  useInvalidReport\(bad, onInvalidChange\);$/gm) || []).length, 4);
+});
+
 console.log(`\n${passed} passed.`);

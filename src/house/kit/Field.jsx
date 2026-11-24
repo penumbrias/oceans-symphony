@@ -33,7 +33,7 @@ import { KitPopover } from "@/house/kit/KitLayer";
 import {
   commitNumber, isDay, toDay, addDays, addMonths, dayToDate, parseDayInput, formatDayWords, formatDayLong,
   localeDateOrder, monthGrid, isTime, parseTimeInput, formatTimeValue, timeSlots, nearestSlot,
-  parseDuration, formatDuration, formatDurationLong, saveStateWords,
+  parseDuration, formatDuration, formatDurationLong, saveStateWords, valueChars,
 } from "@/house/kit/values";
 import "@/house/kit/kit.css";
 
@@ -129,14 +129,6 @@ export function AuthoredField({ label, hint, error, save, value = "", onChange, 
       )}
     </FieldShell>
   );
-}
-
-// How many characters the value box must show whole (kit gate item 1):
-// the words in it, or the placeholder's when empty, so the box is never
-// narrower than what it holds.
-export function valueChars(text, placeholder) {
-  const n = String(text || "").length || Math.min(String(placeholder || "").length, 12);
-  return Math.max(2, n);
 }
 
 // Tells the host when the box holds typed words it couldn't read (kit gate,

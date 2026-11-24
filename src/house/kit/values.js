@@ -296,3 +296,11 @@ export function saveStateWords(state, { error } = {}) {
     default: return "";
   }
 }
+
+// How many characters a value box must show whole (kit gate item 1): the
+// words in it, or (empty) its placeholder's up to 12, never under 2. The
+// field sets it as --hk-chars and kit.css makes the box at least that wide.
+export function valueChars(text, placeholder) {
+  const n = String(text ?? "").length || Math.min(String(placeholder ?? "").length, 12);
+  return Math.max(2, n);
+}
