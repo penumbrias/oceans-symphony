@@ -610,7 +610,7 @@ function UnblendPixel({
   const shares = useMemo(() => likelyShares(ranked), [ranked]);
   const shown = showAll ? ranked : ranked.slice(0, 4);
   const top = ranked[0]?.alter || null;
-  const topIsSoleFront = top && activeFronterIds.size === 1 && activeFronterIds.has(top.id);
+  const topIsSoleFront = top && activeFronterIds.has(top.id);
   const swatches = useMemo(() => {
     const seen = new Set();
     const out = [];
@@ -631,9 +631,10 @@ function UnblendPixel({
     setSetting(true);
     try {
       // The one front write path, like the "set front" quick action.
-      await changeFront((cur) => [{ alterId: top.id, isPrimary: true, level: cur.find((x) => x.alterId === top.id)?.level }],
+      // Adds them to who's in front; everyone already there stays (no silent replace).
+      await changeFront((cur) => (cur.some((x) => x.alterId === top.id) ? cur : [...cur, { alterId: top.id }]),
         { queryClient, terms, alters: activeAlters });
-      toast.success(`${formatAlter(top)} set as ${terms.fronting}`);
+      toast.success(`${formatAlter(top)} added to ${terms.front}`);
     } catch (e) {
       toast.error(e?.message || "Couldn't change that.");
     } finally {
@@ -697,7 +698,7 @@ function UnblendPixel({
                 {top && (
                   <button type="button" className="px-cr-btn on" style={{ width: "100%", minHeight: 52 }}
                     disabled={setting || topIsSoleFront} onClick={setFrontToTop}>
-                    {topIsSoleFront ? `${formatAlter(top)} is ${terms.fronting}` : `Set ${terms.front} to ${formatAlter(top)}`}
+                    {topIsSoleFront ? `${formatAlter(top)} is ${terms.fronting}` : `Add ${formatAlter(top)} to ${terms.front}`}
                   </button>
                 )}
               </div>
