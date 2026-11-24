@@ -536,7 +536,6 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
             </div>
             <div className="pxg-build-foot">
               <button type="button" className="pxg-btn" onClick={() => setShowTemplates(true)}>Save as template</button>
-              <span className="pxg-grow" />
               <button type="button" className="pxg-btn" disabled={noSections} onClick={() => onGenerate(buildConfig(true, false))}>
                 {loading ? "..." : "Copy as text"}
               </button>
