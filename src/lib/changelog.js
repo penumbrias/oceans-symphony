@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: Support opens with a \"Need help right now?\" panel, grounding tiles and your Learn progress." },
+      { type: "improve", text: "Pixel look: medications show today's doses with Take and Skip, and refills with a bar of what's left." },
+      { type: "improve", text: "Pixel look: quick check-in sections fold under title bars with a summary, and feelings stay grouped as square chips." },
       { type: "improve", text: "Pixel look: chat has channel folder tabs on a phone and a channel panel on a computer, with name marks in each alter's colour and a new message box." },
       { type: "improve", text: "Pixel look: Settings on a computer has a side list, the page in the middle and a live preview; Display options opens right in the page." },
       { type: "improve", text: "Pixel look: Journals is a three-pane desk with folders and entries on the left, the entry in the middle and its info on the right." },
