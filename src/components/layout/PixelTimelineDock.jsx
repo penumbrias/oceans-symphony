@@ -21,7 +21,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { addDays, format, isSameDay, startOfDay } from "date-fns";
 import { ChevronLeft, ChevronRight, Eye, EyeOff, X, CalendarClock } from "lucide-react";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
-import { usePixelLook, PIXEL_DOCK_LAYERS } from "@/lib/uiLook";
+import { usePixelLook } from "@/lib/uiLook";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyTerms } from "@/lib/dailyTaskSystem";
