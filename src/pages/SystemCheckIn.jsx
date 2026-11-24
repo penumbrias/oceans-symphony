@@ -657,12 +657,12 @@ export default function SystemCheckInPage() {
           <span className="pxm-grow" />
           <span className="pxm-mut">every field optional</span>
         </div>
-        <div className="pxm-steps" role="tablist" aria-label="Meeting steps">
+        <nav className="pxm-steps" aria-label="Meeting steps">
           {STEPS.map((st) => (
-            <button key={st.n} type="button" role="tab" aria-selected={st.n === step} title={st.name}
+            <button key={st.n} type="button" aria-current={st.n === step ? "step" : undefined} title={st.name}
               className={`pxm-step${st.n === step ? " cur" : st.n < step ? " past" : ""}`} onClick={() => setPxStep(st.n)}>{st.n}</button>
           ))}
-        </div>
+        </nav>
         <div className="pxm-body">
           {STEPS.filter((st) => st.n < step).map(stepRow)}
           <div className="pxm-cur">{stepEls[step - 1]}</div>
