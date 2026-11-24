@@ -44,6 +44,8 @@ import { Button } from "@/components/ui/button";
 import { Settings, LayoutGrid, CalendarDays, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook } from "@/lib/uiLook";
+import RoutinesPixel from "@/components/tasks/RoutinesPixel";
 
 const FREQUENCIES = ["daily", "weekly", "monthly", "yearly"];
 
@@ -55,6 +57,7 @@ export default function DailyTasks() {
   const [showManager, setShowManager] = useState(false);
   const [activeFreq, setActiveFreq] = useState("daily");
   const [showReview, setShowReview] = useState(false);
+  const pixel = useUiLook() === "pixel";
 
   // Persistent "hide tasks once completed" preference (per device).
   // A single toggle: when on, completed tasks drop out of the list so
@@ -789,6 +792,24 @@ export default function DailyTasks() {
     });
     return counts;
   }, [templates]);
+
+  if (pixel) {
+    const isDone = (t) => activeFreq === "daily"
+      ? isTaskCompleted(t, manualCompletedIds, autoTriggers)
+      : manualCompletedIds.has(t.id);
+    return (
+      <RoutinesPixel
+        activeFreq={activeFreq} onFreq={setActiveFreq} freqCounts={freqCounts} currentPeriodKey={currentPeriodKey}
+        activeTasks={activeTasks} isDone={isDone} hideCompleted={hideCompleted} toggleHideCompleted={toggleHideCompleted}
+        toggleManual={toggleManual}
+        totalXP={totalXP} periodEarnedXP={periodEarnedXP} periodPossibleXP={periodPossibleXP} periodLabel={periodLabel}
+        goalXP={goalXp.on ? sumXp(goalXp.events) : null} showPoints={showPoints} shownUp={shownUp}
+        askAboutPoints={askAboutPoints} choosePoints={choosePoints}
+        showReview={showReview} setShowReview={setShowReview} showManager={showManager} setShowManager={setShowManager}
+        templates={templates} allProgress={allProgress} toggleHistoryTask={toggleHistoryTask}
+      />
+    );
+  }
 
   return (
     <motion.div data-tour="tasks-daily" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 os-page-shell">
