@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: System meeting, presences, Get to know me and history follow their new designs, with a side list on a computer." },
       { type: "improve", text: "Pixel look: the alters page is a workspace with the groups tree, cards and an Info panel; profiles get a title bar, an action bar and windowed sections." },
       { type: "improve", text: "Pixel look: Reminders shows Due now and Your reminders panels, and the reminder editor sits beside the list on a computer." },
       { type: "improve", text: "Pixel look: the Planner on a computer has a month and categories on the left, the week in the middle, and this week, goals and plans needing a decision on the right." },
