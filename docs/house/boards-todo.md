@@ -63,13 +63,13 @@ Each note is lifted off the board so that building to the mockup can't lose it. 
 |---|---|---|
 | E1 | The logo image is broken ("Oce"), and so is Penumblob's (01, 08, 50) | Real images, or no image |
 | E2 | Placeholder text drawn as content: "[Your line here]" (01, 08), "Notes &amp;amp; lists" (51) | Real copy, unescaped |
-| E3 | The pixel font's "fi" ligature draws a wrong letter: "profle", "Custom Aelds", "Aelds they chose", "skipping is Ane", "When should this Are?", "NotiAcation", "not Alled", "newest frst" (12, 16, 22, 24, 38, 45) | `font-variant-ligatures: none` wherever the pixel font is used (the branch patches only `settings.css:216`) |
+| E3 | The pixel font's "fi" ligature draws a wrong letter: "profle", "Custom Aelds", "Aelds they chose", "skipping is Ane", "When should this Are?", "NotiAcation", "not Alled", "newest frst" (12, 16, 22, 24, 38, 45) | Ligatures off once, in the pixel font's `@font-face` and label token (code §7), not per page. The branch patches only `settings.css:216`. Redraw these boards with ligatures off so the words read correctly |
 | E4 | Numbers in the pixel font are hard to tell apart (3, 5, 8): "Question 3", "Energy 2 of 5", calendar dates (04, 38, 42, 16) | Values in the body font (code §7) |
 | E5 | An "x" means "on" in tick boxes (22, 24, 33, 47, 51) | ✓ (code §3) |
 | E6 | ASCII glyphs used as icons: `v`/`-` for layer visibility, `o` bullets, `>` chevrons, `->` arrows, `=` menu, "v" as a dropdown caret (01, 03, 04, 07, 16, 32) | Lucide glyphs (code §8) |
 | E7 | Text below 12 px: panel header strips, the uppercase field labels on 41, the "CHANGED BY SYNC" badges on 45, phone bottom-bar labels, the "QUICK"/"PAGE" rail captions on 01 | The type scale; sentence case |
 | E8 | Inline targets under 44 px: "+ add", "+ (max 3)" and the filter chips (22, 24, 32, 33) | `h-control` (code §7) |
-| E9 | Only the happy path is drawn. No board shows empty, loading, error, disabled, focus, 200% text, light theme or high contrast | One states board per kit block, plus an empty and an error state for each room (the drawing gate) |
+| E9 | Only the happy path is drawn. No board shows empty, loading, error, disabled, focus, 200% text, light theme or high contrast | One states board per kit block, plus an empty and an error state for each room (the drawing gate). Every phone frame piece is also drawn once at **200% text** and once with the **keyboard open** |
 
 ### Board by board
 
@@ -81,7 +81,7 @@ Each note is lifted off the board so that building to the mockup can't lose it. 
 | 07 Settings | No "Search everything"; the version is in its place. **"Icons: Pixel / Classic"** offers a set that doesn't exist (retired, code §8). Reset, Import and Share sit in a page footer |
 | 08 Phone | "Jrnl" abbreviation. Two header icons are unlabelled |
 | 12 Profile phone | The bottom bar is replaced by "Edit page / Profile style / Write note", so **Support can't be reached**. Page tabs and the role tags share one look |
-| 16 Check-in | "=" button with no label. "Wheel \| List" is drawn as text. The energy column's tiles are below target size. No bottom bar, so no Support (code §5 keeps it) |
+| 16 Check-in | "=" button with no label. "Wheel \| List" is drawn as text. The energy column's tiles are below target size. No bottom bar, so no Support (code §5 keeps it, hidden only while the keyboard is open). Long form: also needs Save at its foot (code §1) |
 | 22 Friends | Sharing levels are drawn as four loose buttons (should be a segmented control). "Unmark verified" sits where the primary action goes, with no confirm. "Explained in full here." has no link |
 | 24 Reminder editor | The page is named twice ("Reminder" header, "Spacey for a while" panel). Cancel/Save sit in a panel header instead of the page header. "… Delete" at the bottom right |
 | 32 System history | Filter chips wrap to two rows. "->" arrows |
@@ -91,7 +91,7 @@ Each note is lifted off the board so that building to the mockup can't lose it. 
 | 42 Check-in log | Kind tags look like buttons. No daily summary (R4). "Hide everything" is unclear. "Diary cards" is still a filter, though diary cards fold into check-ins |
 | 45 Recent changes | Filter chips wrap to two rows. "… Empty trash". Colour-coded tiny caps badges |
 | 47 Set front | Cancel/Save sit in a panel header. "x" ticks. "Fronting" / "Co-fronting" look like buttons. "Alters / By group / New presence" look like filter chips but are page tabs |
-| 50 Unlock | The app's bottom bar shows while locked. The placeholder is the only label ("Your encryption password…") |
+| 50 Unlock | The app's bottom bar shows while locked. The placeholder is the only label ("Your encryption password…"). "Show my emergency info" and "Need support right now?" are missing (code §5) |
 | 51 Quick jump | A single choice drawn as checkboxes (use radios). "&amp;amp;". The header hint reads like a breadcrumb |
 
 ---
@@ -186,13 +186,31 @@ These are needed before steps 2.1, 2.2 and 4.1:
 - the phone ⋯ menu with the "Open" list;
 - the desktop edit-mode bar;
 - the phone edit-mode header and tool strip;
-- the confirm sheet and the Undo toast;
+- the confirm sheet (focus on the safe choice) and the Undo toast;
+- a full-page form with the keyboard open (bar hidden), and the "You were writing… Continue" return after leaving it by the bottom bar;
+- the desktop status bar at rest (32 px), with a failed save (44 px, Try again), and as the mode bar;
+- the phone frame at 200% text: header title wrapping to two lines, the bars at the 1.3× cap, content at 2×;
 - the kit date / time field and the kit colour picker.
 
 ### Suggested drawing batches (by gate)
 
 1. **Before 2.1/2.2:** the frame pieces above, plus one compact-studio board of Home.
-2. **Before 3.1:** desktop boards for Support, Safety plan, Emergency info, Unblend and Unlock; crisis resources; and empty/error states for each.
+2. **Before 3.1:** desktop boards for Support, Safety plan, Emergency info, Unblend and Unlock; crisis resources; and empty/error states for each. These are also drawn at 200% text at 390 px, with a due reminder held back from the attention line (code §5).
 3. **Before 3.2:** desktop Set front, Check-in, Meds and Sleep; Now and the handover; front history.
 4. **Before 3.3:** the Day at both sizes, and the Check-in log on the phone (with R4).
 5. **Phase 5:** the rest, room by room, at each room's own gate.
+
+---
+
+## Lantern review (2026-11-24)
+
+What I changed in this file, and why:
+
+- **E3 (the "fi" ligature):** the fix now points at one declaration in the font's `@font-face` and label token (code §7), not a per-page patch. The boards listed are redrawn with ligatures off, so reviewers read the real words.
+- **E9 (states):** every phone frame piece is also drawn at 200% text and with the keyboard open. Those are the two states where the phone frame breaks today.
+- **Board 16:** keeps the bottom bar (hidden only while typing) and adds a Save at the foot of the long form, for one-handed reach.
+- **Board 50:** the lock screen's support and emergency-info doors were missing.
+- **Frame pieces:** added the keyboard-open form, the draft "Continue" return, the three states of the desktop status bar, and the frame at 200% text. These are what the three open points in the building code decide, so they need drawing before step 2.1.
+- **Batch 2:** crisis rooms are drawn at 200% text, and with a reminder held back from the attention line.
+
+Nothing was removed.
