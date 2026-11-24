@@ -8,6 +8,7 @@ import RemindersInbox from "@/components/reminders/RemindersInbox";
 import RemindersManage from "@/components/reminders/RemindersManage";
 import RemindersOnboarding from "@/components/reminders/RemindersOnboarding";
 import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 
 export default function Reminders() {
   const [tab, setTab] = useState("inbox");
@@ -16,6 +17,7 @@ export default function Reminders() {
   });
   const [autoTriggerAction, setAutoTriggerAction] = useState(null);
   const queryClient = useQueryClient();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
 
   // Handle notification click deep-link: /reminders?act=<id>&action=<type>
   useEffect(() => {
@@ -49,6 +51,28 @@ export default function Reminders() {
   });
 
   const showOnboarding = !isLoading && allReminders.length === 0;
+
+  // Pixel look: the Reminders board. The frame already names the page, so
+  // there's no big header; "Due now" sits above "Your reminders" on the
+  // Inbox tab, and the editor opens beside the list on a computer.
+  if (pixel) {
+    return (
+      <div data-tour="reminders-list" className="prm-page">
+        <NotificationStatusCard onlyWhenIssues />
+        {showOnboarding ? (
+          <RemindersOnboarding onDone={() => queryClient.invalidateQueries({ queryKey: ["reminders"] })} />
+        ) : (
+          <>
+            <PageStrip subtabs label="Reminder views" value={tab} onChange={setTab} items={[
+              { id: "inbox", label: "Inbox", tour: "reminders-inbox-tab" },
+              { id: "manage", label: "Manage", tour: "reminders-manage-tab" },
+            ]} />
+            <RemindersManage before={tab === "inbox" ? <RemindersInbox autoTriggerAction={autoTriggerAction} /> : null} />
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <motion.div data-tour="reminders-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="py-6 space-y-6">
