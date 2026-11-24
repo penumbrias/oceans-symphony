@@ -293,3 +293,4 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 [data-house] .hk-safety-title { margin: 0; font-size: var(--house-text-xl); line-height: var(--house-lh-xl); overflow-wrap: anywhere; }
 [data-house] .hk-safety-body { flex: 1 1 auto; max-width: 42rem; width: 100%; }
 [data-house] .hk-safety-foot { position: sticky; bottom: 0; padding-top: var(--house-space-2); background: var(--house-page); max-width: 42rem; width: 100%; }
+[data-house] .hk-chart-svg { width: 100%; height: 100%; }

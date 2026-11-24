@@ -84,7 +84,7 @@ export default function Inspector({ title, tabs: rawTabs = [], tab, onTabChange,
         </div>
       </header>
       {!stacked && tabs.length > 1 ? (
-        <PageTabs label={`${title}: sections`} idPrefix={pre} tabs={tabs} value={current?.id} onChange={onTabChange} />
+        <PageTabs label={`${title}: sections`} idPrefix={pre} withPanels tabs={tabs} value={current?.id} onChange={onTabChange} />
       ) : null}
       <div ref={bodyRef} className="hk-insp-body">
         {stacked

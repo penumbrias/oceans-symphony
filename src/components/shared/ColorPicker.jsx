@@ -208,6 +208,7 @@ export default function ColorPicker({ value, onChange, label, compact = false, c
               onBlur={handleHexBlur}
               onFocus={handleHexFocus}
               className='mt-2 w-full h-7 px-2 rounded border border-border bg-background text-xs font-mono text-center'
+              aria-label={`${label || 'Colour'}: hex code`}
               maxLength={9}
             />
             {opacity && (

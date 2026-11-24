@@ -14,7 +14,8 @@
 //   node scripts/house-grid.mjs 4312 [--story /house/kit/controls]
 //        [--out /mnt/project-files/audits/new-house-2026-11/phase1/1.2]
 //        [--sizes 390,820,1280] [--texts 100,200] [--paints dark,light,hc]
-//        [--looks smooth,pixel] [--no-axe]
+//        [--looks smooth,pixel] [--no-axe] [--name panels] [--title 'Panels, content and sheets']
+//        [--popups]   also shoot each [data-story="popups"] picker opened (390 px)
 //
 // Example data only. A fresh, empty browser profile gets past the welcome
 // screen with "Not now" (no backup, no import) and turns Preview Mode on by
@@ -47,12 +48,16 @@ const opt = (name, fallback) => {
 };
 const BASE = `http://localhost:${port}`;
 const STORY = opt('--story', '/house/kit/controls');
+// The picture names and titles: --name panels → panels-smooth-dark-100.png.
+const NAME = opt('--name', STORY.split('/').filter(Boolean).pop() === 'kit' ? 'kit' : STORY.split('/').filter(Boolean).pop());
+const TITLE = opt('--title', NAME === 'controls' ? 'Controls and pickers' : NAME === 'panels' ? 'Panels, content and sheets' : NAME);
 const OUT = path.resolve(opt('--out', '/mnt/project-files/audits/new-house-2026-11/phase1/1.2'));
 const SIZES = opt('--sizes', '390,820,1280').split(',').map(Number);
 const TEXTS = opt('--texts', '100,200').split(',').map(Number);
 const PAINTS = opt('--paints', 'dark,light,hc').split(',');
 const LOOKS = opt('--looks', 'smooth').split(',');
 const AXE = !args.includes('--no-axe');
+const POPUPS = args.includes('--popups');
 const SHOT_DIR = path.join('/tmp', 'house-grid-shots');
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(SHOT_DIR, { recursive: true });
@@ -154,6 +159,8 @@ async function forceStates(page, cdp) {
     ['[data-force="active"]', 'active'],
     ['[data-force-parent="hover"] > *', 'hover'],
     ['[data-force-input="focus-visible"] label:first-of-type input', 'focus-visible'],
+    ['[data-force-child="hover"] > *', 'hover'],
+    ['[data-force-tab="focus-visible"] [role="tab"][aria-selected="true"]', 'focus-visible'],
   ];
   for (const [sel, state] of groups) {
     for (const nodeId of await pick(sel)) {
@@ -264,7 +271,7 @@ try {
           await setPaint(page, { paint, text, look });
           await forceStates(page, cdp);
           await sleep(300);
-          const name = `controls-${look}-${paint}-${text}-${width}`;
+          const name = `${NAME}-${look}-${paint}-${text}-${width}`;
           const file = path.join(SHOT_DIR, `${name}.png`);
           await page.screenshot({ path: file, fullPage: true });
           const m = await measure(page);
@@ -273,12 +280,57 @@ try {
           shots.push({ file, width });
           console.log(`${name}: sideways ${m.sideways}, below 12px ${m.belowFloor}, small targets ${m.smallTargets}${a ? `, axe serious ${a.serious ?? a.skipped}` : ''}`);
         }
-        const sheet = path.join(OUT, `controls-${look}-${paint}-${text}.png`);
-        await contactSheet(browser, `Controls and pickers · ${look} · ${paint === 'hc' ? 'high contrast' : paint} · ${text}% text · one wallpaper · example data`, shots, sheet);
+        const sheet = path.join(OUT, `${NAME}-${look}-${paint}-${text}.png`);
+        await contactSheet(browser, `${TITLE} · ${look} · ${paint === 'hc' ? 'high contrast' : paint} · ${text}% text · one wallpaper · example data`, shots, sheet);
       }
     }
   }
-  fs.writeFileSync(path.join(OUT, 'grid.json'), JSON.stringify({ story: STORY, pageErrors: errors, report }, null, 1));
+  // The shared pickers' own pop-ups, opened, in the house look (step 1.3).
+  const popups = [];
+  if (POPUPS) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const paint of PAINTS) {
+      await setPaint(page, { paint, text: 100, look: LOOKS[0] });
+      // Back to a normal, scrolling page so a fixed pop-up sits where it would.
+      await page.evaluate(() => { const st = document.getElementById('house-grid-wallpaper'); if (st) st.textContent = ''; });
+      const triggers = ['[data-story="popups"] .hk-picker-trigger >> nth=0', '[data-story="popups"] button[aria-haspopup="listbox"] >> nth=0', '[data-story="popups"] .hk-colour button >> nth=0'];
+      for (const [i, sel] of triggers.entries()) {
+        try {
+          const loc = page.locator(sel);
+          await loc.scrollIntoViewIfNeeded({ timeout: 4000 });
+          await page.evaluate(() => document.querySelector('[data-story="popups"]')?.scrollIntoView({ block: 'start' }));
+          await sleep(300);
+          await loc.click({ timeout: 4000 });
+          await sleep(700);
+          const file = path.join(OUT, `${NAME}-popup-${i + 1}-${LOOKS[0]}-${paint}.png`);
+          await page.screenshot({ path: file });
+          const themed = await page.evaluate(() => [...document.querySelectorAll('[data-shared-pop]')].map((e) => e.getAttribute('data-shared-pop')));
+          let a = null;
+          if (AXE) {
+            const axePath = path.join(ROOT, 'node_modules', 'axe-core', 'axe.min.js');
+            if (fs.existsSync(axePath)) {
+              await page.addScriptTag({ path: axePath });
+              a = await page.evaluate(async () => {
+                const el = document.querySelector('[data-shared-pop]');
+                if (!el) return { skipped: 'no themed pop-up' };
+                // eslint-disable-next-line no-undef
+                const res = await axe.run(el, { resultTypes: ['violations'] });
+                const v = res.violations.filter((x) => x.impact === 'serious' || x.impact === 'critical');
+                return { serious: v.length, findings: v.map((x) => ({ id: x.id, help: x.help, nodes: x.nodes.length, first: x.nodes.slice(0, 2).map((n) => n.target.join(' ')) })) };
+              });
+            }
+          }
+          popups.push({ paint, trigger: sel, file: path.basename(file), themed, axe: a });
+          console.log(`popup ${i + 1} ${paint}: themed ${themed.join(',') || 'NONE'}${a ? `, axe serious ${a.serious ?? a.skipped}` : ''}`);
+          await page.keyboard.press('Escape');
+          await sleep(300);
+          await page.mouse.click(5, 5);
+          await sleep(300);
+        } catch (e) { popups.push({ paint, trigger: sel, error: String(e.message || e).slice(0, 200) }); console.log(`popup ${i + 1} ${paint}: ${String(e.message || e).slice(0, 120)}`); }
+      }
+    }
+  }
+  fs.writeFileSync(path.join(OUT, 'grid.json'), JSON.stringify({ story: STORY, pageErrors: errors, report, popups }, null, 1));
   console.log(`\nWrote ${LOOKS.length * PAINTS.length * TEXTS.length} contact sheets and grid.json to ${OUT}`);
   if (errors.length) console.log('Page errors:', errors.slice(0, 5));
 } finally {

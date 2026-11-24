@@ -318,6 +318,7 @@ export function SearchableSelect({
           <div
             ref={listRef}
             role="listbox"
+            aria-label={placeholder || "Options"}
             className="overflow-y-auto py-1 flex-1 min-h-0"
           >
            {filtered.length === 0 ? (
@@ -525,7 +526,7 @@ export function SearchableMultiSelect({
               </button>
             )}
           </div>
-          <div role="listbox" aria-multiselectable="true" className="overflow-y-auto py-1 flex-1 min-h-0">
+          <div role="listbox" aria-multiselectable="true" aria-label={placeholder || "Options"} className="overflow-y-auto py-1 flex-1 min-h-0">
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">{emptyMessage}</p>
             ) : (

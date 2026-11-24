@@ -136,6 +136,9 @@ export default function Chart({ kind = "bar", title, data = [], xKey = "label", 
       {view === "chart" ? (
         <>
           <div className="hk-chart-plot" role="img" aria-label={summary} style={{ height }}>
+            {/* The picture is named by the summary above; its marks are hidden
+                from screen readers, which get the Table view instead. */}
+            <div aria-hidden="true" className="hk-chart-svg">
             <ResponsiveContainer width="100%" height="100%">
               {isDonut ? (
                 <PieChart>
@@ -167,6 +170,7 @@ export default function Chart({ kind = "bar", title, data = [], xKey = "label", 
                 </BarChart>
               )}
             </ResponsiveContainer>
+            </div>
           </div>
           <Legend items={legend} />
         </>

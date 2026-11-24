@@ -49,7 +49,7 @@ export function Panel({ title, tools, collapsible = false, defaultOpen = true, o
   );
 }
 
-export function PageTabs({ label, tabs = [], value, onChange, idPrefix }) {
+export function PageTabs({ label, tabs = [], value, onChange, idPrefix, withPanels = false }) {
   const auto = useId();
   const pre = idPrefix || auto;
   const stripRef = useRef(null);
@@ -94,7 +94,7 @@ export function PageTabs({ label, tabs = [], value, onChange, idPrefix }) {
               type="button"
               role="tab"
               aria-selected={on}
-              aria-controls={`${pre}-panel-${t.id}`}
+              aria-controls={withPanels && on ? `${pre}-panel-${t.id}` : undefined}
               tabIndex={on ? 0 : -1}
               className="hk-tab"
               onClick={() => onChange?.(t.id)}
@@ -116,7 +116,8 @@ export function PageTabs({ label, tabs = [], value, onChange, idPrefix }) {
   );
 }
 
-// The body of one tab, tied to its tab for screen readers.
+// The body of one tab, tied to its tab for screen readers. Pass
+// `withPanels` to PageTabs (same idPrefix) when the tabs have TabPanels.
 export function TabPanel({ idPrefix, id, children, className = "" }) {
   return (
     <div role="tabpanel" id={`${idPrefix}-panel-${id}`} aria-labelledby={`${idPrefix}-tab-${id}`} className={className} tabIndex={0}>
