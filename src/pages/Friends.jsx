@@ -16,6 +16,7 @@ import {
   Database, Lock, Trash2
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { an } from "@/lib/articles";
 import { base44 } from "@/api/base44Client";
 import { getPrivacyLevels, sortedLevels, levelIdsUpToThreshold, resolveVisibleAlters } from "@/lib/privacyLevels";
 import {
@@ -43,6 +44,8 @@ import FrontShareNotice from "@/components/friends/FrontShareNotice";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { pushCurrentFront } from "@/lib/friendsApi";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import "@/styles/pixel/social.css";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -118,10 +121,25 @@ function FronterBubble({ fronter }) {
   );
 }
 
+// One line on who's in front for a friend, in the friend's own words.
+function friendFrontSummary(friend) {
+  const ft = buildTermsFromFriend(friend.front?.terms);
+  const fronters = friend.front?.fronters || [];
+  const privacyLevel = friend.front?.privacyLevel || 'names';
+  if (privacyLevel === 'hidden') return `${ft.Fronting} hidden`;
+  if (fronters.length === 0) return `No one ${ft.fronting}`;
+  if (privacyLevel === 'count_only') return `${fronters.length} ${fronters.length === 1 ? ft.fronter : ft.fronters}`;
+  return fronters.map(f => f.name).join(', ');
+}
+
 // ── Friend card ───────────────────────────────────────────────────────────────
 
-function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilitySettings = {}, onVisibilityChange, globalPrivacyLevel = 'names', terms, myPublicKeyJwk = null, verifiedNumber = null, onVerify }) {
-  const [expanded, setExpanded] = useState(false);
+// variant "desk": the pixel look's friend view (the Friends mockup's middle
+// column) — always open, the same pieces laid out as titled panels.
+function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilitySettings = {}, onVisibilityChange, globalPrivacyLevel = 'names', terms, myPublicKeyJwk = null, verifiedNumber = null, onVerify, variant = "list" }) {
+  const desk = variant === "desk";
+  const [expanded, setExpanded] = useState(desk);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [togglingNotify, setTogglingNotify] = useState(false);
   const [pushReady, setPushReady] = useState(null); // null = not yet checked
@@ -240,13 +258,352 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
     }
   };
 
-  const frontSummary = () => {
-    if (privacyLevel === 'hidden') return `${ft.Fronting} hidden`;
-    if (fronters.length === 0) return `No one ${ft.fronting}`;
-    if (privacyLevel === 'count_only') return `${fronters.length} ${fronters.length === 1 ? ft.fronter : ft.fronters}`;
-    const names = fronters.map(f => f.name).join(', ');
-    return names;
-  };
+  const frontSummary = () => friendFrontSummary(friend);
+
+  // Pieces of the expanded card, shared by the list card and the pixel
+  // desk's friend view (variant "desk").
+  const prefsBlock = fronters.some((f) => Array.isArray(f.preferences) && f.preferences.length > 0) && (
+                    <div className="mt-2 space-y-1.5">
+                      {fronters.filter((f) => Array.isArray(f.preferences) && f.preferences.length > 0).map((f, i) => (
+                        <div key={`prefs-${i}`} className="text-xs">
+                          <span className="text-muted-foreground">{f.name}:</span>{" "}
+                          <span className="inline-flex flex-wrap gap-1 align-middle">
+                            {[...f.preferences].sort((a, b) => (b.level || 3) - (a.level || 3)).map((p, j) => {
+                              const lvl = PREF_LEVELS[p.level] || PREF_LEVELS[3];
+                              return (
+                                <span key={j} title={lvl.label}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[0.6875rem]"
+                                  style={{ borderColor: `${lvl.color}66`, backgroundColor: `${lvl.color}14` }}>
+                                  <PrefLevelIcon level={p.level} className="w-3 h-3" filled />{p.label}
+                                </span>
+                              );
+                            })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+  const fronterList = privacyLevel !== 'hidden' && fronters.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                    Currently {ft.fronting}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {fronters.map((f, i) => (
+                      <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium"
+                        style={{
+                          borderColor: f.color || undefined,
+                          background: f.color ? `${f.color}18` : undefined,
+                        }}
+                      >
+                        {f.isPrimary && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Primary" />
+                        )}
+                        {f.name}
+                        {f.pronouns && f.pronouns !== f.name && (
+                          <span className="opacity-60 font-normal">· {f.pronouns}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Shared preferences/boundaries — pronouns.cc-style chips.
+                      Only present when the friend's share mode includes them. */}
+                  {prefsBlock}
+                </div>
+              );
+  const sharedMembersBlock = (loadingShare || (sharedMembers && sharedMembers.length > 0)) && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                    <Lock className="w-3 h-3" /> Members they share with you
+                  </p>
+                  {loadingShare ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Decrypting…</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {sharedMembers.map((m) => {
+                        const meta = [m.pronouns, m.role, m.age != null && m.age !== "" ? `age ${m.age}` : ""].filter(Boolean);
+                        return (
+                          <div key={m.id} className="flex items-start gap-2.5 p-2 rounded-lg border border-border/40 bg-muted/10">
+                            <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[0.625rem] font-bold text-white mt-0.5" style={{ background: m.color || "#6b7280" }}>
+                              {(m.name?.[0] || "?").toUpperCase()}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-foreground">
+                                {m.name || <span className="italic text-muted-foreground">Member</span>}
+                                {meta.length > 0 && <span className="text-xs text-muted-foreground"> · {meta.join(" · ")}</span>}
+                              </p>
+                              {/* Everything below came over the wire from a
+                                  FRIEND's device — possibly a different app
+                                  version. Normalise every shape before
+                                  iterating: a payload we don't recognise
+                                  must never take the whole Friends page down
+                                  ("object is not iterable" crash, tester
+                                  report 2026-08-18). */}
+                              {sharedGroupLabels(m).length > 0 && (
+                                <p className="mt-1 flex flex-wrap gap-1">
+                                  {sharedGroupLabels(m).map((g, i) => <span key={i} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}
+                                </p>
+                              )}
+                              {m.bio && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words">{String(m.bio)}</p>}
+                              {sharedCustomFieldPairs(m).length > 0 && (
+                                <dl className="mt-1 text-[0.6875rem] text-muted-foreground space-y-0.5">
+                                  {sharedCustomFieldPairs(m).map(([k, v], i) => (<div key={i}><span className="font-medium text-foreground/80">{k}:</span> {v}</div>))}
+                                </dl>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+  const safetyBlock = (<div className="rounded-lg border border-border/40 bg-muted/10 p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground flex items-center gap-1.5"><Lock className="w-3 h-3" /> Safety number</span>
+                  {safetyNum && verifiedNumber === safetyNum && (
+                    <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
+                  )}
+                </div>
+                {safetyNum ? (
+                  revealSafety ? (
+                    <>
+                      <p className="font-mono text-xs tracking-wide text-foreground bg-background rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[0.625rem] text-muted-foreground flex-1">Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.</p>
+                        <button type="button" onClick={() => setRevealSafety(false)} className="text-[0.6875rem] text-muted-foreground hover:underline inline-flex items-center gap-1 flex-shrink-0"><EyeOff className="w-3 h-3" /> Hide</button>
+                      </div>
+                      {verifiedNumber === safetyNum ? (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
+                      ) : (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
+                      )}
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => setRevealSafety(true)} className="w-full font-mono text-xs tracking-widest text-muted-foreground/70 bg-background rounded-lg px-2 py-1.5 inline-flex items-center justify-center gap-1.5 hover:text-foreground transition-colors">
+                      <Eye className="w-3 h-3" /> Tap to reveal safety number
+                    </button>
+                  )
+                ) : (
+                  <p className="text-[0.625rem] text-muted-foreground">
+                    {friend.publicKey
+                      ? "Preparing…"
+                      : "This friend hasn't set up encrypted sharing yet — the number appears once they've opened the Friends page on a version that supports it."}
+                  </p>
+                )}
+              </div>);
+  const levelsBlock = (<div className="pt-3 border-t border-border/40 space-y-2">
+                    <span className="text-xs font-medium text-foreground">{terms?.Alters || "Members"} this friend can see</span>
+                    {levels.length === 0 ? (
+                      <p className="text-[0.6875rem] text-muted-foreground">
+                        No privacy levels yet. Create them from {an(terms?.alter || "alter")}'s profile → Options → Sharing levels.
+                      </p>
+                    ) : (
+                      <>
+                        {!advancedLevels ? (
+                          <div className="space-y-1">
+                            <input
+                              type="range" min={-1} max={maxLevelNumber} step={1} value={thresholdValue}
+                              onChange={(e) => { const n = Number(e.target.value); saveLevels(n < 0 ? [] : levelIdsUpToThreshold(levels, n)); }}
+                              className="w-full accent-primary" aria-label="Privacy levels this friend can see" />
+                            <p className="text-[0.6875rem] text-muted-foreground">
+                              {thresholdValue < 0 ? "Sees none of your levels" : `Sees levels 0–${thresholdValue}`}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {levels.map((l) => {
+                              const on = allowedSet.has(l.id);
+                              return (
+                                <button key={l.id} type="button" aria-pressed={on}
+                                  onClick={() => saveLevels(on ? allowedLevelIds.filter((id) => id !== l.id) : [...allowedLevelIds, l.id])}
+                                  className={`text-[0.6875rem] px-2 py-1 rounded-full border transition-colors ${on ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/40"}`}>
+                                  {l.number}. {l.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <button type="button" onClick={() => setAdvancedLevels((v) => !v)} className="text-[0.6875rem] text-primary hover:underline">
+                            {advancedLevels ? "Use simple slider" : "Pick specific levels"}
+                          </button>
+                          <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "alter") : (terms?.alters || "alters")} shared</span>
+                        </div>
+                        {/* Live preview — exactly who this friend can see right now,
+                            recomputed from the granted levels + per-alter hides. */}
+                        {(() => {
+                          const visible = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } });
+                          if (visible.length === 0) {
+                            return <p className="text-[0.625rem] text-muted-foreground italic">No {terms?.alters || "alters"} visible with the current levels.</p>;
+                          }
+                          // Collapsed by default so large systems don't flood the
+                          // card — tap to reveal the (capped) list.
+                          return (
+                            <div className="rounded-lg border border-border/40 bg-muted/10 p-2 space-y-1">
+                              <button type="button" onClick={() => { setShowVisibleList((v) => !v); setVisShown(60); }} className="text-[0.625rem] text-primary hover:underline">
+                                {showVisibleList ? "Hide" : "Show"} the {visible.length} {visible.length === 1 ? (terms?.alter || "alter") : (terms?.alters || "alters")} they can see
+                              </button>
+                              {showVisibleList && (
+                                <div className="max-h-48 overflow-y-auto overscroll-contain space-y-0.5 mt-1 pr-1"
+                                  onScroll={(e) => { const el = e.currentTarget; if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) setVisShown((s) => s + 60); }}>
+                                  {[...visible].sort((a, b) => (a.alter.name || "").localeCompare(b.alter.name || "")).slice(0, visShown).map(({ alter }) => (
+                                    <div key={alter.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/20">
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: alter.color || "#6b7280" }} />
+                                      <span className="text-[0.6875rem] text-foreground/90 truncate">{alter.name}</span>
+                                    </div>
+                                  ))}
+                                  {visible.length > visShown && <p className="text-[0.625rem] text-muted-foreground italic py-1 text-center">Loading more… ({visShown}/{visible.length})</p>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        {allowedLevelIds.length > 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            When {terms?.fronting || "fronting"}, this friend sees only these {terms?.alters || "alters"}, with the fields their levels share.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            With no levels, this friend sees whoever has "Show when {terms?.fronting || "fronting"}" on.
+                          </p>
+                        )}
+                        <p className="text-[0.625rem] text-muted-foreground">Shared end-to-end encrypted — changes reach this friend right away.</p>
+                      </>
+                    )}
+                  </div>);
+  const hideAltersBlock = (privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground">Hide specific {terms?.alters || 'alters'} from this friend:</span>
+                      <AlterTreeSelect
+                        controlPosition="right"
+                        renderControl={(alter) => {
+                          // With levels granted, the levels decide — the profile switch only
+                          // covers friends without levels.
+                          const globallyHidden = alter.friends_visible === false && allowedLevelIds.length === 0;
+                          const locallyHidden = hiddenAlterIds.includes(alter.id);
+                          const isVisible = !globallyHidden && !locallyHidden;
+                          return (
+                            <button
+                              disabled={globallyHidden}
+                              onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
+                              className={`flex-shrink-0 p-1 rounded transition-colors ${globallyHidden ? 'cursor-not-allowed opacity-40' : isVisible ? 'text-primary hover:text-primary/70' : 'text-muted-foreground hover:text-foreground'}`}
+                              title={globallyHidden ? `Hidden from all friends: "Show when ${terms?.fronting || 'fronting'}" is off in their profile → Options` : isVisible ? 'Visible — tap to hide' : 'Hidden — tap to show'}
+                            >
+                              {isVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            </button>
+                          );
+                        }}
+                        maxHeight="44vh"
+                      />
+                    </div>
+                  );
+
+  if (desk) {
+    const LEVEL_LABEL = { hidden: "hidden", count_only: "count only", names: "names and colours" };
+    const effective = privacyOverride || globalPrivacyLevel;
+    const theirLevel = { hidden: `they share nothing about who's ${ft.fronting}`, count_only: "they share a count only", names: "they share names and colours" }[privacyLevel] || "";
+    const isVerified = !!safetyNum && verifiedNumber === safetyNum;
+    const levelChoices = [
+      { v: "global", label: `My default (${LEVEL_LABEL[globalPrivacyLevel] || "names and colours"})` },
+      { v: "hidden", label: "Hidden" },
+      { v: "count_only", label: "Count only" },
+      { v: "names", label: "Names and colours" },
+    ];
+    return (
+      <div className="pf-friend">
+        <section className="pf-panel pf-head">
+          <span className="pf-bigmark" style={{ background: fronters[0]?.color || "var(--px-tab)" }} aria-hidden />
+          <div className="pf-head-text">
+            <h2 className="pf-name">{friend.displayName || "Friend"}</h2>
+            <p className="pf-dim">
+              {[friend.systemName, isVerified ? "verified" : null, updatedAt ? `updated ${formatDistanceToNow(new Date(updatedAt), { addSuffix: true })}` : null].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          <span className="pf-grow" />
+          {safetyNum && (
+            <button type="button" className="pf-btn" onClick={() => onVerify?.(friend.userId, isVerified ? null : safetyNum)}>
+              {isVerified ? "Unmark verified" : "Mark verified"}
+            </button>
+          )}
+          <div className="relative">
+            <button type="button" className="pf-btn" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen} aria-label="More for this friend">...</button>
+            {moreOpen && (
+              <div className="pf-menu" role="menu">
+                <button type="button" role="menuitem" className="pf-menu-item pf-danger" onClick={() => { setMoreOpen(false); handleRemove(); }} disabled={removing}>
+                  {removing ? "Removing…" : "Remove friend"}
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="pf-panel">
+          <div className="pf-ttl"><span>Who's {ft.fronting} for them</span><span className="pf-ttl-dim">{theirLevel}</span></div>
+          <div className="pf-body">
+            {privacyLevel === "hidden" || fronters.length === 0 ? (
+              <p className="pf-dim">{frontSummary()}</p>
+            ) : privacyLevel === "count_only" ? (
+              <p>{frontSummary()}</p>
+            ) : (
+              <>
+                <div className="pf-fronters">
+                  {fronters.map((f, i) => (
+                    <div key={i} className="pf-fronter">
+                      <span className="pf-mark" style={{ background: f.color || "var(--px-text-2)" }} aria-hidden />
+                      <span>
+                        <b>{f.name}</b>
+                        <span className="pf-dim pf-small">{[f.isPrimary ? "primary" : null, f.pronouns && f.pronouns !== f.name ? f.pronouns : null].filter(Boolean).join(" · ") || "\u00a0"}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {prefsBlock}
+              </>
+            )}
+          </div>
+        </section>
+
+        <section className="pf-panel">
+          <div className="pf-ttl"><span>What they see of you</span><span className="pf-ttl-dim">{savingVis ? "saving…" : savedVis ? "saved" : "for this friend only"}</span></div>
+          <div className="pf-body">
+            <div className="pf-line">
+              <span className="pf-key">Level</span>
+              <div className="pf-chips" role="group" aria-label="What this friend sees">
+                {levelChoices.map((c) => {
+                  const on = (privacyOverride || "global") === c.v;
+                  return <button key={c.v} type="button" className={`pf-chip${on ? " on" : ""}`} aria-pressed={on} onClick={() => handlePrivacyOverride(c.v)}>{c.label}</button>;
+                })}
+              </div>
+            </div>
+            <div className="pf-line">
+              <span className="pf-key">Notify on change</span>
+              <button type="button" className={`pf-tick${friend.notifyOnChange ? " y" : ""}`} aria-pressed={!!friend.notifyOnChange}
+                aria-label="Notify me when their front changes" disabled={togglingNotify} onClick={() => handleNotify(!friend.notifyOnChange)}>
+                {togglingNotify ? <Loader2 className="w-3 h-3 animate-spin" /> : friend.notifyOnChange ? "x" : ""}
+              </button>
+              {pushReady === false && <span className="pf-warn">Push notifications aren't on — Settings → Reminders turns them on.</span>}
+            </div>
+            <p className="pf-sunk">Right now they would see: {effective === "hidden" ? "nothing" : effective === "count_only" ? `a count of who's ${terms?.fronting || "fronting"}` : `the names and colours of who's ${terms?.fronting || "fronting"}`}.</p>
+            <div className="pf-sub">{levelsBlock}</div>
+            {hideAltersBlock && <div className="pf-sub">{hideAltersBlock}</div>}
+          </div>
+        </section>
+
+        {sharedMembersBlock && (
+          <section className="pf-panel">
+            <div className="pf-ttl"><span>Their profile</span><span className="pf-ttl-dim">what they chose to share</span></div>
+            <div className="pf-body">{sharedMembersBlock}</div>
+          </section>
+        )}
+
+        <section className="pf-panel">
+          <div className="pf-ttl"><span>Safety number</span><span className="pf-ttl-dim">end-to-end encrypted</span></div>
+          <div className="pf-body">{safetyBlock}</div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -307,139 +664,13 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
           >
             <div className="px-4 pb-4 border-t border-border/30 pt-3 space-y-4">
               {/* Fronter list */}
-              {privacyLevel !== 'hidden' && fronters.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                    Currently {ft.fronting}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {fronters.map((f, i) => (
-                      <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium"
-                        style={{
-                          borderColor: f.color || undefined,
-                          background: f.color ? `${f.color}18` : undefined,
-                        }}
-                      >
-                        {f.isPrimary && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Primary" />
-                        )}
-                        {f.name}
-                        {f.pronouns && f.pronouns !== f.name && (
-                          <span className="opacity-60 font-normal">· {f.pronouns}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {/* Shared preferences/boundaries — pronouns.cc-style chips.
-                      Only present when the friend's share mode includes them. */}
-                  {fronters.some((f) => Array.isArray(f.preferences) && f.preferences.length > 0) && (
-                    <div className="mt-2 space-y-1.5">
-                      {fronters.filter((f) => Array.isArray(f.preferences) && f.preferences.length > 0).map((f, i) => (
-                        <div key={`prefs-${i}`} className="text-xs">
-                          <span className="text-muted-foreground">{f.name}:</span>{" "}
-                          <span className="inline-flex flex-wrap gap-1 align-middle">
-                            {[...f.preferences].sort((a, b) => (b.level || 3) - (a.level || 3)).map((p, j) => {
-                              const lvl = PREF_LEVELS[p.level] || PREF_LEVELS[3];
-                              return (
-                                <span key={j} title={lvl.label}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[0.6875rem]"
-                                  style={{ borderColor: `${lvl.color}66`, backgroundColor: `${lvl.color}14` }}>
-                                  <PrefLevelIcon level={p.level} className="w-3 h-3" filled />{p.label}
-                                </span>
-                              );
-                            })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {fronterList}
 
               {/* Members this friend shares with you (end-to-end encrypted) */}
-              {(loadingShare || (sharedMembers && sharedMembers.length > 0)) && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                    <Lock className="w-3 h-3" /> Members they share with you
-                  </p>
-                  {loadingShare ? (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Decrypting…</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {sharedMembers.map((m) => {
-                        const meta = [m.pronouns, m.role, m.age != null && m.age !== "" ? `age ${m.age}` : ""].filter(Boolean);
-                        return (
-                          <div key={m.id} className="flex items-start gap-2.5 p-2 rounded-lg border border-border/40 bg-muted/10">
-                            <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[0.625rem] font-bold text-white mt-0.5" style={{ background: m.color || "#6b7280" }}>
-                              {(m.name?.[0] || "?").toUpperCase()}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-foreground">
-                                {m.name || <span className="italic text-muted-foreground">Member</span>}
-                                {meta.length > 0 && <span className="text-xs text-muted-foreground"> · {meta.join(" · ")}</span>}
-                              </p>
-                              {/* Everything below came over the wire from a
-                                  FRIEND's device — possibly a different app
-                                  version. Normalise every shape before
-                                  iterating: a payload we don't recognise
-                                  must never take the whole Friends page down
-                                  ("object is not iterable" crash, tester
-                                  report 2026-08-18). */}
-                              {sharedGroupLabels(m).length > 0 && (
-                                <p className="mt-1 flex flex-wrap gap-1">
-                                  {sharedGroupLabels(m).map((g, i) => <span key={i} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}
-                                </p>
-                              )}
-                              {m.bio && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words">{String(m.bio)}</p>}
-                              {sharedCustomFieldPairs(m).length > 0 && (
-                                <dl className="mt-1 text-[0.6875rem] text-muted-foreground space-y-0.5">
-                                  {sharedCustomFieldPairs(m).map(([k, v], i) => (<div key={i}><span className="font-medium text-foreground/80">{k}:</span> {v}</div>))}
-                                </dl>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+              {sharedMembersBlock}
 
               {/* ── Safety number (E2E key verification) — always shown when expanded ── */}
-              <div className="rounded-lg border border-border/40 bg-muted/10 p-2.5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-foreground flex items-center gap-1.5"><Lock className="w-3 h-3" /> Safety number</span>
-                  {safetyNum && verifiedNumber === safetyNum && (
-                    <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
-                  )}
-                </div>
-                {safetyNum ? (
-                  revealSafety ? (
-                    <>
-                      <p className="font-mono text-xs tracking-wide text-foreground bg-background rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[0.625rem] text-muted-foreground flex-1">Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.</p>
-                        <button type="button" onClick={() => setRevealSafety(false)} className="text-[0.6875rem] text-muted-foreground hover:underline inline-flex items-center gap-1 flex-shrink-0"><EyeOff className="w-3 h-3" /> Hide</button>
-                      </div>
-                      {verifiedNumber === safetyNum ? (
-                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
-                      ) : (
-                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
-                      )}
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => setRevealSafety(true)} className="w-full font-mono text-xs tracking-widest text-muted-foreground/70 bg-background rounded-lg px-2 py-1.5 inline-flex items-center justify-center gap-1.5 hover:text-foreground transition-colors">
-                      <Eye className="w-3 h-3" /> Tap to reveal safety number
-                    </button>
-                  )
-                ) : (
-                  <p className="text-[0.625rem] text-muted-foreground">
-                    {friend.publicKey
-                      ? "Preparing…"
-                      : "This friend hasn't set up encrypted sharing yet — the number appears once they've opened the Friends page on a version that supports it."}
-                  </p>
-                )}
-              </div>
+              {safetyBlock}
 
               {/* Controls */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -516,116 +747,12 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                   </div>
 
                   {/* ── Member-list sharing (privacy levels) ── */}
-                  <div className="pt-3 border-t border-border/40 space-y-2">
-                    <span className="text-xs font-medium text-foreground">{terms?.Alters || "Members"} this friend can see</span>
-                    {levels.length === 0 ? (
-                      <p className="text-[0.6875rem] text-muted-foreground">
-                        No privacy levels yet. Create them from a {terms?.alter || "alter"}'s profile → Options → Sharing levels.
-                      </p>
-                    ) : (
-                      <>
-                        {!advancedLevels ? (
-                          <div className="space-y-1">
-                            <input
-                              type="range" min={-1} max={maxLevelNumber} step={1} value={thresholdValue}
-                              onChange={(e) => { const n = Number(e.target.value); saveLevels(n < 0 ? [] : levelIdsUpToThreshold(levels, n)); }}
-                              className="w-full accent-primary" aria-label="Privacy levels this friend can see" />
-                            <p className="text-[0.6875rem] text-muted-foreground">
-                              {thresholdValue < 0 ? "Sees none of your levels" : `Sees levels 0–${thresholdValue}`}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5">
-                            {levels.map((l) => {
-                              const on = allowedSet.has(l.id);
-                              return (
-                                <button key={l.id} type="button" aria-pressed={on}
-                                  onClick={() => saveLevels(on ? allowedLevelIds.filter((id) => id !== l.id) : [...allowedLevelIds, l.id])}
-                                  className={`text-[0.6875rem] px-2 py-1 rounded-full border transition-colors ${on ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/40"}`}>
-                                  {l.number}. {l.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <button type="button" onClick={() => setAdvancedLevels((v) => !v)} className="text-[0.6875rem] text-primary hover:underline">
-                            {advancedLevels ? "Use simple slider" : "Pick specific levels"}
-                          </button>
-                          <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "alter") : (terms?.alters || "alters")} shared</span>
-                        </div>
-                        {/* Live preview — exactly who this friend can see right now,
-                            recomputed from the granted levels + per-alter hides. */}
-                        {(() => {
-                          const visible = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } });
-                          if (visible.length === 0) {
-                            return <p className="text-[0.625rem] text-muted-foreground italic">No {terms?.alters || "alters"} visible with the current levels.</p>;
-                          }
-                          // Collapsed by default so large systems don't flood the
-                          // card — tap to reveal the (capped) list.
-                          return (
-                            <div className="rounded-lg border border-border/40 bg-muted/10 p-2 space-y-1">
-                              <button type="button" onClick={() => { setShowVisibleList((v) => !v); setVisShown(60); }} className="text-[0.625rem] text-primary hover:underline">
-                                {showVisibleList ? "Hide" : "Show"} the {visible.length} {visible.length === 1 ? (terms?.alter || "alter") : (terms?.alters || "alters")} they can see
-                              </button>
-                              {showVisibleList && (
-                                <div className="max-h-48 overflow-y-auto overscroll-contain space-y-0.5 mt-1 pr-1"
-                                  onScroll={(e) => { const el = e.currentTarget; if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) setVisShown((s) => s + 60); }}>
-                                  {[...visible].sort((a, b) => (a.alter.name || "").localeCompare(b.alter.name || "")).slice(0, visShown).map(({ alter }) => (
-                                    <div key={alter.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/20">
-                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: alter.color || "#6b7280" }} />
-                                      <span className="text-[0.6875rem] text-foreground/90 truncate">{alter.name}</span>
-                                    </div>
-                                  ))}
-                                  {visible.length > visShown && <p className="text-[0.625rem] text-muted-foreground italic py-1 text-center">Loading more… ({visShown}/{visible.length})</p>}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        {allowedLevelIds.length > 0 ? (
-                          <p className="text-xs text-muted-foreground">
-                            When {terms?.fronting || "fronting"}, this friend sees only these {terms?.alters || "alters"}, with the fields their levels share.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            With no levels, this friend sees whoever has "Show when {terms?.fronting || "fronting"}" on.
-                          </p>
-                        )}
-                        <p className="text-[0.625rem] text-muted-foreground">Shared end-to-end encrypted — changes reach this friend right away.</p>
-                      </>
-                    )}
-                  </div>
+                  {levelsBlock}
 
                   {/* Per-alter hide toggles — only when effective privacy shows names.
                       Uses the standard tree picker (by subsystem / group, searchable,
                       lazy) with an eye toggle as the per-row control. */}
-                  {(privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">Hide specific {terms?.alters || 'alters'} from this friend:</span>
-                      <AlterTreeSelect
-                        controlPosition="right"
-                        renderControl={(alter) => {
-                          // With levels granted, the levels decide — the profile switch only
-                          // covers friends without levels.
-                          const globallyHidden = alter.friends_visible === false && allowedLevelIds.length === 0;
-                          const locallyHidden = hiddenAlterIds.includes(alter.id);
-                          const isVisible = !globallyHidden && !locallyHidden;
-                          return (
-                            <button
-                              disabled={globallyHidden}
-                              onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
-                              className={`flex-shrink-0 p-1 rounded transition-colors ${globallyHidden ? 'cursor-not-allowed opacity-40' : isVisible ? 'text-primary hover:text-primary/70' : 'text-muted-foreground hover:text-foreground'}`}
-                              title={globallyHidden ? `Hidden from all friends: "Show when ${terms?.fronting || 'fronting'}" is off in their profile → Options` : isVisible ? 'Visible — tap to hide' : 'Hidden — tap to show'}
-                            >
-                              {isVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                            </button>
-                          );
-                        }}
-                        maxHeight="44vh"
-                      />
-                    </div>
-                  )}
+                  {hideAltersBlock}
                 </div>
               )}
 
@@ -852,11 +979,12 @@ function ProfileSetupModal({ open, onClose, onSaved, existing, onDeleted }) {
 
 // ── Add friend modal ──────────────────────────────────────────────────────────
 
-function AddFriendModal({ open, onClose, onAdded }) {
+// Sending a friend request by code — the Add Friend popup and the pixel
+// desk's "Add a friend" box both use this.
+function useFriendCodeSender(onDone) {
   const [code, setCode] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-
   const handleSend = async () => {
     setError('');
     const trimmed = code.trim().toUpperCase();
@@ -866,8 +994,7 @@ function AddFriendModal({ open, onClose, onAdded }) {
       await sendFriendRequest(trimmed);
       toast.success('Friend request sent!');
       setCode('');
-      onAdded();
-      onClose();
+      onDone();
     } catch (e) {
       console.error('[Friends] sendFriendRequest failed:', e);
       setError(e.message || 'Failed to send request. Check your connection and try again.');
@@ -875,6 +1002,11 @@ function AddFriendModal({ open, onClose, onAdded }) {
       setSending(false);
     }
   };
+  return { code, setCode, sending, error, handleSend };
+}
+
+function AddFriendModal({ open, onClose, onAdded }) {
+  const { code, setCode, sending, error, handleSend } = useFriendCodeSender(() => { onAdded(); onClose(); });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -919,6 +1051,12 @@ export default function FriendsPage() {
   const [showSetup, setShowSetup] = useState(false);
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [copied, setCopied] = useState(false);
+  // The pixel look: the Friends mockup's desk (friends · the open friend ·
+  // sharing and how it works), stacked on a phone.
+  const pixel = useUiLook() === "pixel";
+  const pixelDesk = usePixelDesk();
+  const [selectedFriendId, setSelectedFriendId] = useState(null);
+  const adder = useFriendCodeSender(() => refetchFriends());
 
   const { data: rawIdentity, isLoading: identityLoading, refetch: refetchIdentity } = useQuery({
     queryKey: ['friendIdentity'],
@@ -1176,6 +1314,125 @@ export default function FriendsPage() {
           onClose={() => setShowSetup(false)}
           onSaved={refetchIdentity}
         />
+      </div>
+    );
+  }
+
+  if (pixel) {
+    const selected = friends.find((f) => f.userId === selectedFriendId) || (pixelDesk ? friends[0] : null) || null;
+    return (
+      <div className={`pf-desk${pixelDesk ? " pf-desk-wide" : ""}`}>
+        <aside className="pf-panel pf-list" aria-label="Friends">
+          <div className="pf-ttl">
+            <span>Friends</span>
+            <button type="button" className="pf-ttl-dim pf-ttl-btn" onClick={() => refetchFriends()} title="Refresh">updates every 30 s</button>
+          </div>
+          <div className="pf-rows">
+            {friendsLoading && friends.length === 0 && <p className="pf-dim pf-pad"><Loader2 className="inline w-3 h-3 animate-spin" /> Loading…</p>}
+            {!friendsLoading && friends.length === 0 && pending.length === 0 && pendingSent.length === 0 && (
+              <p className="pf-dim pf-pad">No friends yet. Share your code or add a friend's code below.</p>
+            )}
+            {friends.map((f) => {
+              const sel = selected?.userId === f.userId;
+              const verified = !!identity?.verifiedFriends?.[f.userId];
+              return (
+                <button key={f.userId} type="button" className={`pf-frow${sel ? " sel" : ""}`} aria-pressed={sel} onClick={() => setSelectedFriendId(sel && !pixelDesk ? null : f.userId)}>
+                  <span className="pf-mark" style={{ background: f.front?.fronters?.[0]?.color || "var(--px-tab)" }} aria-hidden />
+                  <span className="pf-frow-text">
+                    <span className="pf-frow-name">{f.displayName || "Friend"}{f.systemName ? <span className="pf-dim"> · {f.systemName}</span> : null}</span>
+                    <span className="pf-dim pf-small">{friendFrontSummary(f)}{f.notifyOnChange ? " · notify on" : ""}</span>
+                  </span>
+                  {verified && <span className="pf-ok">verified</span>}
+                </button>
+              );
+            })}
+            {pending.map((req) => (
+              <div key={req.fromUserId} className="pf-frow pf-req">
+                <span className="pf-mark" style={{ background: "var(--color-primary)" }} aria-hidden />
+                <span className="pf-frow-text">
+                  <span className="pf-frow-name">New request: {req.fromDisplayName || "Unknown"}</span>
+                  <span className="pf-dim pf-small">{[req.fromSystemName, req.requestedAt ? formatDistanceToNow(new Date(req.requestedAt), { addSuffix: true }) : null].filter(Boolean).join(" · ")}</span>
+                  <span className="pf-req-acts">
+                    <button type="button" className="pf-chip on" onClick={() => handleRespond(req.fromUserId, 'approve')}>Accept</button>
+                    <button type="button" className="pf-chip" onClick={() => handleRespond(req.fromUserId, 'deny')}>Decline</button>
+                  </span>
+                </span>
+              </div>
+            ))}
+            {pendingSent.map((uid) => (
+              <div key={uid} className="pf-frow pf-req">
+                <span className="pf-mark" aria-hidden />
+                <span className="pf-frow-text">
+                  <span className="pf-frow-name">Request sent</span>
+                  <span className="pf-dim pf-small">waiting for approval</span>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="pf-add" data-tour="friends-code">
+            <div className="pf-add-ttl">Add a friend</div>
+            <div className="pf-add-row">
+              <input className="pf-input" placeholder="XXXX-XXXX" aria-label="Friend code" value={adder.code}
+                onChange={(e) => adder.setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") adder.handleSend(); }} />
+              <button type="button" className="pf-btn pf-btn-on" onClick={adder.handleSend} disabled={adder.sending || !adder.code.trim()}>
+                {adder.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add"}
+              </button>
+            </div>
+            {adder.error && <p className="pf-warn">{adder.error}</p>}
+            <div className="pf-code">
+              <span>Your code: <b>{identity.friendCode}</b></span>
+              <button type="button" className="pf-chip" onClick={copyCode}>{copied ? "Copied" : "Copy"}</button>
+            </div>
+            <div className="pf-code">
+              <span className="pf-dim pf-small">Visible as {identity.displayName || "—"}{identity.systemName ? ` · ${identity.systemName}` : ""}</span>
+              <button type="button" className="pf-chip" onClick={() => setShowSetup(true)}>Profile</button>
+            </div>
+          </div>
+        </aside>
+
+        <main className="pf-main">
+          {selected ? (
+            <ErrorBoundary key={selected.userId} resetKeys={[selected.userId]}
+              fallback={<div className="pf-panel pf-body pf-dim">This friend's view couldn't be drawn ({selected.displayName || selected.userId}). Their data is safe — this is a display problem, please report it.</div>}>
+              <FriendCard
+                variant="desk"
+                friend={selected}
+                onRemove={async (id) => { await handleRemove(id); setSelectedFriendId(null); }}
+                onToggleNotify={handleToggleNotify}
+                alters={alters}
+                visibilitySettings={identity?.perFriendVisibility?.[selected.userId] || {}}
+                onVisibilityChange={handleVisibilityChange}
+                globalPrivacyLevel={identity?.privacyLevel || 'names'}
+                terms={terms}
+                myPublicKeyJwk={myPublicKeyJwk}
+                verifiedNumber={identity?.verifiedFriends?.[selected.userId] || null}
+                onVerify={handleVerifyFriend}
+              />
+            </ErrorBoundary>
+          ) : pixelDesk ? (
+            <section className="pf-panel pf-body pf-dim">Pick a friend to see who's {terms.fronting} for them and choose what they see of you.</section>
+          ) : null}
+        </main>
+
+        <aside className="pf-aside">
+          <FrontShareNotice />
+          <section className="pf-panel">
+            <div className="pf-ttl"><span>Sharing levels</span><span className="pf-ttl-dim">per {terms.alter}</span></div>
+            <div className="pf-body"><MemberSharingPanel /></div>
+          </section>
+          <section className="pf-panel">
+            <div className="pf-ttl"><span>How it works</span></div>
+            <div className="pf-body pf-how">
+              {isCryptoAvailable() && <E2EInfoCard />}
+              <details>
+                <summary className="pf-link">What gets shared with the cloud relay?</summary>
+                <PrivacyDisclaimer />
+              </details>
+            </div>
+          </section>
+        </aside>
+
+        <ProfileSetupModal open={showSetup} onClose={() => setShowSetup(false)} onSaved={refetchIdentity} onDeleted={refetchIdentity} existing={identity} />
       </div>
     );
   }
