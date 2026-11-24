@@ -586,6 +586,7 @@ export default function PlannerSurface({
             </div>
             <label className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground whitespace-nowrap">{tr("planner.rowHeight")}</span>
+              {/* ui-ok: existing Display sliders, only moved for the pixel desk; SliderRow swap would change Smooth */}
               <input type="range" min={HOUR_PX_MIN} max={HOUR_PX_MAX} step={2} value={prefs.hourPx}
                 onChange={(e) => setPref("hourPx", Number(e.target.value))}
                 className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.rowHeight")} />
@@ -594,6 +595,7 @@ export default function PlannerSurface({
             {dayCount > 1 && (
               <label className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground whitespace-nowrap">{tr("planner.dayWidth")}</span>
+                {/* ui-ok: existing Display sliders, only moved for the pixel desk; SliderRow swap would change Smooth */}
                 <input type="range" min={DAY_PX_MIN} max={DAY_PX_MAX} step={2} value={prefs.dayPx}
                   onChange={(e) => setPref("dayPx", Number(e.target.value))}
                   className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.dayWidth")} />
@@ -602,6 +604,7 @@ export default function PlannerSurface({
             )}
             <label className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground whitespace-nowrap">{tr("planner.laneOpacity", { term: t.Fronting })}</span>
+              {/* ui-ok: existing Display sliders, only moved for the pixel desk; SliderRow swap would change Smooth */}
               <input type="range" min={10} max={100} step={5} value={prefs.laneOpacity}
                 onChange={(e) => setPref("laneOpacity", Number(e.target.value))}
                 className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.laneOpacity", { term: t.Fronting })} />
