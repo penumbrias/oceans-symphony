@@ -215,7 +215,7 @@ export default function SidebarNav({ open, onClose }) {
         >
           {groups.map(({ label, items }) => (
             <div key={label} className="os-drawer-sec">
-              <p className="os-drawer-group text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
+              <p className="os-drawer-group text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
                 {label}
               </p>
               <div className="space-y-0.5">
