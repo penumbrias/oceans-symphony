@@ -1,0 +1,231 @@
+/* Alters directory, pixel look on a computer (the "Alters" mockup):
+   Groups panel · toolbar + cards · Info panel, and a status line.
+   AlterDirectoryDesk.jsx renders it only while the look is Pixel, and
+   every rule is scoped under the pixel look as well. */
+
+html[data-ui-look="pixel"] .pxa {
+  --pxa-h: calc(100dvh - var(--pxa-top, 150px));
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr) 280px;
+  gap: 4px;
+  height: var(--pxa-h);
+  min-height: 460px;
+  color: var(--px-text);
+}
+@media (max-width: 1279px) {
+  html[data-ui-look="pixel"] .pxa { grid-template-columns: 210px minmax(0, 1fr) 250px; }
+}
+/* With the help or dock Info panel open on the right, our own Info
+   panel steps aside under the main column's width budget. */
+html[data-ui-look="pixel"][data-px-help="1"] .pxa,
+html[data-ui-look="pixel"][data-px-info="1"] .pxa { grid-template-columns: 210px minmax(0, 1fr); }
+html[data-ui-look="pixel"][data-px-help="1"] .pxa-info,
+html[data-ui-look="pixel"][data-px-info="1"] .pxa-info { display: none; }
+
+/* Panels: the mockup's .pn — bevel + dark outline. */
+html[data-ui-look="pixel"] :is(.pxa-side, .pxa-toolbar, .pxa-status, .pxa-card) {
+  background: var(--px-panel);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxa-side { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+html[data-ui-look="pixel"] .pxa-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none;
+  min-height: 24px; padding: 0 4px 0 8px;
+  font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .pxa-ttl > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxa-ttl .h-8 { height: 22px; }
+html[data-ui-look="pixel"] .pxa-ttl .w-8 { width: 22px; }
+html[data-ui-look="pixel"] .pxa-ttl-btn { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); padding: 2px 4px; min-height: 22px; }
+html[data-ui-look="pixel"] .pxa-ttl-btn:hover { color: var(--px-text); }
+/* The groups' ⋯ menu sits in the title bar; its "New group" twin is the
+   title's own "+ group". */
+html[data-ui-look="pixel"] .pxa-groups .pxa-ttl [data-tour="alter-groups-controls"] > button:first-child { display: none; }
+
+/* ── Groups tree ── */
+html[data-ui-look="pixel"] .pxa-tree { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; display: flex; flex-direction: column; font-family: var(--px-font); font-size: 13px; }
+html[data-ui-look="pixel"] .pxa-row { display: flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 4px; text-align: left; width: 100%; }
+html[data-ui-look="pixel"] .pxa-row:hover { background: color-mix(in srgb, var(--px-hi) 45%, transparent); }
+html[data-ui-look="pixel"] .pxa-row.sel { background: var(--px-hi); }
+html[data-ui-look="pixel"] .pxa-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; min-height: 28px; text-align: left; }
+html[data-ui-look="pixel"] .pxa-arrow { width: 14px; flex: none; color: var(--px-text-2); font-size: 12px; text-align: center; }
+html[data-ui-look="pixel"] .pxa-swatch { width: 10px; height: 10px; flex: none; background: var(--px-text-2); outline: 2px solid var(--px-line); margin-right: 2px; }
+html[data-ui-look="pixel"] .pxa-row > .pxa-swatch { margin-left: 0; }
+html[data-ui-look="pixel"] .pxa-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxa-row.sel .pxa-row-name { color: var(--px-text) !important; }
+html[data-ui-look="pixel"] .pxa-count { font-size: 11px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxa-open { min-width: 20px; min-height: 24px; font-size: 15px; color: var(--px-text-2); opacity: 0; }
+html[data-ui-look="pixel"] .pxa-row:hover .pxa-open, html[data-ui-look="pixel"] .pxa-open:focus-visible { opacity: 1; }
+html[data-ui-look="pixel"] .pxa-side-foot { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+html[data-ui-look="pixel"] .pxa-hint { font-size: 12.5px; color: var(--px-text-2); padding: 6px; font-family: var(--font-sans); }
+
+/* ── Buttons (the mockup's .btn / .on) ── */
+html[data-ui-look="pixel"] .pxa-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text); line-height: 1.15;
+  min-height: 30px; padding: 4px 10px; white-space: nowrap; flex: none;
+  background: var(--px-bar);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxa-btn svg { width: 14px; height: 14px; }
+html[data-ui-look="pixel"] .pxa-btn:hover { filter: brightness(1.12); }
+html[data-ui-look="pixel"] .pxa-btn:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .pxa-btn.on {
+  background: var(--color-primary); color: var(--color-bg);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, white 35%, var(--color-primary)), inset -2px -2px 0 color-mix(in srgb, black 35%, var(--color-primary));
+}
+html[data-ui-look="pixel"] .pxa-btn:focus-visible, html[data-ui-look="pixel"] .pxa-card:focus-visible { outline-color: var(--color-primary); }
+html[data-ui-look="pixel"] .pxa-icon { padding: 4px 8px; }
+html[data-ui-look="pixel"] .pxa-new { max-width: 92px; white-space: normal; flex: 0 1 auto; text-align: center; min-height: 38px; }
+
+/* ── Main column ── */
+html[data-ui-look="pixel"] .pxa-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 4px; }
+html[data-ui-look="pixel"] .pxa-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; flex: none; }
+html[data-ui-look="pixel"] .pxa-lbl { font-family: var(--px-font); font-size: 13px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] :is(.pxa-find, .pxa-select) {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 8px;
+  background: var(--px-sunk); color: var(--px-text);
+  box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi);
+  font-size: 13.5px;
+}
+html[data-ui-look="pixel"] .pxa-find { flex: 0 1 220px; min-width: 96px; }
+html[data-ui-look="pixel"] .pxa-find svg, html[data-ui-look="pixel"] .pxa-select svg { width: 14px; height: 14px; flex: none; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxa-find input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: inherit; font: inherit; }
+html[data-ui-look="pixel"] .pxa-find input::placeholder { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxa-select { flex: 0 0 auto; max-width: 200px; text-align: left; }
+html[data-ui-look="pixel"] .pxa-seg { display: flex; gap: 4px; }
+
+/* The cards' floor: a solid sunk colour (no checkerboard, by request). */
+html[data-ui-look="pixel"] .pxa-floor {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px;
+  background-color: var(--px-sunk);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxa-grid {
+  display: grid; gap: 14px; grid-auto-rows: min-content;
+  grid-template-columns: repeat(auto-fill, minmax(max(124px, calc((100% - (var(--pxa-cols, 5) - 1) * 14px) / var(--pxa-cols, 5))), 1fr));
+}
+html[data-ui-look="pixel"] .pxa-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; min-width: 0;
+  text-align: center; cursor: pointer; position: relative;
+}
+html[data-ui-look="pixel"] .pxa-card:hover { filter: brightness(1.08); }
+html[data-ui-look="pixel"] .pxa-card.sel { outline-color: var(--color-primary); }
+html[data-ui-look="pixel"] .pxa-av {
+  position: relative; display: block; flex: none; width: 64px; height: 64px; overflow: hidden;
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxa-av::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .3), inset -3px -3px 0 rgba(0, 0, 0, .35);
+}
+html[data-ui-look="pixel"] .pxa-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+html[data-ui-look="pixel"] .pxa-av-lg { width: 72px; height: 72px; }
+html[data-ui-look="pixel"] .pxa-name { font-weight: 700; font-size: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxa-sub { font-size: 12px; color: var(--px-text-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxa-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 100%; }
+html[data-ui-look="pixel"] .pxa-chip {
+  font-family: var(--px-font); font-size: 11px; padding: 1px 6px; background: var(--px-bar);
+  outline: 1px solid var(--px-line); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+html[data-ui-look="pixel"] .pxa-chips-lg { justify-content: flex-start; gap: 6px; }
+html[data-ui-look="pixel"] .pxa-chips-lg .pxa-chip { font-size: 12px; padding: 2px 8px; outline-width: 2px; }
+html[data-ui-look="pixel"] .pxa-front { font-family: var(--px-font); font-size: 11px; color: var(--px-text-2); min-height: 1em; }
+html[data-ui-look="pixel"] .pxa-front.on { color: var(--color-bg); background: var(--color-primary); padding: 1px 6px; }
+html[data-ui-look="pixel"] .pxa-members { font-family: var(--px-font); font-size: 11px; color: var(--color-primary); }
+html[data-ui-look="pixel"] .pxa-list { display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .pxa-empty { padding: 60px 16px; text-align: center; }
+html[data-ui-look="pixel"] .pxa-empty-ttl { font-family: var(--px-font); font-size: 15px; }
+
+/* Status line. */
+html[data-ui-look="pixel"] .pxa-status {
+  display: flex; align-items: center; gap: 18px; flex: none; min-height: 26px; padding: 0 10px;
+  background: var(--px-bar); font-family: var(--px-font); font-size: 12px;
+}
+html[data-ui-look="pixel"] .pxa-status-lbl { margin-right: -14px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxa-status-tip { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxa-status button { min-height: 22px; height: 22px; }
+html[data-ui-look="pixel"] .pxa-link { display: inline-flex; align-items: center; gap: 4px; color: var(--color-primary); }
+html[data-ui-look="pixel"] .pxa-link svg { width: 13px; height: 13px; }
+
+/* ── Info panel ── */
+html[data-ui-look="pixel"] .pxa-info-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+html[data-ui-look="pixel"] .pxa-info-head { display: flex; gap: 12px; align-items: center; }
+html[data-ui-look="pixel"] .pxa-info-name { display: block; font-family: var(--px-font); font-size: 20px; line-height: 1.2; }
+html[data-ui-look="pixel"] .pxa-info-sub { display: block; color: var(--px-text-2); font-size: 13.5px; white-space: pre-wrap; }
+html[data-ui-look="pixel"] .pxa-facts { display: flex; flex-direction: column; gap: 9px; margin: 0; }
+html[data-ui-look="pixel"] .pxa-facts > div { display: flex; justify-content: space-between; gap: 10px; }
+html[data-ui-look="pixel"] .pxa-facts dt { color: var(--px-text-2); flex: none; }
+html[data-ui-look="pixel"] .pxa-facts dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+html[data-ui-look="pixel"] .pxa-week-ttl { display: flex; justify-content: space-between; font-family: var(--px-font); margin-top: 4px; }
+html[data-ui-look="pixel"] .pxa-muted { color: var(--px-text-2); font-size: 12px; }
+html[data-ui-look="pixel"] .pxa-week { display: flex; align-items: flex-end; gap: 4px; height: 48px; }
+html[data-ui-look="pixel"] .pxa-week > span { flex: 1; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .pxa-week-days { display: flex; gap: 4px; margin-top: -6px; }
+html[data-ui-look="pixel"] .pxa-week-days > span { flex: 1; text-align: center; font-family: var(--px-font); font-size: 10px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxa-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+html[data-ui-look="pixel"] .pxa-info h1 { font-size: 20px !important; }
+
+/* ══ Alter profile (the "AlterProfilePhone" mockup) ══════════════════ */
+/* Title bar: back · name · Front · Info · ⋯ */
+html[data-ui-look="pixel"] .pxp-bar {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 6px 10px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line), inset 2px 2px 0 var(--px-hi);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxp-bar .pxa-btn { min-height: 40px; }
+html[data-ui-look="pixel"] .pxp-sq { width: 44px; padding: 0; }
+html[data-ui-look="pixel"] .pxp-sq svg { width: 18px; height: 18px; }
+html[data-ui-look="pixel"] .pxp-bar-name { flex: 1; min-width: 0; font-family: var(--px-font); font-size: 18px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxp-bar > button.rounded-full { min-height: 40px; height: 40px; outline: 2px solid var(--px-line); }
+
+/* Action bar along the bottom: Edit page · Profile style · Write note */
+html[data-ui-look="pixel"] .pxp-actions {
+  position: sticky; bottom: 0; z-index: 20; display: flex; gap: 8px; margin-top: 14px; padding: 8px 12px;
+  background: var(--px-panel); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxp-actions .pxa-btn { flex: 1 1 0; min-width: 0; min-height: 44px; font-size: 14px; white-space: normal; }
+
+/* Sections: a window with a title bar. Box padding moves onto the body
+   (ProfileBox), so the bar runs edge to edge. */
+html[data-ui-look="pixel"] .pxp-band {
+  margin: 0 !important; min-height: 24px; padding: 3px 10px !important;
+  font-size: 13px; color: var(--v2-text, var(--px-text));
+}
+/* A section's own inner card would be a box in a box: flatten it (a
+   colour the person gave the sections still shows, it's inline). */
+html[data-ui-look="pixel"] [data-pxp-box="1"] .pxp-body > :is(.bg-muted\/20, .bg-muted\/30) {
+  background-color: transparent; border-width: 0; padding: 0;
+}
+/* Header card: square bevelled picture, pixel name, square chips. */
+html[data-ui-look="pixel"] [data-pxp-box="head"] .w-24.h-24 {
+  width: 72px; height: 72px; border: 0; outline: 2px solid var(--px-line);
+  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .3), inset -3px -3px 0 rgba(0, 0, 0, .35);
+}
+html[data-ui-look="pixel"] [data-pxp-box="head"] h2 { font-family: var(--px-font); font-size: 20px; font-weight: 500; }
+html[data-ui-look="pixel"] [data-pxp-box="head"] .gap-4 { gap: 12px; align-items: center; }
+html[data-ui-look="pixel"] [data-pxp-box="head"] [data-alter-roles] > span,
+html[data-ui-look="pixel"] .pxp-chip {
+  border-radius: 0 !important; font-family: var(--px-font); font-size: 12px; padding: 1px 6px;
+  outline: 2px solid var(--px-line); line-height: 1.35;
+}
+html[data-ui-look="pixel"] .pxp-chip-on { background: var(--color-primary); color: var(--color-bg); margin-top: 4px; }
+
+/* An empty section (no tags, no groups…) draws nothing outside the
+   layout editor, as it always did. */
+html[data-ui-look="pixel"]:not([data-home-edit]) [data-pxp-empty="1"] { background: transparent !important; box-shadow: none !important; border-color: transparent !important; }
+html[data-ui-look="pixel"]:not([data-home-edit]) [data-pxp-empty="1"]::after,
+html[data-ui-look="pixel"]:not([data-home-edit]) [data-pxp-empty="1"] .pxp-band { display: none; }
+/* Page tabs read as plain folder tabs, like the mockup. */
+html[data-ui-look="pixel"] [data-tour="alter-profile-tabs"] svg { display: none; }
+/* The new profile's boxes (GardenBox) get the same window bevel the
+   other widget boxes get from the pixel look. */
+html[data-ui-look="pixel"] section[data-pxp-box]:not([data-widget-box]) { position: relative; }
+html[data-ui-look="pixel"] section[data-pxp-box]:not([data-widget-box])::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: var(--px-bevel);
+}
+html[data-ui-look="pixel"] section[data-pxp-box="head"]:not([data-widget-box]) > div { padding: 12px; }
