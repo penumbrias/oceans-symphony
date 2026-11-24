@@ -51,6 +51,19 @@ import { syncLinkedSleep, deleteLinkedSleep } from "@/lib/planner/linkedSleep";
 import { withTrashBatch } from "@/lib/localDb";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import EventSheet from "@/components/planner/EventSheet";
+import { ENTRY_MODES } from "@/lib/activityEntry";
+import { summarisePlans } from "@/lib/planAnalytics";
+import { statusFor } from "@/lib/activityStatus";
+import { getRootCategories, getAncestorIds, indexById } from "@/lib/categoryTreeUtils";
+import { usePlannerEvents } from "@/lib/plannerEvents";
+import { eventsOnDay } from "@/lib/plannerEventDates";
+import {
+  PixelPlannerToolbar, PixelMonthPanel, PixelCategoriesPanel, PixelWeekPanel,
+  PixelGoalsPanel, PixelDecisionsPanel,
+} from "@/components/planner/PixelPlannerPanels";
+import "@/styles/pixel/planner.css";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -100,6 +113,10 @@ export default function PlannerSurface({
   initialAnchor = null,
   // Deep link: open on this zoom (day / week / month / year).
   initialView = null,
+  // The /planner page: in the pixel look on a computer, lay the page out
+  // as its mockup — month + categories left, calendar centre, this week's
+  // insights / goals / decisions right.
+  deskLayout = false,
 }) {
   const t = useTerms();
   const tr = useT();
@@ -124,6 +141,23 @@ export default function PlannerSurface({
   });
   const setView = (v) => { setViewState(v); lsSet("symphony_planner_view_v1", v); };
   const effDayCount = chrome ? (view === "day" ? 1 : 7) : dayCount;
+  const look = useUiLook();
+  const pixel = chrome && look === "pixel";
+  const deskWide = usePixelDesk();
+  const desk = pixel && deskWide && deskLayout;
+  // Categories hidden from this computer's calendar (pixel desk only —
+  // the category panel's eye). A view filter: nothing is changed or
+  // removed, and the panel lists them dimmed so they're one click back.
+  const [hiddenCats, setHiddenCats] = useState(() => {
+    const v = lsGet("symphony_planner_hidden_cats_v1", []);
+    return Array.isArray(v) ? v : [];
+  });
+  const toggleHiddenCat = (id) => {
+    const next = hiddenCats.includes(id) ? hiddenCats.filter((x) => x !== id) : [...hiddenCats, id];
+    setHiddenCats(next);
+    lsSet("symphony_planner_hidden_cats_v1", next);
+  };
+  const [eventReq, setEventReq] = useState(null);
   // Display prefs (row height / clock / week start) — the same keys the
   // classic tracker used, so nothing resets moving between the two.
   const [prefs, setPref] = usePlannerPrefs(prefsOverride);
@@ -219,11 +253,11 @@ export default function PlannerSurface({
   // 2026-10-23) — the same sheet the quick actions bar, the board's tracker
   // widgets and a to-do's "More options" open.
   const [editorReq, setEditorReq] = useState(null);
-  const openCreate = (day, fromMin, toMin) => {
+  const openCreate = (day, fromMin, toMin, mode = null) => {
     const start = new Date(day);
     start.setHours(0, 0, 0, 0);
     start.setMinutes(fromMin);
-    setEditorReq({ create: true, start, minutes: Math.max(15, toMin - fromMin) });
+    setEditorReq({ create: true, start, minutes: Math.max(15, toMin - fromMin), ...(mode ? { mode } : {}) });
   };
   const openEditor = (item, { day = null, series = false, focusDay = false } = {}) => {
     setDetails(null);
@@ -249,6 +283,19 @@ export default function PlannerSurface({
     const startMin = Math.min(23 * 60, (d.getHours() + 1) * 60);
     openCreate(d, startMin, startMin + 60);
   };
+  // The pixel toolbar's three adds: a log for the hour just gone, a plan
+  // for the next whole hour, an event on the day the calendar shows.
+  const openLogNow = () => {
+    const d = new Date();
+    const startMin = Math.max(0, (d.getHours() - 1) * 60);
+    openCreate(d, startMin, startMin + 60, ENTRY_MODES.DONE);
+  };
+  const openPlanNext = () => {
+    const d = new Date();
+    const startMin = Math.min(23 * 60, (d.getHours() + 1) * 60);
+    openCreate(d, startMin, startMin + 60, ENTRY_MODES.PLAN);
+  };
+  const openEventCreate = () => setEventReq({ create: true, date: format(anchor, "yyyy-MM-dd") });
   // Dragging an edge only ever changes when it started and how long it ran.
   const handleResize = async (id, day, startMin, endMin) => {
     const activity = activities.find((a) => a.id === id);
@@ -370,157 +417,90 @@ export default function PlannerSurface({
     return { from, to, hourStartMin, entries, who, feelings, places };
   }, [cellInfo, activities, alters, frontingHistory, emotionCheckIns, locationRecords]);
 
-  return (
-    <div className={chrome ? "min-h-screen p-2 sm:p-4" : "flex flex-col min-h-0 h-full"}
-      {...(chrome ? { "data-tour": "planner" } : {})}
-      style={applyPageLook ? pageLook : undefined}
-      {...(applyPageLook ? { "data-widget-content": true } : {})}>
-      <div className={chrome ? "os-page-shell space-y-2" : "flex flex-col min-h-0 h-full"}>
-        {chrome && (
-          <div className="space-y-2">
-            {/* Row 1: what you're looking at (calendar / plans / insights)
-                plus page config — the tracker's three tabs, merged in. */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <PageStrip subtabs tour="planner-sections" label="Planner views" className="basis-full" value={section} onChange={setSection} items={[
-                { id: "calendar", label: tr("planner.section.calendar") },
-                { id: "plans", label: tr("planner.plans") },
-                { id: "insights", label: tr("planner.section.insights") },
-              ]} />
-              <div className="flex items-center gap-0.5 ml-auto">
-                <Button variant="ghost" size="sm" onClick={() => setShowDisplay((v) => !v)}
-                  aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
-                  <SlidersHorizontal className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => navigate("/activities")}
-                  aria-label={tr("planner.manage")} title={tr("planner.manage")}>
-                  <SettingsIcon className="w-4 h-4" />
-                </Button>
-                <Button size="sm" className="gap-1 h-8 ml-1" onClick={openCreateNow}
-                  style={{ background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" }}>
-                  <Plus className="w-4 h-4" /> {tr("planner.new")}
-                </Button>
-              </div>
-            </div>
+  // ── Pixel desk data ──────────────────────────────────────────────
+  const shownActivities = useMemo(() => {
+    if (!desk || hiddenCats.length === 0) return activities;
+    const byId = indexById(categories);
+    const hidden = new Set(hiddenCats);
+    // Hidden with its whole branch: a category is hidden when it or any
+    // ancestor is (cycle-guarded walk).
+    const isHidden = (cid) => !!cid && (hidden.has(cid) || getAncestorIds(cid, byId).some((p) => hidden.has(p)));
+    return activities.filter((a) => {
+      const ids = Array.isArray(a.activity_category_ids) && a.activity_category_ids.length
+        ? a.activity_category_ids : [categoryIdOf(a)];
+      return !ids.some(isHidden);
+    });
+  }, [desk, hiddenCats, activities, categories]);
+  const shownWithTasks = useMemo(
+    () => (shownActivities === activities ? activitiesWithTasks : [...shownActivities, ...taskItems]),
+    [shownActivities, activities, activitiesWithTasks, taskItems]
+  );
+  const weekPlans = useMemo(
+    () => (desk ? summarisePlans(activities, { from: weekRange.from, to: weekRange.to }) : null),
+    [desk, activities, weekRange]
+  );
+  const rootTotals = useMemo(() => {
+    if (!desk) return [];
+    const roots = new Map(getRootCategories(categories).map((c) => [c.id, c]));
+    const byRoot = totals.categories.filter((c) => roots.has(c.key)).slice(0, 5)
+      .map((c) => ({ ...c, color: roots.get(c.key)?.color || null }));
+    // Nothing filed under a category: show the activities themselves.
+    if (byRoot.length) return byRoot;
+    const byName = new Map(activities.map((a) => [a.activity_name || "Untitled", a]));
+    return totals.activities.slice(0, 5)
+      .map((a) => ({ ...a, color: byName.get(a.key)?.color || catColor(categoryIdOf(byName.get(a.key))) || null }));
+  }, [desk, categories, totals, activities, catColor]);
+  const plannerEvents = usePlannerEvents();
+  const deskStatus = useMemo(() => {
+    if (!desk) return [];
+    let plans = 0, logs = 0;
+    for (const a of activities) {
+      const when = a.timestamp ? new Date(a.timestamp) : (a.planned_date ? new Date(a.planned_date) : null);
+      if (!when || when < weekRange.from || when >= weekRange.to) continue;
+      if (statusFor(a) === "logged") logs += 1; else plans += 1;
+    }
+    let events = 0;
+    for (let i = 0; i < 7; i++) events += eventsOnDay(plannerEvents, addDays(weekRange.from, i)).length;
+    return [
+      { text: tr("planner.pxWeekOf", { date: format(weekRange.from, "MMM d") }) },
+      { text: tr("planner.pxWeekCounts", { plans, logs, events }) },
+      { text: tr("planner.pxDragHint") },
+      { text: "", grow: true },
+      ...(hiddenCats.length ? [{ text: tr("planner.pxHiddenCats", { count: hiddenCats.length }) }] : []),
+      { text: prefs.weekStartsOn === 1 ? tr("planner.pxStartsMonday") : tr("planner.pxStartsSunday") },
+    ];
+  }, [desk, activities, weekRange, plannerEvents, hiddenCats, prefs.weekStartsOn, tr]);
+  // The desk fills the window below the frame's bars; the calendar
+  // scrolls inside its own panel.
+  const deskRef = React.useRef(null);
+  const [deskHeight, setDeskHeight] = useState(null);
+  useEffect(() => {
+    if (!desk) return undefined;
+    const measure = () => {
+      const el = deskRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const below = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--px-below-dock")) || 0;
+      setDeskHeight(Math.max(420, Math.round(window.innerHeight - top - below - 6)));
+    };
+    measure();
+    const id = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => { cancelAnimationFrame(id); window.removeEventListener("resize", measure); };
+  }, [desk]);
+  // Open the hours at the working day (the mockup's 7 AM), or a little
+  // before now when it's early or late.
+  const deskScrollHour = useMemo(() => {
+    const h = new Date().getHours();
+    return h < 7 || h > 18 ? Math.max(0, h - 2) : 7;
+  }, []);
 
-            {/* Row 2: date navigation — steps by whatever the view shows. */}
-            {section !== "plans" && (
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-0.5 min-w-0 flex-wrap">
-                  <Button variant="ghost" size="sm" aria-label={tr("planner.prev")} onClick={() => stepAnchor(-1)}>
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm font-medium tabular-nums whitespace-nowrap">{rangeLabel}</span>
-                  <Button variant="ghost" size="sm" aria-label={tr("planner.next")} onClick={() => stepAnchor(1)}>
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                  <button type="button" onClick={() => setAnchor(new Date())}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground ml-1 whitespace-nowrap flex-shrink-0">
-                    {tr("planner.today")}
-                  </button>
-                  {section === "calendar" && view === "week" && (
-                    <span className="text-xs text-muted-foreground tabular-nums ml-1.5 whitespace-nowrap">{weekTotalLabel}</span>
-                  )}
-                </div>
-                {section === "calendar" && (
-                  <div className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40">
-                    {VIEWS.map((v) => (
-                      <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                          view === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                        }`}>{tr(`planner.view.${v}`)}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Row 3: overlays — only where the time canvas draws them. */}
-            {section === "calendar" && (view === "week" || view === "day") && (
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={() => setOverlay("alters", !overlays.alters)}
-                  aria-pressed={overlays.alters}
-                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-                    overlays.alters ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-                  }`}>
-                  <Users className="w-3 h-3" /> {tr("planner.overlay.fronting", { term: t.Fronting })}
-                </button>
-                <button type="button" onClick={() => setOverlay("emotions", !overlays.emotions)}
-                  aria-pressed={overlays.emotions}
-                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-                    overlays.emotions ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-                  }`}>
-                  <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
-                </button>
-                <button type="button" onClick={() => setOverlay("locations", overlays.locations === false)}
-                  aria-pressed={overlays.locations !== false}
-                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-                    overlays.locations !== false ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-                  }`}>
-                  <MapPin className="w-3 h-3" /> {tr("planner.overlay.locations")}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        {/* Running activities (timers) — the same strip the dashboard and
-            the old tracker showed, so a running one is never out of sight
-            here. Renders nothing when nothing is running. */}
-        {chrome && section === "calendar" && <CurrentActivities />}
-        {chrome && showDisplay && (
-          <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
-            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">{tr("planner.clock")}</span>
-              <span className="flex gap-1">
-                {[["24", tr("planner.clock24")], ["ampm", tr("planner.clock12")]].map(([id, label]) => (
-                  <button key={id} type="button" aria-pressed={prefs.timeFmt === id}
-                    onClick={() => setPref("timeFmt", id)}
-                    className={`px-2.5 py-1 rounded-full border ${
-                      prefs.timeFmt === id ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-                    }`}>{label}</button>
-                ))}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">{tr("planner.weekStart")}</span>
-              <span className="flex gap-1">
-                {[[1, tr("planner.monday")], [0, tr("planner.sunday")]].map(([id, label]) => (
-                  <button key={id} type="button" aria-pressed={prefs.weekStartsOn === id}
-                    onClick={() => setPref("weekStartsOn", id)}
-                    className={`px-2.5 py-1 rounded-full border ${
-                      prefs.weekStartsOn === id ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-                    }`}>{label}</button>
-                ))}
-              </span>
-            </div>
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground whitespace-nowrap">{tr("planner.rowHeight")}</span>
-              <input type="range" min={HOUR_PX_MIN} max={HOUR_PX_MAX} step={2} value={prefs.hourPx}
-                onChange={(e) => setPref("hourPx", Number(e.target.value))}
-                className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.rowHeight")} />
-              <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.hourPx}px</span>
-            </label>
-            {dayCount > 1 && (
-              <label className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground whitespace-nowrap">{tr("planner.dayWidth")}</span>
-                <input type="range" min={DAY_PX_MIN} max={DAY_PX_MAX} step={2} value={prefs.dayPx}
-                  onChange={(e) => setPref("dayPx", Number(e.target.value))}
-                  className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.dayWidth")} />
-                <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.dayPx}px</span>
-              </label>
-            )}
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground whitespace-nowrap">{tr("planner.laneOpacity", { term: t.Fronting })}</span>
-              <input type="range" min={10} max={100} step={5} value={prefs.laneOpacity}
-                onChange={(e) => setPref("laneOpacity", Number(e.target.value))}
-                className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.laneOpacity", { term: t.Fronting })} />
-              <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.laneOpacity}%</span>
-            </label>
-            <p className="text-[0.6875em] text-muted-foreground">{tr("planner.pinchHint")}</p>
-          </div>
-        )}
-
-        {chrome && section === "insights" && (
+  const sectionItems = [
+    { id: "calendar", label: tr("planner.section.calendar") },
+    { id: "plans", label: tr("planner.plans") },
+    { id: "insights", label: tr("planner.section.insights") },
+  ];
+  const insightsBlock = chrome && section === "insights" ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
               style={{ borderRadius: "var(--v2-radius, 8px)" }}>
@@ -576,8 +556,61 @@ export default function PlannerSurface({
               <ActivityTallyTracker activities={activities} />
             </ErrorBoundary>
           </div>
-        )}
-        {chrome && section === "plans" ? (
+        ) : null;
+  const displayBlock = chrome && showDisplay ? (
+          <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
+            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{tr("planner.clock")}</span>
+              <span className="flex gap-1">
+                {[["24", tr("planner.clock24")], ["ampm", tr("planner.clock12")]].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={prefs.timeFmt === id}
+                    onClick={() => setPref("timeFmt", id)}
+                    className={`px-2.5 py-1 rounded-full border ${
+                      prefs.timeFmt === id ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                    }`}>{label}</button>
+                ))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{tr("planner.weekStart")}</span>
+              <span className="flex gap-1">
+                {[[1, tr("planner.monday")], [0, tr("planner.sunday")]].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={prefs.weekStartsOn === id}
+                    onClick={() => setPref("weekStartsOn", id)}
+                    className={`px-2.5 py-1 rounded-full border ${
+                      prefs.weekStartsOn === id ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                    }`}>{label}</button>
+                ))}
+              </span>
+            </div>
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground whitespace-nowrap">{tr("planner.rowHeight")}</span>
+              <input type="range" min={HOUR_PX_MIN} max={HOUR_PX_MAX} step={2} value={prefs.hourPx}
+                onChange={(e) => setPref("hourPx", Number(e.target.value))}
+                className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.rowHeight")} />
+              <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.hourPx}px</span>
+            </label>
+            {dayCount > 1 && (
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground whitespace-nowrap">{tr("planner.dayWidth")}</span>
+                <input type="range" min={DAY_PX_MIN} max={DAY_PX_MAX} step={2} value={prefs.dayPx}
+                  onChange={(e) => setPref("dayPx", Number(e.target.value))}
+                  className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.dayWidth")} />
+                <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.dayPx}px</span>
+              </label>
+            )}
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground whitespace-nowrap">{tr("planner.laneOpacity", { term: t.Fronting })}</span>
+              <input type="range" min={10} max={100} step={5} value={prefs.laneOpacity}
+                onChange={(e) => setPref("laneOpacity", Number(e.target.value))}
+                className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.laneOpacity", { term: t.Fronting })} />
+              <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.laneOpacity}%</span>
+            </label>
+            <p className="text-[0.6875em] text-muted-foreground">{tr("planner.pinchHint")}</p>
+          </div>
+        ) : null;
+  const bodyBlock = (chrome && section === "plans" ? (
           <PlansList
             activities={activities}
             categories={categories}
@@ -604,7 +637,7 @@ export default function PlannerSurface({
         ) : chrome && section === "insights" ? null : chrome && view === "month" ? (
           <ActivityMonthView
             monthDate={anchor}
-            activities={activitiesWithTasks}
+            activities={shownWithTasks}
             alters={alters}
             weekStartsOn={prefs.weekStartsOn}
             importantDates={importantDates}
@@ -624,7 +657,7 @@ export default function PlannerSurface({
         ) : chrome && view === "year" ? (
           <ActivityYearView
             yearDate={anchor}
-            activities={activitiesWithTasks}
+            activities={shownWithTasks}
             weekStartsOn={prefs.weekStartsOn}
             onMonthClick={(d) => { setAnchor(d); setView("month"); }}
             onDayClick={(d) => { setAnchor(d); setView("month"); }}
@@ -640,9 +673,11 @@ export default function PlannerSurface({
           prefsOverride={prefsOverride}
           dayCount={effDayCount}
           maxHeight={maxHeight}
-          fill={!chrome}
-          activities={activities}
+          fill={!chrome || desk}
+          activities={shownActivities}
           tasks={taskItems}
+          initialScrollHour={desk ? deskScrollHour : null}
+          fitDayPx={desk ? 72 : null}
           frontingHistory={frontingHistory}
           emotionCheckIns={emotionCheckIns}
           locations={locationRecords}
@@ -660,8 +695,9 @@ export default function PlannerSurface({
           onTapEmpty={chrome ? (day, min, rect) => setCellInfo({ day, min, rect }) : null}
           onOpenUntimed={(item, day) => (item?._isTask ? navigate(`/todo?id=${item._task.id}`) : setDetails({ ...item, _day: day }))}
         />
-        )}
-      </div>
+        ));
+  const sheets = (
+    <>
 
       <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
 
@@ -772,6 +808,168 @@ export default function PlannerSurface({
       {branchAsk && (
         <SeriesDeleteSheet item={branchAsk.item} activities={activities} onClose={() => setBranchAsk(null)} />
       )}
+    </>
+  );
+
+  // ── Pixel look ────────────────────────────────────────────────────
+  const pixelToolbar = pixel ? (
+    <>
+      <PageStrip subtabs tour="planner-sections" label="Planner views" value={section} onChange={setSection} items={sectionItems} />
+      <PixelPlannerToolbar
+        section={section} view={view}
+        onPick={(id) => { if (id === "plans") setSection("plans"); else { setSection("calendar"); setView(id); } }}
+        rangeLabel={rangeLabel} onStep={stepAnchor} onToday={() => setAnchor(new Date())}
+        totalLabel={section === "calendar" && view === "week" ? weekTotalLabel.replace(/^·\s*/, "") : ""}
+        onLog={openLogNow} onEvent={openEventCreate} onPlan={openPlanNext}
+        overlays={overlays} onOverlay={setOverlay}
+        showOverlays={section === "calendar" && (view === "week" || view === "day")}
+        displayOpen={showDisplay} onDisplay={() => setShowDisplay((v) => !v)}
+        onManage={() => navigate("/activities")}
+      />
+    </>
+  ) : null;
+
+  if (desk) {
+    return (
+      <div className="pxp-root" data-tour="planner" style={applyPageLook ? pageLook : undefined}
+        {...(applyPageLook ? { "data-widget-content": true } : {})}>
+        <div className="pxp-desk" ref={deskRef} style={{ height: deskHeight || undefined }}>
+          <aside className="pxp-col pxp-left" aria-label={tr("planner.pxSidePanel")}>
+            <PixelMonthPanel anchor={anchor} weekStartsOn={prefs.weekStartsOn}
+              highlightWeek={section === "calendar" && view === "week"}
+              onPick={(d) => { setAnchor(d); if (section === "plans") setSection("calendar"); }} />
+            <div data-tour="planner-px-categories" className="pxp-grow-pn pxp-flexcol">
+              <PixelCategoriesPanel categories={categories} hidden={hiddenCats} onToggle={toggleHiddenCat}
+                onManage={() => navigate("/activities")} />
+            </div>
+          </aside>
+          <section className="pxp-pn pxp-main" aria-label={tr("planner.section.calendar")}>
+            {pixelToolbar}
+            {section === "calendar" && <div className="pxp-running"><CurrentActivities /></div>}
+            {displayBlock && <div className="pxp-display">{displayBlock}</div>}
+            <div className={`pxp-body ${section === "calendar" && (view === "week" || view === "day") ? "pxp-body-canvas" : ""}`}>
+              {insightsBlock}
+              {bodyBlock}
+            </div>
+            <div className="pxp-statusline" role="status">
+              {deskStatus.map((x, i) => <span key={i} className={x.grow ? "pxp-grow" : ""}>{x.text}</span>)}
+            </div>
+          </section>
+          <aside className="pxp-col pxp-right" aria-label={tr("planner.section.insights")}>
+            <div data-tour="planner-px-week">
+              <PixelWeekPanel planSummary={weekPlans} rootTotals={rootTotals} onOpenInsights={() => setSection("insights")} />
+            </div>
+            <PixelGoalsPanel goalRows={goalRows} onOpen={() => setSection("insights")} />
+            <div data-tour="planner-px-decisions" className="pxp-grow-pn pxp-flexcol">
+              <PixelDecisionsPanel activities={activities} timeFmt={prefs.timeFmt} onOpen={(a) => setDetails(a)} />
+            </div>
+          </aside>
+        </div>
+        {sheets}
+        {eventReq && <EventSheet request={eventReq} onClose={() => setEventReq(null)} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className={chrome ? "min-h-screen p-2 sm:p-4" : "flex flex-col min-h-0 h-full"}
+      {...(chrome ? { "data-tour": "planner" } : {})}
+      style={applyPageLook ? pageLook : undefined}
+      {...(applyPageLook ? { "data-widget-content": true } : {})}>
+      <div className={chrome ? "os-page-shell space-y-2" : "flex flex-col min-h-0 h-full"}>
+        {pixel ? pixelToolbar : chrome && (
+          <div className="space-y-2">
+            {/* Row 1: what you're looking at (calendar / plans / insights)
+                plus page config — the tracker's three tabs, merged in. */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <PageStrip subtabs tour="planner-sections" label="Planner views" className="basis-full" value={section} onChange={setSection} items={sectionItems} />
+              <div className="flex items-center gap-0.5 ml-auto">
+                <Button variant="ghost" size="sm" onClick={() => setShowDisplay((v) => !v)}
+                  aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
+                  <SlidersHorizontal className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/activities")}
+                  aria-label={tr("planner.manage")} title={tr("planner.manage")}>
+                  <SettingsIcon className="w-4 h-4" />
+                </Button>
+                <Button size="sm" className="gap-1 h-8 ml-1" onClick={openCreateNow}
+                  style={{ background: "var(--v2-accent)", color: "var(--v2-on-accent, #fff)" }}>
+                  <Plus className="w-4 h-4" /> {tr("planner.new")}
+                </Button>
+              </div>
+            </div>
+
+            {/* Row 2: date navigation — steps by whatever the view shows. */}
+            {section !== "plans" && (
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-0.5 min-w-0 flex-wrap">
+                  <Button variant="ghost" size="sm" aria-label={tr("planner.prev")} onClick={() => stepAnchor(-1)}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium tabular-nums whitespace-nowrap">{rangeLabel}</span>
+                  <Button variant="ghost" size="sm" aria-label={tr("planner.next")} onClick={() => stepAnchor(1)}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <button type="button" onClick={() => setAnchor(new Date())}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground ml-1 whitespace-nowrap flex-shrink-0">
+                    {tr("planner.today")}
+                  </button>
+                  {section === "calendar" && view === "week" && (
+                    <span className="text-xs text-muted-foreground tabular-nums ml-1.5 whitespace-nowrap">{weekTotalLabel}</span>
+                  )}
+                </div>
+                {section === "calendar" && (
+                  <div className="flex gap-0.5 p-0.5 rounded-lg bg-muted/40">
+                    {VIEWS.map((v) => (
+                      <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                          view === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        }`}>{tr(`planner.view.${v}`)}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Row 3: overlays — only where the time canvas draws them. */}
+            {section === "calendar" && (view === "week" || view === "day") && (
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => setOverlay("alters", !overlays.alters)}
+                  aria-pressed={overlays.alters}
+                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
+                    overlays.alters ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  <Users className="w-3 h-3" /> {tr("planner.overlay.fronting", { term: t.Fronting })}
+                </button>
+                <button type="button" onClick={() => setOverlay("emotions", !overlays.emotions)}
+                  aria-pressed={overlays.emotions}
+                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
+                    overlays.emotions ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
+                </button>
+                <button type="button" onClick={() => setOverlay("locations", overlays.locations === false)}
+                  aria-pressed={overlays.locations !== false}
+                  className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
+                    overlays.locations !== false ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  <MapPin className="w-3 h-3" /> {tr("planner.overlay.locations")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Running activities (timers) — the same strip the dashboard and
+            the old tracker showed, so a running one is never out of sight
+            here. Renders nothing when nothing is running. */}
+        {chrome && section === "calendar" && <CurrentActivities />}
+        {displayBlock}
+
+        {insightsBlock}
+        {bodyBlock}
+      </div>
+      {sheets}
+      {eventReq && <EventSheet request={eventReq} onClose={() => setEventReq(null)} />}
     </div>
   );
 }

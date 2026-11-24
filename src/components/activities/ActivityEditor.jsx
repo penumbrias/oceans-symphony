@@ -70,6 +70,8 @@ import { useT } from "@/lib/i18n";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useAlterSorter } from "@/lib/alterSort";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/planner.css";
 
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage off */ } };
@@ -140,6 +142,9 @@ function ActivityEditorOpen({ request, onClose, onSaved = null, weekStartsOn = 1
   const tr = useT();
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
+  // Pixel look (mockup "Plan" sheet): a title bar holding the name with
+  // Cancel and Save beside it; the same fields below in pixel chips.
+  const pixel = useUiLook() === "pixel";
 
   const { data: activities = [] } = useQuery({ ...sharedList("activities"), enabled: !!request });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(), enabled: !!request });
@@ -713,10 +718,10 @@ function ActivityEditorOpen({ request, onClose, onSaved = null, weekStartsOn = 1
       )}
       {/* Taller than a short screen → it scrolls instead of overflowing. */}
       <div
-        className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain"
+        className={`bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain ${pixel ? "pxae-sheet" : ""}`}
         style={{ borderRadius: "var(--v2-radius, 16px)" }}>
         {/* NAME */}
-        <div className="flex items-start justify-between gap-2">
+        <div className={`flex items-start justify-between gap-2 ${pixel ? "pxae-head" : ""}`}>
           <button type="button" onClick={requestClose} aria-label={tr("planner.close")} title={tr("planner.close")}
             className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
             <ChevronLeft className="w-4 h-4" />
@@ -732,9 +737,21 @@ function ActivityEditorOpen({ request, onClose, onSaved = null, weekStartsOn = 1
             }}
             className="flex-1 min-w-0 bg-transparent text-sm font-semibold focus:outline-none focus:border-b focus:border-[var(--v2-accent)]"
           />
-          {!create && (
+          {!create && !pixel && (
             <span className="text-[0.625em] uppercase tracking-wide text-muted-foreground border border-border/50 rounded-full px-2 py-0.5 flex-shrink-0">
               {tr("planner.edit")}
+            </span>
+          )}
+          {pixel && (
+            <span className="pxae-head-acts">
+              <button type="button" className="pxp-btn pxp-btn-sm" onClick={requestClose}>
+                {create ? tr("planner.pxCancel") : tr("planner.close")}
+              </button>
+              {create && (
+                <button type="button" className="pxp-btn pxp-btn-sm on" disabled={!canSave || saving} onClick={commitCreate}>
+                  {mode === ENTRY_MODES.NOW && <Play className="w-3.5 h-3.5" />}{saveLabel}
+                </button>
+              )}
             </span>
           )}
         </div>
@@ -1158,12 +1175,12 @@ function ActivityEditorOpen({ request, onClose, onSaved = null, weekStartsOn = 1
           </div>
         )}
 
-        {create ? (
+        {create && pixel ? null : create ? (
           <Button className="w-full gap-1.5" disabled={!canSave || saving} onClick={commitCreate}>
             {mode === ENTRY_MODES.NOW && <Play className="w-3.5 h-3.5" />}{saveLabel}
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" className="w-full text-destructive hover:text-destructive" onClick={deleteEntry}>
+          <Button size="sm" variant="ghost" className={`w-full text-destructive hover:text-destructive ${pixel ? "pxae-delete" : ""}`} onClick={deleteEntry}>
             {tr("planner.delete")}
           </Button>
         )}

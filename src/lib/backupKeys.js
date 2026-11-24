@@ -191,6 +191,8 @@ export const BACKUP_LS_KEYS = [
   "symphony_persist_notif_fronters_opts_v1",
   // Planner's last section and view (its other choices are listed above).
   "symphony_planner_section_v1", "symphony_planner_view_v1",
+  // Categories hidden from the pixel planner's calendar (its category panel).
+  "symphony_planner_hidden_cats_v1",
   // Which grocery list is open, and the starter symptom bundles picked.
   "grocery_active_list_v1", "symphony_onboarding_bundles_chosen_v1",
 ];

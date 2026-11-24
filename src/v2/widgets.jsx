@@ -76,6 +76,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SCOPE_FIELD, useWidgetScope } from "@/lib/boardSubject";
+import { TIMELINE_LAYERS } from "@/lib/timelineLayers";
 import { useScopeAlterIds } from "@/v2/subjectScope";
 import { journalAuthorIds } from "@/lib/journalAuthors";
 import { endSymptomSessions } from "@/lib/symptomSessions";
@@ -3082,6 +3083,9 @@ export const V2_WIDGETS = {
     configFields: [
       SCOPE_FIELD,
       { key: "days", type: "number", label: "Days to start with", min: 1, max: 30, default: 3 },
+      // Which kinds of record it draws; saved as the ones switched off.
+      { key: "hiddenLayers", type: "layers", label: "Layers", default: [], options: TIMELINE_LAYERS,
+        help: "Tap a layer to show or hide it here. Nothing is deleted." },
     ],
     defaultSpan: { cols: 12, rows: 6 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
