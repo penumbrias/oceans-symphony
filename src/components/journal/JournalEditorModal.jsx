@@ -7,13 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { base44 } from "@/api/base44Client";
+import { saveEditedJournal, notifyJournalMentions } from "@/lib/journalEntry";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
 import { toast } from "sonner";
 import { Lock, AlertCircle, Loader2, Folder, PenLine, ChevronDown, X, CalendarClock } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { saveMentions, extractMentionedIds, htmlToPlainText } from "@/lib/mentionUtils";
+import { htmlToPlainText } from "@/lib/mentionUtils";
 import { extractHashtags, mergeTags } from "@/lib/journalTags";
 import { journalEntryDate } from "@/lib/journalDate";
 import { toLocalDatetimeValue, fromLocalDatetimeValue } from "@/lib/dateTimeInput";
@@ -292,44 +292,19 @@ useEffect(() => {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (data) => {
-      if (editingEntryFinal) {
-        return base44.entities.JournalEntry.update(editingEntryFinal.id, data);
-      } else {
-        return base44.entities.JournalEntry.create(data);
-      }
-    },
+    mutationFn: (data) => saveEditedJournal(editingEntryFinal, data),
     onSuccess: async (savedEntry) => {
       // @mentions typed in the entry BODY notify too (owner request) — same
       // MentionLog pipeline as the dedicated field. Only NEW mentions fire on
       // an edit (diffed against the previous version of this entry), and
       // encrypted bodies are never scanned.
-      if (!isEncrypted && alters?.length > 0) {
-        try {
-          const prevPlain = editingEntryFinal && !editingEntryFinal.is_encrypted
-            ? htmlToPlainText(editingEntryFinal.content || "") : "";
-          await saveMentions({
-            content: htmlToPlainText(content),
-            alters,
-            sourceType: "journal",
-            sourceId: savedEntry.id,
-            sourceLabel: title || "Journal Entry",
-            navigatePath: `/journals?id=${savedEntry.id}`,
-            authorAlterId: authorAlterId || null,
-            excludeIds: extractMentionedIds(prevPlain, alters),
-          });
-        } catch { /* notifications are best-effort */ }
+      if (!isEncrypted) {
+        const prevPlain = editingEntryFinal && !editingEntryFinal.is_encrypted
+          ? htmlToPlainText(editingEntryFinal.content || "") : "";
+        await notifyJournalMentions({ entry: savedEntry, text: htmlToPlainText(content), alters, authorAlterId, label: title, previousText: prevPlain });
       }
-      if (mentionNote.trim() && alters?.length > 0) {
-        await saveMentions({
-          content: mentionNote,
-          alters,
-          sourceType: "journal",
-          sourceId: savedEntry.id,
-          sourceLabel: title || "Journal Entry",
-          navigatePath: `/journals?id=${savedEntry.id}`,
-          authorAlterId: authorAlterId || null,
-        });
+      if (mentionNote.trim()) {
+        await notifyJournalMentions({ entry: savedEntry, text: mentionNote, alters, authorAlterId, label: title });
       }
       queryClient.invalidateQueries({ queryKey: ["journals"] });
       queryClient.invalidateQueries({ queryKey: ["journalEntries"] });

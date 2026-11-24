@@ -15,6 +15,7 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { trashJournalEntry } from "@/lib/journalEntry";
 import { BookOpen, Plus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -87,7 +88,7 @@ export default function ProfileJournalTab({ alterIds = [], defaultAuthorId = nul
         onDelete={async (e) => {
           if (!e?.id) return;
           try {
-            await base44.entities.JournalEntry.delete(e.id);
+            await trashJournalEntry(e.id);
             queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
             queryClient.invalidateQueries({ queryKey: ["journals"] });
             setViewEntry(null);

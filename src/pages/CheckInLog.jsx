@@ -1,4 +1,5 @@
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
+import { saveCheckInJournal } from "@/lib/journalEntry";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -295,33 +296,12 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
       const wc = next ? next.split(/\s+/).filter(Boolean).length : 0;
       let journalEntryId = checkIn.journal_entry_id || null;
       if (next && wc > 50) {
-        if (journalEntryId) {
-          try {
-            await base44.entities.JournalEntry.update(journalEntryId, { content: next });
-          } catch {
-            const j = await base44.entities.JournalEntry.create({
-              title: `Check-in - ${format(ts, "P")}`,
-              content: next,
-              entry_type: "personal",
-              tags: ["checkin"],
-              folder: "Check-In Journals",
-              created_date: checkIn.timestamp,
-              entry_date: checkIn.timestamp, // create() re-stamps created_date; this keeps the check-in's time
-            });
-            journalEntryId = j.id;
-          }
-        } else {
-          const j = await base44.entities.JournalEntry.create({
-            title: `Check-in - ${format(ts, "P")}`,
-            content: next,
-            entry_type: "personal",
-            tags: ["checkin"],
-            folder: "Check-In Journals",
-            created_date: checkIn.timestamp,
-            entry_date: checkIn.timestamp, // create() re-stamps created_date; this keeps the check-in's time
-          });
-          journalEntryId = j.id;
-        }
+        journalEntryId = await saveCheckInJournal({
+          journalEntryId,
+          content: next,
+          title: `Check-in - ${format(ts, "P")}`,
+          at: checkIn.timestamp, // keeps the check-in's time
+        });
       }
       const noteForCheckIn = next
         ? (wc <= 50 ? next : next.substring(0, 300) + "...")

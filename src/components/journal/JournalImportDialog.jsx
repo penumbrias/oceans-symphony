@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { FileUp, Loader2, AlertCircle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { createJournalEntry } from "@/lib/journalEntry";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -93,7 +93,7 @@ export default function JournalImportDialog({ open, onClose, folderPaths = [], d
     const failed = [];
     for (const row of chosen) {
       try {
-        await base44.entities.JournalEntry.create(buildJournalImportPayload(row, { folder, authorAlterId: authorId }));
+        await createJournalEntry(buildJournalImportPayload(row, { folder, authorAlterId: authorId }));
         done++;
       } catch {
         failed.push(row);

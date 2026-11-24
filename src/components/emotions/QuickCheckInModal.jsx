@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { saveCheckInJournal } from "@/lib/journalEntry";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { applyFrontSelection } from "@/lib/setFront";
 import { useTriggerCategories } from "@/lib/useTriggerCategories";
@@ -1023,33 +1024,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         const wc = trimmedNote ? trimmedNote.split(/\s+/).filter(Boolean).length : 0;
         let journalEntryId = editingEntry.journal_entry_id || null;
         if (trimmedNote && wc > 50) {
-          if (journalEntryId) {
-            try {
-              await base44.entities.JournalEntry.update(journalEntryId, { content: trimmedNote });
-            } catch {
-              const entry = await base44.entities.JournalEntry.create({
-                title: `Check-in - ${new Date(now).toLocaleDateString()}`,
-                content: trimmedNote,
-                entry_type: "personal",
-                tags: ["checkin"],
-                folder: "Check-In Journals",
-                created_date: now,
-                entry_date: now, // create() re-stamps created_date; this keeps the chosen time
-              });
-              journalEntryId = entry.id;
-            }
-          } else {
-            const entry = await base44.entities.JournalEntry.create({
-              title: `Check-in - ${new Date(now).toLocaleDateString()}`,
-              content: trimmedNote,
-              entry_type: "personal",
-              tags: ["checkin"],
-              folder: "Check-In Journals",
-              created_date: now,
-              entry_date: now, // create() re-stamps created_date; this keeps the chosen time
-            });
-            journalEntryId = entry.id;
-          }
+          journalEntryId = await saveCheckInJournal({
+            journalEntryId,
+            content: trimmedNote,
+            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+            at: now,
+          });
         }
         const noteForCheckIn = trimmedNote
           ? (wc <= 50 ? trimmedNote : trimmedNote.substring(0, 300) + "...")
@@ -1191,16 +1171,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         const wordCount = noteOut ? noteOut.trim().split(/\s+/).filter(Boolean).length : 0;
         let journalEntryId = null;
         if (noteOut && wordCount > 50) {
-          const entry = await base44.entities.JournalEntry.create({
-            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+          journalEntryId = await saveCheckInJournal({
             content: noteOut,
-            entry_type: "personal",
-            tags: ["checkin"],
-            folder: "Check-In Journals",
-            created_date: now,
-            entry_date: now, // create() re-stamps created_date; this keeps the chosen time
+            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+            at: now,
           });
-          journalEntryId = entry.id;
         }
         // Per-emotion assignment overrides (only for still-selected emotions
         // with a non-empty explicit assignment — everything else inherits).
