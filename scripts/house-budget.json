@@ -1,0 +1,20 @@
+{
+  "_comment": "Size budget for scripts/house-budget.mjs (npm run check:budget). Bytes, gzip -9. 'baseline' is today's app: soft limits, the run fails only when a size grows beyond baseline x (1 + tolerance). 'house' is the new-house target from Tide's budget (audits/new-house-2026-11/team/tide.md section 6); reported as a gap, never fails yet. Refresh the baseline with --update-baseline only when a growth is deliberate and agreed, or after a size win so it cannot creep back.",
+  "tolerance": 0.03,
+  "baseline": {
+    "measuredAt": "2026-11-24",
+    "appVersion": "0.380.4",
+    "entryGz": 1139186,
+    "startupCssGz": 51918,
+    "firstPaintJsGz": 1139186
+  },
+  "house": {
+    "_source": "tide.md section 6: B1 entry, B2 boot CSS per look, B3 room chunk, B4 tool chunk, B14 offline warm payload. firstPaintJsGz = entry target, since the house shell is the only JS before first paint.",
+    "entryGz": 256000,
+    "bootCssGz": 30720,
+    "firstPaintJsGz": 256000,
+    "roomChunkGz": 61440,
+    "toolChunkGz": 25600,
+    "offlineWarmGz": 2621440
+  }
+}
