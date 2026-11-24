@@ -1878,7 +1878,7 @@ function PixelCheckInLog({
         <span className="pxg-ttl-acts">
           <button type="button" className="pxg-btn pxg-btn-s" onClick={() => onAddNote(null)}>+ Note</button>
           <button type="button" className="pxg-btn pxg-btn-s" onClick={onCharts}>Charts</button>
-          <button type="button" className="pxg-btn pxg-btn-s" onClick={hideAll}>{allOff ? "Show everything" : "Hide everything"}</button>
+          <button type="button" className="pxg-btn pxg-btn-s pxg-hide-phone" onClick={hideAll}>{allOff ? "Show everything" : "Hide everything"}</button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className="pxg-btn pxg-btn-s" data-tour="checkin-log-display" aria-label="Show in log" title="Show in log">Show</button>

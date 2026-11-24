@@ -133,7 +133,7 @@ html[data-ui-look="pixel"] .pxg-moredays { padding: 10px; display: flex; justify
 html[data-ui-look="pixel"] .pxg-foot { margin-top: auto; padding: 8px 10px; font-size: 12px; color: var(--px-text-2); box-shadow: inset 0 2px 0 var(--px-sunk); }
 
 /* The entry panel on the right (computer). */
-html[data-ui-look="pixel"] .pxg-side { position: sticky; top: 0; max-height: calc(100vh - 140px); }
+html[data-ui-look="pixel"] .pxg-side { position: sticky; top: 0; height: calc(100vh - 170px); min-height: 360px; }
 html[data-ui-look="pixel"] .pxg-side-when { display: flex; align-items: center; gap: 10px; padding: 10px 12px 2px; font-size: 13px; }
 html[data-ui-look="pixel"] .pxg-side-when > .pxg-muted { width: 70px; flex: none; }
 html[data-ui-look="pixel"] .pxg-when { padding: 4px 8px; }
@@ -155,4 +155,7 @@ html[data-ui-look="pixel"] .pxg-side-foot { display: flex; align-items: center; 
   html[data-ui-look="pixel"] .pxg-daybar .pxg-btn-s { font-size: 0; gap: 0; padding: 2px 9px; }
   html[data-ui-look="pixel"] .pxg-daybar .pxg-btn-s::before { content: "+ Note"; font-size: 12.5px; }
   html[data-ui-look="pixel"] .pxg-ttl-sub { display: none; }
+}
+@media (max-width: 1023px) {
+  html[data-ui-look="pixel"] .pxg-hide-phone { display: none !important; }
 }
