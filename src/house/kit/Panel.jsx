@@ -91,7 +91,7 @@ export function PageTabs({ label, tabs = [], value, onChange, idPrefix, withPane
             <button
               key={t.id}
               id={`${pre}-tab-${t.id}`}
-              type="button"
+              type="button" // ui-ok: this IS the house's page-tab strip (building code §2), the kit's own
               role="tab"
               aria-selected={on}
               aria-controls={withPanels && on ? `${pre}-panel-${t.id}` : undefined}
