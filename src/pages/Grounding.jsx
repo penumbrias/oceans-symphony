@@ -24,6 +24,9 @@ import EmergencyCardLink from "@/components/emergency/EmergencyCardLink";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
+import { CURRICULUM } from "@/components/support/TopicView";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/phone3.css";
 import {
   DEFAULT_TECHNIQUES, EMOTIONAL_STATES, CATEGORY_LABELS, CATEGORY_EMOJIS,
   BREATHING_PATTERNS, resolveCategory
@@ -107,6 +110,11 @@ export default function Grounding({ initialPath = null }) {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const [returnPath, setReturnPath] = useState(null); // for "try now" from Learn
+  // Pixel look: the Support page is drawn as its mockup (panels with title
+  // bars). Same functions, same handlers — only the layout differs.
+  const pixel = useUiLook() === "pixel";
+  const [showLines, setShowLines] = useState(false); // pixel "Call someone"
+  const [learnTopicId, setLearnTopicId] = useState(null); // pixel Learn rows open a lesson
   // Leaving Quick Support undoes a distraction-free focus that was still
   // on, and ends the Soundscape (fading out) unless the person chose to
   // keep it playing around the app.
@@ -149,6 +157,12 @@ export default function Grounding({ initialPath = null }) {
       e.exercise_id === "m6_t1_coping_cards"
     );
   }, [supportEntries]);
+
+  const { data: learningProgress = [] } = useQuery({
+    queryKey: ["learningProgress"],
+    queryFn: () => base44.entities.LearningProgress.list(),
+    enabled: pixel,
+  });
 
   const { data: techniques = [] } = useQuery({
     queryKey: ["groundingTechniques"],
@@ -571,7 +585,7 @@ export default function Grounding({ initialPath = null }) {
 
   // Tab bar shown on entry
   const TabBar = () => (
-    <PageStrip subtabs tour="grounding-tabs" label="Support views" sticky className="mb-6" value={activeTab} onChange={setActiveTab} items={[
+    <PageStrip subtabs tour="grounding-tabs" label="Support views" sticky className="mb-6" value={activeTab} onChange={(v) => { setLearnTopicId(null); setActiveTab(v); }} items={[
       { id: "support", label: "Support" },
       { id: "learn", label: "Learn" },
     ]} />
@@ -581,7 +595,86 @@ export default function Grounding({ initialPath = null }) {
     return wrap(
       <div className="max-w-xl mx-auto">
         <TabBar />
-        <LearnSection onTryTechnique={handleTryTechniqueByName} initialTopicId={deepLinkTopicId} />
+        <LearnSection onTryTechnique={handleTryTechniqueByName} initialTopicId={learnTopicId || deepLinkTopicId} />
+      </div>
+    );
+  }
+
+  // Entry screen (Support tab), pixel look: the mockup's panels.
+  if (pixel) {
+    const topics = CURRICULUM.flatMap((m) => (m.topics || []).map((t) => ({ ...t, moduleId: m.id })));
+    const progByTopic = new Map(learningProgress.filter((p) => p?.topic_id).map((p) => [p.topic_id, p]));
+    const doneCount = topics.filter((t) => progByTopic.get(t.id)?.completed).length;
+    const startedRows = topics.filter((t) => progByTopic.has(t.id))
+      .sort((a, b) => String(progByTopic.get(b.id)?.updated_date || "").localeCompare(String(progByTopic.get(a.id)?.updated_date || "")))
+      .slice(0, 2);
+    const nextTopic = topics.find((t) => !progByTopic.get(t.id)?.completed);
+    const learnRows = [...startedRows];
+    if (nextTopic && !learnRows.some((t) => t.id === nextTopic.id)) learnRows.push(nextTopic);
+    const openLesson = (id) => { setLearnTopicId(id); setActiveTab("learn"); };
+    const tiles = [
+      ...favorites.slice(0, 4).map((t) => ({ key: t.id, name: t.name, sub: CATEGORY_LABELS[resolveCategory(t.category)] || "favourite", onClick: () => handleOpenTechnique(t) })),
+      { key: "breathe", tour: "grounding-breathing", name: "Breathe", sub: "guided breathing", onClick: () => setPath("breathing-picker") },
+      { key: "check", tour: "grounding-state-check", name: "What do I need?", sub: "a few questions, then ideas", onClick: () => setPath("state-check") },
+      { key: "sound", tour: "grounding-soundscape", name: "Soundscape", sub: "nature sounds, tones, visuals", onClick: () => setPath("soundscape") },
+      { key: "all", tour: "grounding-browse", name: "Browse all", sub: `${visibleTechniques.length} techniques`, onClick: () => setPath("all") },
+    ];
+    return (
+      <div data-tour="grounding-content" className="px-sup">
+        <TabBar />
+        <div className="px-sup-grid">
+          <section className="px-sup-pn px-sup-help" aria-label="Need help right now?">
+            <h2 className="px-sup-h">Need help right now?</h2>
+            <p className="px-sup-mut">Your safety plan and crisis lines are one tap away.</p>
+            <div className="px-sup-two">
+              <button type="button" className="px-sup-btn on" onClick={() => navigate("/safety-plan")}>
+                {hasSavedSafetyPlan ? "Safety plan" : "Build a safety plan"}
+              </button>
+              <button type="button" className="px-sup-btn" aria-expanded={showLines} onClick={() => setShowLines((v) => !v)}>
+                Call someone
+              </button>
+            </div>
+            {showLines && <CrisisResourcesCard defaultOpen />}
+            <EmergencyCardLink className="px-sup-emerg" />
+          </section>
+
+          <section className="px-sup-pn">
+            <div className="px-sup-ttl"><span>Ground</span><span className="px-sup-mut">{favorites.length > 0 ? "favourites first" : "pick one"}</span></div>
+            <div className="px-sup-tiles">
+              {tiles.map((t) => (
+                <button key={t.key} type="button" data-tour={t.tour} className="px-sup-btn px-sup-tile" onClick={t.onClick}>
+                  <span className="px-sup-tile-name">{t.name}</span>
+                  <span className="px-sup-tile-sub">{t.sub}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="px-sup-pn">
+            <div className="px-sup-ttl"><span>Breathe with the ring</span></div>
+            <div className="px-sup-ring"><QuickSupportRing title={null} /></div>
+          </section>
+
+          <section className="px-sup-pn">
+            <div className="px-sup-ttl"><span>Learn</span><span className="px-sup-mut">{`${doneCount} of ${topics.length} topics`}</span></div>
+            <div className="px-sup-rows">
+              {learnRows.map((t) => {
+                const p = progByTopic.get(t.id);
+                const state = p?.completed ? "done" : p ? "in progress" : "next";
+                return (
+                  <button key={t.id} type="button" className="px-sup-row" onClick={() => openLesson(t.id)}>
+                    <span className="px-sup-row-name">{t.title}</span>
+                    <span className={`px-sup-state px-sup-state-${state.replace(" ", "-")}`}>{state}</span>
+                  </button>
+                );
+              })}
+              <button type="button" className="px-sup-btn px-sup-open" onClick={() => setActiveTab("learn")}>Open Learn</button>
+            </div>
+          </section>
+
+          <MedicalDisclaimerFooter className="px-sup-disc" />
+        </div>
+        <div className="px-sup-player"><SoundscapeMiniBar onOpen={() => setPath("soundscape")} /></div>
       </div>
     );
   }

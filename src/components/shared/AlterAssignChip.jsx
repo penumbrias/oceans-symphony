@@ -28,6 +28,8 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/phone3.css";
 
 export default function AlterAssignChip({ alters = [], value = null, defaultIds = [], onChange, zIndex = 90 }) {
   const t = useTerms();
@@ -77,8 +79,11 @@ export default function AlterAssignChip({ alters = [], value = null, defaultIds 
 
 // The assignment popup on its own. `title` (optional) names the item being
 // assigned — shown above the search box.
-export function AlterAssignPopup({ open, onOpenChange, alters = [], value = null, defaultIds = [], onChange, title = null, zIndex = 90 }) {
+// titleNode / footer: optional richer title and a closing note (the Quick
+// check-in's "Who feels …?" in the pixel look).
+export function AlterAssignPopup({ open, onOpenChange, alters = [], value = null, defaultIds = [], onChange, title = null, titleNode = null, footer = null, zIndex = 90 }) {
   const t = useTerms();
+  const pixel = useUiLook() === "pixel";
   const formatAlter = useAlterLabel();
   const [search, setSearch] = useState("");
   // Assigned-at-open ids: the pinned top band. Frozen so toggling doesn't
@@ -116,6 +121,54 @@ export function AlterAssignPopup({ open, onOpenChange, alters = [], value = null
     if (base.has(id)) base.delete(id); else base.add(id);
     onChange([...base]);
   };
+
+  if (pixel) {
+    // Pixel look (CheckInWhoPhone mockup): a sheet along the bottom —
+    // top-anchored, so the on-screen keyboard never covers the search.
+    const defaults = new Set(defaultIds || []);
+    return (
+      <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 bg-black/50" style={{ zIndex }} />
+          <DialogPrimitive.Content aria-describedby={undefined} className="px-who" style={{ zIndex }}>
+            <div className="px-who-head">
+              <DialogPrimitive.Title className="px-who-title">{titleNode || title || `Assign to ${t.alters}`}</DialogPrimitive.Title>
+              <AlterSortToggle sorter={sorter} className="px-who-sort" />
+              <DialogPrimitive.Close className="px-p3-btn on px-who-done">Done</DialogPrimitive.Close>
+            </div>
+            <div className="px-who-tools">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${t.alters}...`}
+                aria-label={`Search ${t.alters}`} className="px-who-search" />
+              <div className="px-who-two">
+                <button type="button" className="px-p3-btn" disabled={inheriting} onClick={() => onChange(null)}>
+                  {`Match the check-in (${defaultIds.length})`}
+                </button>
+                <button type="button" className="px-p3-btn" disabled={(effectiveIds || []).length === 0}
+                  onClick={() => onChange([])}>Clear (nobody)</button>
+              </div>
+            </div>
+            <div className="px-who-list">
+              {filtered.length === 0 ? (
+                <p className="px-who-empty">No {t.alters} found</p>
+              ) : filtered.map((a) => {
+                const sel = (effectiveIds || []).includes(a.id);
+                return (
+                  <button key={a.id} type="button" onClick={() => toggle(a.id)} aria-pressed={sel}
+                    className={`px-who-row${sel ? " sel" : ""}`}>
+                    <span className="px-who-box" aria-hidden>{sel ? "×" : ""}</span>
+                    <span className="px-who-sw" style={{ background: a.color || "transparent" }} aria-hidden />
+                    <span className="px-who-name">{formatAlter(a)}</span>
+                    {defaults.has(a.id) && <span className="px-who-note">in the check-in</span>}
+                  </button>
+                );
+              })}
+            </div>
+            {footer && <p className="px-who-foot">{footer}</p>}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+    );
+  }
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>

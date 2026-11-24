@@ -1,0 +1,315 @@
+/* Pixel look — Support (/grounding), Medications and the Quick check-in,
+   drawn as their mockups (SupportPhone, MedsPhone, CheckInPhone,
+   CheckInWhoPhone). Every rule is scoped to the pixel look. */
+
+/* ── Shared pieces: panel, title bar, button ───────────────────────── */
+html[data-ui-look="pixel"] :is(.px-sup-pn, .px-p3-pn) {
+  background: var(--px-panel);
+  box-shadow: var(--px-bevel);
+  outline: 2px solid var(--px-line);
+  color: var(--px-text);
+}
+html[data-ui-look="pixel"] :is(.px-sup-ttl, .px-p3-ttl) {
+  font-family: var(--px-font);
+  font-size: 13px;
+  color: var(--px-text);
+  background: var(--px-bar);
+  min-height: 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 0 10px;
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] :is(.px-sup-mut, .px-p3-mut) { color: var(--px-text-2); }
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn) {
+  font-family: var(--px-font);
+  font-size: 14px;
+  color: var(--px-text);
+  background: var(--px-bar);
+  border: 0;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line);
+  min-height: 44px;
+  padding: 0 12px;
+}
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn):active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn):focus-visible { outline: 3px solid var(--color-primary); }
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn).on {
+  background: var(--color-primary);
+  color: var(--px-sunk);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 60%, #000);
+}
+
+/* ── Support ───────────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .px-sup {
+  padding: 12px 12px 0;
+  max-width: 1180px;
+  margin: 0 auto;
+  font-size: 15px;
+  min-height: 100%;
+  display: flex; flex-direction: column;
+}
+html[data-ui-look="pixel"] .px-sup .os-page-strip { margin-bottom: 12px; }
+html[data-ui-look="pixel"] .px-sup-grid { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+@media (min-width: 1024px) {
+  html[data-ui-look="pixel"] .px-sup-grid {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start;
+  }
+  html[data-ui-look="pixel"] .px-sup-grid > .px-sup-help,
+  html[data-ui-look="pixel"] .px-sup-grid > .px-sup-disc { grid-column: 1 / -1; }
+}
+html[data-ui-look="pixel"] .px-sup-help {
+  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  outline-color: #e3897c;
+}
+html[data-ui-look="pixel"] .px-sup-h { font-family: var(--px-font); font-size: 16px; font-weight: 400; margin: 0; }
+html[data-ui-look="pixel"] .px-sup-help > .px-sup-mut { line-height: 1.4; margin: 0; }
+html[data-ui-look="pixel"] .px-sup-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html[data-ui-look="pixel"] .px-sup-help > div:has(> p) { border-radius: 0 !important; }
+html[data-ui-look="pixel"] .px-sup-emerg {
+  border-radius: 0 !important; border: 0 !important;
+  background: var(--px-sunk) !important; box-shadow: var(--px-sunken); margin-top: 2px;
+}
+html[data-ui-look="pixel"] .px-sup-tiles {
+  padding: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+}
+html[data-ui-look="pixel"] .px-sup-tile {
+  min-height: 64px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  gap: 2px; text-align: left; padding: 6px 12px;
+}
+html[data-ui-look="pixel"] .px-sup-tile-name { line-height: 1.2; }
+html[data-ui-look="pixel"] .px-sup-tile-sub { font-family: var(--font-sans); font-size: 12px; color: var(--px-text-2); line-height: 1.25; }
+html[data-ui-look="pixel"] .px-sup-ring { padding: 0 10px 12px; }
+html[data-ui-look="pixel"] .px-sup-ring .os-qs-ring { padding-top: 6px; }
+html[data-ui-look="pixel"] .px-sup-ring .os-qs-ring > div:first-child { width: 88px; height: 88px; }
+html[data-ui-look="pixel"] .px-sup-rows { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+html[data-ui-look="pixel"] .px-sup-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  text-align: left; min-height: 32px; color: var(--px-text);
+}
+html[data-ui-look="pixel"] .px-sup-row:hover .px-sup-row-name { text-decoration: underline; }
+html[data-ui-look="pixel"] .px-sup-row-name { min-width: 0; }
+html[data-ui-look="pixel"] .px-sup-state { font-family: var(--px-font); flex-shrink: 0; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-sup-state-done { color: var(--color-success, #9cc46b); }
+html[data-ui-look="pixel"] .px-sup-state-in-progress { color: var(--color-warning, #f2c08a); }
+html[data-ui-look="pixel"] .px-sup-open { align-self: flex-start; margin-top: 4px; min-height: 36px; font-size: 13px; }
+/* The not-medical-advice fold: a plain panel like the mockup's. */
+html[data-ui-look="pixel"] details.px-sup-disc {
+  background: var(--px-panel); border: 0 !important; border-radius: 0 !important;
+  box-shadow: var(--px-bevel); outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] details.px-sup-disc > summary { font-family: var(--px-font); font-size: 13px; color: var(--px-text); }
+/* What's playing: the bar along the bottom. */
+html[data-ui-look="pixel"] .px-sup-player { position: sticky; bottom: 0; margin: 12px -12px 0; z-index: 5; }
+html[data-ui-look="pixel"] .px-sup-player .os-sound-mini { max-width: none; padding: 0; }
+html[data-ui-look="pixel"] .px-sup-player .os-sound-mini-bar {
+  border: 0; border-radius: 0 !important; background: var(--px-panel);
+  box-shadow: var(--px-bevel); outline: 2px solid var(--px-line);
+  padding: 6px 8px 6px 12px; min-height: 52px; font-size: 14px;
+}
+html[data-ui-look="pixel"] .os-sound-mini-bar button[aria-label] {
+  border-radius: 0 !important; min-width: 40px; min-height: 40px; display: flex; align-items: center; justify-content: center;
+  background: var(--px-bar); outline: 2px solid var(--px-line); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  margin-left: 6px; color: var(--px-text);
+}
+
+/* ── Medications ───────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .px-meds { padding-left: 12px; padding-right: 12px; padding-top: 10px; }
+html[data-ui-look="pixel"] .px-meds-head { margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .px-meds-bar { display: flex; align-items: center; gap: 10px; }
+html[data-ui-look="pixel"] .px-meds-title { font-family: var(--px-font); font-size: 18px; font-weight: 600; flex: 1; min-width: 0; margin: 0; color: var(--px-text); }
+html[data-ui-look="pixel"] .px-meds-icon { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+html[data-ui-look="pixel"] .px-meds-add { display: flex; gap: 8px; align-items: stretch; }
+html[data-ui-look="pixel"] .px-meds-add .px-p3-btn { min-height: 40px; }
+html[data-ui-look="pixel"] .px-meds-add .px-p3-btn:disabled { opacity: .5; }
+html[data-ui-look="pixel"] .px-meds-input {
+  flex: 1; min-width: 0; background: var(--px-sunk); color: var(--px-text); border: 0;
+  box-shadow: var(--px-sunken); padding: 0 10px; font: inherit; outline: none;
+}
+html[data-ui-look="pixel"] .px-meds-input:focus-visible { outline: 2px solid var(--color-primary); }
+
+/* Medication widget rows (any board, in the pixel look). Sizes in em so
+   the widget's own text size still works. */
+html[data-ui-look="pixel"] .px-med-row {
+  display: flex; align-items: center; gap: 0.65em; min-height: 2.9em;
+  padding: 0.4em 0; box-shadow: inset 0 -2px 0 var(--px-sunk);
+}
+html[data-ui-look="pixel"] .px-med-row:last-of-type { box-shadow: none; }
+html[data-ui-look="pixel"] .px-med-time { font-family: var(--px-font); width: 4.2em; flex-shrink: 0; color: var(--px-text-2); line-height: 1.2; }
+html[data-ui-look="pixel"] .px-med-time.due { color: #f2c08a; }
+html[data-ui-look="pixel"] .px-med-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+html[data-ui-look="pixel"] .px-med-name { font-weight: 700; min-width: 0; overflow: hidden; }
+html[data-ui-look="pixel"] .px-med-note { font-size: 0.87em; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-med-acts { display: inline-flex; align-items: center; gap: 0.5em; flex-shrink: 0; }
+html[data-ui-look="pixel"] .px-med-btn { min-height: 2.75em; font-size: 0.9em; padding: 0 0.8em; }
+html[data-ui-look="pixel"] .px-med-taken { font-family: var(--px-font); color: #9cc46b; }
+html[data-ui-look="pixel"] .px-med-skipped { font-family: var(--px-font); color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-med-undo { font-family: var(--px-font); font-size: 0.8em; color: var(--px-text-2); text-decoration: underline; min-height: 2.75em; padding: 0 0.25em; }
+html[data-ui-look="pixel"] .px-med-head-note { font-size: 0.75em; color: var(--px-text-2); font-family: var(--px-font); }
+html[data-ui-look="pixel"] .px-refill { display: flex; flex-direction: column; gap: 0.45em; width: 100%; text-align: left; padding: 0.3em 0; color: var(--px-text); }
+html[data-ui-look="pixel"] .px-refill-top { display: flex; justify-content: space-between; gap: 0.6em; }
+html[data-ui-look="pixel"] .px-refill-left { font-family: var(--px-font); color: var(--px-text-2); text-align: right; }
+html[data-ui-look="pixel"] .px-refill-left.low { color: #f2c08a; }
+html[data-ui-look="pixel"] .px-refill-bar { display: block; position: relative; height: 0.8em; background: var(--px-sunk); box-shadow: var(--px-sunken); }
+html[data-ui-look="pixel"] .px-refill-bar > span { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--color-primary) 60%, #8a90d6); }
+html[data-ui-look="pixel"] .px-refill-bar > span.low { background: #e8a65d; }
+html[data-ui-look="pixel"] .px-refill:focus-visible { outline: 2px solid var(--color-primary); }
+
+/* ── Quick check-in (CheckInPhone) ─────────────────────────────────── */
+html[data-ui-look="pixel"] .px-ci {
+  background: var(--px-sunk) !important; color: var(--px-text);
+  outline: 2px solid var(--px-line); border: 0 !important; gap: 0;
+}
+@media (max-width: 640px) {
+  html[data-ui-look="pixel"] .px-ci { max-height: 100dvh !important; height: 100dvh; width: 100vw; max-width: 100vw; }
+}
+html[data-ui-look="pixel"] .px-ci-top {
+  flex-shrink: 0; background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 8px;
+  padding-top: calc(8px + min(env(safe-area-inset-top, 0px), 64px));
+}
+html[data-ui-look="pixel"] .px-ci-toprow { display: flex; align-items: center; gap: 8px; }
+html[data-ui-look="pixel"] .px-ci-topbtn { min-height: 40px; }
+html[data-ui-look="pixel"] .px-ci-topbtn:disabled { opacity: .6; }
+html[data-ui-look="pixel"] .px-ci-title { flex: 1; min-width: 0; text-align: center; font-family: var(--px-font); font-size: 17px; font-weight: 400; margin: 0; line-height: 1.2; }
+html[data-ui-look="pixel"] .px-ci-subrow { display: flex; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; color: var(--px-text); }
+html[data-ui-look="pixel"] .px-ci-manage { min-height: 32px; width: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+html[data-ui-look="pixel"] .px-ci-when {
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text); background: var(--px-sunk);
+  box-shadow: var(--px-sunken); border: 0; padding: 5px 8px; min-height: 32px; color-scheme: dark; max-width: 100%;
+}
+html[data-ui-look="pixel"] .px-ci-last { font-size: 12px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-ci-body { padding: 10px; background: var(--px-sunk); }
+html[data-ui-look="pixel"] .px-ci-body > * + * { margin-top: 8px !important; }
+/* Section heads: a title bar with what's inside on the right. */
+html[data-ui-look="pixel"] .px-ci-head {
+  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text); text-align: left;
+  background: var(--px-bar); outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .px-ci-head[aria-expanded="true"] { min-height: 26px; box-shadow: inset 0 -2px 0 var(--px-line); }
+html[data-ui-look="pixel"] .px-ci-head:focus-visible { outline: 3px solid var(--color-primary); }
+html[data-ui-look="pixel"] .px-ci-chev { color: var(--px-text-2); width: 10px; }
+html[data-ui-look="pixel"] .px-ci-label { flex: 1; min-width: 0; }
+html[data-ui-look="pixel"] .px-ci-sum { font-size: 12px; color: var(--px-text-2); text-align: right; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The open section's body joins its head into one panel. */
+html[data-ui-look="pixel"] .px-ci-body > .px-ci-head[aria-expanded="true"] + div {
+  margin-top: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: var(--px-panel); outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 0 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  padding: 10px;
+}
+/* The section's own heading repeats the head; the head says it. */
+html[data-ui-look="pixel"] .px-ci-body > .px-ci-head[aria-expanded="true"] + div > p.text-sm.font-medium:first-child,
+html[data-ui-look="pixel"] .px-ci-body .os-feeling-row > div > p.text-sm.font-medium:first-child { display: none; }
+html[data-ui-look="pixel"] .px-ci-foot { font-size: 12px; text-align: center; color: var(--px-text-2); padding: 4px 0 8px; }
+html[data-ui-look="pixel"] .px-ci-accent { color: color-mix(in srgb, var(--color-primary) 55%, #c9b8ff); }
+/* Fields and rounded pieces inside the sheet go square. */
+html[data-ui-look="pixel"] .px-ci :is(input, textarea, select):not(.px-ci-when):not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  border-radius: 0 !important; background: var(--px-sunk); box-shadow: var(--px-sunken); border-color: transparent;
+}
+html[data-ui-look="pixel"] .px-ci .rounded-full:not(img):not([role="switch"]):not([role="switch"] *):not(.w-1\.5):not(.w-2\.5) { border-radius: 0 !important; }
+
+/* Side rating: square steps, every number showing. */
+html[data-ui-look="pixel"] .os-side-rating { border-left: 0 !important; box-shadow: inset 2px 0 0 var(--px-sunk); padding-left: 8px; }
+html[data-ui-look="pixel"] .os-side-rating > button { font-family: var(--px-font); font-size: 11px; }
+html[data-ui-look="pixel"] .os-rating-meter { gap: 4px; }
+html[data-ui-look="pixel"] .os-rating-meter > span {
+  width: 30px !important; height: 24px !important; border-radius: 0 !important;
+  outline: 2px solid var(--px-line); font-size: 0 !important;
+  background: var(--px-sunk); color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .os-rating-meter > span::before { content: attr(data-n); font-family: var(--px-font); font-size: 12px; }
+html[data-ui-look="pixel"] .os-rating-meter > span[data-lit] { color: var(--px-sunk); }
+
+/* Feelings picker (EmotionWheelPicker) — the groups stay, drawn as
+   coloured pixel chips. Order: picked, hint, groups, search, add. */
+html[data-ui-look="pixel"] .os-ewp { display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .os-ewp > * { margin-top: 0 !important; }
+html[data-ui-look="pixel"] .os-ewp > .os-ewp-picked { order: 1; gap: 6px; }
+html[data-ui-look="pixel"] .os-ewp > .os-ewp-hint { order: 2; font-size: 12px; color: var(--px-text-2); margin: 0; }
+html[data-ui-look="pixel"] .os-ewp > :is(.os-ewp-guided, .os-ewp-classic) { order: 3; }
+html[data-ui-look="pixel"] .os-ewp > .os-ewp-search { order: 4; }
+html[data-ui-look="pixel"] .os-ewp > .os-ewp-results { order: 5; }
+html[data-ui-look="pixel"] .os-ewp > .os-ewp-add { order: 6; border-top: 0; padding-top: 0; }
+html[data-ui-look="pixel"] .os-ewp > .os-ewp-add + div { order: 7; }
+html[data-ui-look="pixel"] .os-ewp-search input { height: 34px; border-radius: 0 !important; }
+html[data-ui-look="pixel"] .os-ewp :is(.os-ewp-pill, .os-ewp-chip, .os-ewp-root, .os-ewp-core) {
+  border-radius: 0 !important; border: 0 !important;
+  outline: 2px solid var(--px-line); outline-offset: 0;
+  box-shadow: inset 2px 2px 0 rgb(255 255 255 / .3), inset -2px -2px 0 rgb(0 0 0 / .25);
+  font-family: var(--font-sans); font-weight: 400; min-height: 30px;
+  color: var(--px-text) !important;
+  background: color-mix(in srgb, var(--emo, var(--color-primary)) 38%, var(--px-panel)) !important;
+}
+html[data-ui-look="pixel"] .os-ewp :is(.os-ewp-pill, .os-ewp-chip, .os-ewp-root, .os-ewp-core)[data-sel],
+html[data-ui-look="pixel"] .os-ewp .os-ewp-chip {
+  background: color-mix(in srgb, var(--emo, var(--color-primary)) 72%, #fff) !important;
+  color: #1a1c2b !important;
+}
+html[data-ui-look="pixel"] .os-ewp :is(.os-ewp-pill, .os-ewp-root, .os-ewp-core)[data-sel] { outline: 3px solid #f4e3b5; outline-offset: 1px; }
+html[data-ui-look="pixel"] .os-ewp .os-ewp-chip { padding: 4px 8px; font-size: 14px; }
+html[data-ui-look="pixel"] .os-ewp .os-ewp-pill { padding: 4px 8px; font-size: 14px; }
+html[data-ui-look="pixel"] .os-ewp .os-ewp-roots { gap: 6px; }
+html[data-ui-look="pixel"] .os-ewp .os-ewp-root {
+  justify-content: center; text-align: center; min-height: 44px;
+  background: color-mix(in srgb, var(--emo) 70%, #fff) !important; color: #1a1c2b !important; font-size: 15px;
+}
+html[data-ui-look="pixel"] .os-ewp .os-ewp-core { border-left-width: 0 !important; }
+html[data-ui-look="pixel"] .os-ewp .os-ewp-panel,
+html[data-ui-look="pixel"] .os-ewp .os-ewp-mine {
+  border: 0 !important; border-radius: 0 !important; background: transparent !important; padding: 2px !important;
+}
+html[data-ui-look="pixel"] .os-ewp .os-ewp-mine > p { font-family: var(--px-font); text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .os-ewp-crumb { display: flex; align-items: center; gap: 6px; font-family: var(--px-font); font-size: 13px; color: var(--px-text); }
+html[data-ui-look="pixel"] .os-ewp-crumb > button { color: var(--px-text-2); min-height: 28px; }
+html[data-ui-look="pixel"] .os-ewp-crumb > button:disabled { color: var(--px-text-2); opacity: 1; }
+html[data-ui-look="pixel"] .os-ewp-crumb > span[aria-hidden] { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .os-ewp-add :is(input, select) { height: 34px; border-radius: 0 !important; }
+html[data-ui-look="pixel"] .os-ewp-add > button {
+  border-radius: 0 !important; min-width: 34px; outline: 2px solid var(--px-line); background: var(--px-bar);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); color: var(--px-text); display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Who feels it (CheckInWhoPhone): the assign sheet ──────────────── */
+html[data-ui-look="pixel"] .px-who {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  top: max(34vh, calc(env(safe-area-inset-top, 0px) + 72px)); bottom: 0;
+  width: 100%; max-width: 520px; display: flex; flex-direction: column;
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line); box-shadow: var(--px-bevel);
+}
+html[data-ui-look="pixel"] .px-who:focus { outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .px-who-head {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--px-bar);
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .px-who-title { flex: 1; min-width: 0; font-family: var(--px-font); font-size: 15px; font-weight: 400; margin: 0; }
+html[data-ui-look="pixel"] .px-who-done { min-height: 36px; }
+html[data-ui-look="pixel"] .px-who-tools { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .px-who-search {
+  width: 100%; min-height: 36px; padding: 0 10px; border: 0; color: var(--px-text);
+  background: var(--px-sunk); box-shadow: var(--px-sunken); font: inherit; font-size: 14px; outline: none;
+}
+html[data-ui-look="pixel"] .px-who-search:focus-visible { outline: 2px solid var(--color-primary); }
+html[data-ui-look="pixel"] .px-who-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html[data-ui-look="pixel"] .px-who-two .px-p3-btn { font-size: 13px; min-height: 40px; padding: 0 6px; }
+html[data-ui-look="pixel"] .px-who-two .px-p3-btn:disabled { opacity: .5; }
+html[data-ui-look="pixel"] .px-who-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0 6px; }
+html[data-ui-look="pixel"] .px-who-row {
+  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; text-align: left; color: var(--px-text);
+}
+html[data-ui-look="pixel"] .px-who-row.sel { background: color-mix(in srgb, var(--px-bar) 75%, var(--color-primary) 10%); }
+html[data-ui-look="pixel"] .px-who-row:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+html[data-ui-look="pixel"] .px-who-box {
+  width: 26px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--px-sunk); box-shadow: var(--px-sunken); outline: 2px solid var(--px-line);
+  font-family: var(--px-font); font-size: 14px;
+}
+html[data-ui-look="pixel"] .px-who-row.sel .px-who-box { background: var(--color-primary); color: var(--px-sunk); box-shadow: none; }
+html[data-ui-look="pixel"] .px-who-sw { width: 28px; height: 28px; flex-shrink: 0; outline: 2px solid var(--px-line); box-shadow: inset 2px 2px 0 rgb(255 255 255 / .3); }
+html[data-ui-look="pixel"] .px-who-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+html[data-ui-look="pixel"] .px-who-note { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); flex-shrink: 0; }
+html[data-ui-look="pixel"] .px-who-empty { text-align: center; padding: 16px; font-size: 13px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-who-foot { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); font-size: 12px; line-height: 1.4; color: var(--px-text-2); box-shadow: inset 0 2px 0 var(--px-line); margin: 0; }
+html[data-ui-look="pixel"] .px-who-sort { color: var(--px-text-2); }

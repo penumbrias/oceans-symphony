@@ -21,6 +21,8 @@ import {
   dosesOnDay, asNeededTakenOn, isActiveMed, supplyOf, supplyLabel, courseLabel, dayKey,
 } from "@/lib/medications";
 import { useEmergencyCard } from "@/lib/useEmergencyCard";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/phone3.css";
 
 const limitOf = (settings, fallback) => {
   const n = parseInt(settings?.limit, 10);
@@ -78,6 +80,7 @@ function useRun() {
 
 export function MedsTodayWidget({ settings }) {
   const mode = useWidgetMode();
+  const pixel = useUiLook() === "pixel";
   const { medications, isFetched } = useMedications();
   const { doses } = useMedicationDoses();
   const { open, sheet } = useSheet();
@@ -95,7 +98,7 @@ export function MedsTodayWidget({ settings }) {
 
   if (!isFetched) return <Section label="Today's medications"><Muted>…</Muted></Section>;
   return (
-    <Section label="Today's medications"
+    <Section label={pixel ? "Doses today" : "Today's medications"}
       action={slots.length > 0 ? <span className="text-[0.6875em] text-muted-foreground tabular-nums">{`${done} of ${slots.length}`}</span> : null}>
       {medications.filter(isActiveMed).length === 0 && <Muted>No medications yet. Add them on the Medications page.</Muted>}
       {medications.filter(isActiveMed).length > 0 && slots.length === 0 && asNeeded.length === 0 && <Muted>Nothing scheduled today.</Muted>}
@@ -118,6 +121,35 @@ export function MedsTodayWidget({ settings }) {
             </span>
           );
         }
+        if (pixel) {
+          // Pixel look (MedsPhone mockup): time · name and note · Take.
+          const pending = s.state === "due" || s.state === "later";
+          return (
+            <div key={`${s.med.id}-${s.slot}`} className="px-med-row">
+              <span className={`px-med-time${pending ? " due" : ""}`}>{time}</span>
+              <span className="px-med-main">
+                <span className="px-med-name"><NameButton name={s.med.name} onClick={() => open(s.med.id, "schedule")} /></span>
+                <span className="px-med-note">{[s.med.dose, s.state === "due" ? "due" : null].filter(Boolean).join(" · ")}</span>
+              </span>
+              {pending ? (
+                <span className="px-med-acts">
+                  <button type="button" className="px-p3-btn px-med-btn" aria-label={`Skip ${s.med.name} ${time}`}
+                    onClick={() => run(() => markDose(s.med, { slot: s.slot, status: "skipped" }))}>Skip</button>
+                  <button type="button" className="px-p3-btn px-med-btn on" aria-label={`Took ${s.med.name} ${time}`}
+                    onClick={() => run(() => markDose(s.med, { slot: s.slot, status: "taken" }))}>Take</button>
+                </span>
+              ) : (
+                <span className="px-med-acts">
+                  <span className={s.state === "taken" ? "px-med-taken" : "px-med-skipped"}>
+                    {s.state === "taken" ? `Taken ${fmtClock(new Date(s.dose.timestamp))}` : "Skipped"}
+                  </span>
+                  <button type="button" className="px-med-undo" aria-label={`Undo ${s.med.name} ${time}`}
+                    onClick={() => run(() => unmarkDose(s.dose))}>Undo</button>
+                </span>
+              )}
+            </div>
+          );
+        }
         return (
           <Row key={`${s.med.id}-${s.slot}`} primary={<NameButton name={s.med.name} onClick={() => open(s.med.id, "schedule")} />}
             secondary={[time, s.med.dose, s.state === "due" ? "due" : null].filter(Boolean).join(" · ")}
@@ -126,10 +158,23 @@ export function MedsTodayWidget({ settings }) {
       })}
       {mode !== "minimal" && asNeeded.length > 0 && (
         <>
-          <p className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground pt-1">As needed</p>
+          {!pixel && <p className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground pt-1">As needed</p>}
           {asNeeded.map((m) => {
             const today = takenPrn.get(m.id) || [];
             const last = today.length ? today[today.length - 1] : null;
+            if (pixel) {
+              return (
+                <div key={m.id} className="px-med-row">
+                  <span className="px-med-time due">as needed</span>
+                  <span className="px-med-main">
+                    <span className="px-med-name"><NameButton name={m.name} onClick={() => open(m.id, "history")} /></span>
+                    <span className="px-med-note">{today.length ? `${today.length} today · last ${fmtClock(new Date(last.timestamp))}` : (m.dose || "none yet")}</span>
+                  </span>
+                  <button type="button" className="px-p3-btn px-med-btn on" aria-label={`Took ${m.name}`}
+                    onClick={() => run(() => markDose(m, { status: "taken" }), `${m.name} marked`)}>Take</button>
+                </div>
+              );
+            }
             return (
               <Row key={m.id} primary={<NameButton name={m.name} onClick={() => open(m.id, "history")} />}
                 secondary={today.length ? `${today.length} today · last ${fmtClock(new Date(last.timestamp))}` : m.dose || null}
@@ -213,6 +258,7 @@ export function MedicationsWidget({ settings }) {
 
 export function MedRefillsWidget({ settings }) {
   const mode = useWidgetMode();
+  const pixel = useUiLook() === "pixel";
   const { medications, isFetched } = useMedications();
   const { doses } = useMedicationDoses();
   const { open, sheet } = useSheet();
@@ -227,10 +273,30 @@ export function MedRefillsWidget({ settings }) {
   const missing = medications.filter(isActiveMed).length - rows.length;
 
   return (
-    <Section label="Refills">
+    <Section label="Refills" action={pixel && rows.some((r) => r.supply.low) ? <span className="px-med-head-note">order soon</span> : null}>
       {isFetched && rows.length === 0 && <Muted>Fill in a medication's last refill (on its Supply page) to see when it runs out.</Muted>}
       {lowOnly && rows.length > 0 && pool.length === 0 && <Muted>Nothing is running low.</Muted>}
-      {shown.map(({ med, supply }) => (
+      {pixel && shown.map(({ med, supply }) => {
+        // Pixel look (MedsPhone mockup): name · days left, then a bar of
+        // what's left of the last refill.
+        const qty = Number(med.refill_quantity) || 0;
+        const pct = qty > 0 ? Math.max(0, Math.min(100, Math.round((supply.remaining / qty) * 100))) : 0;
+        const left = supply.remaining <= 0 ? "Run out"
+          : supply.daysLeft != null ? `${supply.daysLeft === 1 ? "1 day" : `${supply.daysLeft} days`} left` : supplyLabel(supply);
+        return (
+          <button key={med.id} type="button" className="px-refill" onClick={() => open(med.id, "supply")}
+            aria-label={`${med.name}: ${supplyLabel(supply)}`}>
+            <span className="px-refill-top">
+              <span className="px-refill-name">{med.name}</span>
+              <span className={`px-refill-left${supply.low ? " low" : ""}`}>
+                {supply.courseEndsFirst ? `${left} · course ends first` : left}
+              </span>
+            </span>
+            <span className="px-refill-bar"><span className={supply.low ? "low" : ""} style={{ width: `${pct}%` }} /></span>
+          </button>
+        );
+      })}
+      {!pixel && shown.map(({ med, supply }) => (
         <Row key={med.id} primary={med.name}
           secondary={supply.courseEndsFirst ? `${supplyLabel(supply)} · course ends first` : supplyLabel(supply)}
           right={supply.low ? (supply.remaining <= 0 ? "Run out" : "Refill soon")

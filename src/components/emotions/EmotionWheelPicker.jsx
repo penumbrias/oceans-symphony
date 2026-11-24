@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
 import EmotionColorField from "@/components/emotions/EmotionColorField";
 import { normalizeHex } from "@/lib/hexColor";
+import { useUiLook } from "@/lib/uiLook";
 
 export const WHEEL = {
   good: {
@@ -102,11 +103,12 @@ function EmotionDots({ dots, onColor = false }) {
 // Button whose tap toggles and whose hold opens the assignment. Only used
 // when a hold handler exists — a plain button otherwise, so a slow tap
 // never gets eaten on surfaces with no hold action.
-function HoldableButton({ label, onTap, onHold, className, style, children, ariaLabel }) {
+function HoldableButton({ label, onTap, onHold, className, style, children, ariaLabel, selected }) {
   const press = useLongPress({ onClick: () => onTap(label), onLongPress: () => onHold(label), ms: 450 });
   return (
     <button type="button" {...press} onContextMenu={(e) => e.preventDefault()}
-      aria-label={ariaLabel} className={`${className} select-none [-webkit-touch-callout:none]`} style={style}>
+      aria-label={ariaLabel} className={`${className} select-none [-webkit-touch-callout:none]`} style={style}
+      data-sel={selected ? "1" : undefined}>
       {children}
     </button>
   );
@@ -115,24 +117,25 @@ function HoldableButton({ label, onTap, onHold, className, style, children, aria
 function EmotionPill({ label, selected, color, onToggle, small = false }) {
   const hold = useContext(EmotionHoldContext);
   const dots = selected ? hold?.dotsFor?.(label) : null;
-  const className = `rounded-full font-medium transition-all border inline-flex items-center gap-1 ${
+  const className = `os-ewp-pill rounded-full font-medium transition-all border inline-flex items-center gap-1 ${
     small ? "px-2 py-0.5 text-xs" : "px-3 py-1.5 text-xs"
   } ${selected
     ? "text-white border-transparent"
     : "bg-muted/60 text-foreground border-border/50 hover:border-border"
   }`;
-  const style = selected ? { backgroundColor: color, borderColor: color } : {};
+  // --emo carries the feeling's colour for the pixel look's tinted chips.
+  const style = selected ? { backgroundColor: color, borderColor: color, "--emo": color } : { "--emo": color };
   const inner = <>{label}<EmotionDots dots={dots} onColor /></>;
   if (hold?.onHold) {
     return (
       <HoldableButton label={label} onTap={onToggle} onHold={hold.onHold} className={className} style={style}
-        ariaLabel={hold.ariaFor?.(label, selected)}>
+        ariaLabel={hold.ariaFor?.(label, selected)} selected={selected}>
         {inner}
       </HoldableButton>
     );
   }
   return (
-    <button type="button" onClick={() => onToggle(label)} className={className} style={style}>
+    <button type="button" onClick={() => onToggle(label)} className={className} style={style} data-sel={selected ? "1" : undefined}>
       {inner}
     </button>
   );
@@ -188,7 +191,10 @@ export default function EmotionWheelPicker({
   onEmotionHold = null,
   emotionDots = null,
   holdAriaLabel = null,
+  // A line under the picked feelings (the Quick check-in's hold hint).
+  hint = null,
 }) {
+  const pixel = useUiLook() === "pixel";
   // Guided or Classic is one setting (check-in manager), not a toggle on
   // every picker (UI critique H4).
   const [pickerMode,    setPickerMode]    = useState(() => lsGet(LS_PICKER_MODE, "wheel"));
@@ -302,9 +308,9 @@ export default function EmotionWheelPicker({
 
   return (
     <EmotionHoldContext.Provider value={holdCtx}>
-    <div className="space-y-3">
+    <div className="os-ewp space-y-3">
       {/* Search */}
-      <div className="relative">
+      <div className="os-ewp-search relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
           placeholder="Search emotions..."
@@ -322,7 +328,7 @@ export default function EmotionWheelPicker({
 
       {/* Search results */}
       {search.trim() && (
-        <div className="space-y-1.5">
+        <div className="os-ewp-results space-y-1.5">
           {searchResults.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {searchResults.map(e => (
@@ -345,28 +351,30 @@ export default function EmotionWheelPicker({
 
       {/* Selected chips */}
       {selectedEmotions.length > 0 && !search && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="os-ewp-picked flex flex-wrap gap-1.5">
           {selectedEmotions.map(e => onEmotionHold ? (
             <HoldableButton key={e} label={e} onTap={onToggle} onHold={onEmotionHold}
               ariaLabel={holdAriaLabel?.(e, true)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
-              style={{ backgroundColor: colorFor(e) }}>
+              className="os-ewp-chip flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+              style={{ backgroundColor: colorFor(e), "--emo": colorFor(e) }}>
               {e}<EmotionDots dots={emotionDots?.(e)} onColor /> <X className="w-2.5 h-2.5" />
             </HoldableButton>
           ) : (
             <button key={e} onClick={() => onToggle(e)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
-              style={{ backgroundColor: colorFor(e) }}>
+              className="os-ewp-chip flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+              style={{ backgroundColor: colorFor(e), "--emo": colorFor(e) }}>
               {e} <X className="w-2.5 h-2.5" />
             </button>
           ))}
         </div>
       )}
 
+      {hint && !search && <p className="os-ewp-hint text-xs text-muted-foreground">{hint}</p>}
+
       {/* ── GUIDED MODE ── */}
       {pickerMode === "wheel" && !search && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="os-ewp-guided space-y-3">
+          <div className="os-ewp-roots grid grid-cols-2 gap-2">
             {Object.entries(WHEEL).map(([key, v]) => {
               // Good/Bad/Neutral light up when selected (they're loggable moods);
               // any valence lights up while expanded.
@@ -374,10 +382,11 @@ export default function EmotionWheelPicker({
               return (
                 <button key={key}
                   onClick={() => handleValence(key)}
-                  className={`py-2 px-3 rounded-xl border text-sm font-semibold transition-all text-left ${
+                  data-sel={lit ? "1" : undefined} aria-pressed={lit}
+                  className={`os-ewp-root py-2 px-3 rounded-xl border text-sm font-semibold transition-all text-left ${
                     lit ? v.activeClass : v.bgClass
                   }`}
-                  style={lit ? {} : { color: v.color }}>
+                  style={lit ? { "--emo": v.color } : { color: v.color, "--emo": v.color }}>
                   {rootLabel(key)}
                 </button>
               );
@@ -385,8 +394,20 @@ export default function EmotionWheelPicker({
           </div>
 
           {activeValence && valenceData && (
-            <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 space-y-2">
-              {activeCore && (
+            <div className="os-ewp-panel rounded-xl border border-border/50 bg-muted/20 p-2.5 space-y-2">
+              {pixel && (
+                // Pixel look: where you are in the groups, and the way back.
+                <div className="os-ewp-crumb">
+                  <button type="button" onClick={() => setActiveCore(null)} disabled={!activeCore}>{rootLabel(activeValence)}</button>
+                  {activeCore && <><span aria-hidden>&gt;</span><span>{activeCore}</span></>}
+                  <span className="flex-1" />
+                  <button type="button" onClick={() => {
+                    if (activeCore) setActiveCore(null);
+                    else { setActiveValence(null); setActiveCore(null); }
+                  }}>back</button>
+                </div>
+              )}
+              {activeCore && !pixel && (
                 <button onClick={() => setActiveCore(null)}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1" aria-label="Back" title="Back">
                   <ChevronLeft className="w-3 h-3" />
@@ -416,15 +437,16 @@ export default function EmotionWheelPicker({
                     {Object.entries(valenceData.cores).map(([core, { color }]) => (
                       <button key={core}
                         onClick={() => setActiveCore(core)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${
+                        data-sel={selectedEmotions.includes(core) ? "1" : undefined}
+                        className={`os-ewp-core px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${
                           selectedEmotions.includes(core)
                             ? "text-white border-transparent"
                             : "bg-muted/60 text-foreground border-border/50 hover:border-border"
                         }`}
                         style={
                           selectedEmotions.includes(core)
-                            ? { backgroundColor: color }
-                            : { borderLeftColor: color, borderLeftWidth: 3 }
+                            ? { backgroundColor: color, "--emo": color }
+                            : { borderLeftColor: color, borderLeftWidth: 3, "--emo": color }
                         }>
                         {core}
                       </button>
@@ -466,7 +488,7 @@ export default function EmotionWheelPicker({
           )}
 
           {(customByCategory["custom"] || []).length > 0 && (
-            <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5">
+            <div className="os-ewp-mine rounded-xl border border-border/50 bg-muted/20 p-2.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">My custom emotions</p>
               <div className="flex flex-wrap gap-1.5">
                 {(customByCategory["custom"] || []).map(c => (
@@ -481,7 +503,7 @@ export default function EmotionWheelPicker({
 
       {/* ── CLASSIC MODE ── */}
       {pickerMode === "classic" && !search && (
-        <div className="space-y-3">
+        <div className="os-ewp-classic space-y-3">
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Quick picks</p>
             <div className="flex flex-wrap gap-1.5">
@@ -543,7 +565,7 @@ export default function EmotionWheelPicker({
           Presents the four roots + every core, using the user's renamed
           root labels where set (via catLabels). */}
       {!search && (
-        <div className="flex gap-1.5 pt-1 border-t border-border/50">
+        <div className="os-ewp-add flex gap-1.5 pt-1 border-t border-border/50">
           <Input
             placeholder="Add custom emotion..."
             value={customInput}
