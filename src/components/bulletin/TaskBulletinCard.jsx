@@ -19,7 +19,8 @@ function parseTaskBulletin(content) {
 
 const NO_IDS = [];
 
-function TaskBulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = NO_IDS, highlight, isUrgent = false }) {
+// `pixel`: the pixel board's to-do post (Bulletins mockup) — same handlers.
+function TaskBulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = NO_IDS, highlight, isUrgent = false, pixel = false }) {
   const qc = useQueryClient();
   const [toggling, setToggling] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -118,6 +119,56 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     clearTimeout(longPressTimer.current);
     longPressTimer.current = null;
   };
+
+  if (pixel) {
+    const urgent = !isCompleted && (isUrgent || !!liveTask?.is_urgent);
+    const due = liveTask?.due_date ? format(new Date(`${liveTask.due_date}T12:00:00`), "EEE d MMM") : null;
+    const stop = (e) => e.stopPropagation();
+    return (
+      <div className={`pxb-post${highlight ? " pxb-hl" : ""}`}
+        data-own-hold
+        onMouseDown={onPressStart} onMouseMove={onPressMove} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
+        onTouchStart={onPressStart} onTouchMove={onPressMove} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
+        style={{ touchAction: "pan-y" }}>
+        <div className="pxb-post-head">
+          <AuthorsRow authorIds={authorIds} alters={alters} timestamp={format(dateObj, clockPattern("MMM d · h:mm a"))} pixel />
+          <span className="pxb-grow" />
+          {urgent && <span className="pxb-flag">urgent</span>}
+          {bulletin.is_pinned && <span className="pxb-flag">pinned</span>}
+          <span className="pxb-acts" onClick={stop}>
+            <button type="button" onClick={handlePin}>{bulletin.is_pinned ? "unpin" : "pin"}</button>
+            <button type="button" onClick={handleDelete} aria-label="Delete task post">del</button>
+            <button type="button" onClick={() => setShowActions(true)} aria-label="More actions" title="More">...</button>
+          </span>
+        </div>
+        <div className="pxb-post-text">Plan to do, from this post:</div>
+        <div className="pxb-task">
+          <button type="button" className={`pxb-tick${isCompleted ? " y" : ""}`} onClick={handleToggle} disabled={toggling}
+            aria-pressed={isCompleted} aria-label={isCompleted ? "Mark not done" : "Mark done"}>
+            {toggling ? <Loader2 className="w-3 h-3 animate-spin" /> : isCompleted ? "x" : ""}
+          </button>
+          <span className={`pxb-grow${isCompleted ? " pxb-done" : ""}`}>{parsed.title}</span>
+          {due && <span className="pxb-chip pxb-static">Due: {due}</span>}
+          {liveTask?.priority && <span className="pxb-chip pxb-static">{String(liveTask.priority)}</span>}
+        </div>
+        <div className="pxb-post-foot" onClick={stop}>
+          <button type="button" className="pxb-comments" onClick={() => setShowComments((p) => !p)} aria-expanded={showComments}>comments</button>
+          <span className="pxb-grow" />
+          <button type="button" className="pxb-textbtn" onClick={() => setShowComments(true)}>reply</button>
+        </div>
+        {showComments && (
+          <div className="pxb-thread" onClick={stop}>
+            <BulletinCommentThread comments={comments} bulletinId={bulletin.id} alters={alters} currentAlterId={currentAlterId}
+              frontingAlterIds={frontingAlterIds} onRefresh={refetchComments} maxDepth={2} isFullPage={false} />
+          </div>
+        )}
+        {showActions && (
+          <BulletinActionMenu bulletin={bulletin} alters={alters} open={showActions} onClose={() => setShowActions(false)}
+            taskId={parsed.taskId} isUrgent={urgent} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`border-2 border-dashed rounded-2xl p-3.5 transition-all ${
@@ -231,5 +282,6 @@ export default React.memo(TaskBulletinCard, (prev, next) =>
   prev.currentAlterId === next.currentAlterId &&
   prev.highlight === next.highlight &&
   prev.isUrgent === next.isUrgent &&
+  prev.pixel === next.pixel &&
   sameIds(prev.frontingAlterIds, next.frontingAlterIds)
 );

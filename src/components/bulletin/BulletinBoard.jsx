@@ -29,7 +29,15 @@ export default function BulletinBoard({
   // quick-plan rows, no planned-events strip. Used by the v2 widget, where
   // those capture actions live in the quick-actions bar instead.
   boardOnly = false,
+  // pixel: the pixel look's Bulletins page (the mockup's middle column) —
+  // a title + search bar, the composer always open, posts as panels. The
+  // page shows the mention alerts and pinned polls in its side column.
+  pixel = false,
+  boardTitle = "Bulletin Board",
+  newPostTourAnchor = null,
 }) {
+  const [composerKey, setComposerKey] = useState(0);
+  const [planOpen, setPlanOpen] = useState(false);
   const [composing, setComposing] = useState(false);
   const [composeInitial, setComposeInitial] = useState("");
   const [searchOpen, setSearchOpen] = useState(pageMode);
@@ -181,6 +189,84 @@ export default function BulletinBoard({
     setComposeInitial("");
     setComposing(true);
   };
+
+  const renderCard = (b) => (
+    <div key={b.id} id={`bulletin-${b.id}`} ref={(el) => bulletinRefs.current[b.id] = el}>
+      {b.content?.match(/^\[task:/) ?
+        <TaskBulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlight={highlightBulletinId === b.id} pixel /> :
+        <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} commentCount={commentCounts[b.id] || 0} pixel />
+      }
+    </div>
+  );
+
+  if (pixel) {
+    const canPlan = !groupId && !boardOnly;
+    return (
+      <div data-tour="bulletin-list" className="pxb-board w-full min-w-0">
+        <section className="pxb-panel pxb-head">
+          <div className="pxb-head-row">
+            <h2 className="pxb-title">{boardTitle}</h2>
+            {unreadCount > 0 && <span className="pxb-count" title="Unread mentions">{unreadCount} new</span>}
+            <span className="pxb-grow" />
+            <input
+              className="pxb-search"
+              type="search"
+              aria-label="Search bulletins"
+              placeholder="Search bulletins..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(batchSize); }}
+            />
+          </div>
+          <BulletinComposer
+            key={composerKey}
+            pixel
+            embedded
+            showHeader={false}
+            autoFocus={false}
+            alters={alters}
+            authorAlterId={currentAlterId}
+            frontingAlterIds={frontingAlterIds}
+            groupId={groupId}
+            postTourAnchor={newPostTourAnchor}
+            onClose={() => setComposerKey((k) => k + 1)}
+            extraChips={canPlan ? (
+              <button type="button" className={`pxb-chip${planOpen ? " on" : ""}`} aria-pressed={planOpen} onClick={() => setPlanOpen((v) => !v)}>Plan to do</button>
+            ) : null}
+          />
+          {canPlan && planOpen && <div className="pxb-plan"><QuickTaskComposer frontingAlterIds={frontingAlterIds} /></div>}
+        </section>
+
+        {(pinned.length > 0 || filteredRecent.length > 0) && (
+          <div className="pxb-sortrow">
+            <span>{searching ? `${filteredBulletins.length} found` : `${scopedBulletins.length} ${scopedBulletins.length === 1 ? "post" : "posts"}`}</span>
+            <span className="pxb-grow" />
+            <button type="button" className={`pxb-chip${!sortByActivity ? " on" : ""}`} aria-pressed={!sortByActivity} onClick={() => { setSortByActivity(false); setVisibleCount(batchSize); }}>Newest</button>
+            <button type="button" className={`pxb-chip${sortByActivity ? " on" : ""}`} aria-pressed={sortByActivity} onClick={() => { setSortByActivity(true); setVisibleCount(batchSize); }}>Recent activity</button>
+          </div>
+        )}
+
+        <div className="pxb-posts">
+          {pinned.map(renderCard)}
+          {sortedRecent.slice(0, visibleCount).map(renderCard)}
+        </div>
+
+        {visibleCount < sortedRecent.length &&
+          <div ref={observerTarget} className="pxb-more-row">
+            {pageMode ? <span>Loading more…</span> : (
+              <button type="button" className="pxb-chip" onClick={() => setVisibleCount((v) => v + batchSize)}>Load more</button>
+            )}
+          </div>
+        }
+
+        {filteredBulletins.length === 0 && searching &&
+          <div className="pxb-panel pxb-empty"><b>No matches found</b><span>Try a different search term</span></div>
+        }
+        {scopedBulletins.length === 0 && !searching &&
+          <div className="pxb-panel pxb-empty"><b>No bulletins yet</b><span>Write above to post the first one.</span></div>
+        }
+      </div>
+    );
+  }
 
   return (
     <div data-tour="bulletin-list" className="w-full min-w-0">
