@@ -1,8 +1,8 @@
 # The building code (new house, step 0.1)
 
-Every room, kit block and board in the new house is built to this page. Where it disagrees with a mockup board, this page wins. To change a rule, change this page first, and get the Critic's and Lantern's review.
+Every room, kit block and board is built to this page. Where a mockup disagrees, this page wins. Change a rule here first, with the Critic's and Lantern's review.
 
-Sizes are given in `rem`, with the pixel value at 100% text size in brackets. The person's Text size setting scales the root font size (`src/index.css`, `html.a11y-text-*`, 50% to 200%). Anything set in rem therefore follows it. Nothing in the kit sets `font-size` in px.
+Sizes are given in `rem`, with the pixel value at 100% text size in brackets. Text size scales the root font size (`html.a11y-text-*`, 50% to 200%), so rem follows it.
 
 ---
 
@@ -42,10 +42,7 @@ They look different because they do different jobs. A person must be able to tel
 | Choice | One | One (`role="tablist"`, `?tab=` deep links) | Several, or "All" (`aria-pressed`) |
 | Phone | None. Use the "Open" list in ⋯ and "Last time…" on Home | One row, scrolls sideways | One row, scrolls sideways |
 
-**Not tabs:**
-
-- **Segmented control.** Two to four exclusive options that change the *view* or the scale (Day / Week / Month, Grid / List, Wheel / List). Drawn as joined buttons with the chosen one filled. Radio semantics.
-- **Kind labels** in a row (Check-in, Status, Location on board 42) are plain small text with no border. Nothing that can't be pressed may look pressable.
+**Not tabs:** a **segmented control** (2–4 exclusive options that change the view or scale: Day / Week / Month, Grid / List) is joined buttons with the chosen one filled. **Kind labels** in rows (board 42's Check-in, Status) are plain text with no border: nothing unpressable may look pressable.
 
 ---
 
@@ -189,13 +186,6 @@ Borders and bevels are their own tokens (step 1.1), never spacing.
 
 ---
 
-## 9. What the guard enforces
+## 9. The guard
 
-From step 1.1, `npm run check:ui` fails the build on any of these:
-
-- a px `font-size`
-- a button, chip, tick or tab class outside the kit
-- a native `type="date|time|datetime-local|color"` input or a `<select>` outside the kit (31 date/time inputs today)
-- an `"x"` used as a tick
-- the words "Update", "Apply" or "Submit" on a button
-- a new `!important`
+From step 1.1, `npm run check:ui` fails on: px `font-size`; a button, chip, tick or tab class outside the kit; a native date, time, colour or `<select>` control outside the kit (31 date/time inputs today); an `"x"` used as a tick; "Update", "Apply" or "Submit" on a button; a new `!important`.
