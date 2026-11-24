@@ -39,6 +39,8 @@ import { settledInForSurvey } from "@/lib/setupModel";
 export { ONBOARDING_DONE_KEY };
 import { systemHasPersonalData } from "@/lib/setupGate";
 import { useTerms } from "@/lib/useTerms";
+// Pixel look for the home board (every rule scoped to the pixel look).
+import "@/styles/pixel/home.css";
 import { runQuickAction } from "@/lib/quickActionRunner";
 import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
 
@@ -683,7 +685,7 @@ export default function Dashboard() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0" data-px-home="">
 
       {/* The system heading (name + date/time) is a WIDGET on the canvas
           now (system_header — seeded first, configurable like any other

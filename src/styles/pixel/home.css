@@ -1,0 +1,151 @@
+/* ── Pixel look: the home screen (route "/") ──
+   Mockups: "Pixel app preview" boards 01-Main (desktop) and 08-Phone.
+   Every rule is scoped to html[data-ui-look="pixel"] and to the home
+   screen's root ([data-px-home], set in Dashboard.jsx), so the Smooth look
+   and every other board are untouched.
+
+   The widget contract still rules: the box keeps reading the person's own
+   look variables (border, fill, padding, corners, text). Nothing here sets
+   a look variable on a widget; defaults only fill what they left unset, and
+   inner rows keep their borders when the widget has its own border width
+   ([data-own-bw]). */
+
+/* The board floor: the mockups' faint 16px checkerboard, laid over the
+   theme's own background. A wallpaper or page background (a fixed layer
+   at -z-10 inside this same stacking context) paints over it. */
+html[data-ui-look="pixel"] [data-px-home] [data-tour="experimental-home"] {
+  background-image: repeating-conic-gradient(
+    color-mix(in srgb, var(--px-text, #e9e7f5) 3.5%, transparent) 0 25%,
+    transparent 0 50%);
+  background-size: 16px 16px;
+  min-height: 100%;
+}
+
+/* Widget panels (the mockups' .pn): bevel already comes from
+   pixel-look.css; add the 2px dark frame round the outside. Drawn as an
+   outline so it never changes the box's own border or size. A widget whose
+   person set "no border" style keeps no frame. */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-box] {
+  outline: 2px solid var(--px-line);
+  outline-offset: 0;
+}
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content][style*="--v2-border-style: none"] [data-widget-box],
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content][data-widget-box][style*="--v2-border-style: none"] {
+  outline: none;
+}
+
+/* Classic cards (their box is the widget wrapper itself) are a filled
+   panel with 8px of room inside, like the mockup's windows. The person's
+   own fill / padding (--v2-own-bg, --v2-own-pad, per-side pads) still win:
+   they are the first thing each value reads. */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content][data-widget-box] {
+  --px-home-pad: 8px;
+  background-color: var(--v2-own-bg, var(--px-panel)) !important;
+  padding:
+    var(--v2-pad-t, var(--v2-own-pad, var(--px-home-pad)))
+    var(--v2-pad-r, var(--v2-own-pad, var(--px-home-pad)))
+    var(--v2-pad-b, var(--v2-own-pad, var(--px-home-pad)))
+    var(--v2-pad-l, var(--v2-own-pad, var(--px-home-pad))) !important;
+}
+
+/* Their title bars run edge to edge across the panel top, like a window's
+   name bar (pixel font, ~24px tall). */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content][data-widget-box] [data-widget-body] > div:first-child > .os-head-row:first-child {
+  margin:
+    calc(-1 * var(--v2-pad-t, var(--v2-own-pad, var(--px-home-pad))))
+    calc(-1 * var(--v2-pad-r, var(--v2-own-pad, var(--px-home-pad))))
+    8px
+    calc(-1 * var(--v2-pad-l, var(--v2-own-pad, var(--px-home-pad)))) !important;
+  min-height: 24px;
+  padding: 2px 8px !important;
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] [data-px-home] .os-head-label {
+  letter-spacing: 0.02em;
+}
+html[data-ui-look="pixel"] [data-px-home] .os-head-row :is(a, button):not(.os-btn) {
+  font-family: var(--px-font);
+  color: var(--v2-text-muted, var(--px-text-2));
+}
+html[data-ui-look="pixel"] [data-px-home] .os-head-row :is(a, button):not(.os-btn):hover {
+  color: var(--v2-text, var(--px-text));
+}
+
+/* The classic cards' bottom margins left an empty strip inside the panel. */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-body] > :is(.mb-3, .mb-4):only-child {
+  margin-bottom: 0;
+}
+
+/* Rows inside a panel are plain rows, not cards in a card: no frame, no
+   fill, just a bar-coloured highlight under the pointer. (A widget with
+   its own border width keeps the row borders it asked for.) */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content]:not([data-own-bw]) [data-widget-box] .bg-card.border,
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content][data-widget-box]:not([data-own-bw]) .bg-card.border {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] .bg-card.border:is(button, [role="button"], a):hover {
+  background: var(--px-bar) !important;
+}
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] .bg-card.border:is(button, [role="button"], a):focus-visible {
+  outline: 2px solid var(--v2-accent, var(--color-primary));
+  outline-offset: 0;
+}
+
+/* Times and small qualifiers read in the pixel font, like the mockup's
+   "5:00 PM  Walk, 20 min  planned" rows. */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] :is(.tabular-nums, .text-\[0\.65rem\]) {
+  font-family: var(--px-font);
+}
+
+/* Small tag chips (Daily / Weekly …): flat pixel tags, colour kept. */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] span.uppercase.border.text-\[0\.65rem\] {
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: 0 !important;
+}
+
+/* Tick boxes: the mockup's sunken square instead of a round outline. Only
+   the empty state is redrawn; a ticked one keeps its check mark. */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] button svg.lucide-circle {
+  background: var(--px-sunk);
+  box-shadow: var(--px-sunken);
+  border-radius: 0;
+}
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] button svg.lucide-circle circle {
+  stroke: transparent;
+}
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] button:hover > svg.lucide-circle {
+  outline: 2px solid var(--v2-accent, var(--color-primary));
+}
+
+/* Avatar tiles on the fronting card: square, with the dark frame (the
+   mockup's colour squares). */
+html[data-ui-look="pixel"] [data-px-home] [data-tour="fronters-widget"] .w-10.h-10 {
+  border: 0 !important;
+  outline: 2px solid var(--px-line);
+}
+
+/* Filled call-to-action buttons inside widgets (Quick Check-In and the
+   like) become raised pixel buttons. Their colour stays theirs. */
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] button:is([data-tour="quick-checkin"]) {
+  font-family: var(--px-font);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 rgb(255 255 255 / 0.18), inset -2px -2px 0 rgb(0 0 0 / 0.32);
+}
+html[data-ui-look="pixel"] [data-px-home] [data-widget-content] button:is([data-tour="quick-checkin"]):active {
+  box-shadow: inset 2px 2px 0 rgb(0 0 0 / 0.32), inset -2px -2px 0 rgb(255 255 255 / 0.18);
+}
+
+/* Phone: the mockup's taller title bars (26px, 14px type) and roomier
+   panels. */
+@media (max-width: 767px) {
+  html[data-ui-look="pixel"] [data-px-home] [data-widget-content][data-widget-box] [data-widget-body] > div:first-child > .os-head-row:first-child {
+    min-height: 28px;
+    padding: 3px 10px !important;
+  }
+  html[data-ui-look="pixel"] [data-px-home] :is(.os-head-label, .os-widget-head [data-widget-label]) {
+    font-size: 0.875em;
+  }
+}
