@@ -182,10 +182,10 @@ function OptionsSheet({ open, onClose }) {
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} hideHandle
+      <DrawerContent direction={dock} hideHandle className="os-insp"
         style={{ maxHeight: `${peekResize.peekH}vh`, height: `${peekResize.peekH}vh` }} {...sheetPortalGuards}>
         <PeekHandle resize={peekResize} dock={dock} />
-        <DrawerHeader className="pb-1">
+        <DrawerHeader className="os-insp-head pb-1">
           <div className="flex items-start justify-between gap-2">
             <span className="flex items-center gap-2 min-w-0">
               <button type="button" onClick={onClose} aria-label="Close"
@@ -207,7 +207,7 @@ function OptionsSheet({ open, onClose }) {
             </span>
           </div>
         </DrawerHeader>
-        <div className="px-4 overflow-y-auto overscroll-contain space-y-2 flex-1 min-h-0"
+        <div className="os-insp-body px-4 overflow-y-auto overscroll-contain space-y-2 flex-1 min-h-0"
           style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
           {/* The unified UI edit popup (docs/v2-edit-menu-spec.md) — the
               user's wireframed structure. Bars/layout controls stay in

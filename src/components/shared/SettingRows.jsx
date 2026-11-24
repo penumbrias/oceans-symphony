@@ -26,6 +26,9 @@ import { ChevronRight, Minus, Plus, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { useInspectorStacked } from "@/lib/motionPrefs";
+// Pixel look only: every rule in it is scoped to html[data-ui-look="pixel"]
+// and hooks onto the os-row / os-seg / os-range class names below.
+import "@/styles/pixel/settings.css";
 
 const isSet = (v) => v !== undefined && v !== null && v !== "";
 
@@ -33,16 +36,16 @@ const isSet = (v) => v !== undefined && v !== null && v !== "";
 // `onClear` shows the × only when `own` is true.
 export function Row({ label, hint, children, own = false, onClear, align = "center", className = "" }) {
   return (
-    <div className={`flex gap-2 min-h-[44px] py-1.5 border-b border-border/30 last:border-b-0 ${align === "start" ? "items-start" : "items-center"} ${className}`}>
-      <div className="flex-1 min-w-0 py-1">
+    <div className={`os-row flex gap-2 min-h-[44px] py-1.5 border-b border-border/30 last:border-b-0 ${align === "start" ? "items-start" : "items-center"} ${className}`}>
+      <div className="os-row-label flex-1 min-w-0 py-1">
         <span className="text-sm block leading-tight">{label}</span>
         {hint && <span className="text-[0.6875rem] text-muted-foreground block leading-tight mt-0.5">{hint}</span>}
       </div>
-      <div className="flex items-center gap-1.5 flex-shrink-0 max-w-[70%]">
+      <div className="os-row-ctl flex items-center gap-1.5 flex-shrink-0 max-w-[70%]">
         {children}
         {onClear && own && (
           <button type="button" onClick={onClear} aria-label={`Clear ${label}`} title="Back to inherited"
-            className="w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
+            className="os-row-clear w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
             <X className="w-3 h-3" />
           </button>
         )}
@@ -57,14 +60,14 @@ export function Row({ label, hint, children, own = false, onClear, align = "cent
 export function LinkRow({ label, hint, icon: Icon, value, onClick, tour, className = "" }) {
   return (
     <button type="button" onClick={onClick} data-tour={tour}
-      className={`flex items-center gap-3 w-full text-left min-h-[44px] py-1.5 border-b border-border/30 last:border-b-0 hover:bg-muted/30 active:bg-muted/50 -mx-1 px-1 rounded-md transition-colors ${className}`}>
+      className={`os-link-row flex items-center gap-3 w-full text-left min-h-[44px] py-1.5 border-b border-border/30 last:border-b-0 hover:bg-muted/30 active:bg-muted/50 -mx-1 px-1 rounded-md transition-colors ${className}`}>
       {Icon && <Icon className="w-[1.125rem] h-[1.125rem] text-muted-foreground flex-shrink-0" />}
-      <span className="flex-1 min-w-0 py-1">
+      <span className="os-row-label flex-1 min-w-0 py-1">
         <span className="text-sm block leading-tight">{label}</span>
         {hint && <span className="text-[0.6875rem] text-muted-foreground block leading-tight mt-0.5">{hint}</span>}
       </span>
-      {value && <span className="text-xs text-muted-foreground flex-shrink-0 truncate max-w-[40%]">{value}</span>}
-      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      {value && <span className="os-link-value text-xs text-muted-foreground flex-shrink-0 truncate max-w-[40%]">{value}</span>}
+      <ChevronRight className="os-link-chev w-4 h-4 text-muted-foreground flex-shrink-0" />
     </button>
   );
 }
@@ -72,20 +75,20 @@ export function LinkRow({ label, hint, icon: Icon, value, onClick, tour, classNa
 // A control that is too wide for the right-hand slot sits under its name.
 export function StackedRow({ label, hint, children, own = false, onClear }) {
   return (
-    <div className="py-1.5 border-b border-border/30 last:border-b-0">
-      <div className="flex items-center gap-2 min-h-[32px]">
-        <div className="flex-1 min-w-0">
+    <div className="os-row os-row-stacked py-1.5 border-b border-border/30 last:border-b-0">
+      <div className="os-row-top flex items-center gap-2 min-h-[32px]">
+        <div className="os-row-label flex-1 min-w-0">
           <span className="text-sm block leading-tight">{label}</span>
           {hint && <span className="text-[0.6875rem] text-muted-foreground block leading-tight mt-0.5">{hint}</span>}
         </div>
         {onClear && own && (
           <button type="button" onClick={onClear} aria-label={`Clear ${label}`} title="Back to inherited"
-            className="w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
+            className="os-row-clear w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
             <X className="w-3 h-3" />
           </button>
         )}
       </div>
-      <div className="pt-1.5">{children}</div>
+      <div className="os-row-ctl pt-1.5">{children}</div>
     </div>
   );
 }
@@ -94,7 +97,7 @@ export function StackedRow({ label, hint, children, own = false, onClear }) {
 // a bare caption, so a tab scans one group at a time.
 export function Group({ title, children, first = false }) {
   return (
-    <div className={first ? "" : "pt-4"}>
+    <div className={`os-group ${first ? "" : "pt-4"}`}>
       <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pb-1">{title}</h2>
       <div>{children}</div>
     </div>
@@ -115,13 +118,13 @@ export function SwitchRow({ label, hint, checked, onChange }) {
 // the bold (wider) active one to "24-h…".
 export function Segmented({ label, options, value, onChange, className = "", equal = true }) {
   return (
-    <div role="radiogroup" aria-label={label} className={`flex rounded-full border border-border/60 p-0.5 gap-0.5 ${className}`}>
+    <div role="radiogroup" aria-label={label} className={`os-seg flex rounded-full border border-border/60 p-0.5 gap-0.5 ${className}`}>
       {options.map((o) => {
         const on = String(value) === String(o.value);
         return (
           <button key={String(o.value)} type="button" role="radio" aria-checked={on}
             onClick={() => onChange(o.value)}
-            className={`${equal ? "flex-1 min-w-0 truncate" : "whitespace-nowrap"} text-xs py-1.5 px-2.5 rounded-full ${
+            className={`os-seg-opt ${equal ? "flex-1 min-w-0 truncate" : "whitespace-nowrap"} text-xs py-1.5 px-2.5 rounded-full ${
               on ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
             }`}>
             {o.label}
@@ -149,11 +152,11 @@ export function Chips({ label, options, value, onChange, multiple = false, style
     onChange(isOn(o) ? arr.filter((x) => String(x) !== String(o.value)) : [...arr, o.value]);
   };
   return (
-    <div role={multiple ? "group" : "radiogroup"} aria-label={label} className="flex flex-wrap gap-1.5">
+    <div role={multiple ? "group" : "radiogroup"} aria-label={label} className="os-choices flex flex-wrap gap-1.5">
       {options.map((o) => (
         <button key={String(o.value)} type="button" aria-pressed={isOn(o)} onClick={() => pick(o)}
           style={style ? style(o) : undefined}
-          className={`text-xs px-3 py-1.5 rounded-full border ${
+          className={`os-choice text-xs px-3 py-1.5 rounded-full border ${
             isOn(o) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
           }`}>
           {o.label}
@@ -197,7 +200,7 @@ function ValueField({ label, value, inherited, min, max, unit, onCommit, width =
     if (c !== value || inherited) onCommit(c);
   };
   return (
-    <span className={`relative inline-flex items-center h-8 rounded-lg border bg-background ${width} ${
+    <span className={`os-valuebox relative inline-flex items-center h-8 rounded-lg border bg-background ${width} ${
       inherited ? "border-dashed border-border/70 text-muted-foreground" : "border-input"
     }`}>
       <input type="text" inputMode="decimal" value={text} aria-label={`${label} value`}
@@ -220,14 +223,14 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
   // name shows where the number box would, and there is nothing to type.
   const stepLabel = Array.isArray(labels) ? labels[Math.round(shown)] : null;
   return (
-    <div className="py-1.5 border-b border-border/30 last:border-b-0">
-      <div className="flex items-center gap-2 min-h-[32px]">
-        <div className="flex-1 min-w-0">
+    <div className={`os-row os-slider-row py-1.5 border-b border-border/30 last:border-b-0${inherited ? " os-inherited" : ""}`}>
+      <div className="os-slider-top flex items-center gap-2 min-h-[32px]">
+        <div className="os-row-label flex-1 min-w-0">
           <span className="text-sm block leading-tight">{label}</span>
           {hint && <span className="text-[0.6875rem] text-muted-foreground block leading-tight mt-0.5">{hint}</span>}
         </div>
         {stepLabel != null ? (
-          <span className={`inline-flex items-center justify-center h-8 px-2 rounded-lg border bg-background text-xs min-w-[4.25rem] ${
+          <span className={`os-valuebox inline-flex items-center justify-center h-8 px-2 rounded-lg border bg-background text-xs min-w-[4.25rem] ${
             inherited ? "border-dashed border-border/70 text-muted-foreground" : "border-input"
           }`}>{stepLabel}</span>
         ) : (
@@ -236,7 +239,7 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
         )}
         {onClear && (
           <button type="button" onClick={onClear} disabled={inherited} aria-label={`Clear ${label}`} title="Back to inherited"
-            className={`w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 ${inherited ? "invisible" : ""}`}>
+            className={`os-row-clear w-6 h-6 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 ${inherited ? "invisible" : ""}`}>
             <X className="w-3 h-3" />
           </button>
         )}
@@ -247,11 +250,12 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
           tagged data-edge-safe, so a drag that starts on its end can't be
           taken for the phone's back gesture (gestureExclusion.js keeps
           Android's edge zones off it). */}
-      <div className="px-3">
+      <div className="os-slider-track px-3">
         <input type="range" min={min} max={max} step={step} value={shown} aria-label={label} data-edge-safe=""
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          style={{ touchAction: "pan-y" }}
-          className={`w-full h-7 mt-0.5 accent-primary ${inherited ? "opacity-50" : ""}`} />
+          // --os-fill only feeds the pixel look's filled track (settings.css).
+          style={{ touchAction: "pan-y", "--os-fill": `${max > min ? Math.min(100, Math.max(0, ((shown - min) / (max - min)) * 100)) : 0}%` }}
+          className={`os-range w-full h-7 mt-0.5 accent-primary ${inherited ? "opacity-50" : ""}`} />
       </div>
     </div>
   );
@@ -261,9 +265,9 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
 // tab". One component, every inspector.
 export function ResetRow({ onReset, label = "Reset this tab" }) {
   return (
-    <div className="pt-4 pb-2">
+    <div className="os-reset-wrap pt-4 pb-2">
       <button type="button" onClick={onReset}
-        className="w-full h-9 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground">
+        className="os-reset w-full h-9 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground">
         {label}
       </button>
     </div>
@@ -278,12 +282,12 @@ export function StepRow({ label, hint, value, min = 0, max = 99, step = 1, onCha
     <Row label={label} hint={hint}>
       <span className="flex items-center gap-1" role="group" aria-label={label}>
         <button type="button" aria-label={`${label} less`} disabled={n <= min} onClick={() => onChange(clamp(n - step))}
-          className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
+          className="os-step-btn w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
           <Minus className="w-3.5 h-3.5" />
         </button>
         <ValueField label={label} value={n} inherited={false} min={min} max={max} onCommit={onChange} width="w-12" />
         <button type="button" aria-label={`${label} more`} disabled={n >= max} onClick={() => onChange(clamp(n + step))}
-          className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
+          className="os-step-btn w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40">
           <Plus className="w-3.5 h-3.5" />
         </button>
       </span>
@@ -321,9 +325,9 @@ export function TabBar({ tabs, value, onChange }) {
             className={`os-tab relative flex-1 min-w-0 flex flex-col items-center gap-0.5 pt-2 pb-1.5 text-xs border-b-2 ${
               on ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>
-            {Icon && <Icon className="w-4 h-4" />}
-            <span className="truncate max-w-full px-0.5">{t.label}</span>
-            {t.dot && !on && <span aria-hidden className="absolute top-1.5 right-[18%] w-1.5 h-1.5 rounded-full bg-primary" />}
+            {Icon && <Icon className="os-tab-icon w-4 h-4" />}
+            <span className="os-tab-text truncate max-w-full px-0.5">{t.label}</span>
+            {t.dot && !on && <span aria-hidden className="os-tab-dot absolute top-1.5 right-[18%] w-1.5 h-1.5 rounded-full bg-primary" />}
           </button>
         );
       })}
@@ -349,7 +353,7 @@ export function inspectorPages(tabs, value, stacked) {
     if (!t) return null;
     const Icon = t.icon;
     return (
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground pt-5 pb-1.5 mb-1 border-b border-border/60 first:pt-2">
+      <h3 className="os-stack-head flex items-center gap-2 text-sm font-semibold text-foreground pt-5 pb-1.5 mb-1 border-b border-border/60 first:pt-2">
         {Icon && <Icon className="w-4 h-4 text-primary" aria-hidden />}
         {t.label}
       </h3>
