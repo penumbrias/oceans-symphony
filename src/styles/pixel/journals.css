@@ -1,0 +1,146 @@
+/* Journals in the pixel look — the "Desktop: journal editor" board.
+   Markup: src/components/journal/JournalPixel.jsx (only rendered in the
+   pixel look). Every rule is scoped to html[data-ui-look="pixel"]. */
+
+html[data-ui-look="pixel"] .pj-desk { display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .pj-grid {
+  display: grid; grid-template-columns: 260px minmax(0, 1fr) 270px; gap: 4px;
+  height: calc(100dvh - var(--pj-top, 168px)); min-height: 520px;
+}
+html[data-ui-look="pixel"][data-px-help="1"] .pj-grid,
+html[data-ui-look="pixel"][data-px-info="1"] .pj-grid { grid-template-columns: 220px minmax(0, 1fr) 220px; }
+
+/* Panels: bevelled box, dark outline, a title bar. */
+html[data-ui-look="pixel"] .pj-panel {
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .pj-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 24px; padding: 0 8px; flex: none;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .pj-ttl > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pj-ttl-act { color: var(--px-text-2); font-family: var(--px-font); font-size: 13px; white-space: nowrap; min-height: 24px; }
+html[data-ui-look="pixel"] .pj-ttl-act:hover { color: var(--px-text); }
+
+/* Left: folders, a dark rule, then the entries. */
+html[data-ui-look="pixel"] .pj-side { display: flex; flex-direction: column; min-height: 0; }
+html[data-ui-look="pixel"] .pj-desk .pj-folders { max-height: 42%; overflow-y: auto; overscroll-behavior: contain; flex: none; }
+html[data-ui-look="pixel"] .pj-folders { padding: 6px; display: flex; flex-direction: column; font-family: var(--px-font); font-size: 13px; }
+html[data-ui-look="pixel"] .pj-row {
+  display: flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 4px 0 4px;
+  text-align: left; color: var(--px-text); width: 100%;
+}
+html[data-ui-look="pixel"] .pj-row:hover { background: color-mix(in srgb, var(--color-muted, #454b6c) 55%, transparent); }
+html[data-ui-look="pixel"] .pj-row.sel { background: var(--color-muted, #454b6c); }
+html[data-ui-look="pixel"] .pj-arrow { width: 14px; flex: none; display: inline-flex; align-items: center; justify-content: center; color: var(--px-text-2); min-height: 22px; }
+html[data-ui-look="pixel"] .pj-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; min-height: 26px; text-align: left; color: inherit; }
+html[data-ui-look="pixel"] .pj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pj-count { font-size: 11px; color: var(--px-text-2); padding-right: 2px; }
+html[data-ui-look="pixel"] .pj-more { width: 22px; min-height: 22px; display: inline-flex; align-items: center; justify-content: center; color: var(--px-text-2); opacity: 0; }
+html[data-ui-look="pixel"] .pj-folder:hover .pj-more,
+html[data-ui-look="pixel"] .pj-folder.sel .pj-more,
+html[data-ui-look="pixel"] .pj-more:focus-visible { opacity: 1; }
+@media (hover: none) { html[data-ui-look="pixel"] .pj-more { opacity: .8; } }
+html[data-ui-look="pixel"] .pj-addfolder { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pj-empty { padding: 6px 8px; font-size: 12.5px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pj-split { height: 2px; background: var(--px-line); flex: none; }
+
+html[data-ui-look="pixel"] .pj-entries { padding: 6px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; flex: 1; }
+html[data-ui-look="pixel"] .pj-entry { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; text-align: left; color: var(--px-text); width: 100%; }
+html[data-ui-look="pixel"] .pj-entry:hover { background: color-mix(in srgb, var(--px-bar) 70%, transparent); }
+html[data-ui-look="pixel"] .pj-entry.sel { background: var(--px-bar); outline: 2px solid var(--color-primary); outline-offset: -2px; }
+html[data-ui-look="pixel"] .pj-entry-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+html[data-ui-look="pixel"] .pj-entry-title { font-size: 14px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pj-entry-date { font-family: var(--px-font); font-size: 11px; color: var(--px-text-2); flex: none; }
+html[data-ui-look="pixel"] .pj-entry-by { font-size: 12px; color: var(--px-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Middle: the toolbar of square buttons, then the page on a chequered floor. */
+html[data-ui-look="pixel"] .pj-center { display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
+html[data-ui-look="pixel"] .pj-toolbar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; flex-wrap: wrap; flex: none; }
+html[data-ui-look="pixel"] :is(.pj-tb, .pj-btn, .pj-tagbtn) {
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); border-radius: 0;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pj-tb { width: 32px; height: 30px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+html[data-ui-look="pixel"] :is(.pj-tb, .pj-btn, .pj-tagbtn):active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] :is(.pj-tb, .pj-btn, .pj-tagbtn).on {
+  background: var(--color-primary); color: var(--color-bg);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 60%, #000);
+}
+html[data-ui-look="pixel"] .pj-tb:disabled { opacity: .45; }
+html[data-ui-look="pixel"] .pj-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; min-height: 30px; }
+html[data-ui-look="pixel"] .pj-btn.danger { color: var(--color-destructive, #f87171); }
+html[data-ui-look="pixel"] .pj-tagbtn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; min-height: 30px; max-width: 160px; overflow: hidden; white-space: nowrap; }
+html[data-ui-look="pixel"] .pj-search {
+  display: flex; align-items: center; gap: 6px; flex: 1 1 100px; min-width: 90px; height: 30px; padding: 0 8px;
+  background: var(--px-sunk); color: var(--px-text-2);
+  box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi);
+}
+html[data-ui-look="pixel"] .pj-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--px-text); font-size: 13px; }
+html[data-ui-look="pixel"] .pj-search input::placeholder { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pj-spacer { flex: 1 0 0; }
+html[data-ui-look="pixel"] .pj-toolbar :is(button.inline-flex, [class*="h-9"]) { min-height: 30px; height: 30px; }
+
+html[data-ui-look="pixel"] .pj-canvas {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px;
+  display: flex; justify-content: center; align-items: flex-start;
+  background-color: var(--px-sunk);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--px-sunk) 88%, var(--px-text) 12%) 0 25%, var(--px-sunk) 0 50%);
+  background-size: 16px 16px;
+  outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pj-page {
+  width: 640px; max-width: 100%; min-height: 100%; padding: 28px 36px;
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .pj-page-title { font-family: var(--px-font); font-size: 24px; line-height: 1.2; margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+html[data-ui-look="pixel"] .pj-page-meta { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); margin: 0; white-space: pre-wrap; }
+html[data-ui-look="pixel"] .pj-page-body { font-size: 16px; line-height: 1.6; color: var(--px-text); }
+html[data-ui-look="pixel"] .pj-page-body p { margin: 0 0 14px; }
+html[data-ui-look="pixel"] .pj-page-body img { outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .pj-page-body .mention-link { background: var(--px-bar); outline: 1px solid var(--px-hi); padding: 0 4px; }
+
+/* Right: Info and What this entry did. */
+html[data-ui-look="pixel"] .pj-right { display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; }
+html[data-ui-look="pixel"] .pj-grow { flex: 1; }
+html[data-ui-look="pixel"] .pj-info { padding: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+html[data-ui-look="pixel"] .pj-fact { display: flex; justify-content: space-between; gap: 10px; }
+html[data-ui-look="pixel"] .pj-k { color: var(--px-text-2); flex: none; }
+html[data-ui-look="pixel"] .pj-v { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+html[data-ui-look="pixel"] .pj-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+html[data-ui-look="pixel"] .pj-note { font-size: 12px; color: var(--px-text-2); margin: 0; }
+html[data-ui-look="pixel"] .pj-effect { display: flex; gap: 8px; align-items: flex-start; }
+html[data-ui-look="pixel"] .pj-dot { width: 10px; height: 10px; margin-top: 5px; flex: none; outline: 2px solid var(--px-line); }
+
+html[data-ui-look="pixel"] .pj-emptybox { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; text-align: center; }
+html[data-ui-look="pixel"] .pj-empty-title { font-family: var(--px-font); font-size: 15px; margin: 0; }
+html[data-ui-look="pixel"] .pj-canvas > .pj-emptybox { background: var(--px-panel); outline: 2px solid var(--px-line); width: 420px; max-width: 100%; }
+
+/* Small menus (folder actions, tags). */
+html[data-ui-look="pixel"] .pj-menu {
+  background: var(--px-panel); outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo), 4px 4px 0 rgb(0 0 0 / .35);
+  padding: 4px; max-height: 50vh; overflow-y: auto;
+}
+html[data-ui-look="pixel"] .pj-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 8px; text-align: left; font-family: var(--px-font); font-size: 13px; color: var(--px-text); }
+html[data-ui-look="pixel"] .pj-menu-item:hover { background: var(--px-bar); }
+html[data-ui-look="pixel"] .pj-menu-item.danger { color: var(--color-destructive, #f87171); }
+
+/* Phone: the same pieces stacked. */
+html[data-ui-look="pixel"] .pj-phone { display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .pj-phone .pj-toolbar { gap: 8px; }
+html[data-ui-look="pixel"] .pj-phone .pj-search { flex-basis: 100%; order: 10; }
+html[data-ui-look="pixel"] .pj-phone .pj-row { min-height: 34px; }
+html[data-ui-look="pixel"] .pj-phone .pj-pick { min-height: 34px; }
+html[data-ui-look="pixel"] .pj-phone .pj-entry { padding: 8px; }
+html[data-ui-look="pixel"] .pj-phone .pj-ttl { height: 30px; }
+html[data-ui-look="pixel"] .pj-phone .pj-ttl-act { min-height: 30px; padding: 0 4px; }
