@@ -87,14 +87,15 @@ import { libraryPageOf } from "@/lib/widgetMenuGroups";
 import { keepLayoutRestorePoint } from "@/lib/localDb";
 import { applyLayoutToAll, setDefaultLayout, resetLayout } from "@/lib/profileBoardBulk";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { BoardFieldContext } from "@/lib/boardWriter";
+import { BoardFieldContext, writeBoard } from "@/lib/boardWriter";
+import { buildPixelHomePage, withPixelHomePage } from "@/lib/pixelHomeLayout";
 import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
 import { startHoldTimer } from "@/lib/holdTimer";
 import { WidgetSuspense } from "@/lib/lazyNamed";
 import { keepScroll } from "@/lib/keepScroll";
 import { publishSubtabs } from "@/lib/pageSubtabs";
 import { announceBoard } from "@/lib/boardPresence";
-import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import { useUiLook, usePixelDesk, UI_LOOKS } from "@/lib/uiLook";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -831,6 +832,7 @@ export default function ExperimentalDashboard({
   // The pixel look draws the page dots as named page tabs (the mockup's
   // "Pages" strip).
   const pixelLook = useUiLook() === UI_LOOKS.PIXEL;
+  const pixelDesk = usePixelDesk();
   // Say this board is on screen (the pixel tool rail's "Edit page").
   useEffect(() => announceBoard(eventPrefix), [eventPrefix]);
   // Tell the header ⚙ menu whether THIS home is being edited — it only
@@ -1216,6 +1218,49 @@ export default function ExperimentalDashboard({
     });
     if (!ok) return;
     await runBulk(() => resetLayout(boardStore.ownerType, boardStore.ownerId, { qc }), "Layout reset.");
+  };
+  // Pixel look, home screen only: "Use the pixel layout" adds ONE new page
+  // arranged like the pixel mockups (the desk one on a computer, the phone
+  // one on a phone). The person's own pages, the default page and every
+  // widget stay exactly as they are; it confirms first and writes through
+  // the board writer (fresh read, stamped as the person's edit).
+  const offerPixelLayout = pixelLook && !profileBoard && eventPrefix === "os-classic";
+  const applyPixelLayout = async () => {
+    setSaveMenuOpen(false);
+    const shape = pixelDesk ? "desk" : "phone";
+    const ok = await confirm({
+      title: "Use the pixel layout?",
+      body: `This adds a new page laid out like the pixel ${shape === "desk" ? "desk" : "phone"} screen, made from widgets you can move, resize or remove. Your pages and widgets stay as they are, and you can delete the new page any time.`,
+      confirmLabel: "Add the page",
+    });
+    if (!ok) return;
+    let added = null;
+    try {
+      // Let any edit still being saved land first, so it and the new page
+      // can't overwrite each other.
+      for (let i = 0; i < 50 && boardRef.current.pending > 0; i += 1) await new Promise((r) => setTimeout(r, 100));
+      const written = await writeBoard(settingsRow, store, (cur) => {
+        if (!cur || typeof cur !== "object") return null;
+        const page = buildPixelHomePage(registry, shape, cur.pages);
+        const next = withPixelHomePage(cur, page);
+        if (next) added = page;
+        return next;
+      });
+      if (!added || !written) throw new Error("The home screen isn't ready yet. Try again in a moment.");
+      // The canvas follows at once, so its own next write (a fit pass, an
+      // edit) is built on the board WITH the new page, never the one before.
+      boardRef.current.board = resolveExperimentalHome(written, registry);
+      if (store.id) { await qc.cancelQueries({ queryKey: store.queryKey }); store.setCached(written); }
+      editSnapshot.current = null;
+      closeEditSurfaces();
+      setEditMode(false);
+      store.invalidate();
+      setSwipeDir(1);
+      setActivePageId(added.id);
+      toast.success(`Added the page "${added.label}".`);
+    } catch (e) {
+      toast.error(e?.message || "That didn't save.");
+    }
   };
   const exitDiscard = async () => {
     const snap = editSnapshot.current;
@@ -3104,6 +3149,10 @@ export default function ExperimentalDashboard({
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
                   <button type="button" onClick={() => openPackSheet("import")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
+                  {offerPixelLayout && (
+                  <button type="button" onClick={applyPixelLayout}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Use the pixel layout…</button>
+                  )}
                   {eventPrefix === "os-classic" && (
                   // Reset offers to keep the current arrangement on the
                   // widget board first (HomeScreenResetDialog).
