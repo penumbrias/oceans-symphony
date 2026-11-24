@@ -194,7 +194,10 @@ async function measure(page) {
     for (const el of root.querySelectorAll('*')) {
       if (!el.childNodes.length || ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
       const fs = parseFloat(getComputedStyle(el).fontSize);
-      if (fs < 12 * scale - 0.5) { belowFloor += 1; if (floorSamples.length < 5) floorSamples.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} ${fs}px "${el.textContent.trim().slice(0, 20)}"`); }
+      // Tab labels are frame chrome: they stop growing at 1.3x (building code §10).
+      const capped = el.closest('[role="tab"], [data-house-frame]');
+      const floor = 12 * (capped ? Math.min(scale, 1.3) : scale);
+      if (fs < floor - 0.5) { belowFloor += 1; if (floorSamples.length < 5) floorSamples.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} ${fs}px "${el.textContent.trim().slice(0, 20)}"`); }
     }
     let smallTargets = 0; const targetSamples = [];
     // A typed field inside a kit field box is measured by its box.

@@ -95,12 +95,13 @@
 /* ── Layers ──────────────────────────────────────────────────────── */
 [data-house] .hk-layers-wrap { display: flex; flex-direction: column; gap: var(--house-space-2); min-width: 0; }
 [data-house] .hk-layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-[data-house] .hk-layer { display: flex; align-items: center; gap: var(--house-space-2); min-height: var(--house-h-row); border-bottom: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-layer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-2); min-height: var(--house-h-row); border-bottom: var(--house-border-w) solid var(--house-divider); }
 [data-house] .hk-layer[data-hidden="true"] { color: var(--house-muted); }
 [data-house] .hk-layer[data-hidden="true"] .hk-layer-name > span:first-child { text-decoration: line-through; text-decoration-style: dashed; }
-[data-house] .hk-layer-name { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); overflow-wrap: anywhere; }
+[data-house] .hk-layer-name { flex: 1 1 8rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); overflow-wrap: anywhere; }
 [data-house] .hk-layer-state { font-size: var(--house-text-sm); font-style: italic; }
-[data-house] .hk-layer-moves { display: inline-flex; flex-shrink: 0; }
+/* At 200% text on a phone the move buttons drop under the name rather than run off the side. */
+[data-house] .hk-layer-moves { display: inline-flex; flex-shrink: 0; margin-left: auto; }
 [data-house] .hk-layer-lead { display: inline-flex; flex-shrink: 0; }
 
 /* ── Row ─────────────────────────────────────────────────────────── */
