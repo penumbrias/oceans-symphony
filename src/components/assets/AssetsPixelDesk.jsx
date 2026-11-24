@@ -84,7 +84,23 @@ function Detail({ item, p }) {
   const blocked = p.moveBlockedFor(item);
   const open = () => (item.kind === "image" ? setViewing(true) : p.onView(item));
   return (
-    <PxPanel as="aside" className="pg-detail" title={item.name}>
+    <PxPanel as="aside" className="pg-detail" title={item.name} actions={(
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="pg-btn sm" aria-label={`More for ${item.name}`}><MoreHorizontal className="w-4 h-4" /></button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 z-[60]">
+            <DropdownMenuItem onSelect={open} className="gap-2 cursor-pointer"><Maximize2 className="w-4 h-4" /> {item.kind === "image" ? "View full screen" : "Open"}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setInfoOpen(true)} className="gap-2 cursor-pointer"><Info className="w-4 h-4" /> All details</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => p.onSave(item)} className="gap-2 cursor-pointer"><Download className="w-4 h-4" /> Save to device</DropdownMenuItem>
+            {p.canSkipBackup(item) && (
+              <DropdownMenuItem onSelect={() => p.onToggleBackup(item)} className="gap-2 cursor-pointer">
+                {skipped ? <Cloud className="w-4 h-4" /> : <CloudOff className="w-4 h-4" />} {skipped ? "Include in backups again" : "Leave out of backups"}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+    )}>
       <button type="button" className="pg-detail-img" onClick={open} aria-label={`Open ${item.name}`}>
         {src ? <img src={src} alt="" /> : <TileFace item={item} big />}
       </button>
@@ -104,21 +120,6 @@ function Detail({ item, p }) {
         <button type="button" className="pg-btn tall danger" disabled={!!item.refOnly}
           title={item.refOnly ? "In use on a record, not stored in Assets — change it where it's used" : undefined}
           onClick={() => p.onDelete(item)}>Delete</button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className="pg-btn tall" aria-label={`More for ${item.name}`}><MoreHorizontal className="w-4 h-4" /></button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 z-[60]">
-            <DropdownMenuItem onSelect={open} className="gap-2 cursor-pointer"><Maximize2 className="w-4 h-4" /> {item.kind === "image" ? "View full screen" : "Open"}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setInfoOpen(true)} className="gap-2 cursor-pointer"><Info className="w-4 h-4" /> All details</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => p.onSave(item)} className="gap-2 cursor-pointer"><Download className="w-4 h-4" /> Save to device</DropdownMenuItem>
-            {p.canSkipBackup(item) && (
-              <DropdownMenuItem onSelect={() => p.onToggleBackup(item)} className="gap-2 cursor-pointer">
-                {skipped ? <Cloud className="w-4 h-4" /> : <CloudOff className="w-4 h-4" />} {skipped ? "Include in backups again" : "Leave out of backups"}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
       {viewing && <ImageViewer open src={src || item.url} name={item.name} isGif={item.isGif} onClose={() => setViewing(false)} />}
       {infoOpen && <AssetInfoDialog item={item} backupSkipped={skipped} onClose={() => setInfoOpen(false)} />}
@@ -313,7 +314,7 @@ export default function AssetsPixelDesk(p) {
       {p.orgOpen && !selecting && <div className="pg-org pg-sunk">{p.orgBody}</div>}
       <div className="pg-body" style={{ padding: 0 }}>{body}</div>
       <div className="pg-status">
-        <span>{storedCount} files · {formatBytes(totalBytes)} on this device</span>
+        <span>{storedCount} {storedCount === 1 ? "file" : "files"}{totalBytes ? ` · ${formatBytes(totalBytes)} on this device` : ""}</span>
         <span>Folders marked “skip” are left out of backups</span>
       </div>
     </PxPanel>
