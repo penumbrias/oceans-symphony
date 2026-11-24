@@ -179,3 +179,48 @@ html[data-ui-look="pixel"] .pxp-decide-row { display: flex; gap: 4px; margin-top
 /* The desk fits the week into the panel: the inner track sizes to its
    columns' own minimums rather than to the longest chip's text. */
 html[data-ui-look="pixel"] .pxp-body-canvas .min-w-max { min-width: min-content; }
+
+/* ── The activity editor (mockup "Plan" sheet) ───────────────────── */
+html[data-ui-look="pixel"] .pxae-sheet {
+  background: var(--px-panel) !important; border: 0 !important; border-radius: var(--px-corner, 0px) !important;
+  outline: 2px solid var(--px-line); outline-offset: -2px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo) !important;
+  font-size: 14px; padding-top: 0;
+}
+html[data-ui-look="pixel"] .pxae-head {
+  position: sticky; top: 0; z-index: 3; align-items: center !important;
+  margin: 0 -12px; padding: 6px 6px 6px 10px; min-height: 44px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line), inset 2px 2px 0 var(--px-hi);
+}
+html[data-ui-look="pixel"] .pxae-head input { font-family: var(--px-font); font-size: 15px; font-weight: 600; color: var(--px-text); }
+html[data-ui-look="pixel"] .pxae-head-acts { display: flex; gap: 6px; flex: none; }
+html[data-ui-look="pixel"] .pxae-head-acts .pxp-btn { min-height: 30px; }
+/* Chips: square, raised; picked = the accent. */
+html[data-ui-look="pixel"] .pxae-sheet button.rounded-full {
+  border-radius: var(--px-corner, 0px) !important; border: 0 !important;
+  background: var(--px-bar); color: var(--px-text) !important;
+  outline: 2px solid var(--px-line); outline-offset: -2px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  font-family: var(--px-font); padding: 4px 9px;
+}
+html[data-ui-look="pixel"] .pxae-sheet button.rounded-full[aria-checked="true"],
+html[data-ui-look="pixel"] .pxae-sheet button.rounded-full[aria-pressed="true"],
+html[data-ui-look="pixel"] .pxae-sheet button.rounded-full.border-\[var\(--v2-accent\)\] {
+  background: var(--pxp-on) !important; color: var(--color-bg, #1a1c2b) !important;
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--pxp-on) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--pxp-on) 62%, #000);
+}
+/* The one question (Already happened / Still going / Coming up): three chips. */
+html[data-ui-look="pixel"] .pxae-sheet [role="radiogroup"].rounded-full { border: 0 !important; padding: 0 !important; gap: 6px !important; border-radius: 0 !important; }
+html[data-ui-look="pixel"] .pxae-sheet [role="radiogroup"].rounded-full > button { flex: 0 1 auto; }
+html[data-ui-look="pixel"] .pxae-sheet p.uppercase { font-family: var(--px-font); text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--px-text-2); font-weight: 400; }
+html[data-ui-look="pixel"] .pxae-sheet input:not([type="range"]):not([type="checkbox"]),
+html[data-ui-look="pixel"] .pxae-sheet textarea,
+html[data-ui-look="pixel"] .pxae-sheet select {
+  border-radius: var(--px-corner, 0px) !important;
+}
+html[data-ui-look="pixel"] .pxae-head input { background: transparent !important; box-shadow: none !important; }
+html[data-ui-look="pixel"] .pxae-delete {
+  font-family: var(--px-font); border-radius: var(--px-corner, 0px) !important;
+  background: var(--px-bar) !important; outline: 2px solid var(--px-line); outline-offset: -2px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}

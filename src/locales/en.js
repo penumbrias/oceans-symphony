@@ -528,6 +528,7 @@ export default {
   "planner.new": "New",
   // Pixel-look planner (mockup desk + toolbar).
   "planner.pxAllDay": "all day",
+  "planner.pxCancel": "Cancel",
   "planner.pxPlansList": "Plans list",
   "planner.pxCalendarView": "Calendar view",
   "planner.pxLog": "Log",
