@@ -33,7 +33,10 @@ import FrontingTab from "@/components/analytics/FrontingTab";
 import WellbeingTab from "@/components/analytics/WellbeingTab";
 import LifeTab from "@/components/analytics/LifeTab";
 import AltersTab from "@/components/analytics/AltersTab";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import PixelAnalyticsBoard, { PixelAnalyticsToolbar, rangeText } from "@/components/analytics/PixelAnalyticsBoard";
+import "@/styles/pixel/analytics.css";
 import {
   normalizeSessions,
   sessionsInRange,
@@ -101,6 +104,8 @@ function computeStats(sessions, alters, from, to) {
 
 export default function Analytics() {
   const terms = useTerms();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  const navigate = useNavigate();
 
   // ── New IA: four tabs replace the old 14-tile landing grid.
   //    Overview is the rebuilt engine-driven view; the other tabs
@@ -135,6 +140,18 @@ export default function Analytics() {
     setPreset(id);
     const p = PRESETS.find(x => x.id === id);
     if (p?.from) { setFrom(p.from()); setTo(new Date()); }
+  };
+
+  // Pixel toolbar's < > : move the same-length window back or forward,
+  // never past today.
+  const stepRange = (dir) => {
+    const span = to.getTime() - from.getTime();
+    if (span <= 0) return;
+    let nextTo = to.getTime() + dir * span;
+    const now = Date.now();
+    if (nextTo > now) nextTo = now;
+    setFrom(new Date(nextTo - span));
+    setTo(new Date(nextTo));
   };
 
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
@@ -279,6 +296,194 @@ export default function Analytics() {
     { id: "alters", label: terms.Alters },
   ];
 
+  const tabContent = (
+    <>
+        {/* ── OVERVIEW ── */}
+        {activeTab === "overview" && (
+          <OverviewTab
+            sessions={sessions}
+            alters={alters}
+            altersById={altersById}
+            emotionCheckIns={emotionCheckIns}
+            symptomCheckIns={symptomCheckIns}
+            activities={activities}
+            sleepRecords={sleepRecords}
+            journals={journals}
+            diaryCards={cards}
+            bulletins={bulletins}
+            systemCheckIns={systemCheckIns}
+            tasks={tasks}
+            statusNotes={statusNotes}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
+        {/* ── FRONTING (rebuilt, Phase 2) ── */}
+        {activeTab === "fronting" && (
+          <FrontingTab
+            sessions={sessions}
+            alters={alters}
+            altersById={altersById}
+            from={from}
+            to={to}
+            stale={stale}
+            onReviewStale={() => setStaleModalOpen(true)}
+            timeOfDayNode={
+              <TimeOfDayFronters sessions={foldedSessions} alters={alters.filter(a => !a.is_archived)} />
+            }
+            switchLogNode={
+              <SwitchLogAnalytics journals={journals} sessions={sessions} from={from} to={to} />
+            }
+          />
+        )}
+
+        {/* ── WELLBEING (rebuilt, Phase 3) ── */}
+        {activeTab === "wellbeing" && (
+          <WellbeingTab
+            sessions={sessions}
+            emotionCheckIns={emotionCheckIns}
+            symptomCheckIns={symptomCheckIns}
+            symptoms={symptoms}
+            sleepRecords={sleepRecords}
+            activities={activities}
+            activityCategories={activityCategories}
+            contactEncounters={contactEncounters}
+            systemChangeEvents={systemChangeEvents}
+            from={from}
+            to={to}
+            legacySections={[
+              { title: "Emotions", node: <EmotionAnalytics from={from} to={to} /> },
+              { title: "Symptoms", node: <SymptomAnalytics startDate={from} endDate={to} symptomSessions={symptomSessions} symptomCheckIns={symptomCheckIns} symptoms={symptoms} /> },
+              { title: "Check-In Log", node: <DiaryAnalytics cards={cards} altersById={altersById} from={from} to={to} /> },
+              { title: "Sleep", node: <SleepAnalytics sleepRecords={sleepRecords} from={from} to={to} /> },
+              { title: `${terms.System} Meetings`, node: <CheckInAnalytics checkIns={systemCheckIns} alters={alters} from={from} to={to} /> },
+              { title: "Patterns (advanced)", node: (
+                <PatternInsights
+                  sessions={sessions}
+                  alters={alters}
+                  altersById={altersById}
+                  symptomCheckIns={symptomCheckIns}
+                  symptoms={symptoms}
+                  emotionCheckIns={emotionCheckIns}
+                  from={from}
+                  to={to}
+                />
+              ) },
+            ]}
+          />
+        )}
+
+        {/* ── LIFE (rebuilt, Phase 4) ── */}
+        {activeTab === "life" && (
+          <LifeTab
+            activities={activities}
+            activityCategories={activityCategories}
+            goals={goals}
+            tasks={tasks}
+            locations={locations}
+            contacts={contacts}
+            contactEncounters={contactEncounters}
+            from={from}
+            to={to}
+            legacySections={[
+              { title: "Activity charts (classic)", node: (
+                <div className="space-y-6">
+                  <ActivitySummaryCards activities={activities} categories={activityCategories} from={from} to={to} />
+                  <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
+                  <ActivityTimeOfDayChart activities={activities} categories={activityCategories} from={from} to={to} />
+                  <ActivityTrendsChart activities={activities} categories={activityCategories} from={from} to={to} />
+                  <AlterActivityMatrix activities={activities} categories={activityCategories} alters={alters} from={from} to={to} />
+                  <AlterActivityDeepDive
+                    activities={activities} categories={activityCategories} alters={alters}
+                    emotionCheckIns={emotionCheckIns} checkIns={systemCheckIns} from={from} to={to}
+                  />
+                </div>
+              ) },
+              { title: "Journals", node: <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} /> },
+              { title: "Authorship", node: <AuthorshipAnalytics mentionLogs={mentionLogs} journals={journals} alters={alters} from={from} to={to} /> },
+              { title: "Locations (map & details)", node: <LocationAnalytics from={from} to={to} /> },
+              { title: "Rollups (classic)", node: <InsightsHub from={from} to={to} /> },
+            ]}
+          />
+        )}
+
+        {/* ── ALTERS (fingerprints, Phase 4) ── */}
+        {activeTab === "alters" && (
+          <AltersTab
+            alters={alters}
+            altersById={altersById}
+            sessions={sessions}
+            emotionCheckIns={emotionCheckIns}
+            symptomCheckIns={symptomCheckIns}
+            symptoms={symptoms}
+            journals={journals}
+            bulletins={bulletins}
+            chatMessages={chatMessages}
+            activities={activities}
+            from={from}
+            to={to}
+            selectedAlterId={selectedAlterId}
+            onSelectAlter={setSelectedAlterId}
+          />
+        )}
+    </>
+  );
+
+  if (pixel) {
+    return (
+      <div data-tour="analytics-charts" className="px-an">
+        <PageStrip subtabs label="Analytics views" items={TABS} value={activeTab} onChange={setActiveTab} />
+        <PixelAnalyticsToolbar
+          preset={preset}
+          onPreset={applyPreset}
+          from={from}
+          to={to}
+          onRange={(f, t) => { setFrom(f); setTo(t); }}
+          onStep={stepRange}
+          alters={alters}
+          selectedAlterId={selectedAlterId}
+          onWhose={(id) => { setSelectedAlterId(id || null); if (id) setActiveTab("alters"); }}
+          onReport={() => navigate("/therapy-report")}
+        />
+        <div className="px-an-floor">
+          {activeTab === "overview" && (
+            <PixelAnalyticsBoard
+              sessions={sessions}
+              alters={alters}
+              altersById={altersById}
+              emotionCheckIns={emotionCheckIns}
+              symptomCheckIns={symptomCheckIns}
+              sleepRecords={sleepRecords}
+              activities={activities}
+              from={from}
+              to={to}
+              preset={preset}
+              onPickAlter={(id) => { setSelectedAlterId(id); setActiveTab("alters"); }}
+            />
+          )}
+          <section className="px-an-pn">
+            <div className="px-an-ttl">
+              <span>{activeTab === "overview" ? "This week against your usual" : (TABS.find((t) => t.id === activeTab)?.label || "")}</span>
+              <span className="px-an-mut">{activeTab === "overview" ? "last 7 days" : rangeText(from, to)}</span>
+            </div>
+            <div className="px-an-body space-y-5">{tabContent}</div>
+          </section>
+        </div>
+        <div className="px-an-foot">
+          <span>{rangeText(from, to)}</span>
+          {hiddenFromAnalytics.size > 0 && <span>{hiddenFromAnalytics.size} {hiddenFromAnalytics.size === 1 ? terms.alter : terms.alters} kept out by group settings</span>}
+          <span className="px-an-grow" />
+        </div>
+      <StaleSessionsModal
+        isOpen={staleModalOpen}
+        onClose={() => setStaleModalOpen(false)}
+        staleSessions={stale || []}
+        altersById={altersById}
+        />
+      </div>
+    );
+  }
+
   return (
     <div data-tour="analytics-charts" className="space-y-5">
       {/* Header */}
@@ -320,134 +525,7 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* ── OVERVIEW ── */}
-      {activeTab === "overview" && (
-        <OverviewTab
-          sessions={sessions}
-          alters={alters}
-          altersById={altersById}
-          emotionCheckIns={emotionCheckIns}
-          symptomCheckIns={symptomCheckIns}
-          activities={activities}
-          sleepRecords={sleepRecords}
-          journals={journals}
-          diaryCards={cards}
-          bulletins={bulletins}
-          systemCheckIns={systemCheckIns}
-          tasks={tasks}
-          statusNotes={statusNotes}
-          onNavigateTab={setActiveTab}
-        />
-      )}
-
-      {/* ── FRONTING (rebuilt, Phase 2) ── */}
-      {activeTab === "fronting" && (
-        <FrontingTab
-          sessions={sessions}
-          alters={alters}
-          altersById={altersById}
-          from={from}
-          to={to}
-          stale={stale}
-          onReviewStale={() => setStaleModalOpen(true)}
-          timeOfDayNode={
-            <TimeOfDayFronters sessions={foldedSessions} alters={alters.filter(a => !a.is_archived)} />
-          }
-          switchLogNode={
-            <SwitchLogAnalytics journals={journals} sessions={sessions} from={from} to={to} />
-          }
-        />
-      )}
-
-      {/* ── WELLBEING (rebuilt, Phase 3) ── */}
-      {activeTab === "wellbeing" && (
-        <WellbeingTab
-          sessions={sessions}
-          emotionCheckIns={emotionCheckIns}
-          symptomCheckIns={symptomCheckIns}
-          symptoms={symptoms}
-          sleepRecords={sleepRecords}
-          activities={activities}
-          activityCategories={activityCategories}
-          contactEncounters={contactEncounters}
-          systemChangeEvents={systemChangeEvents}
-          from={from}
-          to={to}
-          legacySections={[
-            { title: "Emotions", node: <EmotionAnalytics from={from} to={to} /> },
-            { title: "Symptoms", node: <SymptomAnalytics startDate={from} endDate={to} symptomSessions={symptomSessions} symptomCheckIns={symptomCheckIns} symptoms={symptoms} /> },
-            { title: "Check-In Log", node: <DiaryAnalytics cards={cards} altersById={altersById} from={from} to={to} /> },
-            { title: "Sleep", node: <SleepAnalytics sleepRecords={sleepRecords} from={from} to={to} /> },
-            { title: `${terms.System} Meetings`, node: <CheckInAnalytics checkIns={systemCheckIns} alters={alters} from={from} to={to} /> },
-            { title: "Patterns (advanced)", node: (
-              <PatternInsights
-                sessions={sessions}
-                alters={alters}
-                altersById={altersById}
-                symptomCheckIns={symptomCheckIns}
-                symptoms={symptoms}
-                emotionCheckIns={emotionCheckIns}
-                from={from}
-                to={to}
-              />
-            ) },
-          ]}
-        />
-      )}
-
-      {/* ── LIFE (rebuilt, Phase 4) ── */}
-      {activeTab === "life" && (
-        <LifeTab
-          activities={activities}
-          activityCategories={activityCategories}
-          goals={goals}
-          tasks={tasks}
-          locations={locations}
-          contacts={contacts}
-          contactEncounters={contactEncounters}
-          from={from}
-          to={to}
-          legacySections={[
-            { title: "Activity charts (classic)", node: (
-              <div className="space-y-6">
-                <ActivitySummaryCards activities={activities} categories={activityCategories} from={from} to={to} />
-                <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
-                <ActivityTimeOfDayChart activities={activities} categories={activityCategories} from={from} to={to} />
-                <ActivityTrendsChart activities={activities} categories={activityCategories} from={from} to={to} />
-                <AlterActivityMatrix activities={activities} categories={activityCategories} alters={alters} from={from} to={to} />
-                <AlterActivityDeepDive
-                  activities={activities} categories={activityCategories} alters={alters}
-                  emotionCheckIns={emotionCheckIns} checkIns={systemCheckIns} from={from} to={to}
-                />
-              </div>
-            ) },
-            { title: "Journals", node: <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} /> },
-            { title: "Authorship", node: <AuthorshipAnalytics mentionLogs={mentionLogs} journals={journals} alters={alters} from={from} to={to} /> },
-            { title: "Locations (map & details)", node: <LocationAnalytics from={from} to={to} /> },
-            { title: "Rollups (classic)", node: <InsightsHub from={from} to={to} /> },
-          ]}
-        />
-      )}
-
-      {/* ── ALTERS (fingerprints, Phase 4) ── */}
-      {activeTab === "alters" && (
-        <AltersTab
-          alters={alters}
-          altersById={altersById}
-          sessions={sessions}
-          emotionCheckIns={emotionCheckIns}
-          symptomCheckIns={symptomCheckIns}
-          symptoms={symptoms}
-          journals={journals}
-          bulletins={bulletins}
-          chatMessages={chatMessages}
-          activities={activities}
-          from={from}
-          to={to}
-          selectedAlterId={selectedAlterId}
-          onSelectAlter={setSelectedAlterId}
-        />
-      )}
+      {tabContent}
 
       <StaleSessionsModal
         isOpen={staleModalOpen}

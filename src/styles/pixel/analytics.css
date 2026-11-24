@@ -1,0 +1,136 @@
+/* Analytics in the pixel look (mockup: Analytics.dc.html). Every rule is
+   scoped to the pixel look so the smooth look is untouched. */
+html[data-ui-look="pixel"] .px-an {
+  --px-an-sym: #d9685b;
+  --px-an-sleep: #6d73b0;
+  display: flex; flex-direction: column; gap: 0;
+  color: var(--px-text);
+}
+html[data-ui-look="pixel"] .px-an-pn {
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  min-width: 0;
+}
+html[data-ui-look="pixel"] .px-an-ttl {
+  height: 22px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 0 8px; font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+  white-space: nowrap; overflow: hidden;
+}
+html[data-ui-look="pixel"] .px-an-ttl > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+html[data-ui-look="pixel"] .px-an-mut { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-an-empty { padding: 12px 10px; font-size: 13px; color: var(--px-text-2); }
+
+/* Toolbar */
+html[data-ui-look="pixel"] .px-an-toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 10px;
+  position: relative; z-index: 1;
+}
+html[data-ui-look="pixel"] .px-an-title { font-family: var(--px-font); font-size: 16px; font-weight: 400; margin: 0 10px 0 0; }
+html[data-ui-look="pixel"] .px-an-ranges { display: flex; gap: 4px; flex-wrap: wrap; }
+html[data-ui-look="pixel"] .px-an-btn {
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); border: 0; border-radius: 0;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line); padding: 5px 10px; min-height: 28px;
+}
+html[data-ui-look="pixel"] .px-an-btn:hover { filter: brightness(1.1); }
+html[data-ui-look="pixel"] .px-an-btn.on {
+  background: var(--color-primary); color: var(--color-bg);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 60%, #000);
+}
+html[data-ui-look="pixel"] .px-an-btn:focus-visible,
+html[data-ui-look="pixel"] .px-an-arrow:focus-visible,
+html[data-ui-look="pixel"] .px-an-frow:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+html[data-ui-look="pixel"] .px-an-step { display: flex; align-items: center; gap: 2px; margin-left: 10px; font-family: var(--px-font); font-size: 13px; }
+html[data-ui-look="pixel"] .px-an-arrow { min-width: 24px; min-height: 28px; font-family: var(--px-font); font-size: 15px; color: var(--px-text); background: none; border: 0; }
+html[data-ui-look="pixel"] .px-an-arrow:disabled { opacity: .35; }
+html[data-ui-look="pixel"] .px-an-period { white-space: nowrap; }
+html[data-ui-look="pixel"] .px-an-whose { display: flex; align-items: center; gap: 6px; margin-left: 14px; font-family: var(--px-font); font-size: 13px; }
+html[data-ui-look="pixel"] .px-an-whose .px-an-ins,
+html[data-ui-look="pixel"] .px-an-whose button.px-an-ins {
+  background: var(--px-sunk) !important; border: 0 !important; border-radius: 0 !important;
+  box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi) !important;
+  min-height: 28px; padding: 3px 8px; min-width: 130px; font-size: 13px;
+}
+html[data-ui-look="pixel"] .px-an-grow { flex-grow: 1; }
+html[data-ui-look="pixel"] .px-an-dates { padding: 8px 10px; margin-top: 2px; }
+
+/* Workspace: checkered floor the panels sit on */
+html[data-ui-look="pixel"] .px-an-floor {
+  padding: 14px; min-height: 60vh;
+  background-color: var(--px-sunk);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--px-sunk) 88%, var(--px-text) 12%) 0 25%, transparent 0 50%);
+  background-size: 16px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+html[data-ui-look="pixel"] .px-an-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: min-content; gap: 14px;
+}
+html[data-ui-look="pixel"] .px-an-span2 { grid-column: span 2; }
+html[data-ui-look="pixel"] .px-an-span3 { grid-column: span 3; }
+
+/* Fronting time */
+html[data-ui-look="pixel"] .px-an-front { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+html[data-ui-look="pixel"] .px-an-frow { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; font-size: 14px; min-height: 20px; }
+html[data-ui-look="pixel"] .px-an-frow:hover .px-an-fname { text-decoration: underline; }
+html[data-ui-look="pixel"] .px-an-fname { width: 92px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .px-an-ftrack { flex: 1; height: 14px; position: relative; background: color-mix(in srgb, var(--px-sunk) 70%, var(--px-panel)); }
+html[data-ui-look="pixel"] .px-an-ftrack > span { position: absolute; left: 0; top: 0; bottom: 0; outline: 1px solid var(--px-line); }
+html[data-ui-look="pixel"] .px-an-fnum { width: 34px; text-align: right; font-family: var(--px-font); font-size: 12px; }
+
+/* Feelings calendar */
+html[data-ui-look="pixel"] .px-an-cal { padding: 10px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+html[data-ui-look="pixel"] .px-an-cell {
+  height: 30px; padding: 2px 3px; font-family: var(--px-font); font-size: 11px; line-height: 1;
+  color: #1a1c2b; outline: 2px solid var(--px-line); background: var(--px-tab, var(--px-bar));
+}
+html[data-ui-look="pixel"] .px-an-cell.none { color: var(--px-text-2); background: color-mix(in srgb, var(--px-panel) 80%, var(--px-text) 6%); }
+html[data-ui-look="pixel"] .px-an-cell.blank { background: var(--px-sunk); }
+html[data-ui-look="pixel"] .px-an-legend { padding: 0 10px 10px; font-family: var(--px-font); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Who fronts together */
+html[data-ui-look="pixel"] .px-an-matrix { padding: 10px; display: grid; gap: 3px; font-family: var(--px-font); font-size: 12px; }
+html[data-ui-look="pixel"] .px-an-matrix > span { height: 28px; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; white-space: nowrap; }
+html[data-ui-look="pixel"] .px-an-mhead { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-an-matrix > .px-an-mrow { justify-content: flex-start; color: var(--px-text-2); text-overflow: ellipsis; }
+html[data-ui-look="pixel"] .px-an-mcell { color: #1a1c2b; outline: 1px solid var(--px-line); }
+html[data-ui-look="pixel"] .px-an-mcell.self { background: var(--px-sunk); outline: 0; }
+
+/* Bar charts */
+html[data-ui-look="pixel"] .px-an-bars { padding: 12px 10px 6px; display: flex; align-items: flex-end; gap: 3px; height: 130px; }
+html[data-ui-look="pixel"] .px-an-bar { flex: 1; min-width: 0; outline: 1px solid var(--px-line); }
+html[data-ui-look="pixel"] .px-an-bar.none { height: 4px; background: color-mix(in srgb, var(--px-panel) 80%, var(--px-text) 8%); }
+html[data-ui-look="pixel"] .px-an-axis { padding: 0 10px 10px; font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); display: flex; justify-content: space-between; }
+
+/* Noticed */
+html[data-ui-look="pixel"] .px-an-noticed { padding: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; font-size: 14px; }
+html[data-ui-look="pixel"] .px-an-noticed > div { display: flex; flex-direction: column; gap: 2px; }
+html[data-ui-look="pixel"] .px-an-big { font-family: var(--px-font); font-size: 20px; }
+
+/* The tab's own content (classic sections) sits in one panel on the floor. */
+html[data-ui-look="pixel"] .px-an-body { padding: 12px; }
+
+/* Status strip */
+html[data-ui-look="pixel"] .px-an-foot {
+  height: 24px; display: flex; align-items: center; gap: 18px; padding: 0 10px;
+  background: var(--px-bar); box-shadow: inset 0 2px 0 var(--px-line);
+  font-family: var(--px-font); font-size: 12px; white-space: nowrap; overflow: hidden;
+}
+
+/* Phones and narrow windows: one column, same language. */
+@media (max-width: 1023px) {
+  html[data-ui-look="pixel"] .px-an-grid { grid-template-columns: minmax(0, 1fr); }
+  html[data-ui-look="pixel"] .px-an-span2, html[data-ui-look="pixel"] .px-an-span3 { grid-column: auto; }
+  html[data-ui-look="pixel"] .px-an-noticed { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  html[data-ui-look="pixel"] .px-an-floor { padding: 10px; gap: 10px; }
+  html[data-ui-look="pixel"] .px-an-step, html[data-ui-look="pixel"] .px-an-whose { margin-left: 0; }
+  html[data-ui-look="pixel"] .px-an-body { padding: 8px; }
+}
+@media (max-width: 639px) {
+  html[data-ui-look="pixel"] .px-an-toolbar { padding: 6px 8px; }
+  html[data-ui-look="pixel"] .px-an-ranges { width: 100%; }
+  html[data-ui-look="pixel"] .px-an-btn { padding: 4px 7px; font-size: 12px; }
+  html[data-ui-look="pixel"] .px-an-foot { display: none; }
+}
