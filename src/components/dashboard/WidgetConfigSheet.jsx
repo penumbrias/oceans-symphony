@@ -69,6 +69,7 @@ import { foldedSettings } from "@/lib/widgetFold";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import LayersField from "@/components/dashboard/LayersField";
 import { resolveQuickButtons, QUICK_BUTTON_DEFS } from "@/components/dashboard/QuickCheckinButtons";
 import LucideByName from "@/components/shared/LucideByName";
 import { sharedList } from "@/lib/sharedLists";
@@ -995,6 +996,13 @@ export default function WidgetConfigSheet({
           own={inheritedChoice ? (settings[f.key] !== undefined && settings[f.key] !== "") : undefined}
           onClear={inheritedChoice ? () => commit("") : undefined}
           options={(f.options || []).map((o) => ({ value: o.value, label: applyTerms(String(o.label), t) }))} />
+      );
+    }
+    if (f.type === "layers") {
+      return (
+        <StackedRow key={f.key} label={label} hint={f.help}>
+          <LayersField label={label} options={f.options || []} value={val} onChange={commit} terms={t} />
+        </StackedRow>
       );
     }
     if (f.type === "multi") {

@@ -224,3 +224,14 @@ html[data-ui-look="pixel"] .pxae-delete {
   background: var(--px-bar) !important; outline: 2px solid var(--px-line); outline-offset: -2px;
   box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
 }
+
+/* ── Widget options: layers list (Timeline widget) ───────────────── */
+html[data-ui-look="pixel"] .pxl-layers {
+  border: 0 !important; border-radius: var(--px-corner, 0px) !important; padding: 4px;
+  background: var(--px-sunk); box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .pxl-layers > * + * { border-top-width: 0 !important; }
+html[data-ui-look="pixel"] .pxl-layer { min-height: 38px; padding: 0 6px; gap: 8px; }
+html[data-ui-look="pixel"] .pxl-layer:hover { background: var(--px-bar); }
+html[data-ui-look="pixel"] .pxl-sq { border-radius: 0 !important; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .pxl-src { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); }

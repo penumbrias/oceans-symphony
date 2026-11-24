@@ -9,6 +9,7 @@
 //   normal    the real thing, sized for a tile.
 //   expanded  more of it, plus the actions that belong to it.
 
+import { applyTimelineLayers, hiddenLayersOf } from "@/lib/timelineLayers";
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -99,6 +100,8 @@ export function TimelineWidget({ mode = "normal", settings }) {
   const src = useTimelineSources();
   // On a profile board: only that profile's alters' entries.
   const scopeIds = useScopeAlterIds(settings);
+  // Layers switched off in the widget's options.
+  const hiddenLayers = hiddenLayersOf(settings);
   const startDays = Math.max(1, Math.min(30, parseInt(settings?.days, 10) || (mode === "expanded" ? 7 : 3)));
   const [shown, setShown] = useState(startDays);
   const days = useMemo(
@@ -107,7 +110,7 @@ export function TimelineWidget({ mode = "normal", settings }) {
   );
 
   if (mode === "minimal") {
-    const d = scopeTimelineDay(sliceTimelineDay(src, new Date()), scopeIds);
+    const d = applyTimelineLayers(scopeTimelineDay(sliceTimelineDay(src, new Date()), scopeIds), hiddenLayers);
     const bits = [
       d.sessions.length ? `${d.sessions.length} sessions` : null,
       d.activities.length ? `${d.activities.length} activities` : null,
@@ -133,7 +136,7 @@ export function TimelineWidget({ mode = "normal", settings }) {
       <ErrorBoundary fallback={<Muted>The timeline couldn't be drawn here. Open the Timeline page.</Muted>} resetKeys={[shown]}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" onScroll={onScroll}>
           {days.map((day) => {
-            const d = scopeTimelineDay(sliceTimelineDay(src, day), scopeIds);
+            const d = applyTimelineLayers(scopeTimelineDay(sliceTimelineDay(src, day), scopeIds), hiddenLayers);
             return (
               <InfiniteTimeline
                 key={d.dateStr}
