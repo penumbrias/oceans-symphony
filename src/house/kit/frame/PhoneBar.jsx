@@ -20,6 +20,7 @@ import "@/house/kit/frame/phoneKit.css";
 export default function PhoneBar({ places = [], pathname = "/", onSheet, openSheet = null, label = "Places" }) {
   const ref = useRef(null);
   const [iconsOnly, setIconsOnly] = useState(false);
+  const sheetOpen = !!openSheet && places.some((p) => p.sheet === openSheet);
   const need = useRef(0);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -44,6 +45,9 @@ export default function PhoneBar({ places = [], pathname = "/", onSheet, openShe
     <nav ref={ref} className="hk-pbar" aria-label={label} data-icons-only={iconsOnly || undefined}>
       {places.map((p) => {
         const current = p.sheet ? openSheet === p.sheet : placeIsCurrent(p, pathname);
+        // While a sheet place (Do) is open, it alone wears the "current"
+        // mark; the page under it keeps aria-current="page".
+        const marked = p.sheet ? current : current && !sheetOpen;
         const body = (
           <>
             <span className="hk-pbar-icon"><HouseIcon icon={p.icon || Zap} page={p.page} size="frame" /></span>
@@ -53,7 +57,7 @@ export default function PhoneBar({ places = [], pathname = "/", onSheet, openShe
         const common = {
           className: "hk-pbar-place",
           "data-place": p.id,
-          "data-current": current || undefined,
+          "data-current": marked || undefined,
           title: p.full || p.name,
           "aria-label": p.full && p.full !== p.label ? p.full : undefined,
         };

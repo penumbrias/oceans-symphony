@@ -296,7 +296,8 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 [data-house] .hk-toast-detail { font-size: var(--house-text-sm); color: var(--house-muted); overflow-wrap: break-word; }
 
 /* ── Sheets ──────────────────────────────────────────────────────── */
-[data-house] .hk-scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.55); }
+/* The scrim stops where sheets stop: the bottom bar (and Support on it) stays one tap away. */
+[data-house] .hk-scrim { position: fixed; inset: 0 0 var(--house-sheet-bottom, 0px) 0; background: rgb(0 0 0 / 0.55); }
 [data-house] .hk-sheet {
   position: fixed; left: 0; right: 0; bottom: var(--house-sheet-bottom, 0px);
   display: flex; flex-direction: column; min-height: 0;

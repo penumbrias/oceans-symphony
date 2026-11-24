@@ -30,20 +30,28 @@
 /* ── Zone 1: the header. Grows when the name wraps; never cuts it. ─ */
 [data-house].hp-head {
   flex: 0 0 auto; position: relative; z-index: 3;
-  display: flex; align-items: center; gap: var(--house-space-1);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-1);
   min-height: var(--house-h-row-2);
   padding: min(env(safe-area-inset-top, 0px), 64px) max(var(--house-space-1), env(safe-area-inset-right, 0px)) 0 max(var(--house-space-1), env(safe-area-inset-left, 0px));
   background: var(--house-panel); color: var(--house-text);
   border-bottom: var(--house-border-w) solid var(--house-divider);
 }
 [data-house] .hp-titles {
-  flex: 1 1 auto; min-width: 0;
+  flex: 1 1 0; min-width: 0;
   display: flex; flex-direction: column; justify-content: center;
   padding: var(--house-space-1) var(--house-space-1);
 }
 [data-house] .hp-title {
   font-size: var(--house-frame-text-lg); line-height: 1.25; font-weight: 700;
-  overflow-wrap: break-word;
+  overflow-wrap: break-word; hyphens: auto;
+}
+/* Narrow for its text (a small phone at large text): the name gets a row of
+   its own under the buttons instead of breaking mid-word. The query is in em
+   (the header's own text size), so it follows the person's text size. */
+[data-house].hp-head { container-type: inline-size; container-name: hp-head; }
+@container hp-head (max-width: 20em) {
+  [data-house] .hp-titles { order: 9; flex: 1 0 100%; padding-top: 0; }
+  [data-house] .hp-titles + * { margin-left: auto; }
 }
 [data-house] .hp-sub {
   display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--house-space-2);

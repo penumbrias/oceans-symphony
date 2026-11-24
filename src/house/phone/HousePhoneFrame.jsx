@@ -79,10 +79,14 @@ function useRecentPages(here) {
   const [before] = useState(readRecentStore);
   const [lastTime, setLastTime] = useState(() => lastTimeFrom(before));
   const [recent, setRecent] = useState(before.recent);
+  const firstHere = useRef(here);
   useEffect(() => {
     const next = recordVisit(readRecentStore(), here);
     writeRecentStore(next);
     setRecent(next.recent);
+    // Once the person has gone somewhere else, the card has done its job.
+    if (here !== firstHere.current) setLastTime(null);
+    firstHere.current = here;
   }, [here]);
   // Leaving (or coming back to) the app: remember when, and offer Last
   // time… again after a long gap away.

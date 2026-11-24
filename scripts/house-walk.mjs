@@ -21,7 +21,12 @@
 //                                "Try the new house" (symphony_new_house_v1) with the
 //                                example data, walks 1280x800 and 820x1180 by default, and
 //                                also FAILS on a missing page title, a missing frame and
-//                                sideways scroll (not only on page errors).
+//                                sideways scroll (not only on page errors). Since step
+//                                2.2 it also FAILS when Support isn't one tap away in
+//                                the frame (visible, outside the page). For the phone
+//                                frame: --sizes 390x844,360x740,844x390 --touch
+//   --touch                      a touch screen (coarse pointer), so a short landscape
+//                                phone gets the phone frame as it would on a device
 //
 // Example data only. The walk starts a fresh, empty browser profile, gets past
 // the welcome screen with "Not now" (no backup, no import) and turns Preview
@@ -73,6 +78,7 @@ const SIZES = opt('--sizes', HOUSE ? '1280x800,820x1180' : '390x844,820x1180,128
   return { w, h, name: s };
 });
 const ALL_SHOTS = args.includes('--shots');
+const TOUCH = args.includes('--touch');
 fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
 
 // ── The route list: every <Route path> in src/App.jsx ───────────────────
@@ -329,7 +335,7 @@ const browser = await chromium.launch();
 const started = Date.now();
 try {
   for (const look of LOOKS) {
-    const ctx = await browser.newContext({ viewport: { width: SIZES[SIZES.length - 1].w, height: SIZES[SIZES.length - 1].h } });
+    const ctx = await browser.newContext({ viewport: { width: SIZES[SIZES.length - 1].w, height: SIZES[SIZES.length - 1].h }, hasTouch: TOUCH });
     const page = await ctx.newPage();
     let pageErrors = []; let consoleErrors = []; let badResponses = [];
     page.on('pageerror', (e) => pageErrors.push(String(e.message || e).slice(0, 300)));
@@ -470,9 +476,9 @@ fs.writeFileSync(path.join(OUT, 'walk.md'), L.join('\n') + '\n');
 console.log(`\n[walk] ${visits.length} visits → ${path.join(OUT, 'walk.md')}`);
 console.log(`[walk] page errors on ${summary.pageErrorRoutes.length} routes; 404 wall: ${summary.notFoundWallRoutes.join(', ') || 'none'}; sideways scroll: ${summary.hScrollRoutes.length} visits.`);
 // The house walk also fails on what the frame promises: a real title on
-// every page, the frame itself, and no sideways scroll.
+// every page, the frame itself, no sideways scroll, and Support one tap away.
 const houseFails = HOUSE
-  ? visits.filter((v) => !OUTSIDE_FRAME(v.route) && (v.hOverflow || !v.houseFrame || v.findings.some((f) => /^no page title/.test(f))))
+  ? visits.filter((v) => !OUTSIDE_FRAME(v.route) && (v.hOverflow || !v.houseFrame || !v.frameSupport.length || v.findings.some((f) => /^no page title/.test(f))))
   : [];
-if (HOUSE) console.log(`[walk] house: ${houseFails.length} visits with a missing title, a missing frame or sideways scroll${houseFails.length ? `: ${houseFails.slice(0, 10).map((v) => `${v.route} ${v.look} ${v.size} (${v.findings.join(', ')})`).join('; ')}` : ''}.`);
+if (HOUSE) console.log(`[walk] house: ${houseFails.length} visits with a missing title, a missing frame, sideways scroll or Support not one tap away${houseFails.length ? `: ${houseFails.slice(0, 10).map((v) => `${v.route} ${v.look} ${v.size} (${v.findings.join(', ')})`).join('; ')}` : ''}.`);
 process.exit(errorVisits.length || houseFails.length ? 1 : 0);
