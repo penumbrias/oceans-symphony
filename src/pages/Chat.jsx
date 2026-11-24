@@ -19,7 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { AlterAvatar } from "@/components/chat/ChatSurface";
 import ChannelView from "@/components/chat/ChannelView";
 import { TRASH_HINT_MANY } from "@/lib/trashSettings";
-import { withTrashBatch } from "@/lib/localDb";
+import { createDefaultChannel, createChatChannel, updateChatChannel, newChannelFields, deleteChatChannel, createChatCategory, updateChatCategory, toggleChatCategoryCollapsed, setCategoryChannels, deleteChatCategory, reorderChatChannels, reorderChatCategories } from "@/lib/chatEntry";
 import { useUiLook, usePixelDesk } from "@/lib/uiLook";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import "@/styles/pixel/chat.css";
@@ -92,13 +92,7 @@ export default function Chat() {
     if (channels.length === 0 && !hasGeneral) {
       (async () => {
         try {
-          await localEntities.SystemChatChannel.create({
-            name: "general",
-            description: `Where ${terms.alters || "alters"} talk to each other.`,
-            sort_order: 0,
-            is_archived: false,
-            created_date: new Date().toISOString(),
-          });
+          await createDefaultChannel(`Where ${terms.alters || "alters"} talk to each other.`);
           qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
         } catch (err) {
           toast.error(err?.message || "Couldn't create the default channel");
@@ -141,7 +135,7 @@ export default function Chat() {
   // Collapse / expand a category (persisted on the entity).
   const toggleCollapse = async (cat) => {
     try {
-      await localEntities.SystemChatCategory.update(cat.id, { collapsed: !cat.collapsed });
+      await toggleChatCategoryCollapsed(cat);
       qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
     } catch (err) {
       toast.error(err?.message || "Couldn't update");
@@ -155,9 +149,6 @@ export default function Chat() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
   );
-  const persistOrder = async (entityName, idsInOrder) => {
-    await Promise.all(idsInOrder.map((id, i) => localEntities[entityName].update(id, { sort_order: i })));
-  };
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -168,7 +159,7 @@ export default function Chat() {
       const ids = orderOf(siblings);
       const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
       if (from === -1 || to === -1) return; // dropped onto a different list — ignore
-      try { await persistOrder("SystemChatCategory", arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatCategories"] }); }
+      try { await reorderChatCategories(arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatCategories"] }); }
       catch (err) { toast.error(err?.message || "Couldn't reorder"); }
       return;
     }
@@ -179,7 +170,7 @@ export default function Chat() {
       const ids = orderOf(siblings);
       const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
       if (from === -1 || to === -1) return;
-      try { await persistOrder("SystemChatChannel", arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatChannels"] }); }
+      try { await reorderChatChannels(arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatChannels"] }); }
       catch (err) { toast.error(err?.message || "Couldn't reorder"); }
     }
   };
@@ -721,15 +712,10 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
         member_alter_ids: isPrivate ? memberIds : [],
       };
       if (editChannel) {
-        await localEntities.SystemChatChannel.update(editChannel.id, payload);
+        await updateChatChannel(editChannel.id, payload);
         onSaved?.();
       } else {
-        const record = await localEntities.SystemChatChannel.create({
-          ...payload,
-          sort_order: Date.now(),
-          is_archived: false,
-          created_date: new Date().toISOString(),
-        });
+        const record = await createChatChannel(newChannelFields(payload));
         onSaved?.(record);
       }
     } catch (err) {
@@ -747,24 +733,16 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
       const payload = { name: trimmed, color: catColor || null, parent_category_id: parentId || null };
       let catId;
       if (editCategory) {
-        await localEntities.SystemChatCategory.update(editCategory.id, payload);
+        await updateChatCategory(editCategory.id, payload);
         catId = editCategory.id;
       } else {
         // New categories sort to the TOP of the list.
-        const created = await localEntities.SystemChatCategory.create({
-          ...payload,
-          sort_order: -Date.now(),
-          collapsed: false,
-          created_date: new Date().toISOString(),
-        });
+        const created = await createChatCategory(payload);
         catId = created.id;
       }
       // Reconcile channel membership: assign picked channels to this category,
       // and clear any that were in it but got unpicked.
-      const wasIn = new Set(allChannels.filter((c) => c.category_id === catId).map((c) => c.id));
-      const picked = new Set(pickedChannelIds);
-      for (const id of picked) if (!wasIn.has(id)) { try { await localEntities.SystemChatChannel.update(id, { category_id: catId }); } catch {} }
-      for (const id of wasIn) if (!picked.has(id)) { try { await localEntities.SystemChatChannel.update(id, { category_id: null }); } catch {} }
+      await setCategoryChannels(catId, allChannels, pickedChannelIds);
       qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
       qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
       onSaved?.();
@@ -781,17 +759,10 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
       if (editChannel) {
         if (!(await confirm(`Delete #${editChannel.name} and every message in it? ${TRASH_HINT_MANY}`))) { setBusy(false); return; }
         // One trash batch, so Restore brings the channel back with its messages.
-        await withTrashBatch(async () => {
-          const msgs = await localEntities.SystemChatMessage.filter({ channel_id: editChannel.id });
-          for (const m of msgs) { try { await localEntities.SystemChatMessage.delete(m.id); } catch {} }
-          await localEntities.SystemChatChannel.delete(editChannel.id);
-        });
+        await deleteChatChannel(editChannel.id);
       } else if (editCategory) {
         if (!(await confirm(`Delete the "${editCategory.name}" category? Its channels and sub-categories move up a level — no channels or messages are deleted.`))) { setBusy(false); return; }
-        const up = editCategory.parent_category_id || null;
-        for (const ch of allChannels.filter((c) => c.category_id === editCategory.id)) { try { await localEntities.SystemChatChannel.update(ch.id, { category_id: up }); } catch {} }
-        for (const sub of categories.filter((c) => c.parent_category_id === editCategory.id)) { try { await localEntities.SystemChatCategory.update(sub.id, { parent_category_id: up }); } catch {} }
-        await localEntities.SystemChatCategory.delete(editCategory.id);
+        await deleteChatCategory(editCategory, { channels: allChannels, categories });
       }
       onDeleted?.();
     } catch (err) {
