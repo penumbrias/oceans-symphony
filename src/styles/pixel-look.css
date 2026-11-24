@@ -514,3 +514,50 @@ a.px-status-item:hover, button.px-status-item:hover { color: var(--px-text); bac
   html[data-px-front="bottom"] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-front-h, 0px) + 4px); }
   html[data-px-front="bottom"][data-px-status="1"] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-front-h, 0px) + 28px); }
 }
+
+/* ── Phone: the bottom bar and the menu drawer ─────────────────────── */
+/* The bottom bar: square tabs like the mockup, the open one raised. */
+[data-px-chrome] .os-v2-bottom {
+  background: var(--px-bar) !important; backdrop-filter: none !important;
+  border-top: 0 !important; box-shadow: inset 0 2px 0 var(--px-line);
+}
+[data-px-chrome] .os-v2-bottom [data-os-chrome="tabs"] { gap: 4px; padding: 5px 6px 4px; height: auto !important; min-height: var(--v2-strip-h); }
+[data-px-chrome] .os-v2-tab {
+  font-family: var(--px-font); min-height: 44px;
+  background: var(--px-tab); color: var(--px-text-2) !important;
+  border-radius: var(--px-corner, 0px);
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo) !important;
+}
+[data-px-chrome] .os-v2-tab[aria-selected="true"] {
+  background: var(--px-panel); color: var(--v2-accent, var(--color-primary)) !important;
+  transform: translateY(-3px);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo), 0 3px 0 var(--px-line) !important;
+}
+[data-px-chrome] .os-v2-tab:focus-visible { outline: 2px solid var(--color-primary); }
+[data-px-chrome] .os-v2-tab .os-tab-label { font-weight: 500; }
+/* Quick action keys: bevelled squares, like the tool rail. */
+[data-px-chrome] .os-qa-key {
+  background: var(--px-panel) !important; color: var(--px-text) !important;
+  border: 0 !important; border-radius: var(--px-corner, 0px) !important;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo) !important;
+}
+[data-px-chrome] .os-qa-key.os-qa-support { color: var(--color-primary) !important; }
+[data-px-chrome] .os-qa-key:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi) !important; }
+
+/* The menu drawer: a pixel panel, each area under a title band. */
+html[data-ui-look="pixel"] .os-drawer {
+  background: var(--px-panel) !important; border-right: 0 !important;
+  box-shadow: 2px 0 0 var(--px-line), var(--px-bevel);
+}
+html[data-ui-look="pixel"] .os-drawer-head { background: var(--px-bar) !important; backdrop-filter: none !important; border-bottom: 0 !important; box-shadow: inset 0 -2px 0 var(--px-line); }
+html[data-ui-look="pixel"] .os-drawer-head .font-display { font-family: var(--px-font); }
+html[data-ui-look="pixel"] .os-drawer-sec { background: var(--px-sunk); box-shadow: var(--px-sunken); padding-bottom: 4px; }
+html[data-ui-look="pixel"] .os-drawer-group {
+  font-family: var(--px-font); font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important;
+  color: var(--px-text) !important; background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+  padding: 4px 10px !important; margin: 0 0 4px !important;
+}
+html[data-ui-look="pixel"] .os-drawer-item { border-radius: var(--px-corner, 0px) !important; margin: 0 4px; }
+html[data-ui-look="pixel"] .os-drawer-item[aria-current="page"] { background: var(--px-panel) !important; box-shadow: inset 2px 0 0 var(--color-primary), inset 0 0 0 2px var(--px-line); }

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "improve", text: "Pixel look on phones: square bottom tabs with the open page raised, bevelled quick action keys, and the menu drawer grouped under title bars." },
       { type: "feature", text: "Pixel look on a computer: the pinned bar sits in the frame as a strip, under the page tabs or above the status bar." },
       { type: "improve", text: "Pixel look: bars are solid so the page no longer shows through them, and the \"Pull down to refresh\" tip is gone from the tour." },
       { type: "feature", text: "Pixel look on a computer: a tool rail down the left holds your quick actions and this page's tools. Move it right or turn it off in Display options → Bars → Tool rail." },

@@ -114,7 +114,7 @@ export default function SidebarNav({ open, onClose }) {
         aria-modal="true"
         aria-label="Navigation menu"
         className={cn(
-          "fixed top-0 left-0 z-[101] w-72 overflow-hidden bg-background border-r border-border/50 flex flex-col lg:hidden",
+          "os-drawer fixed top-0 left-0 z-[101] w-72 overflow-hidden bg-background border-r border-border/50 flex flex-col lg:hidden",
           open ? "translate-x-0 visible" : "-translate-x-full invisible"
         )}
         // Closed, it is hidden as well as slid away — once the slide has
@@ -141,7 +141,7 @@ export default function SidebarNav({ open, onClose }) {
             empty band here that covered the header + first section (tester's
             "rectangle of unused space"). No real status bar/cutout exceeds
             ~56px; 64px covers them all. */}
-        <div style={{ paddingTop: "min(env(safe-area-inset-top, 0px), 64px)" }} className="bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">
+        <div style={{ paddingTop: "min(env(safe-area-inset-top, 0px), 64px)" }} className="os-drawer-head bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">
           <div className="flex items-center justify-between px-4 h-14">
             {/* App icon → the system switcher (switch / side systems /
                 create — owner spec); the title text stays the quick way
@@ -214,8 +214,8 @@ export default function SidebarNav({ open, onClose }) {
           style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + var(--os-sab) + 1.5rem)" }}
         >
           {groups.map(({ label, items }) => (
-            <div key={label}>
-              <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
+            <div key={label} className="os-drawer-sec">
+              <p className="os-drawer-group text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
                 {label}
               </p>
               <div className="space-y-0.5">
@@ -230,7 +230,7 @@ export default function SidebarNav({ open, onClose }) {
                       to={item.path}
                       aria-current={isActive ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                        "os-drawer-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                         isActive
                           ? "bg-primary/10 text-primary"
                           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"

@@ -1111,7 +1111,7 @@ function TabButtons({ items, uiV2, isActive, navigate, t }) {
         return (
           <button key={item.id} type="button" role="tab" aria-selected={on}
             onClick={() => navigate(item.path)}
-            className="flex-1 basis-0 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden"
+            className="os-v2-tab flex-1 basis-0 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden"
             style={{
               color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
               boxShadow: on ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
@@ -1138,7 +1138,7 @@ function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
             onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
             holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
             onTap={() => (k.id === "quick_note" ? onNote() : k.id === "active_now" ? onActive() : navigate(k.target))}
-            className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
+            className="os-qa-key flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
             style={{
               width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
               borderRadius: "var(--v2-radius)",
@@ -1150,7 +1150,7 @@ function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
       })}
       <button type="button" onClick={() => navigate("/grounding")}
         aria-label={t("capture.support")} title={t("capture.support")}
-        className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+        className="os-qa-key os-qa-support flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
         style={{
           width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
           borderRadius: "var(--v2-radius)",
@@ -1506,7 +1506,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
       // The rail takes over on wide screens; a bottom bar there is just a
       // phone habit stretched across a monitor.
       data-widget-content
-      className={`fixed left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+      className={`os-v2-bottom fixed left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
         ...barLookStyle(uiV2, "tabs"),
         left: insetLeft,
