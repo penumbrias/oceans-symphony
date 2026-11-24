@@ -21,6 +21,8 @@ import {
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 import { pictureStyle } from "@/lib/imageFraming";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import ContactsPixelDesk from "@/components/contacts/ContactsPixelDesk";
 // Contacts — the directory of people OUTSIDE the system. Search, filter by
 // safety, an emergency-support header for quick "who can I ask for help?",
 // and tap-through to each contact's profile. See contacts-feature-plan (memory).
@@ -33,6 +35,7 @@ export default function Contacts() {
   const [safetyFilter, setSafetyFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortMode, setSortMode] = useState("name"); // "name" | "safety" | "recent"
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
 
   // IMPORTANT: keep the ["systemSettings"] cache an ARRAY — many other
   // components share this exact query key and call .find()/[0] on it. A
@@ -77,6 +80,29 @@ export default function Contacts() {
     sorted.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
     return sorted;
   }, [active, search, safetyFilter, categoryFilter, sortMode]);
+
+  const modals = (
+    <>
+      <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} />
+      <ContactSafetyLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} settings={settings} />
+      <ContactCategoriesModal open={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
+    </>
+  );
+
+  if (pixel) {
+    return (
+      <div className="pb-2">
+        <ContactsPixelDesk
+          list={filtered} total={active.length} emergency={emergency} settings={settings}
+          safetyLevels={safetyLevels} categories={sortedCategories} isLoading={isLoading}
+          search={search} setSearch={setSearch} safetyFilter={safetyFilter} setSafetyFilter={setSafetyFilter}
+          categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} sortMode={sortMode} setSortMode={setSortMode}
+          onAdd={() => setEditOpen(true)} onLabels={() => setLabelsOpen(true)} onCategories={() => setCategoriesOpen(true)}
+        />
+        {modals}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-1 pb-10">
@@ -188,9 +214,7 @@ export default function Contacts() {
         </div>
       )}
 
-      <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} />
-      <ContactSafetyLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} settings={settings} />
-      <ContactCategoriesModal open={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
+      {modals}
     </div>
   );
 }
