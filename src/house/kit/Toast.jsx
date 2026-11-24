@@ -17,7 +17,7 @@
 //   so Undo (restoreTrashBatch) brings everything back together: the same
 //   path as src/lib/undoDelete.js, drawn in the house's look.
 
-import React, { useEffect, useRef, useSyncExternalStore } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CheckCircle2, AlertTriangle, X } from "lucide-react";
 import HouseIcon from "@/house/tokens/HouseIcon";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
@@ -25,7 +25,8 @@ import { withTrashBatch } from "@/lib/localDb";
 import { restoreTrashBatch, trashKeepsText } from "@/lib/undoDelete";
 import { getTrashSettings } from "@/lib/trash";
 import { Button, IconButton } from "@/house/kit/Button";
-import { toastClock, toastTick, toastPause, toastResume, toastExpired, TOAST_MIN_MS } from "@/house/kit/lists";
+import { toastClock, toastTick, toastPause, toastResume, toastExpired, toastPlacement, TOAST_MIN_MS } from "@/house/kit/lists";
+import { useOpenSheetTop } from "@/house/kit/sheetStack";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 
@@ -65,8 +66,24 @@ export function ToastHost({ inline = false }) {
   }, [toast]);
   const pause = (why) => () => { if (clockRef.current) clockRef.current = toastPause(clockRef.current, why, Date.now()); };
   const resume = (why) => () => { if (clockRef.current) clockRef.current = toastResume(clockRef.current, why, Date.now()); };
+  // Never over an open sheet (building code §5): just above it when it fits
+  // whole, else held (hidden, clock stopped) until the sheet closes.
+  const sheetTop = useOpenSheetTop();
+  const [place, setPlace] = useState({ mode: "free" });
+  useLayoutEffect(() => {
+    if (inline || !toast) { setPlace({ mode: "free" }); return; }
+    const next = toastPlacement({ viewportH: window.innerHeight, sheetTop, toastH: boxRef.current?.offsetHeight || 0 });
+    setPlace((p) => (p.mode === next.mode && p.bottom === next.bottom ? p : next));
+  }, [sheetTop, toast, inline]);
+  const held = place.mode === "held";
+  useEffect(() => {
+    if (!clockRef.current) return;
+    clockRef.current = held ? toastPause(clockRef.current, "sheet", Date.now()) : toastResume(clockRef.current, "sheet", Date.now());
+  }, [held, toast]);
+  const regionStyle = place.mode === "above" ? { bottom: `${place.bottom}px` } : held ? { visibility: "hidden" } : undefined;
   return (
-    <div className={`hk-toast-region${inline ? " hk-toast-region--inline" : ""}`} role="status" aria-live="polite">
+    <div className={`hk-toast-region${inline ? " hk-toast-region--inline" : ""}`} role="status" aria-live="polite"
+      data-place={inline ? undefined : place.mode} style={regionStyle}>
       {toast ? (
         <ToastCard ref={boxRef} toast={toast}
           onAction={async () => { const a = toast.action; dismissToast(toast.id); await a?.onClick?.(); }}
@@ -80,14 +97,21 @@ export function ToastHost({ inline = false }) {
 }
 
 // What one toast looks like (the host above runs its clock).
+// When it's narrow (a phone at large text) the detail folds behind "More",
+// so the message and Undo stay on one short card (kit gate item 3).
 export const ToastCard = React.forwardRef(function ToastCard({ toast, onAction, onClose, ...handlers }, ref) {
+  const [more, setMore] = useState(false);
+  useEffect(() => setMore(false), [toast.id]);
   return (
-    <div ref={ref} className="hk-toast" data-tone={toast.tone} {...handlers}>
-      <HouseIcon icon={toast.tone === "failed" ? AlertTriangle : CheckCircle2} />
+    <div ref={ref} className="hk-toast" data-tone={toast.tone} data-more={more || undefined} {...handlers}>
+      <span className="hk-toast-icon"><HouseIcon icon={toast.tone === "failed" ? AlertTriangle : CheckCircle2} /></span>
       <span className="hk-toast-text">
         <span className="hk-toast-message">{toast.message}</span>
         {toast.detail ? <span className="hk-toast-detail">{toast.detail}</span> : null}
       </span>
+      {toast.detail ? (
+        <Button rank="quiet" className="hk-toast-more" aria-expanded={more} onClick={() => setMore((m) => !m)}>{more ? "Less" : "More"}</Button>
+      ) : null}
       {toast.action ? <Button rank="secondary" onClick={onAction}>{toast.action.label}</Button> : null}
       <IconButton icon={X} label={`Close the message: ${toast.message}`} onClick={onClose} />
     </div>

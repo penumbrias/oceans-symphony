@@ -16,6 +16,8 @@
 //
 // Typed text that can't be read is KEPT in the box with an error under it,
 // never thrown away; the value only changes when the text reads cleanly.
+// Number, date, time and duration take `onInvalidChange(bool)`: true while
+// the box holds words it couldn't read, so the host blocks its Save.
 // `save={{ state, error, onRetry }}` shows Saving… / Saved / Not saved.
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -137,6 +139,20 @@ export function valueChars(text, placeholder) {
   return Math.max(2, n);
 }
 
+// Tells the host when the box holds typed words it couldn't read (kit gate,
+// "typed-but-unreadable dates"): onInvalidChange(true) while the error
+// shows, false once it reads cleanly. The value itself stays the old one,
+// so a host with a Save must block it ("Fix the date first") while true.
+function useInvalidReport(bad, onInvalidChange) {
+  const cb = useRef(onInvalidChange);
+  cb.current = onInvalidChange;
+  const last = useRef(false);
+  useEffect(() => {
+    const now = !!bad;
+    if (now !== last.current) { last.current = now; cb.current?.(now); }
+  }, [bad]);
+}
+
 // Typed text kept while it's being edited; re-shown from the value after.
 function useDraft(display) {
   const [text, setText] = useState(display);
@@ -146,10 +162,11 @@ function useDraft(display) {
 }
 
 // ── Number, with − and + ───────────────────────────────────────────
-export function NumberField({ label, hint, error, save, value, onChange, min = -Infinity, max = Infinity, step = 1, unit, clearable = false, disabled, placeholder }) {
+export function NumberField({ label, hint, error, save, value, onChange, onInvalidChange, min = -Infinity, max = Infinity, step = 1, unit, clearable = false, disabled, placeholder }) {
   const display = value == null || !Number.isFinite(Number(value)) ? "" : String(value);
   const { text, setText, setEditing } = useDraft(display);
   const [bad, setBad] = useState(null);
+  useInvalidReport(bad, onInvalidChange);
   const commit = () => {
     setEditing(false);
     if (text.trim() === "") {
@@ -281,7 +298,7 @@ function Calendar({ value, onPick, onClose, weekStart = 1, clearable, onClear, a
   );
 }
 
-export function DateField({ label, hint, error, save, value, onChange, clearable = false, disabled, weekStart: weekStartProp, placeholder = "Today, tomorrow, 23 Nov…", openInline = false }) {
+export function DateField({ label, hint, error, save, value, onChange, onInvalidChange, clearable = false, disabled, weekStart: weekStartProp, placeholder = "23 Nov, tomorrow…", openInline = false }) {
   const today = todayDay();
   // The calendar's first column is the person's own week start (the
   // planner's "Week starts on", symphony_act_week_start: 0 Sunday, 1 Monday),
@@ -291,6 +308,7 @@ export function DateField({ label, hint, error, save, value, onChange, clearable
   const display = isDay(value) ? formatDayWords(value, { today }) : "";
   const { text, setText, setEditing } = useDraft(display);
   const [bad, setBad] = useState(null);
+  useInvalidReport(bad, onInvalidChange);
   const [open, setOpen] = useState(openInline);
   const btnRef = useRef(null);
   const order = useMemo(() => localeDateOrder(undefined), []);
@@ -369,7 +387,7 @@ function TimeList({ value, step, format, onPick, label, onClose, autoFocus = tru
     else if (e.key === "PageDown") { e.preventDefault(); setActive((i) => Math.min(slots.length - 1, i + 4)); }
     else if (e.key === "PageUp") { e.preventDefault(); setActive((i) => Math.max(0, i - 4)); }
     else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(slots[active]); }
-    else if (e.key === "Tab") onClose();
+    else if (e.key === "Tab") { e.preventDefault(); onClose(); }
   };
   return (
     <div ref={listRef} role="listbox" aria-label={label} tabIndex={0} aria-activedescendant={`${baseId}-${active}`} onKeyDown={onKey} style={{ outline: "none" }}>
@@ -384,11 +402,12 @@ function TimeList({ value, step, format, onPick, label, onClose, autoFocus = tru
   );
 }
 
-export function TimeField({ label, hint, error, save, value, onChange, clearable = false, disabled, step = 15, placeholder, openInline = false }) {
+export function TimeField({ label, hint, error, save, value, onChange, onInvalidChange, clearable = false, disabled, step = 15, placeholder, openInline = false }) {
   const format = useTimeFormat();
   const display = isTime(value) ? formatTimeValue(value, format) : "";
   const { text, setText, setEditing } = useDraft(display);
   const [bad, setBad] = useState(null);
+  useInvalidReport(bad, onInvalidChange);
   const [open, setOpen] = useState(openInline);
   const btnRef = useRef(null);
   const accept = (t) => { setBad(null); setEditing(false); if (t !== value) onChange?.(t); };
@@ -428,7 +447,7 @@ export function TimeField({ label, hint, error, save, value, onChange, clearable
           <KitPopover open={open} inline={openInline} anchorRef={btnRef} onClose={() => setOpen(false)} role="presentation">
             <TimeList value={value} step={step} format={format} label={`${label}: times`} autoFocus={!openInline}
               onPick={(t) => { accept(t); setOpen(false); btnRef.current?.focus(); }}
-              onClose={() => setOpen(false)} />
+              onClose={() => { setOpen(false); btnRef.current?.focus(); }} />
           </KitPopover>
         </>
       )}
@@ -437,10 +456,11 @@ export function TimeField({ label, hint, error, save, value, onChange, clearable
 }
 
 // ── Duration (minutes) ────────────────────────────────────────────────
-export function DurationField({ label, hint, error, save, value, onChange, step = 5, min = 0, max = 7 * 1440, clearable = false, disabled, placeholder = "45 min, 1h 30m…" }) {
+export function DurationField({ label, hint, error, save, value, onChange, onInvalidChange, step = 5, min = 0, max = 7 * 1440, clearable = false, disabled, placeholder = "45 min, 1h 30m…" }) {
   const display = Number.isFinite(value) ? formatDuration(value) : "";
   const { text, setText, setEditing } = useDraft(display);
   const [bad, setBad] = useState(null);
+  useInvalidReport(bad, onInvalidChange);
   const accept = (m) => { setBad(null); setEditing(false); if (m !== value) onChange?.(m); };
   const commit = () => {
     const t = text.trim();

@@ -11,7 +11,7 @@
   box-shadow: var(--house-surface-shadow), var(--house-raise);
 }
 [data-house][data-house-look="pixel"] .hk-panel { border-color: var(--house-outline); border-width: 2px; }
-/* Heads wrap when narrow: the title keeps the first line (at least 8 rem
+/* Heads wrap when narrow: the title keeps the first line (at least 6 rem
    of it), tools and the fold go under it, never a title a letter wide. */
 [data-house] .hk-panel-head {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2);
@@ -19,7 +19,7 @@
   border-bottom: var(--house-border-w) solid var(--house-divider);
 }
 [data-house] .hk-panel[data-open="false"] .hk-panel-head { border-bottom-color: transparent; }
-[data-house] .hk-panel-title { flex: 1 1 8rem; min-width: 0; padding: var(--house-space-1) 0; margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 700; overflow-wrap: break-word; }
+[data-house] .hk-panel-title { flex: 1 1 6rem; min-width: 0; padding: var(--house-space-1) 0; margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 700; overflow-wrap: break-word; }
 [data-house] .hk-panel-tools { display: flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; max-width: 100%; }
 [data-house] .hk-panel-head > .hk-iconbtn { margin-left: auto; }
 /* Side padding gives way a little in a narrow panel (cqi: the panel's width). */
@@ -155,7 +155,7 @@
 }
 [data-house][data-house-look="pixel"] .hk-card { border-color: var(--house-outline); border-width: 2px; }
 [data-house] .hk-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2); padding: var(--house-space-2) var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); }
-[data-house] .hk-card-title { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: var(--house-text-md); line-height: var(--house-lh-md); overflow-wrap: break-word; }
+[data-house] .hk-card-title { flex: 1 1 6rem; min-width: 0; margin: 0; font-size: var(--house-text-md); line-height: var(--house-lh-md); overflow-wrap: break-word; }
 [data-house] .hk-card-tools { display: flex; gap: var(--house-space-1); margin-left: auto; }
 [data-house] .hk-card-body { padding: var(--house-space-2) var(--house-space-4) var(--house-space-4); min-width: 0; }
 [data-house] .hk-card-foot { padding: var(--house-space-2) var(--house-space-4); border-top: var(--house-border-w) solid var(--house-divider); display: flex; gap: var(--house-space-2); flex-wrap: wrap; justify-content: flex-end; }
@@ -261,11 +261,29 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 [data-house] .hk-error-safe { margin: 0; display: flex; gap: var(--house-space-2); align-items: flex-start; font-size: var(--house-text-sm); }
 
 /* ── Toast ───────────────────────────────────────────────────────── */
+/* Above everything but a sheet's own space: while a sheet is open the host
+   moves it above the sheet's top edge, or holds it (Toast.jsx). */
 [data-house] .hk-toast-region { position: fixed; left: 0; right: 0; bottom: calc(var(--house-sheet-bottom, 0px) + var(--house-space-4)); display: flex; justify-content: center; padding: 0 var(--house-space-4); pointer-events: none; z-index: 300; }
 [data-house] .hk-toast-region--inline { position: static; padding: 0; justify-content: flex-start; }
+[data-house] .hk-toast-region { container-type: inline-size; }
+[data-house] .hk-toast-more { display: none; }
+[data-house] .hk-toast-icon { display: inline-flex; flex-shrink: 0; }
+/* Narrow: no icon, the message beside Close, "More" (the detail, never
+   cut) and Undo on the line under it. */
+@container (max-width: 20rem) {
+  [data-house] .hk-toast .hk-toast-icon { display: none; }
+  [data-house] .hk-toast > .hk-toast-text { flex: 1 1 calc(100% - var(--house-target) - var(--house-space-2)); }
+  [data-house] .hk-toast > .hk-iconbtn:last-child { order: -1; }
+  [data-house] .hk-toast > .hk-toast-text { order: -2; }
+  [data-house] .hk-toast:not([data-more]) .hk-toast-detail { display: none; }
+  [data-house] .hk-toast-more { display: inline-flex; }
+}
 [data-house] .hk-toast {
   pointer-events: auto; display: flex; align-items: center; gap: var(--house-space-2); flex-wrap: wrap;
   width: min(36rem, 100%); padding: var(--house-space-2) var(--house-space-1) var(--house-space-2) var(--house-space-3);
+  /* At large text it never grows past 40% of the screen: the rest scrolls
+     inside it (kit gate item 3). */
+  max-height: 40dvh; overflow-y: auto; overscroll-behavior: contain;
   background: var(--house-panel); color: var(--house-text);
   border: 2px solid var(--house-border); border-radius: var(--house-corner);
   box-shadow: var(--house-surface-shadow), var(--house-raise);
@@ -303,8 +321,9 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 [data-house] .hk-sheet-grabbar { width: 3rem; height: 0.3125rem; border-radius: 999px; background: var(--house-border); }
 [data-house] .hk-sheet-grab:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
 [data-house] .hk-sheet-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2); padding: 0 var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); border-bottom: var(--house-border-w) solid var(--house-divider); flex-shrink: 0; }
-[data-house] .hk-sheet-title { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
+[data-house] .hk-sheet-title { flex: 1 1 6rem; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
 [data-house] .hk-sheet-tools { display: flex; gap: var(--house-space-1); margin-left: auto; }
+[data-house] .hk-sheet-head > .hk-iconbtn { margin-left: auto; }
 [data-house] .hk-sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--house-space-3) var(--house-space-4) var(--house-space-4); }
 [data-house] .hk-sheet-foot { flex-shrink: 0; display: flex; gap: var(--house-space-2); flex-wrap: wrap; justify-content: flex-end; padding: var(--house-space-2) var(--house-space-4); border-top: var(--house-border-w) solid var(--house-divider); }
 [data-house] .hk-confirm { display: flex; flex-direction: column; gap: var(--house-space-3); }

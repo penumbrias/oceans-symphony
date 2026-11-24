@@ -91,9 +91,23 @@ export function useOutsidePress(open, refs, onClose) {
   }, [open, refs, onClose]);
 }
 
+const POP_FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Would this Tab (or Shift+Tab) take focus out of the pop-up? True when
+// focus is on its last (first) Tab stop, or it has none.
+export function tabLeavesPop(pop, shift) {
+  if (!pop) return false;
+  const stops = [...pop.querySelectorAll(POP_FOCUSABLE)].filter((el) => el.getAttribute("tabindex") !== "-1");
+  if (!stops.length) return true;
+  const edge = shift ? stops[0] : stops[stops.length - 1];
+  const a = document.activeElement;
+  return a === edge || !pop.contains(a);
+}
+
 // A pop-up anchored to a trigger: portaled into a house layer, placed by
 // useAnchoredPosition, closed by Escape (focus goes back to the trigger) or
-// a press outside. `role` and `label` describe it to screen readers.
+// a press outside, or Tab off either end (focus goes back to the trigger).
+// `role` and `label` describe it to screen readers.
 export function KitPopover({ open, anchorRef, onClose, children, role = "dialog", label, className = "", id, popRef: outerRef, onKeyDown, inline = false, ...rest }) {
   const innerRef = React.useRef(null);
   const popRef = outerRef || innerRef;
@@ -114,7 +128,32 @@ export function KitPopover({ open, anchorRef, onClose, children, role = "dialog"
         style={inline ? { position: "relative", marginTop: "var(--house-space-1)" } : pos ? pos : { visibility: "hidden", left: 0, top: 0 }}
         onKeyDown={(e) => {
           if (e.key === "Escape") { e.stopPropagation(); onClose(); anchorRef.current?.focus?.(); return; }
+          // Tab off either end of a floating pop-up closes it and puts focus
+          // back on its trigger, as Escape does (kit gate item 4). A menu
+          // handles its own Tab (its items aren't in the Tab order).
+          if (e.key === "Tab" && !e.defaultPrevented && !inline && role !== "menu" && tabLeavesPop(popRef.current, e.shiftKey)) {
+            e.preventDefault();
+            onClose();
+            anchorRef.current?.focus?.();
+            return;
+          }
           onKeyDown?.(e);
+        }}
+        onBlur={(e) => {
+          // Focus that leaves some other way and lands nowhere (on <body>)
+          // also closes it and goes back to the trigger; focus that moves
+          // to another control (a click elsewhere) just closes it.
+          if (inline) return;
+          const to = e.relatedTarget;
+          if (to && (popRef.current?.contains(to) || anchorRef.current?.contains(to))) return;
+          setTimeout(() => {
+            const pop = popRef.current;
+            if (!pop || !document.hasFocus()) return;
+            const a = document.activeElement;
+            if (pop.contains(a) || anchorRef.current?.contains(a)) return;
+            onClose();
+            if (!a || a === document.body) anchorRef.current?.focus?.();
+          }, 120);
         }}
         {...rest}
       >

@@ -7,8 +7,11 @@
 // Moving: the ↑ / ↓ buttons, or Alt + ↑ / ↓ (Alt + Home / End for the top
 // and bottom) from anywhere in the row. Focus stays on what moved, and a
 // screen reader hears where it went ("Forest moved to 2 of 5").
-// Showing and hiding: an eye button that says what it does ("Hide Forest")
-// and reads as pressed while the layer shows. Hidden rows stay in the list,
+// Showing and hiding: an eye button with ONE signal (kit gate item 6): a
+// name that never changes ("Show Forest") and aria-pressed for the state,
+// so a screen reader says "Show Forest, toggle button, pressed" while the
+// layer shows and "not pressed" while it's hidden. The name never flips to
+// "Hide…", which together with "pressed" would say two things at once. Hidden rows stay in the list,
 // greyed with dashed edges and the word "Hidden". Layers only reports the
 // new order or visibility; the host writes it through its one writer.
 
@@ -58,7 +61,7 @@ export default function Layers({ label, layers = [], getId = (l) => l.id, getNam
           const visible = layer.visible !== false;
           return (
             <li key={id} className="hk-layer" data-layer={id} data-hidden={!visible || undefined} onKeyDown={onKey(layer)}>
-              <IconButton icon={visible ? Eye : EyeOff} label={visible ? `Hide ${name}` : `Show ${name}`}
+              <IconButton icon={visible ? Eye : EyeOff} label={`Show ${name}`}
                 aria-pressed={visible} onClick={() => onToggle?.(id, !visible)}
                 disabledReason={layer.lockedReason || undefined} />
               {renderLead ? <span className="hk-layer-lead">{renderLead(layer)}</span> : null}

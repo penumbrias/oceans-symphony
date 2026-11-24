@@ -41,6 +41,7 @@ import { trashKeepsText } from "@/lib/undoDelete";
 import { Button, IconButton } from "@/house/kit/Button";
 import KitLayer from "@/house/kit/KitLayer";
 import { usePopupZ } from "@/components/shared/popupLayer";
+import { useRegisterSheet } from "@/house/kit/sheetStack";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 
@@ -111,6 +112,8 @@ export function Sheet({ open, onClose, title, size: sizeProp = "half", onSizeCha
   useBackToClose(open && !inline, () => close("back"));
   useEdgeSafeSliders(open && !inline, [size]);
   const onTrapKey = useSheetFocus(open && !inline, boxRef, { trap: isModal, initial: initialFocus });
+  // The toast keeps clear of an open sheet (kit gate item 3).
+  useRegisterSheet(open && !inline, boxRef);
   // A press outside: non-modal sheets close, unless they hold typing.
   useEffect(() => {
     if (!open || inline || holdsTyping || isModal) return undefined;
@@ -228,6 +231,7 @@ export function SafetySheet({ open, title, onLeave, children, supportPath = "/gr
   const [armed, setArmed] = useState(false);
   const z = usePopupZ(400);
   useSheetFocus(open && !inline, boxRef, { trap: true });
+  useRegisterSheet(open && !inline, boxRef);
   useBackToClose(open && !inline, () => onLeave?.("back"));
   useEffect(() => {
     if (!armed) return undefined;

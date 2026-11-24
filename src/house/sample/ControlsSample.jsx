@@ -133,6 +133,7 @@ function Fields() {
         <Cell name="Set"><DateField label="Due" value={day} onChange={setDay} /></Cell>
         <Cell name="Another year"><DateField label="First noticed" value="2019-03-14" onChange={noop} /></Cell>
         <Cell name="Error, typing kept"><DateField label="Due" value={null} onChange={noop} error="Couldn't read that as a date. Try “23 Nov”, “tomorrow” or “fri”." /></Cell>
+        <Cell name="Save waits for a date it can read (type “nxt tues”)"><DateSaveStory /></Cell>
         <Cell name="Calendar open" wide><DateField label="Due" value={day} onChange={setDay} openInline /></Cell>
       </Grid>
       <h3 className="house-label house-text-sm ks-rank-title">Time (on your clock)</h3>
@@ -331,5 +332,18 @@ export default function ControlsSample() {
     <HouseRoot className="kit-root">
       <Body />
     </HouseRoot>
+  );
+}
+
+// A date the field couldn't read blocks the host's Save (onInvalidChange):
+// the old value is kept, so saving would store the wrong day.
+function DateSaveStory() {
+  const [day, setDay] = useState(null);
+  const [bad, setBad] = useState(false);
+  return (
+    <div className="ks-rank">
+      <DateField label="Due" value={day} onChange={setDay} onInvalidChange={setBad} />
+      <Button rank="primary" disabledReason={bad ? "Fix the date first" : undefined}>Save</Button>
+    </div>
   );
 }

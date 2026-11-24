@@ -218,6 +218,23 @@ export function toastResume(clock, reason, now) {
 
 export const toastExpired = (clock) => clock.left <= 0 && clock.pausedBy.size === 0;
 
+// Where the toast goes while a sheet is open (kit gate item 3, building
+// code §5: nothing floats over a sheet the person opened). `sheetTop` is the
+// top edge of the highest open sheet (null when none). The toast sits just
+// above it when it fits there whole; when it doesn't (a full sheet, or the
+// toast is tall at large text) it is HELD: hidden, its clock paused, and
+// back the moment the sheet closes, so its Undo is never lost and never
+// covers the sheet's buttons.
+//   → { mode: "free" }                       no sheet: the usual place
+//   → { mode: "above", bottom }              px from the viewport's bottom
+//   → { mode: "held" }
+export function toastPlacement({ viewportH, sheetTop, toastH, gap = 8 }) {
+  if (sheetTop == null || !Number.isFinite(sheetTop)) return { mode: "free" };
+  const room = sheetTop - gap * 2;
+  if (!(toastH > 0) || toastH > room) return { mode: "held" };
+  return { mode: "above", bottom: Math.max(0, Math.round(viewportH - sheetTop + gap)) };
+}
+
 // ── Chart helpers ─────────────────────────────────────────────────────
 // A series' total and share, for the text version of a chart.
 export function seriesSummary(data = [], key) {
