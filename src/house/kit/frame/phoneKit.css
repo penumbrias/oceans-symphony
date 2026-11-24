@@ -1,0 +1,65 @@
+/* The phone frame's own kit blocks (new house step 2.2): the bottom bar and
+   the attention line. Tokens only, scoped to [data-house]. Labels use the
+   1.3× frame text cap (building code §5). */
+
+/* ── Bottom bar: five places, never wrapping ─────────────────────── */
+[data-house] .hk-pbar {
+  display: flex; align-items: stretch;
+  min-height: max(var(--house-h-row-2), var(--bottom-nav-height, 56px));
+  background: var(--house-panel);
+  border-top: var(--house-border-w) solid var(--house-divider);
+}
+[data-house] .hk-pbar-place {
+  position: relative;
+  flex: 1 1 0; min-width: 0; min-height: var(--house-target);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: var(--house-space-1) 2px;
+  border: 0; background: transparent; color: var(--house-muted);
+  text-decoration: none; cursor: pointer;
+  font-family: var(--house-font-label); font-size: var(--house-frame-text-xs); line-height: 1.25;
+  -webkit-tap-highlight-color: transparent;
+}
+[data-house] .hk-pbar-label { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; }
+/* Current place: a 3 px bar on top, bold words and the accent, never colour alone. */
+[data-house] .hk-pbar-place[data-current] { color: var(--house-accent-text); font-weight: 700; }
+[data-house] .hk-pbar-place[data-current]::before {
+  content: ""; position: absolute; top: 0; left: 20%; right: 20%; height: 3px;
+  background: var(--house-accent); border-radius: 0 0 2px 2px;
+}
+[data-house] .hk-pbar-place[data-place="support"] { color: var(--house-accent-text); font-weight: 700; }
+[data-house] .hk-pbar-place[data-place="support"] .hk-pbar-icon {
+  border-radius: 999px; box-shadow: 0 0 0 2px var(--house-accent); padding: 2px;
+}
+[data-house][data-house-look="pixel"] .hk-pbar-place[data-place="support"] .hk-pbar-icon { border-radius: 0; }
+@media (hover: hover) {
+  [data-house] .hk-pbar-place:hover { color: var(--house-text); box-shadow: inset 0 0 0 3px currentColor; }
+}
+[data-house] .hk-pbar-place:active { transform: translateY(1px); }
+[data-house] .hk-pbar-place:focus-visible { outline-offset: -3px; }
+
+/* ── Attention line: one item, in the flow above the bar ─────────── */
+[data-house] .hk-attn {
+  background: var(--house-panel); color: var(--house-text);
+  border-top: var(--house-border-w) solid var(--house-divider);
+}
+[data-house] .hk-attn[data-empty] { border-top: 0; height: 0; overflow: hidden; }
+[data-house] .hk-attn[data-tone="warn"] { box-shadow: inset 4px 0 0 var(--house-danger); }
+[data-house] .hk-attn-item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1) var(--house-space-2);
+  min-height: var(--house-h-control);
+  padding: var(--house-space-1) var(--house-space-2) var(--house-space-1) var(--house-space-3);
+}
+[data-house] .hk-attn-icon { display: inline-flex; flex: none; font-size: var(--house-frame-text-sm); }
+[data-house] .hk-attn-words { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; }
+[data-house] .hk-attn-title {
+  font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 700;
+  overflow-wrap: break-word; text-align: left;
+}
+[data-house] .hk-attn[data-tone="warn"] .hk-attn-title { color: var(--house-danger-text); }
+[data-house] .hk-attn-open {
+  border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; font-family: inherit;
+  min-height: var(--house-target);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em;
+}
+[data-house] .hk-attn-detail { font-size: var(--house-text-sm); color: var(--house-muted); overflow-wrap: break-word; }
+[data-house] .hk-attn-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1); margin-left: auto; }

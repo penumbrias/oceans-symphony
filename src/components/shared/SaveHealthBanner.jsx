@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getSaveHealth, retrySave } from "@/lib/localDb";
+import { useHouseZoneItem, ZONE_PRIORITY } from "@/lib/houseZones";
 
 export default function SaveHealthBanner() {
   const navigate = useNavigate();
@@ -45,13 +46,26 @@ export default function SaveHealthBanner() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [health.ok]);
 
-  if (health.ok) return null;
-
   const retry = async () => {
     setBusy(true);
     try { await retrySave(); } catch { /* still failing — banner stays */ }
     setBusy(false);
   };
+
+  // The new house's phone frame: this takes its attention line and stays
+  // there until a save gets through (building code §1 rule 6, §5).
+  const inZone = useHouseZoneItem("save-health", health.ok ? null : {
+    priority: ZONE_PRIORITY.SAVE, sticky: true, safety: true, tone: "warn", sig: `${busy}`,
+    icon: AlertTriangle,
+    title: "Your latest changes aren't saved yet",
+    detail: "This device's storage refused the save, usually because it's full. Keep the app open, free up some space, then try again.",
+    actions: [
+      { label: "Try again", primary: true, busy, busyLabel: "Saving…", onClick: retry },
+      { label: "Back up now", onClick: () => navigate("/settings#data") },
+    ],
+  });
+
+  if (health.ok || inZone) return null;
 
   return (
     <div

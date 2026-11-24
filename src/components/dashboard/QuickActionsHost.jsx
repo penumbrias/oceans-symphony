@@ -35,12 +35,43 @@ function placementFor(y) {
   return { top, maxHeight: Math.max(200, vh - (top ?? 64) - GAP - 72) };
 }
 
-export default function QuickActionsHost() {
-  const [open, setOpen] = useState(null); // null | { top?, bottom?, maxHeight }
+// Runs one saved quick action with everything it needs (shared with the new
+// house's Do sheet, so both doors run an action the same way).
+export function useRunQuickAction({ reopenMenu } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const atHome = location.pathname === "/";
+  return async (action, extraData = {}) => {
+    markQuickActionUsedToday();
+    try {
+      await runQuickAction(action, extraData, {
+        queryClient,
+        terms,
+        navigate,
+        // The check-in and Set fronters sheets are hosted on the home
+        // screen; from elsewhere these two go there with a param.
+        openCheckin: (section) => {
+          if (atHome) window.dispatchEvent(new CustomEvent("open-quick-checkin", { detail: { section } }));
+          else navigate(`/?action=quick-checkin${section ? `&section=${encodeURIComponent(section)}` : ""}`);
+        },
+        openSetFront: () => {
+          if (atHome) window.dispatchEvent(new CustomEvent("open-set-front"));
+          else navigate("/?action=set-front");
+        },
+        reopenMenu: () => reopenMenu?.(),
+      });
+    } catch (err) {
+      console.error("Quick action failed", err);
+    }
+  };
+}
+
+export default function QuickActionsHost() {
+  const [open, setOpen] = useState(null); // null | { top?, bottom?, maxHeight }
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const { data: quickActionsRaw = [] } = useQuery({
     queryKey: ["quickActions"],
@@ -67,31 +98,10 @@ export default function QuickActionsHost() {
   }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const close = () => setOpen(null);
-  const atHome = location.pathname === "/";
-
+  const runAction = useRunQuickAction({ reopenMenu: () => setOpen(placementFor(null)) });
   const onAction = async (action, extraData = {}) => {
     close();
-    markQuickActionUsedToday();
-    try {
-      await runQuickAction(action, extraData, {
-        queryClient,
-        terms,
-        navigate,
-        // The check-in and Set fronters sheets are hosted on the home
-        // screen; from elsewhere these two go there with a param.
-        openCheckin: (section) => {
-          if (atHome) window.dispatchEvent(new CustomEvent("open-quick-checkin", { detail: { section } }));
-          else navigate(`/?action=quick-checkin${section ? `&section=${encodeURIComponent(section)}` : ""}`);
-        },
-        openSetFront: () => {
-          if (atHome) window.dispatchEvent(new CustomEvent("open-set-front"));
-          else navigate("/?action=set-front");
-        },
-        reopenMenu: () => setOpen(placementFor(null)),
-      });
-    } catch (err) {
-      console.error("Quick action failed", err);
-    }
+    await runAction(action, extraData);
   };
 
   return createPortal(

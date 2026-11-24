@@ -5,6 +5,7 @@ import { natureSoundById } from "@/lib/natureSounds/catalog";
 import { toggleNature, stopNature } from "@/lib/natureSounds/naturePlayer";
 import { useNatureState } from "@/components/grounding/nature/natureHooks";
 import { useSoundscapeState, useRemaining, fmtClock, useSoundscapeWidgetsOnScreen } from "./soundscapeHooks";
+import { useHouseZoneItem, ZONE_PRIORITY } from "@/lib/houseZones";
 
 const PILL = "flex items-center gap-1 rounded-full border border-primary/30 bg-card/95 backdrop-blur pl-3 pr-1 py-1 shadow-lg min-w-0";
 const ICON_BTN = "p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted flex-shrink-0";
@@ -19,12 +20,12 @@ export default function SoundscapeGlobalBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const widgetsHere = useSoundscapeWidgetsOnScreen();
-  if (location.pathname.toLowerCase() === "/grounding") return null;
+  const onGrounding = location.pathname.toLowerCase() === "/grounding";
   // A Soundscape widget on this page already shows the countdown and a
   // stop button, so the pill would only cover it.
   const showSoundscape = state.playing && widgetsHere === 0;
   const sound = natureSoundById(nature.id);
-  if (!showSoundscape && !sound) return null;
+  const shown = !onGrounding && (showSoundscape || !!sound);
   // One pill for the whole Soundscape: what's on, a pause for the
   // recording, and one stop for everything.
   const label = [
@@ -32,6 +33,20 @@ export default function SoundscapeGlobalBar() {
     sound && sound.title,
   ].filter(Boolean).join(" + ");
   const stopAll = () => { if (state.playing) stopSoundscape(); stopNature(); };
+  // The new house's phone frame: the attention line, not a floating pill.
+  const inZone = useHouseZoneItem("soundscape", shown ? {
+    priority: ZONE_PRIORITY.SOUND, sig: `${label}|${nature.playing}`,
+    icon: "🎧",
+    title: [showSoundscape && "Soundscape", sound && sound.title].filter(Boolean).join(" + ") || "Soundscape",
+    // The countdown ticks every second: shown, never announced each tick.
+    detail: showSoundscape && remaining != null ? `${fmtClock(remaining)} left` : null, ticking: true,
+    onOpen: () => navigate("/grounding?view=soundscape"),
+    actions: [
+      ...(sound ? [{ label: nature.playing ? "Pause" : "Play", onClick: () => toggleNature() }] : []),
+      { label: "Stop", onClick: stopAll },
+    ],
+  } : null);
+  if (!shown || inZone) return null;
   return (
     <div
       className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 max-w-[calc(100vw-32px)]"
