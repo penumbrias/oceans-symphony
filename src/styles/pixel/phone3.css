@@ -111,3 +111,45 @@ html[data-ui-look="pixel"] .os-sound-mini-bar button[aria-label] {
   background: var(--px-bar); outline: 2px solid var(--px-line); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
   margin-left: 6px; color: var(--px-text);
 }
+
+/* ── Medications ───────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .px-meds { padding-left: 12px; padding-right: 12px; padding-top: 10px; }
+html[data-ui-look="pixel"] .px-meds-head { margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+html[data-ui-look="pixel"] .px-meds-bar { display: flex; align-items: center; gap: 10px; }
+html[data-ui-look="pixel"] .px-meds-title { font-family: var(--px-font); font-size: 18px; font-weight: 600; flex: 1; min-width: 0; margin: 0; color: var(--px-text); }
+html[data-ui-look="pixel"] .px-meds-icon { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+html[data-ui-look="pixel"] .px-meds-add { display: flex; gap: 8px; align-items: stretch; }
+html[data-ui-look="pixel"] .px-meds-add .px-p3-btn { min-height: 40px; }
+html[data-ui-look="pixel"] .px-meds-add .px-p3-btn:disabled { opacity: .5; }
+html[data-ui-look="pixel"] .px-meds-input {
+  flex: 1; min-width: 0; background: var(--px-sunk); color: var(--px-text); border: 0;
+  box-shadow: var(--px-sunken); padding: 0 10px; font: inherit; outline: none;
+}
+html[data-ui-look="pixel"] .px-meds-input:focus-visible { outline: 2px solid var(--color-primary); }
+
+/* Medication widget rows (any board, in the pixel look). Sizes in em so
+   the widget's own text size still works. */
+html[data-ui-look="pixel"] .px-med-row {
+  display: flex; align-items: center; gap: 0.65em; min-height: 2.9em;
+  padding: 0.4em 0; box-shadow: inset 0 -2px 0 var(--px-sunk);
+}
+html[data-ui-look="pixel"] .px-med-row:last-of-type { box-shadow: none; }
+html[data-ui-look="pixel"] .px-med-time { font-family: var(--px-font); width: 4.2em; flex-shrink: 0; color: var(--px-text-2); line-height: 1.2; }
+html[data-ui-look="pixel"] .px-med-time.due { color: #f2c08a; }
+html[data-ui-look="pixel"] .px-med-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+html[data-ui-look="pixel"] .px-med-name { font-weight: 700; min-width: 0; overflow: hidden; }
+html[data-ui-look="pixel"] .px-med-note { font-size: 0.87em; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-med-acts { display: inline-flex; align-items: center; gap: 0.5em; flex-shrink: 0; }
+html[data-ui-look="pixel"] .px-med-btn { min-height: 2.75em; font-size: 0.9em; padding: 0 0.8em; }
+html[data-ui-look="pixel"] .px-med-taken { font-family: var(--px-font); color: #9cc46b; }
+html[data-ui-look="pixel"] .px-med-skipped { font-family: var(--px-font); color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-med-undo { font-family: var(--px-font); font-size: 0.8em; color: var(--px-text-2); text-decoration: underline; min-height: 2.75em; padding: 0 0.25em; }
+html[data-ui-look="pixel"] .px-med-head-note { font-size: 0.75em; color: var(--px-text-2); font-family: var(--px-font); }
+html[data-ui-look="pixel"] .px-refill { display: flex; flex-direction: column; gap: 0.45em; width: 100%; text-align: left; padding: 0.3em 0; color: var(--px-text); }
+html[data-ui-look="pixel"] .px-refill-top { display: flex; justify-content: space-between; gap: 0.6em; }
+html[data-ui-look="pixel"] .px-refill-left { font-family: var(--px-font); color: var(--px-text-2); text-align: right; }
+html[data-ui-look="pixel"] .px-refill-left.low { color: #f2c08a; }
+html[data-ui-look="pixel"] .px-refill-bar { display: block; position: relative; height: 0.8em; background: var(--px-sunk); box-shadow: var(--px-sunken); }
+html[data-ui-look="pixel"] .px-refill-bar > span { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--color-primary) 60%, #8a90d6); }
+html[data-ui-look="pixel"] .px-refill-bar > span.low { background: #e8a65d; }
+html[data-ui-look="pixel"] .px-refill:focus-visible { outline: 2px solid var(--color-primary); }
