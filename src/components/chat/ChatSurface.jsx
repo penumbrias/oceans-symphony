@@ -633,7 +633,7 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
           </button>
         </div>
       )}
-      <div className="flex items-end gap-2">
+      <div className="px-chat-composer flex items-end gap-2">
         <SpeakerPicker
           selectedAuthors={selectedAuthors}
           open={pickerOpen}
@@ -643,7 +643,7 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
           onToggle={toggleSpeaker}
           terms={terms}
         />
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <RichMentionInput
             ref={editorRef}
             value={text}

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "fix", text: "Pixel look on a phone: the chat message box keeps the full width instead of squeezing beside who's speaking." },
       { type: "improve", text: "Pixel look: inner world places get square boxes with a title bar, and maps sit as folder tabs." },
       { type: "improve", text: "Pixel look on a computer: every settings page is listed in a side panel, so you can hop between them." },
       { type: "improve", text: "Pixel look on a computer: a month beside the Planner jumps the calendar to any day you click." },
