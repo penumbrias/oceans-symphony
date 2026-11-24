@@ -17,6 +17,7 @@
 [data-house] .kit-swatch .kit-chipcolour { grid-row: span 2; }
 [data-house] .kit-chipcolour { width: var(--house-chip); height: var(--house-chip); border-radius: var(--house-corner-sm); border: var(--house-border-w) solid var(--house-border); }
 [data-house] .kit-pair { display: inline-block; padding: var(--house-space-1) var(--house-space-2); border: var(--house-border-w) solid; border-radius: var(--house-corner-sm); }
+[data-house] .kit-pair-mark { display: inline-block; width: 0.9em; height: 0.9em; margin-right: var(--house-space-1); vertical-align: -0.1em; border-radius: var(--house-corner-sm); }
 [data-house] .kit-danger { color: var(--house-danger-text); }
 [data-house] .kit-type-row { display: flex; flex-direction: column; gap: var(--house-space-1); overflow-wrap: anywhere; }
 [data-house] .kit-space-row { display: grid; grid-template-columns: 3rem 1fr; column-gap: var(--house-space-3); align-items: center; }

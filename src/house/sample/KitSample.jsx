@@ -61,7 +61,16 @@ function ContrastTable() {
           const ok = r.ratio >= r.min;
           return (
             <li key={`${r.fg}-${r.bg}`} className="kit-pair-row house-text-sm">
-              <span className="kit-pair" style={{ background: roles[r.bg], color: roles[r.fg], borderColor: roles[r.fg] }}>{name(r.fg)}</span>
+              {r.min >= 4.5 ? (
+                <span className="kit-pair" style={{ background: roles[r.bg], color: roles[r.fg], borderColor: roles[r.fg] }}>{name(r.fg)}</span>
+              ) : (
+                // A 3:1 pair is for shapes (borders, rings, fills), not
+                // words: the sample is a mark in that colour, its name in
+                // the text colour.
+                <span className="kit-pair" style={{ background: roles[r.bg], color: roles.text, borderColor: roles[r.fg] }}>
+                  <span className="kit-pair-mark" aria-hidden="true" style={{ background: roles[r.fg] }} />{name(r.fg)}
+                </span>
+              )}
               <span>on {name(r.bg)}</span>
               <span className="house-value">
                 needs {r.min}:1, reads at {r.ratio.toFixed(2)}:1 {ok ? <span aria-label="meets it">✓</span> : <strong className="kit-danger">below</strong>}
