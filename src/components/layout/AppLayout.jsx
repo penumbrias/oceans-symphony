@@ -760,6 +760,10 @@ const handleNotifClick = (mentionLog) => {
   // it; an unseen route defaults to the top. Skipped when a ?highlight=… deep
   // link is present — useHighlightScroll positions the page itself.
   const mainScrollRef = useRef(null);
+  // The new house's <main> arrives after its lazy chunk loads, so it reports
+  // itself here and the scroll memory below attaches to it then.
+  const [houseMain, setHouseMain] = useState(null);
+  const houseMainRef = React.useCallback((el) => { mainScrollRef.current = el; setHouseMain(el); }, []);
   const scrollMemory = useRef(new Map()).current;
   useLayoutEffect(() => {
     const el = mainScrollRef.current;
@@ -797,7 +801,7 @@ const handleNotifClick = (mentionLog) => {
       if (raf) cancelAnimationFrame(raf);
       clearTimeout(guard);
     };
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, houseMain]);
 
   const canGoBack = historyIdx > 0 && !isTabRoot(location.pathname);
 
@@ -888,7 +892,7 @@ const handleNotifClick = (mentionLog) => {
             <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading the new house" />
           </div>
         }>
-          <HouseFrame mainRef={mainScrollRef}>
+          <HouseFrame mainRef={houseMainRef}>
             {bannerVisible && (
               <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} framing={bannerFraming} />
             )}
