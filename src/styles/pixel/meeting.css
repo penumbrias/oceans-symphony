@@ -1,0 +1,173 @@
+/* ── Pixel look: System meeting, New presences, Get to know me, System history ──
+   Built to the MeetingPhone / PresencesPhone / GetToKnowPhone /
+   SystemHistoryPhone boards. Every rule is scoped under
+   html[data-ui-look="pixel"], so the smooth look never sees any of it.
+   Colours come from the person's theme through the --px-* variables;
+   alters keep their own colours (inline). */
+
+html[data-ui-look="pixel"] .pxm { color: var(--px-text); font-size: 15px; display: flex; flex-direction: column; gap: 12px; }
+html[data-ui-look="pixel"] .pxm-pf { font-family: var(--px-font); }
+html[data-ui-look="pixel"] .pxm-mut { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxm-intro { font-size: 14px; color: var(--px-text-2); line-height: 1.4; }
+html[data-ui-look="pixel"] .pxm-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+html[data-ui-look="pixel"] .pxm-wrap { flex-wrap: wrap; gap: 6px; }
+html[data-ui-look="pixel"] .pxm-grow { flex: 1 1 auto; min-width: 0; }
+
+/* Panel + title bar */
+html[data-ui-look="pixel"] .pxm-pn {
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  display: flex; flex-direction: column; min-width: 0;
+}
+html[data-ui-look="pixel"] .pxm-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 28px; padding: 0 4px 0 10px; font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .pxm-ttl-lg { min-height: 42px; font-size: 15px; padding-right: 6px; }
+html[data-ui-look="pixel"] .pxm-ttl-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxm-body { padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; min-width: 0; }
+html[data-ui-look="pixel"] .pxm-foot { display: flex; gap: 8px; padding: 8px 12px; box-shadow: inset 0 2px 0 var(--px-sunk); margin-top: auto; }
+html[data-ui-look="pixel"] .pxm-foot > * { flex: 1 1 0; }
+
+/* Buttons */
+html[data-ui-look="pixel"] .pxm-btn {
+  font-family: var(--px-font); font-size: 14px; color: var(--px-text);
+  background: var(--px-bar); border: 0; border-radius: 0 !important;
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  padding: 4px 10px; min-height: 40px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+}
+html[data-ui-look="pixel"] .pxm-btn.sm { min-height: 30px; font-size: 13px; padding: 2px 9px; }
+html[data-ui-look="pixel"] .pxm-btn.xs { min-height: 24px; font-size: 12px; padding: 1px 8px; }
+html[data-ui-look="pixel"] .pxm-btn.on {
+  background: var(--color-primary); color: var(--color-bg);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 62%, #000);
+}
+html[data-ui-look="pixel"] .pxm-btn:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .pxm-btn:disabled { opacity: .5; }
+html[data-ui-look="pixel"] .pxm-btn:focus-visible, html[data-ui-look="pixel"] .pxm-chip:focus-visible,
+html[data-ui-look="pixel"] .pxm-step:focus-visible, html[data-ui-look="pixel"] .pxm-steprow:focus-visible { outline: 2px solid var(--color-primary); }
+html[data-ui-look="pixel"] .pxm-icon { width: 44px; padding: 0; }
+@media (pointer: coarse) { html[data-ui-look="pixel"] .pxm-btn.sm { min-height: 36px; } }
+
+/* Sunken field + chips */
+html[data-ui-look="pixel"] .pxm-ins { background: var(--px-sunk); box-shadow: var(--px-sunken); color: var(--px-text); }
+html[data-ui-look="pixel"] input.pxm-ins, html[data-ui-look="pixel"] .pxm-input {
+  background: var(--px-sunk); box-shadow: var(--px-sunken); color: var(--px-text);
+  border: 0; border-radius: 0; padding: 8px; font-size: 15px; min-height: 40px; min-width: 0;
+}
+html[data-ui-look="pixel"] .pxm-input:focus-visible { outline: 2px solid var(--color-primary); }
+html[data-ui-look="pixel"] .pxm-chip {
+  font-family: var(--px-font); font-size: 12px; padding: 3px 9px; min-height: 26px;
+  outline: 2px solid var(--px-line); background: var(--px-tab); color: var(--px-text-2);
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; text-decoration: none;
+}
+html[data-ui-look="pixel"] .pxm-chip.sel { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .pxm-chip.dash { outline-style: dashed; }
+html[data-ui-look="pixel"] .pxm-sq { width: 12px; height: 12px; flex: none; display: inline-block; outline: 2px solid var(--px-line); background: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxm-chip .pxm-sq { width: 8px; height: 8px; }
+html[data-ui-look="pixel"] .pxm-av { width: 22px; height: 22px; flex: none; outline: 2px solid var(--px-line); background: var(--px-text-2); object-fit: cover; }
+html[data-ui-look="pixel"] .pxm-tick {
+  width: 20px; height: 20px; flex: none; outline: 2px solid var(--px-line); outline-offset: -2px; background: var(--px-sunk);
+  display: inline-flex; align-items: center; justify-content: center; font-family: var(--px-font); font-size: 13px;
+}
+html[data-ui-look="pixel"] .pxm-tick.y { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .pxm-x { min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxm-x:hover { color: var(--px-text); }
+
+/* Lists in panels */
+html[data-ui-look="pixel"] .pxm-list { display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .pxm-li { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 4px 4px 12px; box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxm-li-main { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; gap: 1px; min-height: 40px; justify-content: center; }
+html[data-ui-look="pixel"] .pxm-li-sub { font-size: 12.5px; color: var(--px-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxm-empty { padding: 16px 12px; font-size: 14px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxm-foot-note { font-size: 12px; color: var(--px-text-2); text-align: center; }
+
+/* Computer: side list panel + main panel (the Groups board's layout) */
+html[data-ui-look="pixel"] .pxm-desk { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; align-items: start; }
+html[data-ui-look="pixel"] .pxm-side { position: sticky; top: 0; max-height: calc(100vh - 150px); overflow: hidden; }
+html[data-ui-look="pixel"] .pxm-side-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+html[data-ui-look="pixel"] .pxm-side-row { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 8px; font-size: 13.5px; text-align: left; width: 100%; color: var(--px-text); }
+html[data-ui-look="pixel"] .pxm-side-row:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+html[data-ui-look="pixel"] .pxm-side-row.sel { background: var(--color-primary); color: var(--color-bg); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
+html[data-ui-look="pixel"] .pxm-side-row.sel .pxm-mut { color: inherit; opacity: .8; }
+html[data-ui-look="pixel"] .pxm-side-row:focus-visible { outline: 2px solid var(--color-primary); }
+html[data-ui-look="pixel"] .pxm-side-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxm-side-count { font-family: var(--px-font); font-size: 11px; opacity: .8; }
+html[data-ui-look="pixel"] .pxm-side-foot { padding: 8px 10px; font-size: 12px; color: var(--px-text-2); box-shadow: inset 0 2px 0 var(--px-line); }
+
+/* ── System meeting ─────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxm-meet-panel { min-height: min(640px, calc(100dvh - 230px)); }
+html[data-ui-look="pixel"] .pxm-date { padding: 5px 8px; font-size: 13px; min-height: 30px; color-scheme: dark; }
+html[data-ui-look="pixel"] .pxm-steps { display: flex; gap: 4px; padding: 0 12px 8px; }
+html[data-ui-look="pixel"] .pxm-step {
+  flex: 1; text-align: center; padding: 5px 0; min-height: 30px; font-family: var(--px-font); font-size: 12px;
+  outline: 2px solid var(--px-line); outline-offset: -2px; background: var(--px-tab); color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .pxm-step.past { background: var(--px-hi); color: var(--px-text); }
+html[data-ui-look="pixel"] .pxm-step.cur { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .pxm-steprow { display: flex; align-items: center; gap: 10px; min-height: 32px; text-align: left; width: 100%; }
+html[data-ui-look="pixel"] .pxm-steprow-sum { color: var(--px-text-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxm-stepnote { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); }
+/* The open step: the step's own card drawn flat inside the panel — its
+   heading as "2 Notice who's near", its fields as sunken boxes. */
+html[data-ui-look="pixel"] :is(.pxm-cur, .pxm-flat) .os-card { background: transparent !important; border: 0 !important; box-shadow: none !important; outline: 0; }
+html[data-ui-look="pixel"] :is(.pxm-cur, .pxm-flat) .os-card > .os-card-head { padding: 0 0 8px !important; background: transparent !important; box-shadow: none !important; min-height: 0 !important; }
+html[data-ui-look="pixel"] :is(.pxm-cur, .pxm-flat) .os-card > .os-card-head > :first-child { font-family: var(--px-font); font-size: 16px !important; font-weight: 600; color: var(--px-text); }
+html[data-ui-look="pixel"] :is(.pxm-cur, .pxm-flat) .os-card > .os-card-head > :nth-child(2) { font-size: 14px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] :is(.pxm-cur, .pxm-flat) .os-card > .os-card-head + div { padding: 0 !important; }
+html[data-ui-look="pixel"] :is(.pxm-cur, .pxm-flat) :is(textarea, input[type="text"]) { background: var(--px-sunk); box-shadow: var(--px-sunken); border: 0; border-radius: 0; }
+html[data-ui-look="pixel"] :is(.pxm-cur, .pxm-flat) label { color: var(--px-text-2); }
+/* Who's near (MeetingParticipantsSection's pixel branch) */
+html[data-ui-look="pixel"] .pxm-near { padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+html[data-ui-look="pixel"] .pxm-near-row { display: flex; align-items: center; gap: 10px; min-height: 36px; width: 100%; text-align: left; padding: 0 2px; }
+html[data-ui-look="pixel"] .pxm-near-row.open { background: color-mix(in srgb, var(--color-primary) 14%, transparent); }
+html[data-ui-look="pixel"] .pxm-near-name { width: 84px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxm-near-sum { flex: 1; min-width: 0; font-size: 13px; color: var(--px-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Read-only meeting */
+html[data-ui-look="pixel"] .pxm-sec { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxm-sec:last-child { box-shadow: none; }
+html[data-ui-look="pixel"] .pxm-sec-h { font-family: var(--px-font); font-size: 13px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxm-done { color: var(--color-success, #86b88f); font-size: 13px; }
+
+/* ── New presences ──────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxm-pres-acts { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+html[data-ui-look="pixel"] .pxm-pres-acts .pxm-pres-link > div > button {
+  font-family: var(--px-font); font-size: 13px; min-height: 30px; padding: 2px 9px; border: 0; border-radius: 0 !important;
+  background: var(--px-bar); color: var(--px-text); outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .pxm-pres-acts .pxm-pres-link > div > button span { color: var(--px-text) !important; }
+html[data-ui-look="pixel"] .pxm-id { color: var(--color-success, #86b88f); flex: 1; min-width: 0; }
+html[data-ui-look="pixel"] .pxm-pres.sel { outline-color: var(--color-primary); }
+html[data-ui-look="pixel"] .pxm-cards { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 1024px) { html[data-ui-look="pixel"] .pxm-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; } }
+
+/* ── Get to know me ─────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxm-q { font-family: var(--px-font); font-size: 20px; line-height: 1.25; }
+html[data-ui-look="pixel"] .pxm-qpanel { min-height: min(470px, calc(100dvh - 330px)); }
+html[data-ui-look="pixel"] .pxm-qpanel .pxm-body { padding: 14px 12px; gap: 10px; }
+html[data-ui-look="pixel"] .pxm-file { padding: 8px; font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+html[data-ui-look="pixel"] .pxm-qpanel button.rounded-full { border-radius: 0 !important; outline: 2px solid var(--px-line); outline-offset: -2px; border: 0; font-family: var(--px-font); font-size: 13px; background: var(--px-tab); }
+html[data-ui-look="pixel"] .pxm-qpanel button.rounded-full.border-primary { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .pxm-switch { display: inline-flex; align-items: center; gap: 6px; color: var(--px-text-2); font-family: var(--px-font); font-size: 12px; cursor: pointer; }
+html[data-ui-look="pixel"] .pxm-switch input { width: 14px; height: 14px; accent-color: var(--color-primary); }
+html[data-ui-look="pixel"] .pxm-search-pop { position: absolute; z-index: 20; left: 0; right: 0; bottom: calc(100% + 6px); max-height: 50vh; overflow-y: auto; overscroll-behavior: contain; }
+
+/* ── System history ─────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxm-lin { position: relative; padding: 8px 12px 8px 40px; }
+html[data-ui-look="pixel"] .pxm-lin-rail { position: absolute; left: 22px; top: 0; bottom: 0; width: 4px; background: var(--px-hi); }
+html[data-ui-look="pixel"] .pxm-ev { position: relative; padding: 6px 0 10px; }
+html[data-ui-look="pixel"] .pxm-ev.hid { opacity: .55; }
+html[data-ui-look="pixel"] .pxm-ev-mark { position: absolute; left: -24px; top: 9px; width: 12px; height: 12px; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .pxm-ev-year { font-family: var(--px-font); width: 44px; flex: none; }
+html[data-ui-look="pixel"] .pxm-ev-note { font-size: 13px; color: var(--px-text-2); margin-top: 3px; }
+html[data-ui-look="pixel"] .pxm-ev .pxm-ev-note b { font-weight: 600; }
+html[data-ui-look="pixel"] .pxm-ev :is(input, textarea) { background: var(--px-sunk); box-shadow: var(--px-sunken); border: 0; border-radius: 0; }
+html[data-ui-look="pixel"] .pxm-hist-panel { min-height: min(560px, calc(100dvh - 300px)); }
+html[data-ui-look="pixel"] .pxm-flat .os-card > div { padding-left: 0 !important; padding-right: 0 !important; }
+html[data-ui-look="pixel"] .pxm-flat .os-card + .os-card { box-shadow: inset 0 2px 0 var(--px-sunk) !important; }
+html[data-ui-look="pixel"] .pxm-flat .os-card p.uppercase { font-family: var(--px-font); text-transform: none; letter-spacing: 0; font-size: 13px; }

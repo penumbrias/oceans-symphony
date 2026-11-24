@@ -27,6 +27,9 @@ import { renderRichContent } from "@/lib/renderBulletinContent";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 import { an } from "@/lib/articles";
 import { sharedList } from "@/lib/sharedLists";
+import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import "@/styles/pixel/meeting.css";
 
 // In-progress meeting draft. A meeting being created/edited lives in component
 // state, so navigating away (e.g. to Settings) and back used to drop you on the
@@ -49,6 +52,10 @@ export default function SystemCheckInPage() {
   // re-attach `currentCheckIn` once the list loads (mirrors the pendingId path).
   const [pendingDraftEditId, setPendingDraftEditId] = useState(null);
   const [draftRestored, setDraftRestored] = useState(false);
+  // Pixel look: the editor shows one step at a time (MeetingPhone board).
+  const pixel = useUiLook() === "pixel";
+  const desk = usePixelDesk();
+  const [pxStep, setPxStep] = useState(1);
 
   const { data: checkIns = [] } = useQuery({
     ...sharedList("systemCheckIns"),
@@ -313,42 +320,8 @@ export default function SystemCheckInPage() {
     setView("view");
   };
 
-  return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      {view === "view" && currentCheckIn && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <Button variant="ghost" size="sm" onClick={() => setView("list")} aria-label="Back" title="Back">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setView("create")} aria-label="Edit" title="Edit">
-              <Pencil className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="mb-6">
-            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meeting</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-{(() => {
-  // Same fallback shape as the list view — older / preview records
-  // only have created_date.
-  let d2;
-  if (typeof currentCheckIn.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(currentCheckIn.date)) {
-    const [y, m, d] = currentCheckIn.date.split("-").map(Number);
-    d2 = new Date(y, m - 1, d);
-  } else if (currentCheckIn.created_date) {
-    d2 = new Date(currentCheckIn.created_date);
-  } else {
-    d2 = new Date();
-  }
-  return Number.isNaN(d2.getTime())
-    ? "Undated"
-    : d2.toLocaleDateString("en-US", {
-        weekday: "long", month: "long", day: "numeric", year: "numeric"
-      });
-})()}
-            </p>
-          </div>
-          <div className="space-y-4 max-w-2xl">
+  const viewSections = currentCheckIn ? (
+          <>
             {/* Step 1 */}
             {currentCheckIn.step1_arrive && (
               <Card>
@@ -517,6 +490,320 @@ export default function SystemCheckInPage() {
                 </CardContent>
               </Card>
             )}
+          </>
+  ) : null;
+
+  const stepEls = [
+<React.Fragment key="f0">
+             <CheckInStep1 key="s1" data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
+</React.Fragment>,
+<React.Fragment key="f1">
+             {/* "Notice who's near" participants render INSIDE Step 2 (passed as
+                 children) so it's one section, not a redundant card below.
+                 Choosing who's near opens the real Set Fronters modal
+                 (selectionMode); each participant is the "currently fronting"
+                 per-alter panel. */}
+             <CheckInStep2 key="s2" data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups}>
+              <MeetingParticipantsSection
+                participants={formData.participants || []}
+                onChange={(participants) => setFormData({ ...formData, participants })}
+                alters={alters}
+              />
+            </CheckInStep2>
+
+</React.Fragment>,
+<React.Fragment key="f2">
+            <CheckInStep3 key="s3" data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+</React.Fragment>,
+<React.Fragment key="f3">
+            <CheckInStep4 key="s4" data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters}>
+              {/* Open dialogue lives inside Invite Sharing now. It renders the
+                  REAL System Chat surface (ChatSurface) — same composer,
+                  formatting toolbar, and live @mention / -signpost autocomplete
+                  as the Chat page. By default history stays on this meeting's
+                  record; the in-panel toggle can instead route messages to a
+                  real System Chat channel (existing or newly created). */}
+              <div data-tour="meetings-dialogue" className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, open_dialogue: !formData.open_dialogue })}
+                  className="w-full flex items-start gap-2.5 text-left"
+                >
+                  <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${formData.open_dialogue ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${formData.open_dialogue ? "left-[1.125rem]" : "left-0.5"}`} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                      Open a dialogue space for this meeting
+                    </span>
+                    <span className="block text-xs text-muted-foreground leading-snug mt-0.5">
+                      A back-and-forth between {terms.alters} using the full {terms.System} Chat composer. Keep it with this meeting, or save it to {an(terms.System)} Chat channel.
+                    </span>
+                  </span>
+                </button>
+                {formData.open_dialogue && (
+                  <div className={pixel ? "" : "-mx-6"}>
+                  <MeetingDialogue
+                    dialogue={formData.dialogue || []}
+                    onChange={(dialogue) => setFormData((prev) => ({ ...prev, dialogue }))}
+                    alters={alters}
+                    storageMode={formData.dialogue_storage_mode || "meeting"}
+                    storageChannelId={formData.dialogue_storage_channel_id || null}
+                    onStorageChange={({ mode, channelId }) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        dialogue_storage_mode: mode,
+                        dialogue_storage_channel_id: channelId,
+                      }))
+                    }
+                    onAddParticipants={(ids) => {
+                      // Signposting an alter in a dialogue message auto-adds
+                      // them to "notice who's near" (the participants list).
+                      const existing = normalizeParticipants(formData.participants);
+                      const have = new Set(existing.map((p) => p.alter_id));
+                      const toAdd = ids.filter((id) => id && !have.has(id));
+                      if (toAdd.length === 0) return;
+                      const added = toAdd.map((id) => ({ alter_id: id, emotions: [], symptoms: [], note: "" }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        participants: [...normalizeParticipants(prev.participants), ...added],
+                      }));
+                    }}
+                    defaultSpeakerId={(formData.participants || [])[0]?.alter_id || null}
+                  />
+                  </div>
+                )}
+              </div>
+            </CheckInStep4>
+</React.Fragment>,
+<React.Fragment key="f4">
+            <CheckInStep5 key="s5" data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+</React.Fragment>
+  ];
+
+  // ── Pixel look (MeetingPhone board) ──────────────────────────────────
+  // The editor is one panel: "New meeting" title bar with Cancel / Save
+  // meeting, the date, a 1–5 step strip, the open step drawn flat and the
+  // others as one-line rows (tick · name · what's in it), and
+  // < Step / Step > on its foot. Past meetings are a list panel (a side
+  // panel on a computer). Every step keeps its own fields and save path.
+  if (pixel) {
+    const meetingDate = (ci) => {
+      let d;
+      if (typeof ci?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(ci.date)) {
+        const [y, m, dd] = ci.date.split("-").map(Number);
+        d = new Date(y, m - 1, dd);
+      } else if (ci?.created_date) d = new Date(ci.created_date);
+      return d && !Number.isNaN(d.getTime()) ? d : null;
+    };
+    const fmtDate = (ci, long) => {
+      const d = meetingDate(ci);
+      if (!d) return "Undated";
+      return d.toLocaleDateString("en-US", long
+        ? { weekday: "long", month: "long", day: "numeric", year: "numeric" }
+        : { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    };
+    const clip = (t) => (typeof t === "string" ? t.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "");
+    const nameOf = (id) => alters.find((a) => a.id === id)?.name;
+    const fd = formData || {};
+    const feelings2 = Array.isArray(fd.step2_notice?.feelings) ? fd.step2_notice.feelings
+      : (typeof fd.step2_notice?.feelings === "string" ? fd.step2_notice.feelings.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : []);
+    const near = normalizeParticipants(fd.participants);
+    const STEPS = [
+      { n: 1, name: "Arrive",
+        done: !!(fd.step1_arrive?.breaths_taken || clip(fd.step1_arrive?.notes)),
+        sum: fd.step1_arrive?.breaths_taken ? "Breaths taken" : (clip(fd.step1_arrive?.notes) || "A few slow breaths, 1 min") },
+      { n: 2, name: "Notice who's near",
+        done: !!(near.length || feelings2.length || clip(fd.step2_notice?.sensations) || clip(fd.step2_notice?.notes)),
+        sum: [near.map((p) => nameOf(p.alter_id)).filter(Boolean).join(", "), feelings2.join(", ")].filter(Boolean).join(" · ") || "Notice what arises" },
+      { n: 3, name: "Soft greeting",
+        done: !!clip(fd.step3_greet?.notes),
+        sum: clip(fd.step3_greet?.notes) || "“Thank you for being here.”" },
+      { n: 4, name: "Invite sharing",
+        done: !!(fd.step4_share?.invitation_given || clip(fd.step4_share?.notes) || normalizeDialogue(fd.dialogue).length),
+        sum: clip(fd.step4_share?.notes) || (fd.open_dialogue ? "Open dialogue" : "Open dialogue, if wanted") },
+      { n: 5, name: "Gentle closing",
+        done: !!(fd.step5_closing?.gratitude_expressed || fd.step5_closing?.reminder_given || clip(fd.step5_closing?.notes)),
+        sum: clip(fd.step5_closing?.notes) || (fd.step5_closing?.gratitude_expressed ? "Thanks given" : "") },
+    ];
+    const step = Math.min(5, Math.max(1, pxStep));
+    const saving = createMutation.isPending || updateMutation.isPending;
+    const cancelEdit = () => { clearMeetingDraft(); setPxStep(1); currentCheckIn ? setView("view") : setView("list"); };
+    const stepRow = (st) => (
+      <button key={st.n} type="button" className="pxm-steprow" onClick={() => setPxStep(st.n)}
+        aria-label={`Step ${st.n}: ${st.name}${st.done ? " (has notes)" : ""}`}>
+        <span className={`pxm-tick${st.done ? " y" : ""}`} aria-hidden="true">{st.done ? "x" : ""}</span>
+        <span className="pxm-pf" style={{ whiteSpace: "nowrap" }}>{st.n} {st.name}</span>
+        <span className="pxm-steprow-sum">{st.sum}</span>
+        {st.done && <span className="pxm-stepnote">done</span>}
+      </button>
+    );
+    const editor = (
+      <div className="pxm-pn pxm-meet-panel">
+        <div className="pxm-ttl pxm-ttl-lg">
+          <span>{currentCheckIn ? "Edit meeting" : "New meeting"}</span>
+          <span className="pxm-row" style={{ gap: 8 }}>
+            <button type="button" className="pxm-btn sm" onClick={cancelEdit}>Cancel</button>
+            <button type="button" className="pxm-btn sm on" onClick={async () => { await handleSave(); }} disabled={saving}>
+              {saving ? "Saving…" : "Save meeting"}
+            </button>
+          </span>
+        </div>
+        <div className="pxm-row" style={{ padding: "8px 12px", fontSize: 13 }}>
+          <label htmlFor="pxm-meet-date" className="pxm-mut">Date</label>
+          <input id="pxm-meet-date" type="date" className="pxm-ins pxm-date" value={fd.date || ""}
+            onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+          <span className="pxm-grow" />
+          <span className="pxm-mut">every field optional</span>
+        </div>
+        <div className="pxm-steps" role="tablist" aria-label="Meeting steps">
+          {STEPS.map((st) => (
+            <button key={st.n} type="button" role="tab" aria-selected={st.n === step} title={st.name}
+              className={`pxm-step${st.n === step ? " cur" : st.n < step ? " past" : ""}`} onClick={() => setPxStep(st.n)}>{st.n}</button>
+          ))}
+        </div>
+        <div className="pxm-body">
+          {STEPS.filter((st) => st.n < step).map(stepRow)}
+          <div className="pxm-cur">{stepEls[step - 1]}</div>
+          {STEPS.filter((st) => st.n > step).map(stepRow)}
+        </div>
+        <div className="pxm-foot">
+          {step > 1
+            ? <button type="button" className="pxm-btn" onClick={() => setPxStep(step - 1)}>&lt; Step {step - 1}</button>
+            : <button type="button" className="pxm-btn" onClick={cancelEdit}>&lt; Back</button>}
+          {step < 5
+            ? <button type="button" className="pxm-btn on" onClick={() => setPxStep(step + 1)}>Step {step + 1} &gt;</button>
+            : <button type="button" className="pxm-btn on" onClick={async () => { await handleSave(); }} disabled={saving}>{saving ? "Saving…" : "Save meeting"}</button>}
+        </div>
+      </div>
+    );
+    const viewer = currentCheckIn && (
+      <div className="pxm-pn pxm-meet-panel">
+        <div className="pxm-ttl pxm-ttl-lg">
+          <span className="pxm-ttl-name">{fmtDate(currentCheckIn, true)}</span>
+          <span className="pxm-row" style={{ gap: 8 }}>
+            {!desk && <button type="button" className="pxm-btn sm" onClick={() => setView("list")}>Back</button>}
+            <button type="button" className="pxm-btn sm on" onClick={() => { setPxStep(1); setView("create"); }}>Edit</button>
+          </span>
+        </div>
+        <div className="pxm-body pxm-flat">{viewSections}</div>
+      </div>
+    );
+    const newBtn = (
+      <button type="button" data-tour="meetings-new" className="pxm-btn xs" onClick={() => { setPxStep(1); handleNewCheckIn(); }}>+ meeting</button>
+    );
+    const list = (
+      <div className="pxm-pn" data-tour="meetings-list">
+        <div className="pxm-ttl"><span>Past meetings</span>{newBtn}</div>
+        <div className={desk ? "pxm-side-scroll" : "pxm-list"}>
+          {checkIns.length === 0 && <div className="pxm-empty">No meetings yet. Start one to get going.</div>}
+          {checkIns.map((ci) => desk ? (
+            <div key={ci.id} id={`item-${ci.id}`} className={`pxm-side-row${currentCheckIn?.id === ci.id ? " sel" : ""}`} style={{ paddingRight: 0 }}>
+              <button type="button" className="pxm-side-name text-left" style={{ minHeight: 32 }} onClick={() => handleView(ci)}>
+                {fmtDate(ci)}{ci.overall_notes ? <span className="pxm-mut"> · {ci.overall_notes}</span> : null}
+              </button>
+              <RowMenu label="Meeting actions" items={[
+                { label: "Open", icon: Eye, onSelect: () => handleView(ci) },
+                { label: "Edit", icon: Pencil, onSelect: () => { setPxStep(1); handleEdit(ci); } },
+                { label: "Delete", icon: Trash2, onSelect: () => handleDelete(ci.id), destructive: true },
+              ]} />
+            </div>
+          ) : (
+            <div key={ci.id} id={`item-${ci.id}`} className="pxm-li">
+              <span className="pxm-sq" style={{ background: "var(--color-primary)" }} />
+              <button type="button" className="pxm-li-main" onClick={() => handleView(ci)}>
+                <span className="pxm-pf">{fmtDate(ci)}</span>
+                {ci.overall_notes && <span className="pxm-li-sub">{ci.overall_notes}</span>}
+              </button>
+              <RowMenu label="Meeting actions" items={[
+                { label: "Open", icon: Eye, onSelect: () => handleView(ci) },
+                { label: "Edit", icon: Pencil, onSelect: () => { setPxStep(1); handleEdit(ci); } },
+                { label: "Delete", icon: Trash2, onSelect: () => handleDelete(ci.id), destructive: true },
+              ]} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+    const welcome = (
+      <div className="pxm-pn">
+        <div className="pxm-ttl pxm-ttl-lg"><span>{terms.System} meeting</span>
+          <button type="button" className="pxm-btn sm on" onClick={() => { setPxStep(1); handleNewCheckIn(); }}>New meeting</button>
+        </div>
+        <div className="pxm-body">
+          <div>A 5-minute guided ritual to connect with your {terms.system}: arrive, notice who's near, greet, invite sharing, close gently.</div>
+          <div className="pxm-mut" style={{ fontSize: 12, fontStyle: "italic" }}>
+            Adapted from the 5 Minute System Check-In by Monika Ostroff, LICSW, CEDS-S / Healing My Parts
+          </div>
+        </div>
+      </div>
+    );
+    const foot = (
+      <details className="pxm-foot-note">
+        <summary style={{ cursor: "pointer" }}>A journaling aid, not medical advice.{"  "}Past meetings: {checkIns.length}</summary>
+        <div style={{ textAlign: "left", marginTop: 6 }}><MedicalDisclaimer compact /></div>
+      </details>
+    );
+    const main = view === "create" ? editor : (view === "view" && currentCheckIn ? viewer : null);
+    if (desk) {
+      return (
+        <div className="pxm pxm-desk">
+          <h1 className="sr-only">{terms.System} meeting</h1>
+          <div className="pxm-side" style={{ display: "flex", flexDirection: "column" }}>{list}</div>
+          <div className="pxm" style={{ minWidth: 0 }}>
+            {main || welcome}
+            {foot}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="pxm">
+        <h1 className="sr-only">{terms.System} meeting</h1>
+        {main || (<>{welcome}{list}</>)}
+        {foot}
+      </div>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+      {view === "view" && currentCheckIn && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="ghost" size="sm" onClick={() => setView("list")} aria-label="Back" title="Back">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setView("create")} aria-label="Edit" title="Edit">
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="mb-6">
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meeting</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+{(() => {
+  // Same fallback shape as the list view — older / preview records
+  // only have created_date.
+  let d2;
+  if (typeof currentCheckIn.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(currentCheckIn.date)) {
+    const [y, m, d] = currentCheckIn.date.split("-").map(Number);
+    d2 = new Date(y, m - 1, d);
+  } else if (currentCheckIn.created_date) {
+    d2 = new Date(currentCheckIn.created_date);
+  } else {
+    d2 = new Date();
+  }
+  return Number.isNaN(d2.getTime())
+    ? "Undated"
+    : d2.toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric"
+      });
+})()}
+            </p>
+          </div>
+          <div className="space-y-4 max-w-2xl">
+            {currentCheckIn && viewSections}
           </div>
         </div>
       )}
@@ -631,82 +918,7 @@ export default function SystemCheckInPage() {
             </Card>
 
             {/* Steps */}
-             <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-             {/* "Notice who's near" participants render INSIDE Step 2 (passed as
-                 children) so it's one section, not a redundant card below.
-                 Choosing who's near opens the real Set Fronters modal
-                 (selectionMode); each participant is the "currently fronting"
-                 per-alter panel. */}
-             <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups}>
-              <MeetingParticipantsSection
-                participants={formData.participants || []}
-                onChange={(participants) => setFormData({ ...formData, participants })}
-                alters={alters}
-              />
-            </CheckInStep2>
-
-            <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
-            <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters}>
-              {/* Open dialogue lives inside Invite Sharing now. It renders the
-                  REAL System Chat surface (ChatSurface) — same composer,
-                  formatting toolbar, and live @mention / -signpost autocomplete
-                  as the Chat page. By default history stays on this meeting's
-                  record; the in-panel toggle can instead route messages to a
-                  real System Chat channel (existing or newly created). */}
-              <div data-tour="meetings-dialogue" className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, open_dialogue: !formData.open_dialogue })}
-                  className="w-full flex items-start gap-2.5 text-left"
-                >
-                  <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${formData.open_dialogue ? "bg-primary" : "bg-muted-foreground/30"}`}>
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${formData.open_dialogue ? "left-[1.125rem]" : "left-0.5"}`} />
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                      Open a dialogue space for this meeting
-                    </span>
-                    <span className="block text-xs text-muted-foreground leading-snug mt-0.5">
-                      A back-and-forth between {terms.alters} using the full {terms.System} Chat composer. Keep it with this meeting, or save it to {an(terms.System)} Chat channel.
-                    </span>
-                  </span>
-                </button>
-                {formData.open_dialogue && (
-                  <div className="-mx-6">
-                  <MeetingDialogue
-                    dialogue={formData.dialogue || []}
-                    onChange={(dialogue) => setFormData((prev) => ({ ...prev, dialogue }))}
-                    alters={alters}
-                    storageMode={formData.dialogue_storage_mode || "meeting"}
-                    storageChannelId={formData.dialogue_storage_channel_id || null}
-                    onStorageChange={({ mode, channelId }) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        dialogue_storage_mode: mode,
-                        dialogue_storage_channel_id: channelId,
-                      }))
-                    }
-                    onAddParticipants={(ids) => {
-                      // Signposting an alter in a dialogue message auto-adds
-                      // them to "notice who's near" (the participants list).
-                      const existing = normalizeParticipants(formData.participants);
-                      const have = new Set(existing.map((p) => p.alter_id));
-                      const toAdd = ids.filter((id) => id && !have.has(id));
-                      if (toAdd.length === 0) return;
-                      const added = toAdd.map((id) => ({ alter_id: id, emotions: [], symptoms: [], note: "" }));
-                      setFormData((prev) => ({
-                        ...prev,
-                        participants: [...normalizeParticipants(prev.participants), ...added],
-                      }));
-                    }}
-                    defaultSpeakerId={(formData.participants || [])[0]?.alter_id || null}
-                  />
-                  </div>
-                )}
-              </div>
-            </CheckInStep4>
-            <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+            {stepEls}
 
             {/* Save Button */}
             <Button

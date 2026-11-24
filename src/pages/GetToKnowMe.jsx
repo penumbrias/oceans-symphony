@@ -21,6 +21,10 @@ import FronterPicker from "@/components/fronting/FronterPicker";
 import { normalizeHexInput } from "@/lib/colorUtils";
 import { changeFront } from "@/lib/setFront";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import { an } from "@/lib/articles";
+import "@/styles/pixel/meeting.css";
 
 
 // "Get to know me" — the inverse of Help me unblend. The user
@@ -412,83 +416,13 @@ export default function GetToKnowMe() {
     }
   };
 
-  return (
-    <div className="os-page-shell p-4 sm:p-6 space-y-5" data-tour="get-to-know-me-page">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Back" title="Back">
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" /> Get to know me
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Answer questions to build up the data Help me unblend uses. Pick which {terms.alters || "alters"} the answer is for, then submit.
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate("/unblend/questions")} className="gap-1.5">
-          <Cog className="w-4 h-4" /> <span className="hidden sm:inline">Manage</span>
-        </Button>
-      </div>
+  const pixel = useUiLook() === "pixel";
+  const desk = usePixelDesk();
+  const formatAlter = useAlterLabel();
+  const [pxPickerOpen, setPxPickerOpen] = useState(false);
 
-      <div className="flex items-center gap-2">
-        <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-          <Switch checked={!hideCustomFields} onCheckedChange={(on) => setHideCustomFieldsPersist(!on)} />
-          Include custom fields
-        </label>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search questions…"
-          value={questionSearch}
-          onChange={(e) => setQuestionSearch(e.target.value)}
-          className="pl-9"
-        />
-        {questionSearch && filteredQuestions.length > 0 && (
-          <div className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-popover border border-border rounded-lg shadow-lg">
-            {filteredQuestions.map((q) => (
-              <button
-                key={q.id}
-                type="button"
-                onClick={() => {
-                  setQuestionId(q.id);
-                  setQuestionSearch("");
-                }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 border-b border-border/30 last:border-b-0"
-              >
-                {q.prompt}
-              </button>
-            ))}
-          </div>
-        )}
-        {questionSearch && filteredQuestions.length === 0 && (
-          <p className="absolute z-10 left-0 right-0 mt-1 px-3 py-2 text-xs text-muted-foreground bg-popover border border-border rounded-lg shadow-lg">
-            No matching questions.
-          </p>
-        )}
-      </div>
-
-      {!currentQuestion ? (
-        <section className="rounded-2xl border border-border/50 bg-card p-5">
-          <p className="text-sm text-muted-foreground text-center">
-            No questions available yet — add some custom fields, {terms.alters || "alters"}, or your own questions in{" "}
-            <button onClick={() => navigate("/unblend/questions")} className="text-primary underline">
-              Manage questions
-            </button>
-            .
-          </p>
-        </section>
-      ) : (
-        <section className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-base font-semibold text-foreground leading-snug">{currentQuestion.prompt}</p>
-            <Button variant="ghost" size="sm" onClick={handleShuffle} className="gap-1.5 text-xs flex-shrink-0">
-              <Shuffle className="w-3.5 h-3.5" /> Shuffle
-            </Button>
-          </div>
-
+  const questionBody = currentQuestion ? (
+        <>
           {currentQuestion.kind === "color" && (
             <div className="space-y-4">
               {/* Existing alter colours rendered as swatches so the
@@ -554,13 +488,13 @@ export default function GetToKnowMe() {
                       maxLength={9}
                     />
                   </div>
-                  <Button
+                  {!pixel && <Button
                     onClick={() => submitAnswer(normalizeHexInput(colorDraft) || colorDraft)}
                     disabled={!normalizeHexInput(colorDraft) || saving || selectedAlterIds.length === 0}
                     className="w-full"
                   >
                     Save colour to {selectedAlterIds.length || "?"} {selectedAlterIds.length === 1 ? terms.alter || "alter" : terms.alters || "alters"}
-                  </Button>
+                  </Button>}
                 </div>
               </div>
             </div>
@@ -595,7 +529,7 @@ export default function GetToKnowMe() {
                   );
                 })}
               </div>
-              <Button
+              {!pixel && <Button
                 onClick={() => {
                   if (choiceDraft.length === 0) {
                     handleShuffle();
@@ -609,7 +543,7 @@ export default function GetToKnowMe() {
                 {choiceDraft.length === 0
                   ? "Skip & next"
                   : `Save & next${choiceDraft.length > 1 ? ` (${choiceDraft.length})` : ""}`}
-              </Button>
+              </Button>}
             </div>
           )}
 
@@ -620,7 +554,18 @@ export default function GetToKnowMe() {
             const fieldType = currentQuestion.fieldType || "text";
             return (
             <div className="space-y-3">
-              {existingFieldValues.length > 0 && (
+              {existingFieldValues.length > 0 && pixel && (
+                <div className="pxm-ins pxm-file">
+                  <div className="pxm-pf" style={{ fontSize: 12 }}>Already on file</div>
+                  {existingFieldValues.map((ev) => (
+                    <div key={ev.id} className="pxm-row" style={{ gap: 8 }}>
+                      <span className="pxm-sq" style={{ background: ev.color || undefined }} />
+                      <span>{ev.name}: {ev.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {existingFieldValues.length > 0 && !pixel && (
                 <div className="rounded-lg border border-border/40 bg-muted/20 p-2 space-y-1">
                   <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">Already on file</p>
                   <div className="max-h-20 overflow-y-auto space-y-1 pr-1">
@@ -701,17 +646,254 @@ export default function GetToKnowMe() {
                     }
                     className="flex-1"
                   />
-                  <Button
+                  {!pixel && <Button
                     onClick={() => submitAnswer(textDraft)}
                     disabled={!textDraft.trim() || saving || selectedAlterIds.length === 0}
                   >
                     Save &amp; next
-                  </Button>
+                  </Button>}
                 </div>
               )}
             </div>
             );
           })()}
+        </>
+  ) : null;
+
+  if (pixel) {
+    // Pixel look (GetToKnowPhone board): "Who's answering" panel, the
+    // question panel with Skip & next / Save & next on its foot, then
+    // search + Manage. Same state and save path as the classic page.
+    const kind = currentQuestion?.kind;
+    const fieldType = currentQuestion?.fieldType || "text";
+    let primary = null; // the foot's main action for this kind of question
+    if (kind === "color") {
+      primary = { label: "Save & next", disabled: !normalizeHexInput(colorDraft) || saving || selectedAlterIds.length === 0,
+        run: () => submitAnswer(normalizeHexInput(colorDraft) || colorDraft) };
+    } else if (kind === "choice") {
+      primary = { label: `Save & next${choiceDraft.length > 1 ? ` (${choiceDraft.length})` : ""}`,
+        disabled: saving || choiceDraft.length === 0 || selectedAlterIds.length === 0,
+        run: () => submitChoiceAnswers(choiceDraft) };
+    } else if (kind === "field_input" && fieldType !== "boolean") {
+      primary = { label: "Save & next", disabled: !textDraft.trim() || saving || selectedAlterIds.length === 0,
+        run: () => submitAnswer(textDraft) };
+    }
+    const qIndex = currentQuestion ? Math.max(0, allQuestions.findIndex((q) => q.id === currentQuestion.id)) + 1 : 0;
+    const qTag = kind === "color" ? "Colour" : (currentQuestion?.fieldName || (kind === "choice" ? "Pick any" : ""));
+    const selectedAlters = selectedAlterIds.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+    const who = (
+      <div className="pxm-pn">
+        <div className="pxm-ttl">
+          <span>Who's answering</span>
+          <label className="pxm-switch" style={{ paddingRight: 6 }}>
+            <input type="checkbox" checked={syncFront} onChange={(e) => setSyncFront(e.target.checked)} />
+            Sync to current {terms.front || "front"}
+          </label>
+        </div>
+        <div className="pxm-row pxm-wrap" style={{ padding: "8px 12px" }}>
+          {selectedAlters.map((a) => (
+            <button key={a.id} type="button" className="pxm-chip sel" onClick={() => handleToggle(a.id)}
+              title={`Remove ${formatAlter(a)}`} aria-label={`Remove ${formatAlter(a)}`}>
+              <span className="pxm-sq" style={{ background: a.color || undefined }} />{formatAlter(a)}{a.id === primaryAlterId ? " ★" : ""}
+            </button>
+          ))}
+          {selectedAlters.length === 0 && <span className="pxm-mut" style={{ fontSize: 13 }}>Pick which {terms.alters || "alters"} this answer is for.</span>}
+          <button type="button" className={`pxm-chip${pxPickerOpen ? " sel" : ""}`} aria-expanded={pxPickerOpen}
+            onClick={() => setPxPickerOpen((v) => !v)} aria-label={`Choose ${terms.alters || "alters"}`}>{pxPickerOpen ? "Done" : "+"}</button>
+        </div>
+        {pxPickerOpen && (
+          <div style={{ padding: "0 12px 10px" }}>
+            <FronterPicker alters={alters} primaryId={primaryAlterId} coFronterIds={coFronterIds}
+              onToggle={handleToggle} onSetPrimary={handleSetPrimary} onClearAll={handleClearAll} />
+            <p className="pxm-mut" style={{ fontSize: 12, marginTop: 6 }}>
+              {syncFront
+                ? `Mirrors the live ${terms.fronting || "fronting"} state — toggling here also starts/ends ${terms.alter || "alter"} sessions.`
+                : `Tapping ${an(terms.alter || "alter")} only attributes this answer to them. ${terms.Fronting || "Fronting"} state isn't changed.`}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+    const question = (
+      <div className="pxm-pn pxm-qpanel">
+        <div className="pxm-ttl">
+          <span>{currentQuestion ? `Question ${qIndex} of ${allQuestions.length}` : "Questions"}</span>
+          <span className="pxm-mut" style={{ paddingRight: 6 }}>{qTag}</span>
+        </div>
+        {!currentQuestion ? (
+          <div className="pxm-empty">
+            No questions yet. Add custom fields, {terms.alters || "alters"} or your own questions in{" "}
+            <button type="button" onClick={() => navigate("/unblend/questions")} className="underline">Manage questions</button>.
+          </div>
+        ) : (
+          <div className="pxm-body">
+            <div className="pxm-q">{currentQuestion.prompt}</div>
+            {kind === "field_input" && fieldType === "list" && (
+              <div className="pxm-mut" style={{ fontSize: 13 }}>Comma-separate items, each is matched on its own.</div>
+            )}
+            {questionBody}
+            {kind === "field_input" && currentQuestion.fieldName && (
+              <div className="pxm-mut" style={{ fontSize: 12 }}>
+                Saves to each picked {terms.alter || "alter"}'s “{currentQuestion.fieldName}” field.
+              </div>
+            )}
+          </div>
+        )}
+        {currentQuestion && (
+          <div className="pxm-foot">
+            <button type="button" className="pxm-btn" onClick={handleShuffle} disabled={saving}>Skip &amp; next</button>
+            {primary && (
+              <button type="button" className="pxm-btn on" onClick={primary.run} disabled={primary.disabled}>{primary.label}</button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+    const search = (
+      <div className="pxm-row" style={{ position: "relative" }}>
+        <input className="pxm-input pxm-grow" placeholder="Search questions…" aria-label="Search questions"
+          value={questionSearch} onChange={(e) => setQuestionSearch(e.target.value)} />
+        <button type="button" className="pxm-btn" onClick={() => navigate("/unblend/questions")}>Manage</button>
+        {!desk && questionSearch && (
+          <div className="pxm-pn pxm-search-pop">
+            {filteredQuestions.length === 0 && <div className="pxm-empty">No matching questions.</div>}
+            {filteredQuestions.map((q) => (
+              <button key={q.id} type="button" className="pxm-side-row" style={{ minHeight: 40 }}
+                onClick={() => { setQuestionId(q.id); setQuestionSearch(""); }}>
+                <span className="pxm-side-name" style={{ whiteSpace: "normal" }}>{q.prompt}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+    const customToggle = (
+      <label className="pxm-switch">
+        <input type="checkbox" checked={!hideCustomFields} onChange={(e) => setHideCustomFieldsPersist(!e.target.checked)} />
+        Include custom fields
+      </label>
+    );
+    if (desk) {
+      return (
+        <div className="pxm pxm-desk os-page-shell" data-tour="get-to-know-me-page">
+          <h1 className="sr-only">Get to know me</h1>
+          <div className="pxm-pn pxm-side">
+            <div className="pxm-ttl"><span>Questions</span><span className="pxm-mut" style={{ paddingRight: 6 }}>{filteredQuestions.length}</span></div>
+            <div style={{ padding: "8px 8px 4px" }}>
+              <input className="pxm-input" style={{ width: "100%" }} placeholder="Search questions…" aria-label="Search questions"
+                value={questionSearch} onChange={(e) => setQuestionSearch(e.target.value)} />
+            </div>
+            <div className="pxm-side-scroll">
+              {filteredQuestions.map((q) => (
+                <button key={q.id} type="button" className={`pxm-side-row${currentQuestion?.id === q.id ? " sel" : ""}`}
+                  aria-pressed={currentQuestion?.id === q.id} onClick={() => setQuestionId(q.id)}>
+                  <span className="pxm-side-name">{q.prompt}</span>
+                </button>
+              ))}
+              {filteredQuestions.length === 0 && <div className="pxm-empty">No matching questions.</div>}
+            </div>
+            <div className="pxm-side-foot pxm-row" style={{ justifyContent: "space-between" }}>
+              {customToggle}
+              <button type="button" className="pxm-btn xs" onClick={() => navigate("/unblend/questions")}>Manage</button>
+            </div>
+          </div>
+          <div className="pxm" style={{ minWidth: 0 }}>
+            <div className="pxm-intro">Answer questions to build up what Help me unblend knows. Pick who the answer is for, then save.</div>
+            {who}
+            {question}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="pxm os-page-shell" data-tour="get-to-know-me-page">
+        <h1 className="sr-only">Get to know me</h1>
+        {who}
+        {question}
+        {search}
+        <div>{customToggle}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="os-page-shell p-4 sm:p-6 space-y-5" data-tour="get-to-know-me-page">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Back" title="Back">
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" /> Get to know me
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Answer questions to build up the data Help me unblend uses. Pick which {terms.alters || "alters"} the answer is for, then submit.
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/unblend/questions")} className="gap-1.5">
+          <Cog className="w-4 h-4" /> <span className="hidden sm:inline">Manage</span>
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+          <Switch checked={!hideCustomFields} onCheckedChange={(on) => setHideCustomFieldsPersist(!on)} />
+          Include custom fields
+        </label>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search questions…"
+          value={questionSearch}
+          onChange={(e) => setQuestionSearch(e.target.value)}
+          className="pl-9"
+        />
+        {questionSearch && filteredQuestions.length > 0 && (
+          <div className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-popover border border-border rounded-lg shadow-lg">
+            {filteredQuestions.map((q) => (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => {
+                  setQuestionId(q.id);
+                  setQuestionSearch("");
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 border-b border-border/30 last:border-b-0"
+              >
+                {q.prompt}
+              </button>
+            ))}
+          </div>
+        )}
+        {questionSearch && filteredQuestions.length === 0 && (
+          <p className="absolute z-10 left-0 right-0 mt-1 px-3 py-2 text-xs text-muted-foreground bg-popover border border-border rounded-lg shadow-lg">
+            No matching questions.
+          </p>
+        )}
+      </div>
+
+      {!currentQuestion ? (
+        <section className="rounded-2xl border border-border/50 bg-card p-5">
+          <p className="text-sm text-muted-foreground text-center">
+            No questions available yet — add some custom fields, {terms.alters || "alters"}, or your own questions in{" "}
+            <button onClick={() => navigate("/unblend/questions")} className="text-primary underline">
+              Manage questions
+            </button>
+            .
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-base font-semibold text-foreground leading-snug">{currentQuestion.prompt}</p>
+            <Button variant="ghost" size="sm" onClick={handleShuffle} className="gap-1.5 text-xs flex-shrink-0">
+              <Shuffle className="w-3.5 h-3.5" /> Shuffle
+            </Button>
+          </div>
+
+          {questionBody}
         </section>
       )}
 
