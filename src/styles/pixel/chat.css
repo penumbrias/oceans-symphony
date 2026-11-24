@@ -1,0 +1,198 @@
+/* System chat — pixel look (mockup board 14 "ChatPhone"; the computer layout
+   follows the Friends board's side panel + main panel).
+   Every rule is scoped to html[data-ui-look="pixel"] so the smooth look is
+   untouched. Classes are added in src/pages/Chat.jsx, ChannelView.jsx and
+   ChatSurface.jsx. */
+
+/* ── Phone title bar ─────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .px-chat-bar {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  min-height: 56px; padding: 0 12px;
+  background: var(--px-bar); color: var(--px-text);
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .px-chat-title {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--px-font); font-size: 18px; font-weight: 600;
+}
+html[data-ui-look="pixel"] .px-chat-btn {
+  width: 44px; min-height: 44px; flex: none;
+  font-family: var(--px-font); font-size: 14px; color: var(--px-text);
+  background: var(--px-tab);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line); border-radius: 0;
+}
+html[data-ui-look="pixel"] .px-chat-btn:active { box-shadow: var(--px-sunken); }
+html[data-ui-look="pixel"] .px-chat-btn:focus-visible { outline: 3px solid var(--color-primary); }
+
+/* ── Phone channel tabs (folder tabs sitting on the message panel) ── */
+html[data-ui-look="pixel"] .px-chat-tabs {
+  flex: none; display: flex; align-items: flex-end; gap: 4px;
+  padding: 10px 10px 0; overflow-x: auto; overscroll-behavior-x: contain;
+  scrollbar-width: none; background: var(--px-sunk);
+}
+html[data-ui-look="pixel"] .px-chat-tabs::-webkit-scrollbar { display: none; }
+html[data-ui-look="pixel"] .px-chat-tab {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  min-height: 32px; padding: 6px 10px; margin-top: 2px;
+  font-family: var(--px-font); font-size: 14px; white-space: nowrap;
+  color: var(--px-text-2); background: var(--px-tab);
+  outline: 2px solid var(--px-line); border-radius: 0;
+}
+html[data-ui-look="pixel"] .px-chat-tab[data-sel="true"] {
+  color: var(--px-text); background: var(--px-panel);
+  box-shadow: inset 2px 2px 0 var(--px-hi); padding-bottom: 8px; position: relative; z-index: 1;
+}
+html[data-ui-look="pixel"] .px-chat-tab:focus-visible { outline: 3px solid var(--color-primary); }
+html[data-ui-look="pixel"] .px-chat-tab-hidden { filter: blur(4px); font-style: italic; user-select: none; }
+
+/* ── The chat body: message panel + composer panel ─────────────── */
+html[data-ui-look="pixel"] .px-chat { background: var(--px-sunk); }
+html[data-ui-look="pixel"] .px-chat-main {
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+
+/* Channel header: the panel's title bar. */
+html[data-ui-look="pixel"] .px-chat-chhead {
+  min-height: 30px; padding: 4px 6px 4px 10px; border: 0 !important;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+  font-family: var(--px-font);
+}
+html[data-ui-look="pixel"] .px-chat-chhead > p:first-of-type { font-size: 13px; font-weight: 400; }
+html[data-ui-look="pixel"] .px-chat-chhead p { color: var(--px-text); }
+html[data-ui-look="pixel"] .px-chat-chhead p + span + p { color: var(--px-text-2); font-size: 12px; }
+html[data-ui-look="pixel"] .px-chat-purge {
+  border-radius: 0; border: 0; outline: 2px solid var(--px-line); background: var(--px-tab);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .px-chat-purge > span { border-radius: 0; }
+/* Phone: the tabs already name the channel, so the bar only shows up when
+   there are deleted-message placeholders to clean up. */
+@media (max-width: 1023px) {
+  html[data-ui-look="pixel"] .px-chat-chhead:not([data-purge="true"]) { display: none; }
+}
+
+/* Message stream */
+html[data-ui-look="pixel"] .px-chat-stream { padding: 10px 12px; }
+html[data-ui-look="pixel"] .px-chat-stream > section + section { margin-top: 12px; }
+html[data-ui-look="pixel"] .px-chat-day { justify-content: center; margin: 0 0 8px; }
+html[data-ui-look="pixel"] .px-chat-day > div { display: none; }
+html[data-ui-look="pixel"] .px-chat-day > span {
+  font-family: var(--px-font); font-size: 12px; text-transform: none; letter-spacing: 0; color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .px-chat-msg {
+  gap: 10px; padding: 4px 2px; border-radius: 0;
+}
+html[data-ui-look="pixel"] .px-chat-msg + .px-chat-msg { margin-top: 4px; }
+html[data-ui-look="pixel"] .px-chat-msg:hover { background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+html[data-ui-look="pixel"] .px-chat-msg .px-chat-name { font-size: 15px; font-weight: 700; }
+html[data-ui-look="pixel"] .px-chat-msg .px-chat-time > span { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-chat-msg .wysiwyg-content { font-size: 15px; line-height: 1.4; }
+
+/* Alter marks: a square in the alter's colour (or their avatar). */
+html[data-ui-look="pixel"] .px-chat-stream .px-chat-mark {
+  border-radius: 0 !important; border: 0;
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .3), inset -2px -2px 0 rgba(0, 0, 0, .35);
+}
+html[data-ui-look="pixel"] .px-chat-stream .px-chat-mark > span { visibility: hidden; }
+html[data-ui-look="pixel"] .px-chat-stream .px-chat-mark > img { image-rendering: auto; }
+
+/* Whispers: the row keeps its place; the body sits in a sunken, dashed box. */
+html[data-ui-look="pixel"] .px-chat-msg.px-chat-msg-whisper {
+  background: transparent; border-left: 0; padding-left: 2px;
+}
+html[data-ui-look="pixel"] .px-chat-wbody {
+  display: block; margin-top: 2px; padding: 4px 8px;
+  background: var(--px-sunk); outline: 1px dashed color-mix(in srgb, var(--px-text-2) 55%, transparent);
+  color: var(--px-text-2); font-style: italic;
+}
+html[data-ui-look="pixel"] .px-chat-acts button { border-radius: 0; }
+@media (hover: none) {
+  /* Touch: no hover, so reply / edit / delete stay faintly visible. */
+  html[data-ui-look="pixel"] .px-chat-acts { opacity: .6; }
+}
+
+/* ── Composer panel ─────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .px-chat-comp {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 10px; border-top: 0;
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .px-chat-comp-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+html[data-ui-look="pixel"] .px-chat-speaker {
+  flex: none; display: inline-flex; align-items: center; gap: 8px; max-width: 55%;
+  min-height: 26px; padding: 2px 8px;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text);
+  background: var(--px-tab); outline: 2px solid var(--px-line);
+  border: 0; border-left: 8px solid; border-radius: 0;
+}
+html[data-ui-look="pixel"] .px-chat-speaker:focus-visible { outline: 3px solid var(--color-primary); }
+html[data-ui-look="pixel"] .px-chat-speaker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .px-chat-hint {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .px-chat-comp-row { display: flex; align-items: flex-end; gap: 8px; }
+html[data-ui-look="pixel"] .px-chat-field {
+  background: var(--px-sunk); color: var(--px-text);
+  border: 0; border-radius: 0;
+  box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi);
+}
+html[data-ui-look="pixel"] .px-chat-send {
+  flex: none; min-height: 44px; padding: 0 14px;
+  font-family: var(--px-font); font-size: 14px;
+  background: var(--color-primary); color: var(--color-bg);
+  outline: 2px solid var(--px-line); border-radius: 0;
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 60%, #000);
+}
+html[data-ui-look="pixel"] .px-chat-send:disabled { opacity: .55; }
+html[data-ui-look="pixel"] .px-chat-send:focus-visible { outline: 3px solid var(--px-text); }
+/* Image / file / format tools: one slim row under the field. */
+html[data-ui-look="pixel"] .px-chat-comp .px-chat-tools {
+  margin-top: 0; border: 0; border-radius: 0; background: transparent;
+}
+html[data-ui-look="pixel"] .px-chat-comp .px-chat-tools > div:first-child { background: transparent; padding: 0; }
+html[data-ui-look="pixel"] .px-chat-comp .px-chat-tools button { border-radius: 0; font-family: var(--px-font); }
+
+/* ── Channel list (phone drawer + computer side panel) ──────────── */
+html[data-ui-look="pixel"] .px-chat-side {
+  background: var(--px-panel) !important; color: var(--px-text);
+  border-right: 0; outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .px-chat-side-ttl {
+  min-height: 30px; padding: 0 4px 0 10px; border: 0;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .px-chat-side-ttl > p {
+  padding: 0; font-family: var(--px-font); font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--px-text);
+}
+html[data-ui-look="pixel"] .px-chat-side-ttl button { border-radius: 0; font-family: var(--px-font); }
+html[data-ui-look="pixel"] .px-chat-row {
+  min-height: 30px; border-radius: 0; font-size: 13px; color: var(--px-text);
+}
+html[data-ui-look="pixel"] .px-chat-row:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+html[data-ui-look="pixel"] .px-chat-row[data-sel="true"] {
+  background: var(--color-primary); color: var(--color-bg);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .px-chat-row[data-sel="true"] button { color: var(--color-bg); }
+html[data-ui-look="pixel"] .px-chat-cathead { border-radius: 0; }
+html[data-ui-look="pixel"] .px-chat-cathead > button[style],
+html[data-ui-look="pixel"] .px-chat-privgrp > div:first-child {
+  font-family: var(--px-font); font-size: 11px; letter-spacing: .04em;
+}
+
+/* ── Computer: side panel + message panel, filling the frame ─────── */
+@media (min-width: 1024px) {
+  html[data-ui-look="pixel"] .px-chat-desk { padding: 2px; }
+  html[data-ui-look="pixel"] .px-chat-desk > .flex-1 { gap: 6px; }
+  html[data-ui-look="pixel"] .px-chat-desk .px-chat-side { width: 240px; }
+  html[data-ui-look="pixel"] .px-chat-desk .px-chat-main { min-height: 0; }
+  html[data-ui-look="pixel"] .px-chat-desk .px-chat-comp { outline: 0; box-shadow: inset 0 2px 0 var(--px-line), inset 2px 0 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
+}

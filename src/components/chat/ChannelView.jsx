@@ -187,7 +187,7 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
       focusMessageId={focusMessageId}
       onMessageFocused={onMessageFocused}
       headerSlot={(
-        <div className="px-4 py-2 border-b border-border/40 flex items-center gap-2 flex-shrink-0">
+        <div className="px-chat-chhead px-4 py-2 border-b border-border/40 flex items-center gap-2 flex-shrink-0" data-purge={deletedCount > 0 ? "true" : undefined}>
           {isPrivate ? <Lock className="w-4 h-4 text-muted-foreground" /> : <Hash className="w-4 h-4 text-muted-foreground" />}
           <p className="text-sm font-medium truncate">{channel.name}</p>
           {(isPrivate ? memberNames : channel.description) && (
@@ -200,7 +200,7 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
             <button
               type="button"
               onClick={handlePurgeAll}
-              className="ml-auto relative flex-shrink-0 h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-red-500 rounded-md border border-border/50"
+              className="px-chat-purge ml-auto relative flex-shrink-0 h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-red-500 rounded-md border border-border/50"
               title={`Clean up ${deletedCount} deleted message${deletedCount === 1 ? "" : "s"} in this channel`}
               aria-label={`Clean up ${deletedCount} deleted messages`}
             >
