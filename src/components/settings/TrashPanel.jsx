@@ -5,12 +5,13 @@
 
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, differenceInCalendarDays } from "date-fns";
 import { ChevronDown, Lock, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useTerms } from "@/lib/useTerms";
+import RowMenu from "@/components/shared/RowMenu";
 import {
   listTrash, restoreFromTrash, deleteFromTrashNow, saveTrashSettings, TRASH_DAY_CHOICES,
 } from "@/lib/trash";
@@ -21,7 +22,7 @@ const recordText = (r) => s(r?.name) || s(r?.title) || s(r?.activity_name) || s(
 const daysLabel = (d) => (d === 0 ? "Until I empty it" : d === 365 ? "1 year" : `${d} days`);
 const shortDate = (iso) => { try { return format(new Date(iso), "d MMM yyyy"); } catch { return ""; } };
 
-export default function TrashPanel() {
+export default function TrashPanel({ pixel = false }) {
   const t = useTerms();
   const qc = useQueryClient();
   const [open, setOpen] = useState(true);
@@ -109,6 +110,83 @@ export default function TrashPanel() {
 
   const pending = settings.pending;
   const total = batches.reduce((sum, b) => sum + b.items.length, 0);
+
+  // Pixel look: the trash as a panel — each batch with its days left and
+  // Put back, the time lock and Empty trash at the foot, how long things
+  // are kept folded under the title bar.
+  if (pixel) {
+    const daysLeft = (b) => {
+      if (!b.purgeAt) return "kept";
+      try { const n = Math.max(0, differenceInCalendarDays(new Date(b.purgeAt), new Date())); return `${n} day${n === 1 ? "" : "s"} left`; } catch { return ""; }
+    };
+    return (
+      <section className="pxg-pn" data-tour="trash" aria-label="Trash">
+        <div className="pxg-ttl">
+          <span>Trash</span>
+          <button type="button" className="pxg-ttl-link" aria-expanded={open === "settings"}
+            onClick={() => setOpen((v) => (v === "settings" ? true : "settings"))}>
+            {settings.days ? `empties after ${settings.days} days` : "kept until you empty it"} {open === "settings" ? "▴" : "▾"}
+          </button>
+        </div>
+        {open === "settings" && (
+          <div className="pxg-pad pxg-stack pxg-trashset">
+            <span className="pxg-small">Keep deleted things for</span>
+            <div className="pxg-seg">
+              {TRASH_DAY_CHOICES.map((d) => (
+                <button key={d} type="button" disabled={busy} onClick={() => setDays(d)} aria-pressed={settings.days === d}
+                  className={`pxg-chip${settings.days === d ? " sel" : ""}`}>{daysLabel(d)}</button>
+              ))}
+            </div>
+            <span className="pxg-small pxg-muted">The time lock: protected things can't be deleted early, and loosening this only takes effect after the current window.</span>
+            {pending && (
+              <span className="pxg-small pxg-muted">
+                Waiting for the lock: {[
+                  "lock" in pending && "the time lock turns off",
+                  "days" in pending && `deleted things are kept for ${daysLabel(pending.days).toLowerCase()}`,
+                ].filter(Boolean).join(" and ")} on {shortDate(pending.effective_at)}.
+              </span>
+            )}
+          </div>
+        )}
+        {batches.length === 0 && <p className="pxg-empty">The trash is empty.</p>}
+        {batches.map((b) => (
+          <div key={b.batch} className="pxg-histrow">
+            <div className="pxg-histmain">
+              <button type="button" className="pxg-histwhat" aria-expanded={openBatch === b.batch}
+                onClick={() => setOpenBatch(openBatch === b.batch ? null : b.batch)}
+                title={`Deleted ${formatDistanceToNow(new Date(b.trashedAt), { addSuffix: true })}`}>
+                <span className="pxg-histsubj first-letter:uppercase">{batchLabel(b)}</span>
+              </button>
+              <span className="pxg-small pxg-muted pxg-nowrap">{daysLeft(b)}</span>
+              <button type="button" className="pxg-btn pxg-restore" disabled={busy} onClick={() => restore(b)}>Put back</button>
+              {b.canDeleteNow ? (
+                <RowMenu label="Trash actions" items={[
+                  { label: "Delete for good", icon: Trash2, onSelect: () => deleteNow(b), destructive: true },
+                ]} />
+              ) : (
+                <span className="pxg-lock" title="Protected by the time lock"><Lock className="w-3.5 h-3.5" aria-label="Protected by the time lock" /></span>
+              )}
+            </div>
+            {openBatch === b.batch && (
+              <ul className="pxg-batchlist">
+                <li>Deleted {formatDistanceToNow(new Date(b.trashedAt), { addSuffix: true })} · {b.purgeAt ? `gone for good ${shortDate(b.purgeAt)}` : "kept until you empty it"}</li>
+                {b.items.length > 1 && b.items.map((it) => (
+                  <li key={`${it.entity}:${it.record.id}`} className="first-letter:uppercase">{itemLabel(it)}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+        <div className="pxg-trashfoot">
+          <button type="button" role="switch" aria-checked={settings.lock} disabled={busy}
+            className={`pxg-lockbtn${settings.lock ? " on" : ""}`} onClick={() => setLock(!settings.lock)}>
+            Time lock {settings.lock ? "on" : "off"}
+          </button>
+          <button type="button" className="pxg-btn" disabled={busy || emptyAllowed.length === 0} onClick={emptyTrash}>... Empty trash</button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-2xl border border-border/50 overflow-hidden" data-tour="trash">

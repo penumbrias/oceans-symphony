@@ -22,6 +22,9 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import TrashPanel from "@/components/settings/TrashPanel";
 import { getTrashSettings } from "@/lib/trash";
+import { useUiLook } from "@/lib/uiLook";
+import RowMenu from "@/components/shared/RowMenu";
+import "@/styles/pixel/logs.css";
 
 const FIELD_LABELS = {
   classic_home: "Home screen layout",
@@ -41,6 +44,7 @@ export default function HistoryArchive() {
   const [openCat, setOpenCat] = useState("alters");
   const [detailsId, setDetailsId] = useState(null);
   const [busy, setBusy] = useState(false);
+  const pixel = useUiLook() === "pixel";
 
   const { data: events = [] } = useQuery({
     queryKey: ["historyEvents"],
@@ -148,6 +152,57 @@ export default function HistoryArchive() {
     await localEntities.HistoryEvent.bulkDelete(rows.map((r) => r.id));
     qc.invalidateQueries({ queryKey: ["historyEvents"] });
   };
+
+  // Pixel look: the "Recent changes" board — the buckets as tabs over one
+  // list (action tag, what, when, Restore), then the trash panel.
+  if (pixel) {
+    const cat = CATS.find((c) => c.id === openCat) || CATS[0];
+    const rows = byCat[cat.id] || [];
+    const tone = (e) => (e.action === "deleted" ? "bad" : e.action === "synced" || e.category === "sync" ? "info" : "warn");
+    return (
+      <div className="pxg-hist" data-tour="history-archive">
+        <div className="pxg-histtabs" role="tablist" aria-label="Kinds of change">
+          {CATS.map((c) => (
+            <button key={c.id} type="button" role="tab" aria-selected={c.id === cat.id}
+              className={`pxg-chip${c.id === cat.id ? " sel" : ""}`} onClick={() => setOpenCat(c.id)}>
+              {c.label}{(byCat[c.id] || []).length ? ` ${(byCat[c.id] || []).length}` : ""}
+            </button>
+          ))}
+        </div>
+        <section className="pxg-pn" aria-label="Recent changes">
+          <div className="pxg-ttl"><span>Recent changes</span><span className="pxg-ttl-sub">newest first</span></div>
+          {rows.length === 0 ? (
+            <p className="pxg-empty">Nothing archived here yet. {t.Alter} profile edits, layout rewrites, sync replacements and things removed for good land here.</p>
+          ) : rows.map((e) => (
+            <div key={e.id} className="pxg-histrow">
+              <div className="pxg-histmain">
+                <span className={`pxg-act pxg-${tone(e)}`}>{actionLabel(e)}</span>
+                <button type="button" className="pxg-histwhat" aria-expanded={detailsId === e.id}
+                  onClick={() => setDetailsId(detailsId === e.id ? null : e.id)}>
+                  <span className="pxg-histsubj">{subjectLabel(e)}</span>
+                  <span className="pxg-histwhen">{formatDistanceToNow(new Date(e.timestamp), { addSuffix: true })}</span>
+                </button>
+                <button type="button" className="pxg-btn pxg-restore" disabled={busy} onClick={() => restore(e)}>Restore</button>
+                <RowMenu label="Entry actions" items={[
+                  { label: detailsId === e.id ? "Hide details" : "Show details", onSelect: () => setDetailsId(detailsId === e.id ? null : e.id) },
+                  { label: "Remove from the archive", icon: Trash2, onSelect: () => removeEvent(e), destructive: true },
+                ]} />
+              </div>
+              {detailsId === e.id && (
+                <pre className="pxg-details">{JSON.stringify(e.snapshot, null, 1)}</pre>
+              )}
+            </div>
+          ))}
+          {rows.length > 0 && (
+            <div className="pxg-foot pxg-foot-r">
+              <button type="button" className="pxg-link" onClick={() => clearBucket(cat.id, rows)}>Clear this bucket</button>
+            </div>
+          )}
+        </section>
+        <TrashPanel pixel />
+      </div>
+    );
+  }
 
   return (
     <div className="os-page-shell p-3 sm:p-4 space-y-3" data-tour="history-archive">

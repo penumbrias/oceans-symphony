@@ -267,3 +267,35 @@ html[data-ui-look="pixel"] .pxg-locsq { width: 14px; height: 14px; }
   html[data-ui-look="pixel"] .pxg-locwhen { width: 62px; font-size: 11px; }
   html[data-ui-look="pixel"] .pxg-maplink { font-size: 11px; }
 }
+
+/* ── Recent changes + trash ──────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxg-hist { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+html[data-ui-look="pixel"] .pxg-histtabs { display: flex; flex-wrap: wrap; gap: 4px; }
+html[data-ui-look="pixel"] .pxg-histrow { box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxg-histmain { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 6px 4px 6px 12px; }
+html[data-ui-look="pixel"] .pxg-act { width: 64px; flex: none; font-family: var(--px-font); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; line-height: 1.35; }
+html[data-ui-look="pixel"] .pxg-warn { color: var(--pxg-warn); }
+html[data-ui-look="pixel"] .pxg-bad { color: var(--pxg-bad); }
+html[data-ui-look="pixel"] .pxg-info { color: var(--pxg-info); }
+html[data-ui-look="pixel"] .pxg-histwhat { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; line-height: 1.3; min-height: 40px; justify-content: center; }
+html[data-ui-look="pixel"] .pxg-histwhat:focus-visible { outline: 2px solid var(--pxg-on); }
+html[data-ui-look="pixel"] .pxg-histsubj { font-size: 14.5px; color: var(--px-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-histwhen { font-size: 12px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxg-restore { min-width: 80px; min-height: 40px; font-size: 14px; }
+html[data-ui-look="pixel"] .pxg-details { margin: 0 12px 10px; max-height: 12rem; overflow: auto; padding: 8px; font-size: 10.5px; line-height: 1.35; white-space: pre-wrap; word-break: break-all; background: var(--px-sunk); box-shadow: inset 2px 2px 0 var(--px-line); color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxg-foot-r { display: flex; justify-content: flex-end; }
+html[data-ui-look="pixel"] .pxg-nowrap { white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-lock { width: 44px; display: inline-flex; justify-content: center; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxg-batchlist { margin: -4px 12px 10px 12px; padding: 0; list-style: none; font-size: 12px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxg-trashset { box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxg-trashfoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 12px; min-height: 58px; }
+html[data-ui-look="pixel"] .pxg-lockbtn { font-family: var(--px-font); font-size: 14px; color: var(--px-text-2); min-height: 40px; }
+html[data-ui-look="pixel"] .pxg-lockbtn.on { color: var(--pxg-good); }
+html[data-ui-look="pixel"] .pxg-lockbtn:focus-visible { outline: 2px solid var(--pxg-on); }
+html[data-ui-look="pixel"] .pxg-trashfoot .pxg-btn { min-height: 40px; font-size: 14px; }
+@media (max-width: 639px) {
+  html[data-ui-look="pixel"] .pxg-histmain { gap: 8px; padding-left: 10px; }
+  html[data-ui-look="pixel"] .pxg-act { width: 56px; font-size: 10px; }
+  html[data-ui-look="pixel"] .pxg-histsubj { font-size: 13.5px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  html[data-ui-look="pixel"] .pxg-restore { min-width: 72px; font-size: 13px; padding: 5px 8px; }
+}
