@@ -65,6 +65,9 @@ const BASE = `http://localhost:${port}`;
 const OUT = path.resolve(opt('--out', '/tmp/house-walk'));
 const LOOKS = opt('--looks', 'smooth,pixel').split(',');
 const HOUSE = args.includes('--house');
+// Routes drawn outside the app frame (the kit galleries, the 404 wall and
+// the full-page privacy notice): the house checks don't apply to them.
+const OUTSIDE_FRAME = (r) => /^\/house\/kit(\/|$)/.test(r) || r === '/__walk_missing_room__' || r === '/privacy';
 const SIZES = opt('--sizes', HOUSE ? '1280x800,820x1180' : '390x844,820x1180,1280x800').split(',').map((s) => {
   const [w, h] = s.split('x').map(Number);
   return { w, h, name: s };
@@ -377,8 +380,8 @@ try {
           !v.frameSupport.length && (v.frameSupportScroll.length ? 'Support in frame only after a scroll' : 'no Support in frame'),
           v.ttcMs == null && 'no content in 10 s',
           !v.notFoundWall && v.look !== look && `look is ${v.look}`,
-          HOUSE && !v.houseFrame && 'no house frame',
-          HOUSE && (!v.title || /^Oceans Symphony$|^Page not found\b/.test(v.title)) && `no page title ("${v.title}")`,
+          HOUSE && !OUTSIDE_FRAME(route) && !v.houseFrame && 'no house frame',
+          HOUSE && !OUTSIDE_FRAME(route) && (!v.title || /^Oceans Symphony$|^Page not found\b/.test(v.title)) && `no page title ("${v.title}")`,
         ].filter(Boolean);
         if (ALL_SHOTS || v.findings.some((f) => !/Support in frame/.test(f))) {
           const file = `${look}-${size.name}-${route.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'root'}.png`;
@@ -391,7 +394,7 @@ try {
         // start this look again from a fresh boot so later routes are fair.
         // (The 404 wall is drawn outside the frame, so it has no banner and no
         // look: that is not a reason to start again.)
-        if (v.crashed || (!v.notFoundWall && (v.look !== look || !v.previewOn)) || (HOUSE && !v.houseFrame)) {
+        if (v.crashed || (!v.notFoundWall && (v.look !== look || !v.previewOn)) || (HOUSE && !OUTSIDE_FRAME(route) && !v.houseFrame)) {
           v.restarted = true;
           await setup();
           ids = await resolveParams(page); // the example system mints new ids every boot
@@ -469,7 +472,7 @@ console.log(`[walk] page errors on ${summary.pageErrorRoutes.length} routes; 404
 // The house walk also fails on what the frame promises: a real title on
 // every page, the frame itself, and no sideways scroll.
 const houseFails = HOUSE
-  ? visits.filter((v) => v.route !== '/__walk_missing_room__' && v.route !== '/privacy' && (v.hOverflow || !v.houseFrame || v.findings.some((f) => /^no page title/.test(f))))
+  ? visits.filter((v) => !OUTSIDE_FRAME(v.route) && (v.hOverflow || !v.houseFrame || v.findings.some((f) => /^no page title/.test(f))))
   : [];
 if (HOUSE) console.log(`[walk] house: ${houseFails.length} visits with a missing title, a missing frame or sideways scroll${houseFails.length ? `: ${houseFails.slice(0, 10).map((v) => `${v.route} ${v.look} ${v.size} (${v.findings.join(', ')})`).join('; ')}` : ''}.`);
 process.exit(errorVisits.length || houseFails.length ? 1 : 0);
