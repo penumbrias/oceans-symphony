@@ -7,10 +7,12 @@ import { toast } from "sonner";
 import ReminderInstanceCard from "./ReminderInstanceCard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 import { markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder } from "@/lib/reminderInstanceActions";
 
 export default function RemindersInbox({ autoTriggerAction = null }) {
   const queryClient = useQueryClient();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const navigate = useNavigate();
   const [showHandled, setShowHandled] = useState(false);
   const [checkInOpen, setCheckInOpen] = useState(false);
@@ -130,6 +132,74 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
     toast.info(`Snoozed for ${formatSnoozeLabel(option)}`);
   };
 
+  const modals = (
+    <>
+      <QuickCheckInModal
+        isOpen={checkInOpen}
+        onClose={(saved) => {
+          setCheckInOpen(false);
+          if (saved && pendingActInstance) {
+            markReminderDone(pendingActInstance, "open_check_in").then(refresh);
+          }
+          setPendingActInstance(null);
+        }}
+      />
+
+      <SetFrontSheet
+        open={setFrontOpen}
+        alters={alters}
+        onClose={() => {
+          setSetFrontOpen(false);
+          if (pendingActInstance) {
+            markReminderDone(pendingActInstance, "open_set_front").then(refresh);
+          }
+          setPendingActInstance(null);
+        }}
+      />
+    </>
+  );
+
+  const card = (instance, readOnly = false) => {
+    const reminder = reminderMap[instance.reminder_id];
+    return (
+      <ReminderInstanceCard
+        key={instance.id}
+        instance={instance}
+        reminder={reminder}
+        alter={reminder?.alter_id ? alterMap[reminder.alter_id] : null}
+        readOnly={readOnly}
+        onAction={(action) => handleAction(instance, action)}
+        onSnooze={(opt) => handleSnoozeWithToast(instance, opt)}
+        onUnsnooze={() => handleUnsnooze(instance)}
+        onDone={() => handleDone(instance)}
+        onDismiss={() => handleDismiss(instance)}
+      />
+    );
+  };
+
+  // Pixel look: the "Due now" panel of the Reminders board, with the
+  // recently handled ones folded at its foot.
+  if (pixel) {
+    return (
+      <section className="prm-pn" aria-label="Due now">
+        <div className="prm-ttl"><span>Due now</span><span className="prm-mut">{active.length}</span></div>
+        {active.length === 0 ? (
+          <div className="prm-empty">Nothing due right now. When a reminder fires, it waits here until you act on it. Snoozed ones wait here too.</div>
+        ) : active.map((i) => card(i))}
+        {handled.length > 0 && (
+          <>
+            <button type="button" className="prm-fold" aria-expanded={showHandled} onClick={() => setShowHandled(o => !o)}>
+              {showHandled ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              Recently handled ({handled.length})
+            </button>
+            {showHandled && handled.map((i) => card(i, true))}
+          </>
+        )}
+        {modals}
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {active.length === 0 ? (
@@ -187,28 +257,7 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
         </div>
       )}
 
-      <QuickCheckInModal
-        isOpen={checkInOpen}
-        onClose={(saved) => {
-          setCheckInOpen(false);
-          if (saved && pendingActInstance) {
-            markReminderDone(pendingActInstance, "open_check_in").then(refresh);
-          }
-          setPendingActInstance(null);
-        }}
-      />
-
-      <SetFrontSheet
-        open={setFrontOpen}
-        alters={alters}
-        onClose={() => {
-          setSetFrontOpen(false);
-          if (pendingActInstance) {
-            markReminderDone(pendingActInstance, "open_set_front").then(refresh);
-          }
-          setPendingActInstance(null);
-        }}
-      />
+      {modals}
     </div>
   );
 }

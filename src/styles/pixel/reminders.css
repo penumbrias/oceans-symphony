@@ -1,0 +1,155 @@
+/* Reminders in the pixel look — the "Reminders" and "Reminder" phone
+   boards (RemindersPhone / ReminderEditorPhone), extended to a computer
+   layout like the To-do board: the list column on the left, the editor as
+   a panel on the right. Markup: Reminders.jsx, RemindersInbox.jsx,
+   RemindersManage.jsx, ReminderInstanceCard.jsx (PixelInstanceRow) and
+   ReminderEditorPixel.jsx — only rendered in the pixel look. Every rule is
+   scoped to html[data-ui-look="pixel"]. */
+
+html[data-ui-look="pixel"] .prm-page { display: flex; flex-direction: column; gap: 12px; padding: 12px 0 16px; }
+html[data-ui-look="pixel"] .prm-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+/* Panel + title bar */
+html[data-ui-look="pixel"] .prm-pn {
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .prm-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 26px; padding: 0 10px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .prm-ttl > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .prm-ttl-acts { display: inline-flex; gap: 6px; flex: none; }
+html[data-ui-look="pixel"] .prm-mut { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .prm-ttl .prm-mut { font-size: 12px; white-space: nowrap; }
+html[data-ui-look="pixel"] .prm-empty { padding: 10px 12px; font-size: 14px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .prm-note { padding: 8px 12px; font-size: 12px; color: var(--px-text-2); }
+
+/* Square bevelled buttons; .on is the lit (accent) one. */
+html[data-ui-look="pixel"] .prm-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; padding: 5px 10px;
+  font-family: var(--px-font); font-size: 14px; color: var(--px-text);
+  background: var(--px-bar); border: 0; border-radius: 0;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .prm-btn:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .prm-btn.on {
+  background: var(--color-primary); color: var(--color-bg);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 60%, #000);
+}
+html[data-ui-look="pixel"] .prm-btn:disabled { opacity: .55; }
+html[data-ui-look="pixel"] .prm-btn:focus-visible,
+html[data-ui-look="pixel"] .prm-chip:focus-visible,
+html[data-ui-look="pixel"] .prm-tick:focus-visible,
+html[data-ui-look="pixel"] .prm-rrow-main:focus-visible,
+html[data-ui-look="pixel"] .prm-link:focus-visible { outline: 2px solid var(--color-primary); }
+html[data-ui-look="pixel"] .prm-btn-sq { padding: 0; width: 30px; }
+html[data-ui-look="pixel"] .prm-split { display: inline-flex; gap: 2px; }
+html[data-ui-look="pixel"] .prm-danger { color: var(--color-destructive, #f87171); }
+html[data-ui-look="pixel"] .prm-tools { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+/* Colour square and the on/off box */
+html[data-ui-look="pixel"] .prm-sq { width: 12px; height: 12px; flex: none; display: inline-block; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .prm-tick {
+  width: 24px; height: 24px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text);
+  background: var(--px-sunk); outline: 2px solid var(--px-line); border: 0; border-radius: 0;
+}
+html[data-ui-look="pixel"] .prm-tick.y { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .prm-tick:disabled { opacity: .5; }
+/* The on/off box is small to look at but keeps a finger-sized target. */
+html[data-ui-look="pixel"] .prm-rrow > .prm-tick { width: 28px; height: 28px; margin: 0 2px; }
+
+/* Due now rows */
+html[data-ui-look="pixel"] .prm-due { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; box-shadow: inset 0 -2px 0 var(--px-lo); }
+html[data-ui-look="pixel"] .prm-due-done { opacity: .7; gap: 4px; }
+html[data-ui-look="pixel"] .prm-due-top { display: flex; align-items: center; gap: 10px; }
+html[data-ui-look="pixel"] .prm-due-title { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .prm-due-when { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); text-align: right; flex: none; max-width: 55%; }
+html[data-ui-look="pixel"] .prm-due-for { font-family: var(--px-font); font-size: 12px; }
+html[data-ui-look="pixel"] .prm-due-body { font-size: 14px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .prm-due-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-ui-look="pixel"] .prm-fold {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 36px; padding: 0 10px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text-2); text-align: left;
+}
+html[data-ui-look="pixel"] .prm-fold:hover { color: var(--px-text); }
+
+/* Your reminders rows */
+html[data-ui-look="pixel"] .prm-rrow { display: flex; align-items: center; gap: 6px; padding-right: 10px; box-shadow: inset 0 -2px 0 var(--px-lo); }
+html[data-ui-look="pixel"] .prm-rrow:hover { background: color-mix(in srgb, var(--px-bar) 60%, transparent); }
+html[data-ui-look="pixel"] .prm-rrow.sel { background: var(--px-bar); box-shadow: inset 3px 0 0 var(--color-primary), inset 0 -2px 0 var(--px-lo); }
+html[data-ui-look="pixel"] .prm-rrow-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0 8px 12px; text-align: left; color: var(--px-text); }
+html[data-ui-look="pixel"] .prm-rrow-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .prm-rrow-title { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .prm-rrow-title.off { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .prm-rrow-how { font-size: 12px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .prm-rrow-warn { font-size: 12px; color: var(--color-warning, #e3c16f); }
+html[data-ui-look="pixel"] .prm-rrow-who { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); text-align: right; max-width: 40%; flex: none; }
+
+/* Computer: list column + editor panel, like the To-do board. */
+html[data-ui-look="pixel"] .prm-desk { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 4px; align-items: start; }
+html[data-ui-look="pixel"][data-px-help="1"] .prm-desk,
+html[data-ui-look="pixel"][data-px-info="1"] .prm-desk { grid-template-columns: minmax(0, 1fr) 340px; }
+html[data-ui-look="pixel"] .prm-side { position: sticky; top: 8px; max-height: calc(100dvh - 150px); display: flex; flex-direction: column; }
+html[data-ui-look="pixel"] .prm-side > .prm-ed,
+html[data-ui-look="pixel"] .prm-side > .prm-pn { min-height: 0; }
+html[data-ui-look="pixel"] .prm-side-act { padding: 0 12px 12px; }
+
+/* The editor */
+html[data-ui-look="pixel"] .prm-ed {
+  display: flex; flex-direction: column; min-height: 0; max-height: 100%;
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .prm-ed-ttl { min-height: 42px; font-size: 15px; flex: none; padding: 0 6px; }
+html[data-ui-look="pixel"] .prm-ed-ttl .prm-btn { min-height: 30px; font-size: 13px; }
+html[data-ui-look="pixel"] .prm-ed-back { padding: 0; width: 30px; }
+html[data-ui-look="pixel"] .prm-ed-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .prm-ed-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; display: flex; flex-direction: column; gap: 9px; font-size: 14px; }
+html[data-ui-look="pixel"] .prm-ed-foot {
+  display: flex; align-items: center; gap: 10px; flex: none; padding: 8px 12px;
+  font-size: 12px; box-shadow: inset 0 2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .prm-ed-foot > .prm-mut { flex: 1; min-width: 0; }
+html[data-ui-look="pixel"] .prm-erow { display: flex; align-items: center; gap: 10px; }
+html[data-ui-look="pixel"] .prm-erow-top { align-items: flex-start; }
+html[data-ui-look="pixel"] .prm-erow-top > .prm-elabel { padding-top: 5px; }
+html[data-ui-look="pixel"] .prm-elabel { width: 96px; flex: none; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .prm-efield { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+html[data-ui-look="pixel"] .prm-efield > input, html[data-ui-look="pixel"] .prm-efield > textarea { flex: 1; min-width: 0; }
+html[data-ui-look="pixel"] .prm-sub { font-family: var(--px-font); font-size: 13px; margin-top: 2px; }
+html[data-ui-look="pixel"] .prm-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+html[data-ui-look="pixel"] .prm-kinds > .prm-chip { justify-content: center; min-height: 32px; }
+html[data-ui-look="pixel"] .prm-ins {
+  padding: 8px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--px-sunk); box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi);
+}
+html[data-ui-look="pixel"] .prm-chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 4px 9px;
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text-2);
+  background: var(--px-tab); outline: 2px solid var(--px-line); outline-offset: -1px; border: 0; border-radius: 0;
+}
+html[data-ui-look="pixel"] .prm-chip.sel { background: var(--color-primary); color: var(--color-bg); }
+html[data-ui-look="pixel"] .prm-link { font-size: 12px; color: var(--px-text-2); text-decoration: underline; min-height: 28px; padding: 0 2px; }
+html[data-ui-look="pixel"] .prm-link:hover { color: var(--px-text); }
+html[data-ui-look="pixel"] .prm-tickrow { display: flex; align-items: center; gap: 10px; min-height: 32px; text-align: left; color: var(--px-text); }
+html[data-ui-look="pixel"] .prm-tickrow .prm-mut { font-size: 12px; }
+
+/* Phone: the editor dialog fills the screen width like the board. */
+html[data-ui-look="pixel"] .prm-dlg { background: transparent !important; border: 0 !important; box-shadow: none !important; outline: 0 !important; }
+html[data-ui-look="pixel"] .prm-dlg > .prm-ed { flex: 1; }
+@media (max-width: 639px) {
+  html[data-ui-look="pixel"] .prm-dlg { width: calc(100vw - 16px) !important; max-width: none !important; }
+  html[data-ui-look="pixel"] .prm-elabel { width: 84px; }
+  html[data-ui-look="pixel"] .prm-ttl .prm-mut { font-size: 11px; }
+}
+html[data-ui-look="pixel"] .prm-ttl .prm-btn-ttl { min-height: 22px; padding: 1px 8px; font-size: 12px; gap: 4px; }
+html[data-ui-look="pixel"] .prm-ttl:has(.prm-btn-ttl) { padding-right: 4px; min-height: 30px; }
+html[data-ui-look="pixel"] .prm-quiet { align-self: center; margin-right: 4px; }
