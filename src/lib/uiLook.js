@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { writeSettings } from "@/lib/settingsWriter";
 import { reapplyFontFamily } from "@/lib/useAccessibility";
 
 // The app's overall look (Display options → Shape → App look):
@@ -131,14 +132,11 @@ export function usePixelLook() {
   // Writes onto a fresh read, so two quick changes never undo each other.
   const write = async (patch) => {
     if (!row?.id) return;
-    const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list()) || row;
-    const next = { ...(fresh.ui_pixel && typeof fresh.ui_pixel === "object" ? fresh.ui_pixel : {}) };
-    for (const [k, v] of Object.entries(patch)) {
-      if (v === undefined || v === null || v === "") delete next[k];
-      else next[k] = v;
-    }
-    await base44.entities.SystemSettings.update(fresh.id, { ui_pixel: next });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    // Empty values clear a key; the settings writer merges ui_pixel key by
+    // key onto the fresh row (undefined = remove).
+    const sub = {};
+    for (const [k, v] of Object.entries(patch || {})) sub[k] = (v === undefined || v === null || v === "") ? undefined : v;
+    await writeSettings({ ui_pixel: sub }, { queryClient: qc });
   };
   return { on, px, write };
 }
