@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { createReminders } from "@/lib/reminderEntry";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { useTerms } from "@/lib/useTerms";
@@ -181,9 +181,7 @@ export default function RemindersOnboarding({ onDone }) {
       .map((seed, i) => ({ ...seed, is_active: enabled.has(i) ? seed.is_active !== false : false }))
       .filter((_, i) => enabled.has(i) && !NEEDS_SETUP.has(i));
 
-    if (toCreate.length) {
-      await base44.entities.Reminder.bulkCreate(toCreate);
-    }
+    await createReminders(toCreate);
     setSaving(false);
 
     // For seeds needing setup that are enabled, open editor for first one

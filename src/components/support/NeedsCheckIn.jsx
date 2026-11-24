@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveNeedsCheckIn } from "@/lib/reflectionEntry";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -45,15 +46,7 @@ export default function NeedsCheckIn({ onBack }) {
 
   const handleSave = async () => {
     setSaving(true);
-    if (latestEntry) {
-      await base44.entities.SupportJournalEntry.update(latestEntry.id, { responses: ratings });
-    } else {
-      await base44.entities.SupportJournalEntry.create({
-        exercise_id: EXERCISE_ID,
-        exercise_title: "Healthy Needs Check-In",
-        responses: ratings,
-      });
-    }
+    await saveNeedsCheckIn({ latestEntry, ratings, exerciseId: EXERCISE_ID });
     queryClient.invalidateQueries({ queryKey: ["supportJournal", EXERCISE_ID] });
     queryClient.invalidateQueries({ queryKey: ["supportJournalAll"] });
     setSaved(true);

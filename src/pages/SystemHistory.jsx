@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
 import { isLogCommandError } from "@/lib/authoredText";
-import { editLineageEvent, deleteLineageEvent, LINEAGE_KEY } from "@/lib/lineageEvents";
+import { editLineageEvent, deleteLineageEvent, setLineageEventHidden, LINEAGE_KEY } from "@/lib/lineageEvents";
 import LineageEventEditForm from "@/components/alters/LineageEventEditForm";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { TRASH_HINT } from "@/lib/trashSettings";
@@ -479,7 +479,7 @@ export default function SystemHistory() {
   }, [queryClient]);
 
   const handleToggleHidden = useCallback(async (event) => {
-    await localEntities.SystemChangeEvent.update(event.id, { hidden: !event.hidden });
+    await setLineageEventHidden(event.id, !event.hidden);
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
   }, [queryClient]);
 
