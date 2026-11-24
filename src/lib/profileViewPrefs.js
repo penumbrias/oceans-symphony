@@ -11,6 +11,8 @@
 //                            single-page form instead of the Info sheet
 //   profile_welcome_seen     true = the one-time "how this page works" card
 //                            has been answered
+//   new_alter_guide_seen     true = the one-time "add more in Info" guide on a
+//                            just-made profile has been answered
 //
 // Every write reads the settings row fresh and sends only its own field.
 
@@ -22,6 +24,7 @@ export const PROFILE_VIEW_FIELDS = {
   holdToEdit: "profile_hold_to_edit",
   classicForm: "alter_classic_edit_form",
   welcomeSeen: "profile_welcome_seen",
+  newAlterGuideSeen: "new_alter_guide_seen",
 };
 
 export function readProfileViewPrefs(settings) {
@@ -29,6 +32,7 @@ export function readProfileViewPrefs(settings) {
     holdToEdit: settings?.[PROFILE_VIEW_FIELDS.holdToEdit] === true,
     classicForm: settings?.[PROFILE_VIEW_FIELDS.classicForm] === true,
     welcomeSeen: settings?.[PROFILE_VIEW_FIELDS.welcomeSeen] === true,
+    newAlterGuideSeen: settings?.[PROFILE_VIEW_FIELDS.newAlterGuideSeen] === true,
   };
 }
 

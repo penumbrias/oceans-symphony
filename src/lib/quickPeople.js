@@ -67,9 +67,29 @@ export function spreadPaste(lines, index, text) {
   return [...lines.slice(0, index), first, ...rest, ...lines.slice(index + 1)];
 }
 
+// A line whose name was typed as a list ("mark, amy, susan, carol") becomes
+// one line per name. The first keeps the line's colour and emoji; all keep
+// its "Not sure yet" setting. Other lines are left as they are.
+export function expandListLines(lines) {
+  const out = [];
+  for (const line of lines) {
+    const names = parseNameList(line?.name);
+    if (names.length < 2) { out.push(line); continue; }
+    out.push({ ...line, name: names[0] });
+    for (const name of names.slice(1)) out.push(newLine({ name, unsure: !!line.unsure }));
+  }
+  return out;
+}
+
+// How many records these lines will make once lists are split.
+export function countToSave(lines) {
+  return expandListLines(lines).filter((l) => lineKind(l)).length;
+}
+
 // Saves every line that has something in it. Never throws: lines that
 // fail come back in `failed` (and stay in the list, so nothing typed is lost).
-export async function saveQuickPeople(lines, { create } = {}) {
+export async function saveQuickPeople(linesIn, { create } = {}) {
+  const lines = expandListLines(linesIn || []);
   if (!lines.some((l) => lineKind(l))) return { alters: [], presences: [], failed: [] };
   create = create || await defaultWriters();
   const alters = [];

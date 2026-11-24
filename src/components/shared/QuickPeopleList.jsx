@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import { an } from "@/lib/articles";
-import { newLine, lineKind, isListPaste, spreadPaste } from "@/lib/quickPeople";
+import { newLine, lineKind, isListPaste, spreadPaste, parseNameList } from "@/lib/quickPeople";
 
 // The quick list (v0.371.0): type a few names, paste a whole list, or give
 // someone just a colour or an emoji. Lines switched to "Not sure yet" (and
@@ -70,8 +70,11 @@ export default function QuickPeopleList({ lines, onChange }) {
                   value={line.name}
                   onChange={(e) => update(line.key, { name: e.target.value })}
                   onPaste={(e) => onPaste(e, i)}
+                  // Typed as a list ("mark, amy, susan")? Leaving the field
+                  // spreads it into one line each, like a paste does.
+                  onBlur={(e) => { if (isListPaste(e.target.value)) onChange(spreadPaste(lines, i, e.target.value)); }}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAfter(i); } }}
-                  placeholder={i === 0 ? "A name, a nickname, or paste a list" : "Another name"}
+                  placeholder={i === 0 ? "A name, or several: mark, amy, susan" : "Another name"}
                   aria-label={`Name ${i + 1}`}
                   className="min-w-0"
                 />
@@ -95,11 +98,16 @@ export default function QuickPeopleList({ lines, onChange }) {
               <label className="flex items-center gap-2 pl-11 text-xs text-muted-foreground cursor-pointer min-h-[28px]">
                 <Switch checked={!!line.unsure} onCheckedChange={(v) => update(line.key, { unsure: v })} aria-label={`Not sure yet, line ${i + 1}`} />
                 <span className="text-foreground">Not sure yet</span>
-                {kind && (
-                  <span className="ml-auto" aria-live="polite">
-                    {kind === "alter" ? `Saves as ${an(t.alter)}` : "Saves as a presence"}
-                  </span>
-                )}
+                {kind && (() => {
+                  const many = line.name.includes(",") || line.name.includes(";") ? parseNameList(line.name).length : 1;
+                  return (
+                    <span className="ml-auto" aria-live="polite">
+                      {many > 1
+                        ? (kind === "alter" ? `Saves as ${many} ${t.alters}` : `Saves as ${many} presences`)
+                        : (kind === "alter" ? `Saves as ${an(t.alter)}` : "Saves as a presence")}
+                    </span>
+                  );
+                })()}
               </label>
             </li>
           );

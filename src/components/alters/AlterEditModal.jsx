@@ -12,6 +12,11 @@
 //   Profile style — a drill-in page: ProfileLookTabs (Content · Text ·
 //                   Colour · Styles) editing the draft's look.
 //
+// Quick first (v0.378.0, Penumbra): the sheet opens on the basics only.
+// "Add" makes the alter and opens their profile, where Info holds the rest
+// (and a one-time guide points at it). "More details now" opens the full
+// sheet below for anyone who wants to fill everything in first.
+//
 // Nothing about the alter is written until "Add": the sections edit one
 // in-memory draft (useAlterDraftForm — the Alter info list's draft without
 // the autosave), with undo / redo for the whole sheet. The record is
@@ -24,8 +29,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { User, ListChecks, Link2, Palette, ChevronLeft, Loader2, Plus } from "lucide-react";
+import { User, ListChecks, Link2, Palette, ChevronLeft, Loader2, Plus, ListPlus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { PS } from "@/lib/profileStyle";
@@ -77,11 +83,15 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
   const [lookTab, setLookTab] = useState("content");
   const [groupIds, setGroupIds] = useState([]);
   const [saving, setSaving] = useState(false);
+  // Basics only until the person asks for the whole sheet.
+  const [full, setFull] = useState(false);
+  const navigate = useNavigate();
 
   // A fresh draft each time the sheet opens — never on a background refresh.
   useEffect(() => {
     if (!open) return;
     info.reset();
+    setFull(false);
     setTab("info");
     setPage("sheet");
     setLookTab("content");
@@ -123,6 +133,9 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
       toast.success(`${t.Alter} added`);
       refreshAlter(queryClient);
       onClose();
+      // Straight to their profile, where everything else is added through
+      // Info (`new=1` shows the first-time guide there).
+      if (created?.id) navigate(`/alter/${created.id}?new=1`);
     } catch (e) {
       toast.error(e?.message || "Couldn't add");
     } finally {
@@ -142,7 +155,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}
-        className="max-w-md h-[min(90vh,52rem)] flex flex-col gap-0 overflow-hidden p-0" data-new-alter-sheet="" data-tour="new-alter-sheet">
+        className={`max-w-md ${full ? "h-[min(90vh,52rem)]" : "max-h-[90vh]"} flex flex-col gap-0 overflow-hidden p-0`} data-new-alter-sheet="" data-tour="new-alter-sheet">
         <DialogTitle className="sr-only">{title}</DialogTitle>
 
         {/* Header + fixed tab strip (the inspector's). Room on the right
@@ -162,9 +175,11 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
           ) : (
             <>
               <InfoBar info={info} title={title} />
-              <div className="-ml-4 -mr-14">
-                <TabBar tabs={tabs} value={tab} onChange={setTab} />
-              </div>
+              {full && (
+                <div className="-ml-4 -mr-14">
+                  <TabBar tabs={tabs} value={tab} onChange={setTab} />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -176,6 +191,18 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
               subject={{ type: "alter", id: DRAFT_LOOK_ID, label: name, customFields: form.custom_fields || {} }}
               tab={lookTab} onTab={setLookTab} onDraft={applyLook} />
           ) : (
+            !full ? (
+              <div data-new-alter-quick="">
+                <Group title="Basics" first>
+                  <BasicsSection alter={null} info={info} />
+                </Group>
+                <Group title="Everything else">
+                  <LinkRow label="More details now" icon={ListPlus}
+                    hint={`Bio, custom fields, groups, tags and profile style. Or add them from the profile's Info after.`}
+                    value="" onClick={() => setFull(true)} />
+                </Group>
+              </div>
+            ) : (
             <div role="tabpanel" aria-labelledby={`inspector-tab-${tab}`} data-new-alter-tab={tab}>
               {tab === "info" && (
                 <>
@@ -200,6 +227,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
                 </>
               )}
             </div>
+            )
           )}
         </div>
 
@@ -208,7 +236,7 @@ export default function AlterEditModal({ open, onClose, initialGroupIds = [] }) 
           <button type="button" onClick={onClose} className="h-10 px-4 rounded-xl text-sm text-muted-foreground hover:text-foreground">Cancel</button>
           <Button onClick={handleAdd} disabled={saving || !name} className="flex-1 h-10" title={name ? undefined : "A name is needed"}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-            {`Add ${t.alter}`}
+            {`Add and open profile`}
           </Button>
         </div>
       </DialogContent>

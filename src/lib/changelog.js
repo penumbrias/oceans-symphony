@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 23, 2026",
     changes: [
+      { type: "feature", text: "New alters: add just the basics, then their profile opens with a short guide to Info for the rest." },
+      { type: "improve", text: "Add several: type names with commas, like \"mark, amy, susan, carol\", to add them all at once." },
       { type: "improve", text: "Pixel look: the header can show your system name, who's fronting, the time and what's running, arranged in Display options → Bars → Top bar." },
       { type: "improve", text: "Pixel look: change its corners, edge depth, lettering, outline, title bars and page floor in Display options." },
       { type: "feature", text: "Widgets: round each corner on its own, and set the space between items inside a widget." },

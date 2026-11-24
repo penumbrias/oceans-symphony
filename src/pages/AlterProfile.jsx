@@ -36,6 +36,7 @@ import { useLookDefaults, withLookDefaults } from "@/lib/profileLookDefaults";
 import { profilePageId, ALTER_PROFILE_PAGES, NEW_ALTER_PROFILE_PAGES, NEW_PROFILE_TAB_ALIASES, usesNewProfile, layoutSuffixFor } from "@/lib/profileBoard";
 import NewProfileOffer from "@/components/alters/NewProfileOffer";
 import ProfileWelcome from "@/components/profile/ProfileWelcome";
+import NewAlterGuide, { useNewAlterGuide } from "@/components/profile/NewAlterGuide";
 import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import { Row } from "@/components/shared/SettingRows";
 import { useProfileViewPrefs } from "@/lib/profileViewPrefs";
@@ -137,6 +138,7 @@ function AlterProfileInner() {
 
   const terms = useTerms();
   const viewPrefs = useProfileViewPrefs();
+  const newGuide = useNewAlterGuide();
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
     queryFn: async () => {
@@ -538,7 +540,9 @@ function AlterProfileInner() {
           </>
         ) : (
           <>
-            {onProfilePage && !layoutEditing && <ProfileWelcome />}
+            {/* One thing at a time: the new-profile guide first. */}
+            {onProfilePage && !layoutEditing && !newGuide && <ProfileWelcome />}
+            {!layoutEditing && !editMode && <NewAlterGuide alter={alter} />}
             {onProfilePage && !layoutEditing && <NewProfileOffer alter={alter} />}
             {onNewLayout === usesNewProfile(alter) && <ProfileBoardCanvas
               key={onNewLayout ? "new" : "classic"}

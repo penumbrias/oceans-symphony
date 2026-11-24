@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { getBackupDecision, BACKUP_DECISIONS } from "@/lib/autoBackup";
 import { logEmotionCheckIn } from "@/lib/checkinEntry";
-import { newLine, lineKind } from "@/lib/quickPeople";
+import { newLine, countToSave } from "@/lib/quickPeople";
 import { an } from "@/lib/articles";
 import QuickPeopleList from "@/components/shared/QuickPeopleList";
 import { useQuickPeopleSave } from "@/components/shared/QuickPeopleSheet";
@@ -182,7 +182,7 @@ export function WhoStep({ lines, setLines, added, onAdded }) {
   const save = useQuickPeopleSave();
   const [busy, setBusy] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const count = lines.filter((l) => lineKind(l)).length;
+  const count = countToSave(lines);
 
   const add = async () => {
     if (!count || busy) return;

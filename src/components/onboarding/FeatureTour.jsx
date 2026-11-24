@@ -419,7 +419,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "🪪", title: `The new ${t.alter} sheet`,
-      body: `Info, Custom fields and Links tabs, the same as ${t.Alter} info, and a Profile style row for the look. Nothing about the ${t.alter} is saved until you tap Add.`,
+      body: `It asks for the basics first: name, pronouns, colour and picture. Add opens their profile, where Info holds the rest. "More details now" fills everything in before adding.`,
       route: "/Home", target: ["new-alter-sheet", "alter-add-btn"], look: `the "New ${t.alter}" sheet (open it with Add)`,
     }),
     s("alters", {
@@ -429,7 +429,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "📝", title: "Add several at once",
-      body: `"Add several at once" opens a quick list: one line each, or paste a whole list of names. A colour or emoji is enough on its own.`,
+      body: `"Add several at once" opens a quick list. Type names with commas between them, like "mark, amy, susan", or one per line. A colour or emoji is enough on its own.`,
       route: "/Home", target: ["alters-add-several", "alter-add-btn"], look: `the "Add several at once" button below the ${t.alters}`,
     }),
     s("alters", {
