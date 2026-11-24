@@ -299,3 +299,38 @@ html[data-ui-look="pixel"] .pxg-trashfoot .pxg-btn { min-height: 40px; font-size
   html[data-ui-look="pixel"] .pxg-histsubj { font-size: 13.5px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   html[data-ui-look="pixel"] .pxg-restore { min-width: 72px; font-size: 13px; padding: 5px 8px; }
 }
+
+/* ── Mods ─────────────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxg-mods { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 4px; align-items: start; min-height: calc(100vh - 140px); }
+html[data-ui-look="pixel"] .pxg-modlist { position: sticky; top: 0; max-height: calc(100vh - 140px); min-height: 420px; }
+html[data-ui-look="pixel"] .pxg-modscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+html[data-ui-look="pixel"] .pxg-modhead { padding: 8px 10px 4px; font-family: var(--px-font); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxg-modrow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 58px; padding: 6px 8px; text-align: left; box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] button.pxg-modrow:hover, html[data-ui-look="pixel"] .pxg-modpick:hover { background: color-mix(in srgb, var(--px-bar) 45%, transparent); }
+html[data-ui-look="pixel"] .pxg-modrow.sel { background: var(--px-bar); box-shadow: inset 3px 0 0 var(--pxg-on), inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxg-modpick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; min-height: 44px; }
+html[data-ui-look="pixel"] .pxg-modrow:focus-visible, html[data-ui-look="pixel"] .pxg-modpick:focus-visible { outline: 2px solid var(--pxg-on); outline-offset: -2px; }
+html[data-ui-look="pixel"] .pxg-modsq { width: 30px; height: 30px; flex: none; outline: 2px solid var(--px-line); outline-offset: -2px; }
+html[data-ui-look="pixel"] .pxg-modname { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; font-size: 14px; }
+html[data-ui-look="pixel"] .pxg-modname > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-modsub { font-size: 12px; color: var(--px-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-moddetail { min-height: 420px; }
+html[data-ui-look="pixel"] .pxg-modbody { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; }
+html[data-ui-look="pixel"] .pxg-modbody p { margin: 0; }
+html[data-ui-look="pixel"] .pxg-sub { outline-offset: -2px; }
+html[data-ui-look="pixel"] .pxg-sub .pxg-ttl { min-height: 22px; font-size: 12.5px; }
+html[data-ui-look="pixel"] .pxg-permrow { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px 10px; box-shadow: inset 0 -2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxg-permrow:last-child { box-shadow: none; }
+html[data-ui-look="pixel"] .pxg-datarow { flex-wrap: wrap; padding: 8px 10px; }
+html[data-ui-look="pixel"] .pxg-modread { padding: 8px 10px; }
+html[data-ui-look="pixel"] .pxg-modread > div { border-radius: 0 !important; border-color: var(--px-line) !important; background: var(--px-sunk) !important; }
+html[data-ui-look="pixel"] .pxg-means { padding: 8px 12px; background: var(--px-sunk); box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .pxg-means-h { font-family: var(--px-font); font-size: 12px; color: var(--pxg-warn); margin-bottom: 2px; }
+html[data-ui-look="pixel"] .pxg-means p { font-size: 13px; }
+@media (max-width: 1023px) {
+  html[data-ui-look="pixel"] .pxg-mods { grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 10px; }
+  html[data-ui-look="pixel"] .pxg-modlist { position: static; max-height: none; min-height: 0; }
+  html[data-ui-look="pixel"] .pxg-moddetail { min-height: 0; }
+  html[data-ui-look="pixel"] .pxg-moddetail > .pxg-ttl { flex-wrap: wrap; padding-top: 4px; padding-bottom: 4px; }
+  html[data-ui-look="pixel"] .pxg-moddetail > .pxg-ttl .pxg-ttl-acts { flex-wrap: wrap; }
+}
