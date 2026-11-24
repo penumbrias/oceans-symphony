@@ -42,6 +42,7 @@ import { HOME_MODES, effectiveMode, layerOf } from "@/lib/experimentalHome";
 import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
+import { useUiLook } from "@/lib/uiLook";
 import { useTheme } from "@/lib/ThemeContext";
 import AlterArrangementEditor from "@/components/shared/AlterArrangementEditor";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -705,6 +706,7 @@ export default function WidgetConfigSheet({
   onLayer = null,    // (instanceId, "front" | "forward" | "backward" | "back") → layer order; null where widgets can't overlap
   boardSnap = true,  // the app-wide "snap to grid" choice this widget follows unless it has its own
 }) {
+  const pixel = useUiLook() === "pixel";
   const open = !!widget && !!def;
   // Everything in this sheet applies live and is saved as it happens, so
   // closing it always KEEPS the edits — however it's closed. (v0.293.1:
@@ -1067,7 +1069,7 @@ export default function WidgetConfigSheet({
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) requestClose(); }}>
-      <DrawerContent direction={dock} hideHandle
+      <DrawerContent direction={dock} hideHandle className="os-insp"
         style={{ maxHeight: `${peekH}vh`, height: `${peekH}vh` }} {...sheetPortalGuards}>
         {/* The grab bar IS the resize handle — every sheet is always
             drag-resizable (no separate Peek mode). */}
@@ -1101,7 +1103,7 @@ export default function WidgetConfigSheet({
             </div>
           </div>
         )}
-        <DrawerHeader className="pb-1.5 pt-1">
+        <DrawerHeader className="os-insp-head pb-1.5 pt-1">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 min-w-0 flex-1">
               {/* The standard close chevron — points the way the sheet leaves. */}
@@ -1109,7 +1111,7 @@ export default function WidgetConfigSheet({
                 className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
                 {dock === "top" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
-              <DrawerTitle className="text-base truncate">{settings.label || defLabel}</DrawerTitle>
+              <DrawerTitle className="text-base truncate">{pixel ? `Widget options: ${settings.label || defLabel}` : (settings.label || defLabel)}</DrawerTitle>
               <DrawerDescription className="sr-only">Widget options</DrawerDescription>
             </span>
             <span className="flex items-center gap-1.5 flex-shrink-0">
@@ -1174,7 +1176,7 @@ export default function WidgetConfigSheet({
 
         <div
           ref={panelRef} role={stacked ? undefined : "tabpanel"} aria-labelledby={stacked ? undefined : `inspector-tab-${tab}`}
-          className="px-4 pt-1 overflow-y-auto overscroll-contain flex-1 min-h-0"
+          className="os-insp-body px-4 pt-1 overflow-y-auto overscroll-contain flex-1 min-h-0"
           // Bottom-nav height included: on pages where the classic bottom
           // bar is up, the sheet's last rows were hidden behind it.
           style={{ paddingBottom: "calc(var(--os-sab) + var(--bottom-nav-height, 0px) + 24px)" }}

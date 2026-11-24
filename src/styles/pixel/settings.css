@@ -1,0 +1,336 @@
+/* ── Pixel look: Settings + every option menu (inspector) ────────────
+   Mockups: "Settings, appearance, desktop" (07) and "Phone: widget
+   options, Text tab" (10). Every rule is scoped to the pixel look, so the
+   smooth look never sees any of it. Hooks:
+   - SettingRows.jsx: os-row / os-row-label / os-row-ctl / os-seg /
+     os-seg-opt / os-choice / os-valuebox / os-slider-row / os-range /
+     os-reset / os-group / os-link-row / TabBar's os-tabbar + os-tab.
+   - Inspector hosts (Display options, widget options, Profile style):
+     os-insp / os-insp-head / os-insp-body.
+   - Settings.jsx pixel branch: pxs-* (panels, title bars, preview). */
+
+html[data-ui-look="pixel"] {
+  /* The raised button of the mockups (.btn) and its "on" state (.on). */
+  --pxs-btn-bevel: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-sunk);
+  --pxs-on-bevel: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 62%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 62%, #000);
+  --pxs-sunk-bevel: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi);
+  --pxs-fill: color-mix(in srgb, var(--color-primary) 55%, var(--px-panel));
+}
+
+/* ── Rows (one row grammar) ───────────────────────────────────────── */
+html[data-ui-look="pixel"] .os-row {
+  --os-lab-w: clamp(104px, 30%, 200px);
+  border-bottom: 0 !important;
+  gap: 12px;
+  min-height: 44px;
+}
+html[data-ui-look="pixel"] .os-row-label > span:first-child,
+html[data-ui-look="pixel"] .os-link-row .os-row-label > span:first-child {
+  font-family: var(--px-font);
+  font-size: 14px;
+  color: var(--px-text);
+}
+html[data-ui-look="pixel"] .os-row-label > span + span { color: var(--px-text-2); font-size: 12px; }
+html[data-ui-look="pixel"] .os-row:not(.os-row-stacked):not(.os-slider-row) > .os-row-label { flex: 0 0 var(--os-lab-w); }
+html[data-ui-look="pixel"] .os-row:not(.os-row-stacked):not(.os-slider-row) > .os-row-ctl {
+  flex: 1 1 auto; max-width: none; justify-content: flex-start; flex-wrap: wrap;
+}
+html[data-ui-look="pixel"] .os-row-stacked > .os-row-ctl { padding-top: 6px; }
+
+/* The × that clears a value: a small square button. */
+html[data-ui-look="pixel"] .os-row-clear {
+  border-radius: 0 !important; border: 0 !important;
+  background: var(--px-bar); color: var(--px-text);
+  outline: 2px solid var(--px-line); box-shadow: var(--pxs-btn-bevel);
+}
+
+/* Group heading: the pixel font, a step bigger than the rows. */
+html[data-ui-look="pixel"] .os-group-title {
+  font-family: var(--px-font); font-weight: 400; letter-spacing: .04em;
+  font-size: 12px; color: var(--px-text-2);
+  padding-bottom: 4px; margin-bottom: 4px;
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-stack-head { font-family: var(--px-font); font-weight: 400; border-color: var(--px-line) !important; }
+
+/* Drill-in rows: flat list rows that light up on hover. */
+html[data-ui-look="pixel"] .os-link-row {
+  border-bottom: 0 !important; border-radius: 0 !important;
+  min-height: 40px; margin: 0; padding: 2px 8px;
+}
+html[data-ui-look="pixel"] .os-link-row:hover { background: color-mix(in srgb, var(--px-hi) 55%, transparent); }
+html[data-ui-look="pixel"] .os-link-row:focus-visible { outline: 2px solid var(--color-primary); }
+html[data-ui-look="pixel"] .os-link-value { font-family: var(--px-font); color: var(--px-text-2); }
+
+/* Segmented choices + chips: separate raised buttons, the picked one in
+   the accent colour (the mockup's Pixel / Smooth / From a mod). */
+html[data-ui-look="pixel"] .os-seg {
+  border: 0 !important; border-radius: 0 !important; padding: 2px !important;
+  gap: 6px !important; flex-wrap: wrap;
+}
+html[data-ui-look="pixel"] :is(.os-seg-opt, .os-choice) {
+  border-radius: 0 !important; border: 0 !important;
+  font-family: var(--px-font); font-size: 13px; font-weight: 400 !important;
+  min-height: 32px; padding: 6px 10px !important;
+  color: var(--px-text) !important; background: var(--px-bar) !important;
+  outline: 2px solid var(--px-line) !important; outline-offset: 0;
+  box-shadow: var(--pxs-btn-bevel);
+}
+html[data-ui-look="pixel"] .os-seg-opt[aria-checked="true"],
+html[data-ui-look="pixel"] .os-choice[aria-pressed="true"] {
+  background: var(--color-primary) !important; color: var(--color-bg, #1a1c2b) !important;
+  box-shadow: var(--pxs-on-bevel);
+}
+html[data-ui-look="pixel"] :is(.os-seg-opt, .os-choice):focus-visible { outline: 3px solid var(--px-text) !important; }
+
+/* The number beside a slider: a sunken box in the pixel font. */
+html[data-ui-look="pixel"] .os-valuebox {
+  border-radius: 0 !important; border: 0 !important;
+  background: var(--px-sunk) !important; box-shadow: var(--pxs-sunk-bevel);
+  font-family: var(--px-font); color: var(--px-text);
+  height: 32px; min-width: 52px;
+}
+html[data-ui-look="pixel"] .os-valuebox input { font-family: var(--px-font); font-size: 13px; color: inherit; border-radius: 0 !important; }
+
+/* Slider rows on one line: name · track · number · ×, as in the mockup. */
+html[data-ui-look="pixel"] .os-slider-row {
+  display: grid; align-items: center; column-gap: 12px;
+  grid-template-columns: var(--os-lab-w) minmax(60px, 1fr) auto auto;
+}
+html[data-ui-look="pixel"] .os-slider-top { display: contents; }
+html[data-ui-look="pixel"] .os-slider-row .os-row-label { grid-column: 1; grid-row: 1; }
+html[data-ui-look="pixel"] .os-slider-row .os-slider-track { grid-column: 2; grid-row: 1; padding: 0 9px; }
+html[data-ui-look="pixel"] .os-slider-row .os-valuebox { grid-column: 3; grid-row: 1; }
+html[data-ui-look="pixel"] .os-slider-row .os-row-clear { grid-column: 4; grid-row: 1; }
+/* Inherited: the name greys and leans, the track dims (dashed in smooth). */
+html[data-ui-look="pixel"] .os-slider-row.os-inherited .os-row-label > span:first-child { color: var(--px-text-2); font-style: italic; }
+html[data-ui-look="pixel"] .os-slider-row.os-inherited .os-valuebox { color: var(--px-text-2); outline: 2px dashed var(--px-line); }
+
+/* The slider itself: a sunken bar with a square knob and a filled part. */
+html[data-ui-look="pixel"] .os-range {
+  -webkit-appearance: none; appearance: none;
+  height: 14px !important; margin: 0 !important; display: block;
+  background: linear-gradient(to right, var(--pxs-fill) 0 var(--os-fill, 0%), var(--px-sunk) var(--os-fill, 0%) 100%);
+  box-shadow: var(--pxs-sunk-bevel);
+  border-radius: 0; cursor: pointer;
+}
+html[data-ui-look="pixel"] .os-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 24px; border-radius: 0; border: 0;
+  background: var(--px-text);
+  box-shadow: 0 0 0 2px var(--px-line);
+}
+html[data-ui-look="pixel"] .os-range::-moz-range-thumb {
+  width: 14px; height: 24px; border-radius: 0; border: 0;
+  background: var(--px-text); box-shadow: 0 0 0 2px var(--px-line);
+}
+html[data-ui-look="pixel"] .os-range::-moz-range-track { background: transparent; }
+html[data-ui-look="pixel"] .os-range:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+
+/* − n + steppers */
+html[data-ui-look="pixel"] .os-step-btn {
+  border-radius: 0 !important; border: 0 !important;
+  background: var(--px-bar); color: var(--px-text) !important;
+  outline: 2px solid var(--px-line); box-shadow: var(--pxs-btn-bevel);
+}
+
+/* On/off switches inside rows: square. */
+html[data-ui-look="pixel"] :is(.os-row, .pxs-body) [role="switch"] {
+  border-radius: 0 !important; outline: 2px solid var(--px-line);
+  box-shadow: var(--pxs-sunk-bevel);
+}
+html[data-ui-look="pixel"] :is(.os-row, .pxs-body) [role="switch"] > span {
+  border-radius: 0 !important; box-shadow: 0 0 0 2px var(--px-line);
+}
+
+/* "Reset this tab": a raised button on the left, not a full-width bar. */
+html[data-ui-look="pixel"] .os-reset-wrap { padding-top: 20px; }
+html[data-ui-look="pixel"] .os-reset {
+  width: auto !important; height: auto !important; min-height: 40px;
+  padding: 0 14px; border-radius: 0 !important; border: 0 !important;
+  font-family: var(--px-font); font-size: 14px; color: var(--px-text) !important;
+  background: var(--px-bar); outline: 2px solid var(--px-line); box-shadow: var(--pxs-btn-bevel);
+}
+
+/* ── The tab strip (TabBar): words only, folder tabs on a sunk strip ── */
+html[data-ui-look="pixel"] .os-tabbar {
+  gap: 3px !important; padding: 8px 8px 0 !important;
+  background: var(--px-sunk) !important; border: 0 !important;
+  box-shadow: inset 0 -2px 0 var(--px-line);
+  overflow-x: auto; scrollbar-width: none;
+}
+html[data-ui-look="pixel"] .os-tabbar .os-tab {
+  flex: 0 0 auto !important; min-width: 0;
+  flex-direction: row !important; padding: 8px 9px !important; min-height: 36px;
+  font-family: var(--px-font); font-size: 14px; font-weight: 400 !important;
+  border: 0 !important; border-radius: 0 !important;
+  background: var(--px-tab) !important; color: var(--px-text-2) !important;
+  outline: 2px solid var(--px-line); outline-offset: 0;
+}
+html[data-ui-look="pixel"] .os-tabbar .os-tab[aria-selected="true"] {
+  background: var(--px-panel) !important; color: var(--px-text) !important;
+  box-shadow: inset 2px 2px 0 var(--px-hi); min-height: 38px;
+}
+html[data-ui-look="pixel"] .os-tabbar .os-tab-icon { display: none; }
+html[data-ui-look="pixel"] .os-tabbar .os-tab-dot { top: 4px; right: 3px; border-radius: 0 !important; background: var(--color-primary); }
+
+/* ── Inspector sheets (Display options, widget options, Profile style) ── */
+html[data-ui-look="pixel"] .os-insp {
+  background: var(--px-panel) !important;
+  border: 0 !important; outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo) !important;
+}
+/* Title bar: the raised bar, title in the pixel font, square buttons. */
+html[data-ui-look="pixel"] .os-insp-head {
+  padding: 4px 6px 4px 12px !important; margin: 0;
+  min-height: 40px; display: flex; align-items: center;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-insp-head > div { width: 100%; align-items: center !important; }
+html[data-ui-look="pixel"] .os-insp-head :is(h2, [id$="-title"]) {
+  font-family: var(--px-font); font-size: 16px; font-weight: 400; color: var(--px-text);
+}
+html[data-ui-look="pixel"] .os-insp-head button {
+  border-radius: 0 !important; border: 0 !important;
+  min-width: 44px; min-height: 32px; height: 32px; padding: 0 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--px-font); color: var(--px-text) !important;
+  background: var(--px-bar); outline: 2px solid var(--px-line); box-shadow: var(--pxs-btn-bevel);
+}
+html[data-ui-look="pixel"] .os-insp-head button:disabled { opacity: .45; }
+html[data-ui-look="pixel"] .os-insp-head button[aria-label="Close"] { margin-left: 0; margin-right: 8px; }
+html[data-ui-look="pixel"] .os-insp-head [role="menu"] { border-radius: 0 !important; outline: 2px solid var(--px-line); }
+html[data-ui-look="pixel"] .os-insp-head [role="menu"] button {
+  outline: 0; box-shadow: none; background: transparent; justify-content: flex-start; width: 100%; height: 36px;
+}
+html[data-ui-look="pixel"] .os-insp-head [role="menu"] button:hover { background: var(--px-bar); }
+html[data-ui-look="pixel"] .os-insp-body { padding-top: 6px; }
+/* Display options' scope picker and its sticky tab strip sit on the panel. */
+html[data-ui-look="pixel"] .os-insp-body .sticky.bg-background,
+html[data-ui-look="pixel"] .pxs-display .sticky.bg-background { background: var(--px-sunk) !important; }
+
+/* ── Settings page (Settings.jsx pixel branch) ─────────────────────── */
+html[data-ui-look="pixel"] .pxs-ws {
+  display: grid; gap: 2px; align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  container-type: inline-size;
+}
+@media (min-width: 1024px) {
+  html[data-ui-look="pixel"] .pxs-ws { grid-template-columns: 240px minmax(0, 1fr); gap: 4px; }
+  html[data-ui-look="pixel"] .pxs-ws.pxs-has-preview { grid-template-columns: 240px minmax(0, 1fr) 300px; }
+}
+/* No room for the preview beside a page (the help panel is open, or the
+   window is narrow): it drops under the page. */
+@container (max-width: 980px) {
+  html[data-ui-look="pixel"] .pxs-ws.pxs-has-preview .pxs-preview { grid-column: 2; }
+}
+
+html[data-ui-look="pixel"] .pxs-panel {
+  min-width: 0; display: flex; flex-direction: column;
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+html[data-ui-look="pixel"] .pxs-side {
+  position: sticky; top: 0; max-height: calc(100vh - 150px);
+}
+html[data-ui-look="pixel"] .pxs-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none;
+  min-height: 22px; padding: 0 8px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .pxs-ttl.pxs-ttl-big { min-height: 28px; font-size: 15px; }
+html[data-ui-look="pixel"] .pxs-ttl-l { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+html[data-ui-look="pixel"] .pxs-ttl-l h1 { font-size: inherit; font-weight: 400; margin: 0; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui-look="pixel"] .pxs-ttl-r { color: var(--px-text-2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html[data-ui-look="pixel"] .pxs-ttl-btn {
+  min-width: 22px; min-height: 20px; padding: 0 4px; font-family: var(--px-font); color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .pxs-ttl-btn:hover, html[data-ui-look="pixel"] .pxs-ttl-btn[aria-pressed="true"] { color: var(--px-text); background: var(--px-panel); }
+html[data-ui-look="pixel"] .pxs-ttl-btn:focus-visible { outline: 2px solid var(--color-primary); }
+
+/* Side list: plain rows, the open page on the lighter bevel colour. */
+html[data-ui-look="pixel"] .pxs-find { padding: 6px 6px 0; }
+html[data-ui-look="pixel"] .pxs-tree {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px; display: flex; flex-direction: column;
+}
+html[data-ui-look="pixel"] .pxs-tree-head {
+  margin: 8px 10px 2px; font-family: var(--px-font); font-size: 11px; letter-spacing: .04em; color: var(--px-text-2); opacity: .8;
+}
+html[data-ui-look="pixel"] .pxs-tree-row {
+  display: flex; align-items: center; min-height: 28px; padding: 0 10px; text-align: left;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none;
+}
+html[data-ui-look="pixel"] .pxs-tree-row:hover { background: color-mix(in srgb, var(--px-hi) 45%, transparent); }
+html[data-ui-look="pixel"] .pxs-tree-row.sel { background: var(--px-hi); outline: 2px solid var(--px-line); outline-offset: -2px; }
+html[data-ui-look="pixel"] .pxs-tree-row:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+/* Sunken search field. */
+html[data-ui-look="pixel"] .pxs-search { position: relative; }
+html[data-ui-look="pixel"] .pxs-search input {
+  width: 100%; height: 32px; padding: 0 30px 0 30px;
+  border: 0 !important; border-radius: 0 !important;
+  background: var(--px-sunk); box-shadow: var(--pxs-sunk-bevel);
+  color: var(--px-text); font-size: 13px;
+}
+html[data-ui-look="pixel"] .pxs-search input:focus-visible { outline: 2px solid var(--color-primary); }
+html[data-ui-look="pixel"] .pxs-search > svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--px-text-2); pointer-events: none; }
+html[data-ui-look="pixel"] .pxs-search > button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--px-text-2); }
+
+/* The page body. */
+html[data-ui-look="pixel"] .pxs-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+html[data-ui-look="pixel"] .pxs-body > .pxs-page { display: flex; flex-direction: column; gap: 24px; }
+html[data-ui-look="pixel"] .pxs-muted { color: var(--px-text-2); font-size: 13px; }
+html[data-ui-look="pixel"] .pxs-link { color: var(--color-primary); text-decoration: underline; cursor: pointer; }
+html[data-ui-look="pixel"] .pxs-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+html[data-ui-look="pixel"] .pxs-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px;
+  font-family: var(--px-font); font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); border: 0; border-radius: 0 !important;
+  outline: 2px solid var(--px-line); box-shadow: var(--pxs-btn-bevel);
+}
+html[data-ui-look="pixel"] .pxs-btn:active { box-shadow: inset 2px 2px 0 var(--px-sunk), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] .pxs-btn:focus-visible { outline: 3px solid var(--color-primary); }
+html[data-ui-look="pixel"] .pxs-btn.on { background: var(--color-primary); color: var(--color-bg, #1a1c2b); box-shadow: var(--pxs-on-bevel); }
+html[data-ui-look="pixel"] .pxs-btn:disabled { opacity: .6; }
+html[data-ui-look="pixel"] .pxs-chip {
+  font-family: var(--px-font); font-size: 11px; padding: 2px 6px; text-transform: uppercase;
+  background: var(--color-primary); color: var(--color-bg, #1a1c2b); outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] .pxs-ver { font-family: var(--px-font); font-size: 12px; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxs-icon-link {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--px-text); background: var(--px-bar); outline: 2px solid var(--px-line); box-shadow: var(--pxs-btn-bevel);
+}
+html[data-ui-look="pixel"] .pxs-icon-link svg { width: 16px; height: 16px; }
+
+/* The home list's groups: one sub-panel per group, its name on a bar. */
+html[data-ui-look="pixel"] .pxs-home-group { outline: 2px solid var(--px-line); background: var(--px-panel); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
+html[data-ui-look="pixel"] .pxs-home-group .os-group { padding-top: 0 !important; }
+html[data-ui-look="pixel"] .pxs-home-group .os-group-title {
+  margin: 0; padding: 0 8px; min-height: 22px; display: flex; align-items: center;
+  text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--px-text);
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .pxs-home-group .os-group > div { padding: 4px; }
+html[data-ui-look="pixel"] .pxs-home-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* Display options inline on a computer. */
+html[data-ui-look="pixel"] .pxs-display { padding: 0 16px; margin: -16px -18px 0; }
+html[data-ui-look="pixel"] .pxs-display-foot { display: flex; justify-content: flex-end; padding-top: 8px; }
+
+/* Preview panel (look pages). */
+html[data-ui-look="pixel"] .pxs-preview { position: sticky; top: 0; }
+html[data-ui-look="pixel"] .pxs-preview-body {
+  padding: 14px; display: flex; flex-direction: column; gap: 12px;
+  background: color-mix(in srgb, var(--px-panel) 55%, var(--px-sunk));
+}
+html[data-ui-look="pixel"] .pxs-pv-front { padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+html[data-ui-look="pixel"] .pxs-pv-swatch { width: 24px; height: 24px; flex: none; outline: 2px solid var(--px-line); object-fit: cover; image-rendering: pixelated; }
+html[data-ui-look="pixel"] .pxs-pv-sunk { padding: 8px; background: var(--px-sunk); box-shadow: var(--pxs-sunk-bevel); }
+html[data-ui-look="pixel"] .pxs-pv-icons { display: flex; gap: 4px; }
+html[data-ui-look="pixel"] .pxs-pv-icons .pxs-btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
+html[data-ui-look="pixel"] .pxs-pv-icons svg { width: 18px; height: 18px; }

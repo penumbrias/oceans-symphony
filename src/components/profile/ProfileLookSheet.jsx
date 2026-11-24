@@ -61,10 +61,10 @@ function ProfileLookSheet({ open, onClose, subject }) {
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} hideHandle data-profile-look-sheet=""
+      <DrawerContent direction={dock} hideHandle data-profile-look-sheet="" className="os-insp"
         style={{ maxHeight: `${peekResize.peekH}vh`, height: `${peekResize.peekH}vh` }} {...sheetPortalGuards}>
         <PeekHandle resize={peekResize} dock={dock} />
-        <DrawerHeader className="pb-1">
+        <DrawerHeader className="os-insp-head pb-1">
           <div className="flex items-start justify-between gap-2">
             <span className="flex items-center gap-2 min-w-0">
               <button type="button" onClick={onClose} aria-label="Close"
