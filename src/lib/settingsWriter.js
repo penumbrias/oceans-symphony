@@ -14,7 +14,8 @@
 //     MERGE_FIELDS (ui_v2, ui_pixel, theme…), only the sub-keys in the
 //     patch change and every other sub-key (including ones this version
 //     doesn't know) is kept. A sub-key set to `undefined` is removed.
-//     Every other top-level field is replaced, as `update` always did;
+//     Every other top-level field is replaced, as `update` always did
+//     (a top-level `undefined` clears the field, as it always did);
 //   - a FUNCTION patch, `(fresh) => patch`, is called with the fresh row
 //     inside the queue. It computed from the truth, so what it returns is
 //     written as is (whole field values — return the full nested object);
@@ -54,7 +55,9 @@ export function mergeSettingsPatch(row, patch, { replace = [] } = {}) {
   if (!isPlainObject(patch)) return out;
   const swap = new Set(replace);
   for (const [field, value] of Object.entries(patch)) {
-    if (value === undefined) continue;
+    // A top-level undefined is handed to update as is, which clears the
+    // field — exactly what a direct `update(id, { field: undefined })` did.
+    if (value === undefined) { out[field] = undefined; continue; }
     if (MERGE.has(field) && !swap.has(field) && isPlainObject(value)) {
       const next = isPlainObject(row?.[field]) ? { ...row[field] } : {};
       for (const [k, v] of Object.entries(value)) {
@@ -100,9 +103,7 @@ async function doWrite(change, { create = false, replace = [], invalidate = true
   const isFn = typeof change === "function";
   const raw = isFn ? change(fresh || {}) : change;
   if (!isPlainObject(raw)) return null;
-  const out = isFn
-    ? Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined))
-    : mergeSettingsPatch(fresh, raw, { replace });
+  const out = isFn ? { ...raw } : mergeSettingsPatch(fresh, raw, { replace });
   if (!Object.keys(out).length) return null;
 
   let id = fresh?.id || null;

@@ -72,6 +72,9 @@ await test("pure merge: only patched sub-keys change, unknown sub-keys kept", ()
   assert.deepEqual(W.mergeSettingsPatch(fresh, { ui_pixel: { bevel: 1 } }, { replace: ["ui_pixel"] }), { ui_pixel: { bevel: 1 } });
   // A non-merge field is replaced whole, as update always did.
   assert.deepEqual(W.mergeSettingsPatch({ terms: { a: 1 } }, { terms: { b: 2 } }), { terms: { b: 2 } });
+  // A top-level undefined still reaches update (which clears it), as before.
+  const cleared = W.mergeSettingsPatch({ quick_jump: { a: 1 } }, { quick_jump: undefined });
+  assert.ok("quick_jump" in cleared && cleared.quick_jump === undefined);
 });
 
 await test("two rapid look changes both stick", async () => {
