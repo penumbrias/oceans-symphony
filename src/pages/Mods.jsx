@@ -24,6 +24,9 @@ import { formatDistanceToNow } from "date-fns";
 import { modPagePath } from "@/lib/mods/registry";
 import { BUILTIN_MODS, loadBuiltinMod } from "@/lib/mods/builtinMods";
 import { openExternalUrl } from "@/lib/openExternalUrl";
+import { useUiLook } from "@/lib/uiLook";
+import "@/styles/pixel/logs.css";
+import RowMenu from "@/components/shared/RowMenu";
 
 // Heavy permissions (data:read) are never a tick: see DataAccessPanel.
 const isHeavy = (perm) => !!MOD_PERMISSIONS[perm]?.heavy;
@@ -211,13 +214,13 @@ function DataConsentDialog({ mod, terms, onClose, onDone }) {
   );
 }
 
-function ModCard({ mod, dataCount, terms, refresh }) {
-  const navigate = useNavigate();
+// A mod's actions (on/off, remove, its data), shared by the card and the
+// pixel look's detail panel.
+function useModActions(mod, dataCount, refresh) {
   const run = async (fn, okText) => {
     try { await fn(); if (okText) toast.success(okText); refresh(); }
     catch (e) { toast.error(e?.message || "Something went wrong"); }
   };
-  const granted = new Set(mod.granted_permissions || []);
   const removeMod = async () => {
     const ok = await confirm({
       title: `Remove ${mod.name}?`,
@@ -243,6 +246,14 @@ function ModCard({ mod, dataCount, terms, refresh }) {
       refresh();
     } catch (e) { toast.error(e?.message || "Couldn't delete the data"); }
   };
+
+  return { run, removeMod, deleteData };
+}
+
+function ModCard({ mod, dataCount, terms, refresh }) {
+  const navigate = useNavigate();
+  const { run, removeMod, deleteData } = useModActions(mod, dataCount, refresh);
+  const granted = new Set(mod.granted_permissions || []);
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3" data-highlight-id={mod.id}>
@@ -310,12 +321,146 @@ function ModCard({ mod, dataCount, terms, refresh }) {
   );
 }
 
+// ── Pixel look: the "Mods" board ───────────────────────────────────
+// Installed mods and the library as a side list; the picked mod on the
+// right with what it can see, what that means and its saved data. Same
+// actions as the cards (useModActions), same dialogs.
+const PX_MOD_COLORS = ["#c98bb9", "#e8a65d", "#8fb8e0", "#86b88f", "#e3c16f", "#7fb3a6", "#d98f5b", "#a99be0"];
+function pxModColor(id = "") {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PX_MOD_COLORS[h % PX_MOD_COLORS.length];
+}
+function pxModLine(text, terms) {
+  const plain = applyModTerms(text || "", terms).split(/[.!?]/)[0] || "";
+  return plain.length > 34 ? `${plain.slice(0, 33)}…` : plain;
+}
+
+function PixelModDetail({ mod, dataCount, terms, refresh, onUpdate }) {
+  const navigate = useNavigate();
+  const { run, removeMod, deleteData } = useModActions(mod, dataCount, refresh);
+  const granted = new Set(mod.granted_permissions || []);
+  const light = (mod.permissions || []).filter((p) => !isHeavy(p) && MOD_PERMISSIONS[p]);
+  const setPerm = (p, on) => {
+    const next = new Set(granted); on ? next.add(p) : next.delete(p);
+    run(() => setModPermissions(mod, [...next]));
+  };
+  const pages = mod.pages || [];
+  return (
+    <section className="pxg-pn pxg-moddetail" aria-label={mod.name} data-highlight-id={mod.id}>
+      <div className="pxg-ttl">
+        <span>{mod.name}</span>
+        <span className="pxg-ttl-acts">
+          <button type="button" role="switch" aria-checked={!!mod.enabled} className={`pxg-btn pxg-btn-s${mod.enabled ? "" : " on"}`}
+            onClick={() => run(() => setModEnabled(mod, !mod.enabled))}>{mod.enabled ? "Turn off" : "Turn on"}</button>
+          {mod.enabled && pages.length > 0 && (
+            <button type="button" className="pxg-btn pxg-btn-s on" onClick={() => navigate(modPagePath(mod.mod_id, pages[0].id))}>Open</button>
+          )}
+          {mod.source !== "builtin" && <button type="button" className="pxg-btn pxg-btn-s" onClick={onUpdate}>Update</button>}
+          <button type="button" className="pxg-btn pxg-btn-s" onClick={removeMod}>... Remove</button>
+        </span>
+      </div>
+      <div className="pxg-modbody">
+        {mod.description && <p>{applyModTerms(mod.description, terms)}</p>}
+        <p className="pxg-small pxg-muted">
+          Version {mod.version}{mod.source === "builtin" ? " · comes with the app" : mod.author ? ` · by ${mod.author}` : ""}
+        </p>
+        {mod.enabled && pages.length > 1 && (
+          <div className="pxg-seg">
+            {pages.map((p) => <button key={p.id} type="button" className="pxg-btn pxg-btn-s" onClick={() => navigate(modPagePath(mod.mod_id, p.id))}>{p.title}</button>)}
+          </div>
+        )}
+
+        <div className="pxg-pn pxg-sub">
+          <div className="pxg-ttl"><span>What it can see</span></div>
+          {light.map((p) => {
+            const on = granted.has(p);
+            const meta = MOD_PERMISSIONS[p];
+            return (
+              <div key={p} className="pxg-permrow">
+                <button type="button" role="checkbox" aria-checked={on} className="pxg-tickrow pxg-grow" onClick={() => setPerm(p, !on)}
+                  title={applyModTerms(meta.detail, terms)}>
+                  <span className={`pxg-tick${on ? " y" : ""}`} aria-hidden="true">{on ? "x" : ""}</span>
+                  <span>{applyModTerms(meta.label, terms)}</span>
+                </button>
+                <span className="pxg-small pxg-muted">{on ? "allowed" : "not allowed"}</span>
+                <button type="button" className="pxg-btn pxg-btn-s" onClick={() => setPerm(p, !on)}>{on ? "Take away" : "Allow"}</button>
+              </div>
+            );
+          })}
+          <div className="pxg-permrow">
+            <span className="pxg-tickrow pxg-grow"><span className="pxg-tick y" aria-hidden="true">x</span><span>Its own storage</span></span>
+            <span className="pxg-small pxg-muted">always</span>
+          </div>
+          {(mod.permissions || []).includes("data:read") && (
+            <div className="pxg-modread"><DataAccessPanel mod={mod} terms={terms} refresh={refresh} /></div>
+          )}
+        </div>
+
+        <div className="pxg-means">
+          <div className="pxg-means-h">What this means</div>
+          <p>Mods run walled off from the rest of the app with no internet access. One that asks to read your records can see them only after you allow it, and you can take that away here at any time. It can never change or delete anything outside its own data.</p>
+        </div>
+
+        <div className="pxg-pn pxg-sub">
+          <div className="pxg-ttl"><span>Its saved data</span><span className="pxg-ttl-sub">{dataCount} {dataCount === 1 ? "item" : "items"}</span></div>
+          <div className="pxg-permrow pxg-datarow">
+            <span className="pxg-grow">{dataCount ? `${dataCount} saved ${dataCount === 1 ? "item" : "items"}, kept in your backups` : "Nothing saved yet."}</span>
+            {mod.homepage && <button type="button" className="pxg-btn pxg-btn-s" onClick={() => openExternalUrl(mod.homepage)}>About</button>}
+            {mod.source !== "builtin" && <button type="button" className="pxg-btn pxg-btn-s" onClick={() => run(() => exportModPackage(mod))}>Save the mod file</button>}
+            {dataCount > 0 && <button type="button" className="pxg-btn pxg-btn-s" onClick={() => run(() => exportModData(mod.mod_id, mod.name))}>Save a copy</button>}
+            {dataCount > 0 && <button type="button" className="pxg-btn pxg-btn-s" onClick={deleteData}>Save a copy and delete</button>}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PixelLibraryDetail({ item, terms, onAdd }) {
+  return (
+    <section className="pxg-pn pxg-moddetail" aria-label={item.name}>
+      <div className="pxg-ttl"><span>{item.name}</span><span className="pxg-ttl-acts"><button type="button" className="pxg-btn pxg-btn-s on" onClick={onAdd}>Install</button></span></div>
+      <div className="pxg-modbody">
+        {item.description && <p>{applyModTerms(item.description, terms)}</p>}
+        <p className="pxg-small pxg-muted">Comes with the app and updates along with it.</p>
+        {item.permissions.length > 0 && (
+          <div className="pxg-pn pxg-sub">
+            <div className="pxg-ttl"><span>What it asks to see</span></div>
+            {item.permissions.map((p) => (
+              <div key={p} className="pxg-permrow"><span className="pxg-grow">{applyModTerms(MOD_PERMISSIONS[p]?.label || p, terms)}</span><span className="pxg-small pxg-muted">you choose when you install</span></div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// Save or delete the data a removed mod left behind (pixel list row).
+function RowMenuLite({ id, n, refresh }) {
+  return (
+    <RowMenu label="Removed mod's data" items={[
+      { label: "Save a copy", icon: Download, onSelect: () => exportModData(id, id).catch(() => {}) },
+      { label: "Save a copy and delete", icon: Trash2, destructive: true, onSelect: async () => {
+        const ok = await confirm({ title: "Delete this data?", body: `A copy of the ${n} ${n === 1 ? "item" : "items"} is saved to your device first; if that doesn't work, nothing is deleted.`, confirmLabel: "Save a copy and delete", destructive: true });
+        if (!ok) return;
+        const res = await deleteModData(id, id);
+        if (!res.saved) toast.error("The copy wasn't saved, so nothing was deleted.");
+        refresh();
+      } },
+    ]} />
+  );
+}
+
 export default function Mods() {
   const terms = useTerms();
   const qc = useQueryClient();
   const fileRef = useRef(null);
   const { mods } = useMods();
   const [pending, setPending] = useState(null);
+  const pixel = useUiLook() === "pixel";
+  const [pickedMod, setPickedMod] = useState(null);
 
   const { data: modData = [] } = useQuery({ queryKey: ["modDataCounts"], queryFn: () => localEntities.ModData.list() });
   const counts = useMemo(() => {
@@ -347,6 +492,68 @@ export default function Mods() {
     try { setPending(await loadBuiltinMod(modId)); }
     catch (e) { toast.error(e?.message || "Couldn't open that mod."); }
   };
+
+  const installDialog = pending && (
+    <InstallDialog
+      key={pending.mod_id + pending.version}
+      pending={pending}
+      existing={existing}
+      terms={terms}
+      onClose={() => setPending(null)}
+      onInstalled={() => { setPending(null); refresh(); }}
+    />
+  );
+
+  if (pixel) {
+    const pickedInstalled = mods.find((m) => m.mod_id === pickedMod) || (!pickedMod || !library.some((l) => l.mod_id === pickedMod) ? mods[0] : null);
+    const pickedLibrary = !pickedInstalled ? library.find((l) => l.mod_id === pickedMod) || library[0] : null;
+    const openFile = () => fileRef.current?.click();
+    return (
+      <div className="pxg-mods" data-tour="mods-page">
+        <input ref={fileRef} type="file" accept=".osmod,.json,application/json" className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
+        <section className="pxg-pn pxg-modlist" aria-label="Mods">
+          <div className="pxg-ttl"><span>Mods</span><span className="pxg-ttl-acts"><button type="button" className="pxg-btn pxg-btn-s" onClick={openFile}>Install .osmod</button></span></div>
+          <div className="pxg-modscroll">
+            <div className="pxg-modhead">Installed</div>
+            {mods.length === 0 && <p className="pxg-empty pxg-small">No mods yet. Add one from the library below, or install a shared .osmod file.</p>}
+            {mods.map((m) => (
+              <button key={m.id} type="button" aria-pressed={pickedInstalled?.id === m.id}
+                className={`pxg-modrow${pickedInstalled?.id === m.id ? " sel" : ""}`} onClick={() => setPickedMod(m.mod_id)}>
+                <span className="pxg-modsq" style={{ background: pxModColor(m.mod_id) }} aria-hidden="true" />
+                <span className="pxg-modname"><span>{m.name}{m.enabled ? "" : " (off)"}</span><span className="pxg-modsub">{pxModLine(m.description, terms)}</span></span>
+              </button>
+            ))}
+            {library.length > 0 && <div className="pxg-modhead">Mod library</div>}
+            {library.map((m) => (
+              <div key={m.mod_id} className={`pxg-modrow${pickedLibrary?.mod_id === m.mod_id ? " sel" : ""}`}>
+                <button type="button" className="pxg-modpick" onClick={() => setPickedMod(m.mod_id)} aria-pressed={pickedLibrary?.mod_id === m.mod_id}>
+                  <span className="pxg-modsq" style={{ background: pxModColor(m.mod_id) }} aria-hidden="true" />
+                  <span className="pxg-modname"><span>{m.name}</span><span className="pxg-modsub">{pxModLine(m.description, terms)}</span></span>
+                </button>
+                <button type="button" className="pxg-btn" onClick={() => addFromLibrary(m.mod_id)}>Install</button>
+              </div>
+            ))}
+            {leftovers.length > 0 && <div className="pxg-modhead">Data from removed mods</div>}
+            {leftovers.map(([id, n]) => (
+              <div key={id} className="pxg-modrow">
+                <span className="pxg-modname pxg-grow"><span>{id}</span><span className="pxg-modsub">{n} {n === 1 ? "item" : "items"}, kept in case you install it again</span></span>
+                <RowMenuLite id={id} n={n} refresh={refresh} />
+              </div>
+            ))}
+          </div>
+          <p className="pxg-foot">Want to make a mod? The modder guide is docs/mods.md in the app's source.</p>
+        </section>
+        {pickedInstalled ? (
+          <PixelModDetail mod={pickedInstalled} dataCount={counts[pickedInstalled.mod_id] || 0} terms={terms} refresh={refresh} onUpdate={openFile} />
+        ) : pickedLibrary ? (
+          <PixelLibraryDetail item={pickedLibrary} terms={terms} onAdd={() => addFromLibrary(pickedLibrary.mod_id)} />
+        ) : (
+          <section className="pxg-pn pxg-moddetail"><p className="pxg-empty">Install a mod to see it here.</p></section>
+        )}
+        {installDialog}
+      </div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 os-page-shell" data-tour="mods-page">
@@ -439,16 +646,7 @@ export default function Mods() {
         Want to make a mod? The modder guide is in the app's source, in docs/mods.md, and every mod in the library is there to copy from.
       </p>
 
-      {pending && (
-        <InstallDialog
-          key={pending.mod_id + pending.version}
-          pending={pending}
-          existing={existing}
-          terms={terms}
-          onClose={() => setPending(null)}
-          onInstalled={() => { setPending(null); refresh(); }}
-        />
-      )}
+      {installDialog}
     </motion.div>
   );
 }

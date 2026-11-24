@@ -1,5 +1,6 @@
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { format, differenceInCalendarDays } from "date-fns";
 import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -14,12 +15,96 @@ import { generateTherapyReport, formatTherapyReportAsText } from "@/lib/reportGe
 import TherapyNotesCard from "@/components/report/TherapyNotesCard";
 import { useDiaryGroups } from "@/components/diary/DiarySection";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook } from "@/lib/uiLook";
+import { useTerms } from "@/lib/useTerms";
+import "@/styles/pixel/logs.css";
+
+// Pixel look: the builder's right-hand panel — a paper page showing what the
+// report will open with, built by the same section helpers the PDF uses (so
+// "Hide names" and whisper redaction apply here too).
+function PixelReportPreview({ config, alters, frontingSessions, emotionCheckIns, therapyNotes, levelCfg }) {
+  const t = useTerms();
+  const { dateFrom, dateTo, selectedSections, thresholds } = config;
+  const cfg = config.config;
+  const includeAlterInfo = cfg.sectionOptions?.alterNames !== false;
+  const data = useMemo(() => {
+    try {
+      const emotions = reportSections.buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters, includeAlterInfo, thresholds, mode: "smart" });
+      const fronting = reportSections.buildFrontingSection({
+        dateFrom, dateTo, frontingSessions: filterCountedSessions(frontingSessions, levelCfg), alters, includeAlterInfo, thresholds, mode: "smart",
+      });
+      const notes = reportSections.buildTherapyNotesSection({ dateFrom, dateTo, therapyNotes, alters, includeAlterInfo });
+      const days = new Set(emotionCheckIns
+        .filter((c) => { const d = String(c.timestamp || c.created_date || "").slice(0, 10); return d >= dateFrom && d <= dateTo; })
+        .map((c) => format(new Date(c.timestamp || c.created_date), "yyyy-MM-dd")));
+      return { emotions, fronting, notes, days: days.size };
+    } catch { return null; }
+  }, [dateFrom, dateTo, emotionCheckIns, alters, includeAlterInfo, thresholds, frontingSessions, levelCfg, therapyNotes]);
+
+  const span = (() => {
+    try { return Math.max(1, differenceInCalendarDays(new Date(`${dateTo}T12:00:00`), new Date(`${dateFrom}T12:00:00`)) + 1); } catch { return 0; }
+  })();
+  const fmtDay = (d) => { try { return format(new Date(`${d}T12:00:00`), "MMM d"); } catch { return d; } };
+  const head = [cfg.confidentialityNotice ? "CONFIDENTIAL" : null, cfg.therapistName ? `For ${cfg.therapistName}` : null, `${fmtDay(dateFrom)} to ${fmtDay(dateTo)}`].filter(Boolean).join(" · ");
+  const rows = (data?.fronting?.summaryTable || []).slice(0, 8);
+  const maxSessions = Math.max(1, ...rows.map((r) => r.sessions || 0));
+  const colorFor = (name) => (includeAlterInfo ? alters.find((a) => a.name === name || a.alias === name)?.color : null) || "var(--pxg-on)";
+  const top = (data?.emotions?.topEmotions || []).slice(0, 3).map((e) => e.emotion);
+  const crisis = data?.emotions?.noteworthy || [];
+  const show = (id) => selectedSections.has(id);
+
+  return (
+    <div className="pxg-paper" aria-label="Report preview">
+      <p className="pxg-paper-head">{head}</p>
+      {cfg.showCoverPage && (cfg.systemName || cfg.coverNote) && (
+        <>
+          <h2>{cfg.systemName || "Therapy report"}</h2>
+          {cfg.coverNote && <p className="pxg-paper-note">{cfg.coverNote}</p>}
+        </>
+      )}
+      <h2>Overview</h2>
+      {data ? (
+        <p>
+          Check-ins on {data.days} of {span} days.
+          {top.length > 0 && <> Most frequent feelings: {top.join(", ")}.</>}
+          {crisis.length > 0 && <> {crisis.length} crisis-level check-in{crisis.length !== 1 ? "s" : ""} ({crisis.slice(0, 3).map((c) => c.date.split(",")[0]).join(", ")}).</>}
+        </p>
+      ) : <p>The preview couldn't be drawn. The PDF still builds from your choices.</p>}
+      {show("fronting") && (
+        <>
+          <h3>{t.Fronting}</h3>
+          {rows.length === 0 ? <p>No {t.fronting} recorded in this period.</p> : (
+            <div className="pxg-paper-bars">
+              {rows.map((r, i) => (
+                <div key={`${r.name}-${i}`} className="pxg-paper-bar">
+                  <span className="pxg-paper-name">{r.name}</span>
+                  <span className="pxg-paper-track"><span style={{ width: `${Math.round((r.sessions / maxSessions) * 100)}%`, background: colorFor(r.name) }} /></span>
+                  <span className="pxg-paper-val">{r.total}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {show("therapyNotes") && (data?.notes || []).length > 0 && (
+        <>
+          <h3>To bring up</h3>
+          {data.notes.slice(0, 6).map((n) => <p key={n.id}>{n.note}</p>)}
+        </>
+      )}
+      <p className="pxg-paper-foot">
+        {selectedSections.size} section{selectedSections.size !== 1 ? "s" : ""} chosen. Generate PDF shows the whole report first, so you can take out anything before saving.
+      </p>
+    </div>
+  );
+}
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
 
 export default function TherapyReportPage() {
   const queryClient = useQueryClient();
+  const pixel = useUiLook() === "pixel";
   const [loading, setLoading] = useState(false);
   const [exportModal, setExportModal] = useState(null);
   // Preview & Customize flow: when the user picks "Preview & Customize"
@@ -431,6 +516,84 @@ export default function TherapyReportPage() {
     }
   };
 
+  const builder = (
+    <ReportBuilder
+      pixel={pixel}
+      extra={pixel ? <TherapyNotesCard notes={therapyNotes} /> : null}
+      renderPreview={pixel ? (config) => (
+        <PixelReportPreview config={config} alters={alters} frontingSessions={frontingSessions}
+          emotionCheckIns={emotionCheckIns} therapyNotes={therapyNotes} levelCfg={levelCfg} />
+      ) : null}
+      templates={templates}
+      onGenerate={handleGenerate}
+      onSaveTemplate={async (config, name) => {
+        const sectionOptions = config.config.sectionOptions || {};
+        await db.ReportTemplate.create({
+          name,
+          period_type: "custom",
+          mode: config.mode,
+          sections_config: {
+            ...Object.fromEntries(Array.from(config.selectedSections).map(s => [s, true])),
+            // Saved explicitly so "off" survives a reload (a missing key means
+            // an older template, which keeps the section on).
+            therapyNotes: config.selectedSections.has("therapyNotes"),
+          },
+          noteworthy_thresholds: config.thresholds,
+          include_alter_info: config.config.includeAlterInfo,
+          show_cover_page: config.config.showCoverPage,
+          cover_note: config.config.coverNote,
+          system_name: config.config.systemName,
+          therapist_name: config.config.therapistName,
+          confidentiality_notice: config.config.confidentialityNotice,
+          journal_detail: config.config.journalDetail,
+          section_options: sectionOptions,
+        });
+        queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
+        toast.success(`Template "${name}" saved!`);
+      }}
+      onDeleteTemplate={async (id) => {
+        await db.ReportTemplate.delete(id);
+        queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
+      }}
+      loading={loading}
+      symptoms={symptoms}
+      activities={activities}
+      alters={alters}
+    />
+  );
+
+  const dialogs = (
+    <>
+      <ReportCustomizePreview
+        isOpen={!!pendingPreview}
+        onClose={() => setPendingPreview(null)}
+        sections={pendingPreview?.sections}
+        enabledSections={pendingPreview?.enabledSections}
+        onGenerate={runFinalExportFromPreview}
+        loading={loading}
+      />
+      <ExportModal
+        isOpen={!!exportModal}
+        onClose={() => setExportModal(null)}
+        content={exportModal?.content || ""}
+        filename={exportModal?.filename || ""}
+        format={exportModal?.format || "json"}
+        blob={exportModal?.blob}
+      />
+    </>
+  );
+
+  if (pixel) {
+    return (
+      <div data-tour="therapy-report-builder" className="pxg-report-page">
+        {builder}
+        {/* Clinician-facing output — the disclaimer must travel with it. */}
+        <MedicalDisclaimerFooter className="mt-4" />
+        {dialogs}
+      </div>
+    );
+  }
+
   return (
     <div data-tour="therapy-report-builder" className="max-w-3xl mx-auto p-6 space-y-8">
       <div>
@@ -442,43 +605,7 @@ export default function TherapyReportPage() {
 
       <TherapyNotesCard notes={therapyNotes} />
 
-      <ReportBuilder
-        templates={templates}
-        onGenerate={handleGenerate}
-        onSaveTemplate={async (config, name) => {
-          const sectionOptions = config.config.sectionOptions || {};
-          await db.ReportTemplate.create({
-            name,
-            period_type: "custom",
-            mode: config.mode,
-            sections_config: {
-              ...Object.fromEntries(Array.from(config.selectedSections).map(s => [s, true])),
-              // Saved explicitly so "off" survives a reload (a missing key means
-              // an older template, which keeps the section on).
-              therapyNotes: config.selectedSections.has("therapyNotes"),
-            },
-            noteworthy_thresholds: config.thresholds,
-            include_alter_info: config.config.includeAlterInfo,
-            show_cover_page: config.config.showCoverPage,
-            cover_note: config.config.coverNote,
-            system_name: config.config.systemName,
-            therapist_name: config.config.therapistName,
-            confidentiality_notice: config.config.confidentialityNotice,
-            journal_detail: config.config.journalDetail,
-            section_options: sectionOptions,
-          });
-          queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
-          toast.success(`Template "${name}" saved!`);
-        }}
-        onDeleteTemplate={async (id) => {
-          await db.ReportTemplate.delete(id);
-          queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
-        }}
-        loading={loading}
-        symptoms={symptoms}
-        activities={activities}
-        alters={alters}
-      />
+      {builder}
 
       <ReportCustomizePreview
         isOpen={!!pendingPreview}

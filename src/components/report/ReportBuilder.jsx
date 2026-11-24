@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, createContext, useContext } from "react";
 import { getCommandSign } from "@/lib/commandTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { addDays, format } from "date-fns";
@@ -58,7 +58,33 @@ function ExclusionPicker({ items, excluded, onChange, nounSingular = "item" }) {
   );
 }
 
+// True inside the pixel look's builder: option groups draw as chips.
+const PixelBuilderContext = createContext(false);
+
+// A pixel tick row (the pixel builder's checkboxes).
+function PxTick({ on, onToggle, children, label }) {
+  return (
+    <button type="button" role="checkbox" aria-checked={on} className="pxg-tickrow" onClick={onToggle} aria-label={label}>
+      <span className={`pxg-tick${on ? " y" : ""}`} aria-hidden="true">{on ? "x" : ""}</span>
+      <span>{children}</span>
+    </button>
+  );
+}
+
 function RadioGroup({ value, onChange, options }) {
+  const pixel = useContext(PixelBuilderContext);
+  if (pixel) {
+    return (
+      <div className="pxg-seg" role="radiogroup">
+        {options.map(opt => (
+          <button key={opt.value} type="button" role="radio" aria-checked={value === opt.value}
+            className={`pxg-chip${value === opt.value ? " sel" : ""}`} onClick={() => onChange(opt.value)}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="space-y-1 pt-1">
       {options.map(opt => (
@@ -237,7 +263,7 @@ const DEFAULT_OPTIONS = {
   excludedAlterIds: [],
 };
 
-export default function ReportBuilder({ templates = [], onDeleteTemplate, onSaveTemplate, onGenerate, loading, symptoms = [], activities = [], alters = [] }) {
+export default function ReportBuilder({ templates = [], onDeleteTemplate, onSaveTemplate, onGenerate, loading, symptoms = [], activities = [], alters = [], pixel = false, renderPreview = null, extra = null }) {
   const t = useTerms();
   const therapyKeyword = useTherapyKeyword();
   const SECTIONS = useMemo(() => buildSectionDefs(t, therapyKeyword), [t, therapyKeyword]);
@@ -284,6 +310,7 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
 
   const [templateName, setTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const setOpt = (key, value) => setSectionOptions(prev => ({ ...prev, [key]: value }));
 
@@ -346,6 +373,190 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
     previewBeforeExport,
     saveAsTemplate: null,
   });
+
+  // ── Pixel look: the "Therapy report" board ──────────────────────────
+  // "Build the report" on the left (every control below, regrouped), the
+  // page's preview on the right. Same state, same buttons, same output.
+  const saveTemplate = async () => {
+    if (!onSaveTemplate || !templateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      await onSaveTemplate(buildConfig(), templateName.trim());
+      setTemplateName("");
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+  if (pixel) {
+    const periodLabel = (() => {
+      try {
+        const f = (d) => format(new Date(`${d}T12:00:00`), "MMM d");
+        return `${f(dateFrom)} to ${f(dateTo)}`;
+      } catch { return ""; }
+    })();
+    const detailSecs = SECTIONS.filter(sec => selectedSections.has(sec.id)
+      && (sec.subOptions || (sec.id === "symptoms" && symptomItems.length > 0)
+        || (sec.id === "activities" && activityNameItems.length > 0)));
+    const noSections = loading || selectedSections.size === 0;
+    return (
+      <PixelBuilderContext.Provider value={true}>
+        <div className="pxg-report">
+          <section className="pxg-pn pxg-build" aria-label="Build the report">
+            <div className="pxg-ttl">
+              <span>Build the report</span>
+              <button type="button" className="pxg-ttl-link" aria-expanded={showTemplates} onClick={() => setShowTemplates(v => !v)}>
+                Templates {templates.length}
+              </button>
+            </div>
+            <div className="pxg-build-body">
+              {showTemplates && (
+                <div className="pxg-box">
+                  <div className="pxg-h">Templates</div>
+                  {templates.length === 0 ? (
+                    <p className="pxg-muted pxg-small">No saved templates yet. Name your current settings below and save.</p>
+                  ) : templates.map(tpl => (
+                    <div key={tpl.id} className="pxg-tplrow">
+                      <span className="pxg-tplname">{tpl.name}</span>
+                      <button type="button" className="pxg-btn pxg-btn-s" onClick={() => handleLoadTemplate(tpl)}>Load</button>
+                      {onDeleteTemplate && (
+                        <button type="button" className="pxg-btn pxg-btn-s" aria-label={`Delete template ${tpl.name}`}
+                          onClick={async () => { if ((await confirm(`Delete template "${tpl.name}"?`))) onDeleteTemplate(tpl.id); }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <div className="pxg-tplrow">
+                    <input className="pxg-ins pxg-grow" placeholder="Template name..." aria-label="Template name"
+                      value={templateName} onChange={e => setTemplateName(e.target.value)} />
+                    <button type="button" className="pxg-btn pxg-btn-s" disabled={!templateName.trim() || savingTemplate} onClick={saveTemplate}>
+                      {savingTemplate ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="pxg-h">Time period</div>
+              <div className="pxg-seg">
+                {[
+                  { id: "week", label: "Last 7 days" },
+                  { id: "month", label: "Last 30 days" },
+                  { id: "custom", label: "Custom range" },
+                ].map(p => (
+                  <button key={p.id} type="button" aria-pressed={periodType === p.id}
+                    className={`pxg-btn pxg-btn-s${periodType === p.id ? " on" : ""}`} onClick={() => handleSetPeriod(p.id)}>{p.label}</button>
+                ))}
+              </div>
+              {periodType === "custom" ? (
+                <div className="pxg-dates">
+                  <label><span className="pxg-muted">From</span><input type="date" className="pxg-ins" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></label>
+                  <label><span className="pxg-muted">To</span><input type="date" className="pxg-ins" value={dateTo} onChange={e => setDateTo(e.target.value)} /></label>
+                </div>
+              ) : (
+                <div className="pxg-small">{periodLabel}</div>
+              )}
+
+              <div className="pxg-h pxg-between">
+                <span>What to include</span>
+                <span className="pxg-hacts">
+                  <span className="pxg-count">{selectedSections.size} of {SECTIONS.length}</span>
+                  <button type="button" className="pxg-link" onClick={() => setSelectedSections(new Set(SECTIONS.map(x => x.id)))}>All</button>
+                  <button type="button" className="pxg-link" onClick={() => setSelectedSections(new Set())}>None</button>
+                </span>
+              </div>
+              <div className="pxg-ticks">
+                {SECTIONS.map(sec => (
+                  <PxTick key={sec.id} on={selectedSections.has(sec.id)} onToggle={() => handleToggle(sec.id)} label={`${sec.label}: ${sec.desc}`}>
+                    <span title={sec.desc}>{sec.label}</span>
+                  </PxTick>
+                ))}
+              </div>
+
+              {detailSecs.map(sec => (
+                <div key={sec.id} className="pxg-optrow">
+                  <span className="pxg-optlbl">{sec.label}</span>
+                  <div className="pxg-optbody">
+                    {sec.subOptions && sec.subOptions(sectionOptions, setOpt)}
+                    {sec.id === "symptoms" && (
+                      <ExclusionPicker items={symptomItems} excluded={sectionOptions.excludedSymptomIds}
+                        onChange={v => setOpt("excludedSymptomIds", v)} nounSingular="symptom/habit" />
+                    )}
+                    {sec.id === "activities" && (
+                      <ExclusionPicker items={activityNameItems} excluded={sectionOptions.excludedActivityNames}
+                        onChange={v => setOpt("excludedActivityNames", v)} nounSingular="activity" />
+                    )}
+                    {sec.id === "alterAppendix" && sectionOptions.alterNames && alterItems.length > 0 && (
+                      <>
+                        {privacyLevels.length > 0 && (
+                          <div className="pxg-seg pxg-mt">
+                            <span className="pxg-muted pxg-small">Limit by privacy level</span>
+                            {privacyLevels.map((l) => (
+                              <button key={l.id} type="button" className="pxg-chip"
+                                onClick={() => setOpt("excludedAlterIds", alters.filter((a) => !a.is_archived && !(Array.isArray(a.privacy_levels) && a.privacy_levels.includes(l.id))).map((a) => a.id))}>
+                                {l.number}. {l.name}
+                              </button>
+                            ))}
+                            <button type="button" className="pxg-chip" onClick={() => setOpt("excludedAlterIds", [])}>Reset</button>
+                          </div>
+                        )}
+                        <ExclusionPicker items={alterItems} excluded={sectionOptions.excludedAlterIds}
+                          onChange={v => setOpt("excludedAlterIds", v)} nounSingular={t.alter} />
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              <PxTick on={!sectionOptions.alterNames} onToggle={() => setOpt("alterNames", !sectionOptions.alterNames)}>
+                Hide names (anonymize)
+              </PxTick>
+
+              <div className="pxg-optrow">
+                <button type="button" className="pxg-optlbl pxg-link" aria-expanded={showThresholds} onClick={() => setShowThresholds(v => !v)}>
+                  Noteworthy {showThresholds ? "▴" : "▾"}
+                </button>
+                <span className="pxg-optbody pxg-small pxg-muted">When to flag events as notable</span>
+              </div>
+              {showThresholds && <div className="pxg-box"><NoteworthySettings thresholds={thresholds} onChange={setThresholds} /></div>}
+
+              <div className="pxg-ticks">
+                <PxTick on={showCoverPage} onToggle={() => setShowCoverPage(v => !v)}>Include cover page</PxTick>
+                <PxTick on={confidentialityNotice} onToggle={() => setConfidentialityNotice(v => !v)}>Confidentiality notice</PxTick>
+              </div>
+              {showCoverPage && (
+                <div className="pxg-stack">
+                  <input className="pxg-ins" placeholder={`${t.System} name (e.g. "Our ${t.System}")`} aria-label={`${t.System} name`} value={systemName} onChange={e => setSystemName(e.target.value)} />
+                  <input className="pxg-ins" placeholder="Therapist name (optional)" aria-label="Therapist name" value={therapistName} onChange={e => setTherapistName(e.target.value)} />
+                  <input className="pxg-ins" type="date" aria-label="Session date" value={sessionDate} onChange={e => setSessionDate(e.target.value)} />
+                  <textarea className="pxg-ins pxg-note" placeholder="Personal note to therapist (optional)" aria-label="Personal note to therapist"
+                    value={coverNote} onChange={e => setCoverNote(e.target.value)} />
+                </div>
+              )}
+              {extra}
+            </div>
+            <div className="pxg-build-foot">
+              <button type="button" className="pxg-btn" onClick={() => setShowTemplates(true)}>Save as template</button>
+              <button type="button" className="pxg-btn" disabled={noSections} onClick={() => onGenerate(buildConfig(true, false))}>
+                {loading ? "..." : "Copy as text"}
+              </button>
+              <button type="button" className="pxg-btn" disabled={noSections} onClick={() => onGenerate(buildConfig(false, false))}
+                title="Download the PDF without the preview step">PDF, skip preview</button>
+              <button type="button" className="pxg-btn on" disabled={noSections} onClick={() => onGenerate(buildConfig(false, true))}
+                title="Preview the full report and take out anything private before the PDF">
+                {loading ? "Generating..." : "Generate PDF"}
+              </button>
+            </div>
+          </section>
+          <section className="pxg-pn pxg-preview" aria-label="Preview">
+            <div className="pxg-ttl"><span>Preview</span><span className="pxg-ttl-sub">{periodLabel}</span></div>
+            <div className="pxg-desk-floor">
+              {renderPreview ? renderPreview(buildConfig()) : null}
+            </div>
+          </section>
+        </div>
+      </PixelBuilderContext.Provider>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-2xl">
