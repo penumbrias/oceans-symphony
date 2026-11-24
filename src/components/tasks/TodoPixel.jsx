@@ -5,7 +5,7 @@
 // write goes through the page's own handlers (setTaskCompleted, deleteTask,
 // TaskFormModal's save path).
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format, differenceInCalendarDays } from "date-fns";
@@ -20,6 +20,7 @@ import TaskQuickActionsSheet from "@/components/tasks/TaskQuickActionsSheet";
 import { taskNote } from "@/lib/taskCreate";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { usePixelDeskHeight } from "@/components/tasks/usePixelDeskHeight";
 import "@/styles/pixel/tasks.css";
 
 const PRIORITY = { low: "Low", medium: "Medium", high: "High" };
@@ -125,6 +126,8 @@ export default function TodoPixel({
   // What the side panel shows: { mode: "edit", id } | { mode: "new", parentId }.
   const [panel, setPanel] = useState(null);
   const [quickTask, setQuickTask] = useState(null);
+  const deskRef = useRef(null);
+  usePixelDeskHeight(deskRef, desk);
 
   const roots = tasksByParent.get("root") || [];
   const activeCount = roots.filter((t) => !t.completed).length;
@@ -237,7 +240,7 @@ export default function TodoPixel({
   );
 
   return (
-    <div className={desk ? "pt-desk" : "pt-phone"}>
+    <div ref={deskRef} className={desk ? "pt-desk" : "pt-phone"}>
       {main}
       {desk && (
         panel && (panel.mode === "new" || editing) ? (

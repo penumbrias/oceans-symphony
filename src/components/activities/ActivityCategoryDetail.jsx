@@ -7,10 +7,10 @@
 // AlterActivityLink and FeelingLink. Every tree walk goes through the
 // cycle-guarded categoryTreeUtils helpers.
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, startOfWeek, endOfWeek, startOfDay, subDays } from "date-fns";
 import { ArrowLeft, ChevronRight, Plus, X, Trash2, CalendarRange, Users, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -22,7 +22,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { indexById, getAncestorIds, getChildren, MAX_RENDER_DEPTH } from "@/lib/categoryTreeUtils";
 import { categoryIdOf, countsTowardTotals, minutesOf } from "@/lib/planner/rollup";
-import { statusFor, STATUS_LABELS } from "@/lib/activityStatus";
+import { statusFor, STATUS_LABELS, countableMinutes } from "@/lib/activityStatus";
 import { FEELING_EFFECTS, allRelations, relationLabel, clampStrength, toggleFeelingLink, LINK_TYPES_QUERY_KEY } from "@/lib/activityLinks";
 import RelationTypePicker from "@/components/activities/RelationTypePicker";
 import { useTerms } from "@/lib/useTerms";
@@ -89,7 +89,10 @@ function StrengthDots({ value, onChange }) {
   );
 }
 
-export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
+// `pixel` draws the "Desktop: Activities" board's details pane (only in the
+// pixel look): same data, links and editors, laid out as titled panels.
+// `onRename` / `onAddSub` hand those jobs to the activity tree beside it.
+export default function ActivityCategoryDetail({ categoryId, onBack, onOpen, pixel = false, desk = false, onRename = null, onAddSub = null }) {
   const t = useTerms();
   const formatAlter = useAlterLabel();
   const navigate = useNavigate();
@@ -134,6 +137,49 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
       upcoming: entries.filter((a) => statusFor(a) === "scheduled" && a.timestamp && new Date(a.timestamp).getTime() > now).length,
     };
   }, [entries]);
+
+  // ── Pixel board extras: the 30-day bars, sub-activity counts, this
+  // week's goal. Read-only; goals are set on the Planner.
+  const { data: weekGoals = [] } = useQuery({
+    queryKey: ["activityGoals", "all"], enabled: pixel,
+    queryFn: () => base44.entities.ActivityGoal.list().catch(() => []),
+  });
+  const pixelBars = useMemo(() => {
+    if (!pixel) return [];
+    const today = startOfDay(new Date());
+    const days = Array.from({ length: 30 }, (_, i) => ({ day: subDays(today, 29 - i), n: 0 }));
+    const first = days[0].day.getTime();
+    for (const a of entries) {
+      if (!countsTowardTotals(a) || !a.timestamp) continue;
+      const t = startOfDay(new Date(a.timestamp)).getTime();
+      const i = Math.round((t - first) / 86400000);
+      if (i >= 0 && i < 30) days[i].n += 1;
+    }
+    return days;
+  }, [pixel, entries]);
+  const subCounts = useMemo(() => {
+    if (!pixel) return {};
+    const out = {};
+    for (const c of children) {
+      const sub = subtreeIds(c.id, categories);
+      out[c.id] = entries.filter((a) => countsTowardTotals(a)
+        && (sub.has(categoryIdOf(a)) || (a.activity_category_ids || []).some((id) => sub.has(id)))).length;
+    }
+    return out;
+  }, [pixel, children, categories, entries]);
+  const weekGoal = useMemo(() => {
+    if (!pixel) return null;
+    const wk = format(startOfWeek(new Date()), "yyyy-MM-dd");
+    const g = weekGoals.find((x) => x.week_start_date === wk && (x.source_type || "category") === "category" && x.activity_category_id === categoryId);
+    if (!g) return null;
+    const from = startOfWeek(new Date()), to = endOfWeek(new Date());
+    const done = activities.filter((a) => (a.activity_category_ids || []).includes(categoryId)
+      && a.timestamp && new Date(a.timestamp) >= from && new Date(a.timestamp) <= to)
+      .reduce((n, a) => n + countableMinutes(a), 0);
+    return { target: g.weekly_minutes || g.target_minutes || 0, done };
+  }, [pixel, weekGoals, activities, categoryId]);
+  const [whoEdit, setWhoEdit] = useState(false);
+  useEffect(() => { setWhoEdit(false); setForm(null); setPickingFor(null); }, [categoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const myAlterLinks = useMemo(() => alterLinks.filter((l) => l.category_id === categoryId), [alterLinks, categoryId]);
   const myFeelingLinks = useMemo(() => feelingLinks.filter((l) => l.category_id === categoryId), [feelingLinks, categoryId]);
@@ -217,11 +263,205 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
     );
   }
 
+  const whoForm = form && (
+          <div className="space-y-2.5">
+            <AlterSearchSelect alters={alters} value={form.alter_id} terms={t} showNone={false}
+              placeholder={`Pick ${t.alter}…`}
+              onChange={(id) => setForm((f) => ({ ...f, alter_id: id }))} />
+            <RelationTypePicker value={form.relation} types={linkTypes}
+              onChange={(id) => setForm((f) => ({ ...f, relation: id }))} />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">How strongly</span>
+              <StrengthDots value={form.strength} onChange={(n) => setForm((f) => ({ ...f, strength: n }))} />
+            </div>
+            <MentionTextarea value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))}
+              alters={alters} signposts rows={2} placeholder="Note (optional)" />
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={saveForm} disabled={!form.alter_id || saving}>{form.id ? "Save" : "Add"}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setForm(null)}>Cancel</Button>
+              {form.id && (
+                <Button size="sm" variant="ghost" className="ml-auto text-destructive gap-1"
+                  onClick={() => removeLink(myAlterLinks.find((l) => l.id === form.id))}>
+                  <Trash2 className="w-3.5 h-3.5" /> Remove
+                </Button>
+              )}
+            </div>
+          </div>
+  );
+
+  const feelingsEditor = (
+    <>
+        {FEELING_EFFECTS.map((eff) => {
+          const list = myFeelingLinks.filter((l) => l.effect === eff.id);
+          const open = pickingFor === eff.id;
+          return (
+            <div key={eff.id} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{eff.label}</p>
+                <button type="button" onClick={() => setPickingFor(open ? null : eff.id)}
+                  className="text-xs text-primary hover:underline">{open ? "Done" : list.length ? "Change" : "Add feelings"}</button>
+              </div>
+              {list.length === 0 && !open && <p className="text-xs text-muted-foreground">Nothing set.</p>}
+              {list.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {list.map((l) => (
+                    <span key={l.id} className="text-xs pl-2.5 pr-1 py-0.5 rounded-full border border-border/60 flex items-center gap-1">
+                      {l.emotion}
+                      <button type="button" aria-label={`Remove ${l.emotion}`} onClick={() => toggleFeeling(eff.id, l.emotion)}
+                        className="p-0.5 rounded-full hover:bg-muted"><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {open && (
+                <EmotionWheelPicker selectedEmotions={list.map((l) => l.emotion)}
+                  onToggle={(emotion) => toggleFeeling(eff.id, emotion)} customEmotions={customEmotions}
+                  onAddCustom={(label) => addCustomFeeling(eff.id, label)} />
+              )}
+            </div>
+          );
+        })}
+    </>
+  );
+
   const relations = allRelations(linkTypes, { includeRemoved: true });
   const known = new Set(relations.map((r) => r.id));
   const linksByRelation = [...relations, { id: "__other", label: "Other" }]
     .map((r) => ({ ...r, links: myAlterLinks.filter((l) => (r.id === "__other" ? !known.has(l.relation) : l.relation === r.id)) }))
     .filter((r) => r.links.length);
+
+  if (pixel) {
+    const maxBar = Math.max(1, ...pixelBars.map((d) => d.n));
+    const feelingsSet = myFeelingLinks.length > 0;
+    const effectLabel = (id) => FEELING_EFFECTS.find((e) => e.id === id)?.label || id;
+    const whoOf = (a) => alterById[a.alter_id || (a.fronting_alter_ids || [])[0] || (a.alter_ids || [])[0]] || null;
+    const fmtShort = (min) => {
+      const h = Math.floor(min / 60), m = Math.round(min % 60);
+      return h ? (m ? `${h} h ${m}` : `${h} h`) : `${m} min`;
+    };
+    return (
+      <div className={`pa-detail${desk ? " desk" : ""}`}>
+        <div className="pa-panel pa-head">
+          {!desk && <button type="button" className="pa-btn sm" onClick={onBack}>&lt; All</button>}
+          <span className="pa-bigsq" style={{ background: cat.color || "#8b5cf6" }} aria-hidden />
+          <div className="pa-headtxt">
+            <h2 className="pa-name-big">{cat.name}</h2>
+            <p className="pa-path">{[...path, cat.name].join(" / ")}</p>
+          </div>
+          <span className="pa-headacts">
+            <button type="button" className="pa-btn" onClick={() => navigate("/planner")}>Log or plan it on the Planner</button>
+            {onRename && <button type="button" className="pa-btn" onClick={() => onRename(cat.id)}>Change</button>}
+          </span>
+        </div>
+        <div className="pa-cols">
+          <div className="pa-col">
+            <section className="pa-panel">
+              <div className="pa-ttl"><span>How it&apos;s going</span><span className="pa-ttl-note">Last 30 days{children.length ? ", with sub-activities" : ""}</span></div>
+              <div className="pa-stats">
+                <div className="pa-stat"><span className="pa-stat-l">Times done</span><span className="pa-stat-v">{stats.times}</span></div>
+                <div className="pa-stat"><span className="pa-stat-l">Total time</span><span className="pa-stat-v">{stats.minutes ? fmtShort(stats.minutes) : "-"}</span></div>
+                <div className="pa-stat"><span className="pa-stat-l">Last done</span><span className="pa-stat-v">{stats.last ? formatDistanceToNow(stats.last, { addSuffix: true }) : "not yet"}</span></div>
+              </div>
+              <div className="pa-bars" role="img" aria-label={`${stats.month} times in the last 30 days`}>
+                {pixelBars.map((d) => (
+                  <span key={d.day.toISOString()} className={`pa-bar${d.n ? "" : " zero"}`}
+                    style={{ height: d.n ? `${Math.max(12, (d.n / maxBar) * 100)}%` : undefined, background: d.n ? (cat.color || "var(--color-primary)") : undefined }}
+                    title={`${format(d.day, "MMM d")}: ${d.n}`} />
+                ))}
+              </div>
+              <p className="pa-note">{stats.month} in the last 30 days{stats.upcoming ? ` · ${stats.upcoming} planned ahead` : ""}</p>
+            </section>
+            <section className="pa-panel pa-grow">
+              <div className="pa-ttl"><span>Recent entries</span></div>
+              <div className="pa-list">
+                {entries.length === 0 && <p className="pa-empty">Nothing logged or planned yet.</p>}
+                {entries.slice(0, 20).map((a) => {
+                  const st = statusFor(a);
+                  const who = whoOf(a);
+                  return (
+                    <button key={a.id} type="button" className="pa-entry" onClick={() => navigate(`/planner?activityId=${encodeURIComponent(a.id)}`)}>
+                      <span className="pa-entry-d">{a.timestamp ? format(new Date(a.timestamp), "MMM d") : ""}</span>
+                      <span className="pa-entry-n">{a.activity_name || byId[categoryIdOf(a)]?.name || cat.name}</span>
+                      {st !== "logged" && st !== "done" && <span className="pa-chip">{STATUS_LABELS[st] || st}</span>}
+                      <span className="pa-entry-m">{minutesOf(a) ? fmtShort(minutesOf(a)) : ""}</span>
+                      <span className="pa-sq" style={{ background: who?.color || "transparent" }} title={who ? formatAlter(who) : undefined} />
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+          <div className="pa-col">
+            <section className="pa-panel">
+              <div className="pa-ttl">
+                <span>Who &amp; feelings</span>
+                <button type="button" className="pa-ttl-act" onClick={() => { setWhoEdit((v) => !v); setForm(null); setPickingFor(null); }}>{whoEdit ? "Done" : "Change"}</button>
+              </div>
+              <div className="pa-body">
+                {whoForm ? whoForm : (
+                  <div className="pa-chips">
+                    {myAlterLinks.map((l) => {
+                      const a = alterById[l.alter_id];
+                      return (
+                        <button key={l.id} type="button" className="pa-chip" onClick={() => openForm(l)}>
+                          <span className="pa-sq" style={{ background: a?.color || "#8b5cf6" }} />
+                          {a ? formatAlter(a) : `Unknown ${t.alter}`} {relationLabel(l.relation, linkTypes).toLowerCase()}
+                        </button>
+                      );
+                    })}
+                    <button type="button" className="pa-chip" onClick={() => openForm()}>+ Link {t.alter}</button>
+                  </div>
+                )}
+                {!whoForm && (whoEdit ? (
+                  <div className="pa-feel-edit">{feelingsEditor}</div>
+                ) : (
+                  <div className="pa-feel">
+                    <span className="pa-mut">Feelings</span>
+                    {myFeelingLinks.map((l) => (
+                      <span key={l.id} className="pa-chip" title={effectLabel(l.effect)}>{l.emotion}</span>
+                    ))}
+                    <button type="button" className="pa-chip" onClick={() => setWhoEdit(true)}>{feelingsSet ? "Change" : "+ Add feelings"}</button>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="pa-panel">
+              <div className="pa-ttl">
+                <span>Sub-activities</span>
+                {onAddSub && <button type="button" className="pa-ttl-act" onClick={() => onAddSub(cat.id)}>+ add</button>}
+              </div>
+              <div className="pa-list">
+                {children.length === 0 && <p className="pa-empty">None yet.</p>}
+                {children.map((c) => (
+                  <button key={c.id} type="button" className="pa-subrow" onClick={() => onOpen?.(c.id)}>
+                    <span className="pa-sq" style={{ background: c.color || cat.color || "#8b5cf6" }} />
+                    <span className="pa-entry-n">{c.name}</span>
+                    <span className="pa-mut">{subCounts[c.id] ? `${subCounts[c.id]} time${subCounts[c.id] === 1 ? "" : "s"}` : "not yet"}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="pa-panel pa-grow">
+              <div className="pa-ttl"><span>Weekly goal</span></div>
+              <div className="pa-body">
+                {weekGoal ? (
+                  <>
+                    <div className="pa-goalrow"><span>{fmtShort(weekGoal.target)} a week</span><span className="pa-pf">{fmtShort(weekGoal.done)}</span></div>
+                    <div className="pa-meter"><span style={{ width: `${Math.min(100, weekGoal.target ? (weekGoal.done / weekGoal.target) * 100 : 0)}%`, background: cat.color || "var(--color-primary)" }} /></div>
+                  </>
+                ) : (
+                  <>
+                    <p className="pa-mut pa-small">No weekly goal for this activity this week.</p>
+                    <button type="button" className="pa-btn sm" onClick={() => navigate("/planner")}>Set one on the Planner</button>
+                  </>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -282,64 +522,11 @@ export default function ActivityCategoryDetail({ categoryId, onBack, onOpen }) {
             </div>
           </div>
         ))}
-        {form && (
-          <div className="space-y-2.5">
-            <AlterSearchSelect alters={alters} value={form.alter_id} terms={t} showNone={false}
-              placeholder={`Pick ${t.alter}…`}
-              onChange={(id) => setForm((f) => ({ ...f, alter_id: id }))} />
-            <RelationTypePicker value={form.relation} types={linkTypes}
-              onChange={(id) => setForm((f) => ({ ...f, relation: id }))} />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">How strongly</span>
-              <StrengthDots value={form.strength} onChange={(n) => setForm((f) => ({ ...f, strength: n }))} />
-            </div>
-            <MentionTextarea value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))}
-              alters={alters} signposts rows={2} placeholder="Note (optional)" />
-            <div className="flex items-center gap-2">
-              <Button size="sm" onClick={saveForm} disabled={!form.alter_id || saving}>{form.id ? "Save" : "Add"}</Button>
-              <Button size="sm" variant="ghost" onClick={() => setForm(null)}>Cancel</Button>
-              {form.id && (
-                <Button size="sm" variant="ghost" className="ml-auto text-destructive gap-1"
-                  onClick={() => removeLink(myAlterLinks.find((l) => l.id === form.id))}>
-                  <Trash2 className="w-3.5 h-3.5" /> Remove
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
+        {whoForm}
       </Section>
 
       <Section title="Feelings" icon={<Heart className="w-4 h-4" />}>
-        {FEELING_EFFECTS.map((eff) => {
-          const list = myFeelingLinks.filter((l) => l.effect === eff.id);
-          const open = pickingFor === eff.id;
-          return (
-            <div key={eff.id} className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{eff.label}</p>
-                <button type="button" onClick={() => setPickingFor(open ? null : eff.id)}
-                  className="text-xs text-primary hover:underline">{open ? "Done" : list.length ? "Change" : "Add feelings"}</button>
-              </div>
-              {list.length === 0 && !open && <p className="text-xs text-muted-foreground">Nothing set.</p>}
-              {list.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {list.map((l) => (
-                    <span key={l.id} className="text-xs pl-2.5 pr-1 py-0.5 rounded-full border border-border/60 flex items-center gap-1">
-                      {l.emotion}
-                      <button type="button" aria-label={`Remove ${l.emotion}`} onClick={() => toggleFeeling(eff.id, l.emotion)}
-                        className="p-0.5 rounded-full hover:bg-muted"><X className="w-3 h-3" /></button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {open && (
-                <EmotionWheelPicker selectedEmotions={list.map((l) => l.emotion)}
-                  onToggle={(emotion) => toggleFeeling(eff.id, emotion)} customEmotions={customEmotions}
-                  onAddCustom={(label) => addCustomFeeling(eff.id, label)} />
-              )}
-            </div>
-          );
-        })}
+        {feelingsEditor}
       </Section>
 
       {children.length > 0 && (

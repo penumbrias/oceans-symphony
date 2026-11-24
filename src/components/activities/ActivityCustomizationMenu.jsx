@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import ActivityTreeRow from "@/components/activities/ActivityTreeRow";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
-import { indexById, wouldCreateCycle, getRootCategories } from "@/lib/categoryTreeUtils";
+import { indexById, wouldCreateCycle, getRootCategories, getAncestorIds } from "@/lib/categoryTreeUtils";
 import { withTrashBatch } from "@/lib/localDb";
 
 // The dialog form (opened from places that just need a quick edit). The
@@ -30,7 +30,13 @@ export default function ActivityCustomizationMenu({ onClose }) {
 }
 
 // The activity tree with add / nest / rename / recolour / delete.
-export function ActivityManager({ onOpen = null }) {
+// `pixel` (the pixel look's Activities desk): the tree sits in a side panel.
+// A tap opens an activity (onOpen); holding it or its "..." selects it for
+// rename / colour / sub-activity / delete / move. `openId` marks the open
+// row, `countFor(id)` gives its count, and the *Request props let the
+// panel's title bar and the details pane start a new activity, a new
+// sub-activity, a rename, or expand / collapse everything.
+export function ActivityManager({ onOpen = null, pixel = false, openId = null, countFor = null, createRequest = 0, createSubRequest = null, editRequest = null, expandRequest = null }) {
   const [showRootColorPicker, setShowRootColorPicker] = useState(false);
   const qc = useQueryClient();
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -97,6 +103,24 @@ export function ActivityManager({ onOpen = null }) {
     }, 250);
     return () => clearTimeout(handle);
   }, [newRootName, existingCategoryMatch]);
+
+  // Pixel desk requests from outside the tree (title bar, details pane).
+  useEffect(() => { if (createRequest) setIsCreatingRoot(true); }, [createRequest]);
+  useEffect(() => {
+    if (!createSubRequest?.id) return;
+    setCreatingSubFor(createSubRequest.id); setNewSubName(""); setSelectedId(null);
+    setExpandedIds((prev) => new Set([...prev, createSubRequest.id]));
+  }, [createSubRequest]);
+  useEffect(() => {
+    if (!expandRequest) return;
+    setExpandedIds(expandRequest.all ? new Set(categories.map((c) => c.id)) : new Set());
+  }, [expandRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The open activity's branch stays unfolded so its row is visible.
+  useEffect(() => {
+    if (!pixel || !openId) return;
+    const anc = getAncestorIds(openId, indexById(categories));
+    if (anc.length) setExpandedIds((prev) => (anc.every((id) => prev.has(id)) ? prev : new Set([...prev, ...anc])));
+  }, [pixel, openId, categories]);
 
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
@@ -247,8 +271,8 @@ export function ActivityManager({ onOpen = null }) {
   };
 
   return (
-    <div className="space-y-3">
-        <div className="space-y-1 bg-card rounded-lg border border-border p-3 min-h-[100px]">
+    <div className={pixel ? "pa-mgr" : "space-y-3"}>
+        <div className={pixel ? "pa-tree" : "space-y-1 bg-card rounded-lg border border-border p-3 min-h-[100px]"}>
           {rootCategories.length === 0 ? (
             <p className="text-center py-6 text-muted-foreground text-sm">No activities yet. Create one below.</p>
           ) : (
@@ -287,6 +311,10 @@ export function ActivityManager({ onOpen = null }) {
                   onDelete={(id) => deleteMutation.mutate(id)}
                   onUpdate={(id, data) => updateMutation.mutate({ id, data })}
                   onOpen={onOpen}
+                  pixel={pixel}
+                  openId={openId}
+                  countFor={countFor}
+                  editRequest={editRequest}
                 />
               </ErrorBoundary>
             ))
@@ -295,7 +323,7 @@ export function ActivityManager({ onOpen = null }) {
           {/* Drop to root zone */}
           {selectedId && (
             <button
-              className="w-full mt-2 py-2 text-xs text-muted-foreground border border-dashed border-border rounded-lg hover:bg-muted/50 transition-colors"
+              className={pixel ? "pa-toroot" : "w-full mt-2 py-2 text-xs text-muted-foreground border border-dashed border-border rounded-lg hover:bg-muted/50 transition-colors"}
               onClick={() => handleMoveToRoot(selectedId)}
             >
               ↑ Move selected to root level
@@ -305,8 +333,8 @@ export function ActivityManager({ onOpen = null }) {
 
         {/* Create root activity */}
         {isCreatingRoot ? (
-          <div className="space-y-2 pt-2 border-t border-border">
-            <p className="text-sm font-medium">New Root Activity</p>
+          <div className={pixel ? "pa-newroot space-y-2" : "space-y-2 pt-2 border-t border-border"}>
+            <p className="text-sm font-medium">{pixel ? "New activity" : "New Root Activity"}</p>
             <div className="flex gap-2 items-center">
               <button
                 type="button"
@@ -429,7 +457,7 @@ export function ActivityManager({ onOpen = null }) {
               </div>
             )}
           </div>
-        ) : (
+        ) : pixel ? null : (
           <Button onClick={() => setIsCreatingRoot(true)} variant="outline" className="w-full gap-2">
             <Plus className="w-4 h-4" /> New Activity
           </Button>
