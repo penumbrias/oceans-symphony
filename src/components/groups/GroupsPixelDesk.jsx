@@ -92,7 +92,6 @@ function GroupPage({ group, onSelectGroup, actions }) {
   const navigate = useNavigate();
   const formatAlter = useAlterLabel();
   const subTerm = useSubTerm();
-  const desk = usePixelDesk();
   const { alters, ownerAlter, parentGroup, members, childGroups: kids } = useGroupContext(group);
   const [tab, setTab] = useState("profile");
   useEffect(() => { setTab("profile"); }, [group.id]);
@@ -197,10 +196,8 @@ function GroupPage({ group, onSelectGroup, actions }) {
         <div className="pg-head-btns">
           <button type="button" className="pg-btn tall" title="Its name, picture, description and settings"
             onClick={() => navigate(`/group/${group.id}`, { state: { pxOpen: "info" } })}>Info</button>
-          {desk && (
-            <button type="button" className="pg-btn tall" title="Edit page — move, resize and add widgets"
-              onClick={() => navigate(`/group/${group.id}`, { state: { pxOpen: "layout" } })}>Edit page</button>
-          )}
+          <button type="button" className="pg-btn tall" title="Edit page — move, resize and add widgets"
+            onClick={() => navigate(`/group/${group.id}`, { state: { pxOpen: "layout" } })}>Edit page</button>
           <GroupMenu group={group} t={t} actions={actions}
             trigger={<button type="button" className="pg-btn tall" aria-label={`More actions for ${group.name}`}><MoreHorizontal className="w-4 h-4" /></button>} />
         </div>
@@ -220,7 +217,6 @@ function GroupPage({ group, onSelectGroup, actions }) {
 export default function GroupsPixelDesk({
   groups, alters, byId, stranded, managerBody, onRename, onMovePick, onMoveTo, onDelete, onColor, onMembers, onCreate, initialGroupId,
 }) {
-  const t = useTerms();
   const desk = usePixelDesk();
   const subTerm = useSubTerm();
   const [deskRef, height] = useDeskHeight();

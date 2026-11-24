@@ -938,7 +938,7 @@ export default function AssetsLibrary() {
   // The auto-organisation rules (the sliders button / the desk's footer).
   const orgBody = (
     <>
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Auto-organisation</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Auto-organisation</p>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={rules.perAlter} onChange={(e) => saveRules({ perAlter: e.target.checked })} className="w-4 h-4 rounded" />
               File {an(t.alter)}'s own images under its 👤 folder

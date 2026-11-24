@@ -137,8 +137,10 @@ export default function AssetsPixelDesk(p) {
   const [altersOpen, setAltersOpen] = useState(true);
 
   const { items, byFolder, orderedFolders, openFolder, inFolder, searching, selecting } = p;
-  const base = searching ? p.filtered : inFolder ? (byFolder[openFolder] || []) : [];
-  const grid = useMemo(() => (kind === "all" ? base : base.filter((i) => i.kind === kind)), [base, kind]);
+  const grid = useMemo(() => {
+    const base = searching ? p.filtered : inFolder ? (byFolder[openFolder] || []) : [];
+    return kind === "all" ? base : base.filter((i) => i.kind === kind);
+  }, [searching, inFolder, p.filtered, byFolder, openFolder, kind]);
   const selected = grid.find((i) => i.key === selKey) || items.find((i) => i.key === selKey) || null;
   useEffect(() => { setSelKey(null); }, [openFolder]);
   useEffect(() => {
