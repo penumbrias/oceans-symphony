@@ -4,7 +4,7 @@ import { pictureStyle } from "@/lib/imageFraming";
 import { useUiLook } from "@/lib/uiLook";
 const MIN_SIZE = 80;
 
-export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1 }) {
+export default function LocationNode({ location, layerName = null, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1 }) {
   // Pixel look: square boxes with a title bar, like the mockup's places.
   const pixel = useUiLook() === "pixel";
   const [dragging, setDragging] = useState(false);
@@ -242,17 +242,31 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         fill="none"
         stroke={borderColor}
         strokeWidth={isSelected ? 2.5 : pixel ? 2 : 1.5}
-        strokeDasharray={isSelected ? "6,3" : "none"}
+        strokeDasharray={isSelected && !pixel ? "6,3" : "none"}
         pointerEvents="none"
       />
 
-      {/* Pixel title bar behind the name */}
+      {/* Pixel title bar: name left, layer right; solid when selected. */}
       {titleBar && (
-        <rect x={x} y={y} width={width} height={Math.min(26, height)} fill={color + "59"} pointerEvents="none" />
+        <>
+          <rect x={x} y={y} width={width} height={Math.min(22, height)} fill={isSelected ? color : color + "59"} pointerEvents="none" />
+          <rect x={x} y={y + Math.min(22, height) - 2} width={width} height={2} fill="#0d0f10" opacity={0.6} pointerEvents="none" />
+          <text x={x + 8} y={y + 15} fontSize={11} fill={isSelected ? "#1a1c2b" : "var(--px-text, #e9e7f5)"} pointerEvents="none" style={{ userSelect: "none", fontFamily: "var(--px-font)" }}>
+            {name?.length > Math.max(4, Math.floor(width / 9)) ? name.slice(0, Math.max(3, Math.floor(width / 9) - 1)) + "…" : name}
+          </text>
+          {layerName && width > 140 && (
+            <text x={x + width - 8} y={y + 15} textAnchor="end" fontSize={10} fill={isSelected ? "#1a1c2b" : "var(--px-text-2, #cfd1ea)"} opacity={0.85} pointerEvents="none" style={{ userSelect: "none", fontFamily: "var(--px-font)" }}>
+              {layerName.length > 12 ? layerName.slice(0, 11) + "…" : layerName}
+            </text>
+          )}
+          {isSelected && [[x, y], [x + width, y], [x, y + height], [x + width, y + height]].map(([hx, hy], i) => (
+            <rect key={i} x={hx - 4} y={hy - 4} width={8} height={8} fill={color} stroke="#0d0f10" strokeWidth={2} pointerEvents="none" />
+          ))}
+        </>
       )}
 
       {/* Name label */}
-      <text
+      {!titleBar && <text
         x={x + width / 2} y={y + 18}
         textAnchor="middle"
         fontSize={12}
@@ -262,14 +276,14 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         style={{ userSelect: "none" }}
       >
         {name?.length > 20 ? name.slice(0, 18) + "…" : name}
-      </text>
+      </text>}
 
       {/* Tap the name to open the editor — a large, reliable target (fires on
           press, like the ✏️ button) so you don't have to hit the small pencil.
           Sits to the left of the ✏️ so it never overlaps it. Edit mode only. */}
       {!viewOnly && (
         <rect
-          x={x} y={y} width={Math.max(10, width - 36)} height={28}
+          x={x} y={y} width={titleBar ? width : Math.max(10, width - 36)} height={titleBar ? 22 : 28}
           fill="transparent"
           onMouseDown={(e) => { e.stopPropagation(); onEdit?.(); }}
           onTouchStart={(e) => { e.stopPropagation(); onEdit?.(); }}
@@ -304,8 +318,8 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         </text>
       )}
 
-      {/* Edit button */}
-      {!viewOnly && (
+      {/* Edit button (pixel: the title bar is the tap target) */}
+      {!viewOnly && !titleBar && (
         <>
           <rect
             x={x + width - 32} y={y + 6}

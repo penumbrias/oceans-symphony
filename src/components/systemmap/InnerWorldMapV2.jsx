@@ -14,6 +14,7 @@
 // it's individually locked. Layer visibility + location links still work in
 // view mode — it's navigate-only, not hidden.
 
+import { SliderRow } from "@/components/shared/SettingRows";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { confirm, promptText } from "@/components/shared/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +31,7 @@ import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
   Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, MapPin, ExternalLink,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, MousePointer2, UserPlus, Spline,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
@@ -42,6 +43,8 @@ import MapImageNode from "./MapImageNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 import { useInnerWorldMaps, useInnerWorld } from "@/hooks/useInnerWorld";
 import { TRASH_HINT_MANY } from "@/lib/trashSettings";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import "@/styles/pixel/systemmap.css";
 import RichText from "@/components/shared/RichText";
 
 const SNAP = 20;
@@ -82,7 +85,7 @@ function SelectedAlterAvatar({ alter }) {
   );
 }
 
-function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd, zoom }) {
+function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd, zoom, pixel = false }) {
   const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
   const dragRef = useRef(null);
   const tapRef = useRef({ time: 0, timer: null });
@@ -151,6 +154,31 @@ function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDouble
   };
 
   const ringColor = isRelMode ? "#f59e0b" : isSelected ? "#3b82f6" : "transparent";
+  if (pixel) {
+    // Pixel look: a bevelled square mark (their picture when they have one)
+    // with the name on a dark tag underneath, like the mockup.
+    const S = 18;
+    const label = alter.name?.length > 14 ? alter.name.slice(0, 12) + "…" : alter.name;
+    const tagW = Math.max(28, (label?.length || 1) * 6.4 + 8);
+    return (
+      <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: locked ? "default" : "grab", touchAction: "none" }} shapeRendering="crispEdges">
+        <rect x={x - S - 14} y={y - S - 14} width={(S + 14) * 2} height={(S + 14) * 2 + 14} fill="transparent" />
+        {(isSelected || isRelMode) && <rect x={x - S - 4} y={y - S - 4} width={(S + 4) * 2} height={(S + 4) * 2} fill="none" stroke={isRelMode ? "#f59e0b" : "var(--px-accent, #e8a65d)"} strokeWidth={2} />}
+        <rect x={x - S} y={y - S} width={S * 2} height={S * 2} fill={alter.color || "#8b5cf6"} stroke="#0d0f10" strokeWidth={2} />
+        {resolvedAvatar ? (
+          <image x={x - S + 1} y={y - S + 1} width={S * 2 - 2} height={S * 2 - 2} href={resolvedAvatar} preserveAspectRatio="xMidYMid slice" />
+        ) : (
+          <>
+            <path d={`M${x - S + 2} ${y + S - 2} V${y - S + 2} H${x + S - 2}`} stroke="rgba(255,255,255,.35)" strokeWidth={3} fill="none" />
+            <path d={`M${x + S - 2} ${y - S + 2} V${y + S - 2} H${x - S + 2}`} stroke="rgba(0,0,0,.35)" strokeWidth={3} fill="none" />
+          </>
+        )}
+        <rect x={x - tagW / 2} y={y + S + 3} width={tagW} height={14} fill="#1a1c2b" />
+        <text x={x} y={y + S + 14} textAnchor="middle" fontSize={11} fill="#e9e7f5" pointerEvents="none" style={{ userSelect: "none", fontFamily: "var(--px-font)" }}>{label}</text>
+        {locked && <text x={x + S - 2} y={y + S - 3} textAnchor="middle" fontSize={9} pointerEvents="none">🔒</text>}
+      </g>
+    );
+  }
   return (
     <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: locked ? "default" : "grab", touchAction: "none" }}>
       <circle cx={x} cy={y} r={NODE_RADIUS + 18} fill="transparent" />
@@ -285,6 +313,10 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const { maps, createMap, renameMap, deleteMap } = useInnerWorldMaps();
   // Seed the active map from a deep-link (e.g. a location's "open on map" /
   // layer-link from its profile page) so it opens focused, not on map[0].
+  // Pixel look: the mockup's editor layout (desk) or phone layout.
+  const px = useUiLook() === "pixel" && !embedded;
+  const pxDesk = usePixelDesk();
+  const desk = px && pxDesk;
   const [activeMapId, setActiveMapId] = useState(initialMapId || null);
   useEffect(() => { if (maps.length && !maps.find((m) => m.id === activeMapId)) setActiveMapId(maps[0].id); }, [maps, activeMapId]);
 
@@ -368,6 +400,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [groupFilter, setGroupFilter] = useState("all");
 
   const [selectedAlter, setSelectedAlter] = useState(null);
+  const [linkArmed, setLinkArmed] = useState(false); // pixel "Link" tool: the next alter tapped starts a relationship
+  const [pxSheet, setPxSheet] = useState(null); // pixel phone bottom sheet: "layers" | "place" | null
+  const [pxPlaceInto, setPxPlaceInto] = useState(false); // pixel Info: "+ place" picker open
   const [relModeAlter, setRelModeAlter] = useState(null);
   const [createRelModal, setCreateRelModal] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -388,6 +423,13 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
   const alterMap = useMemo(() => Object.fromEntries(allAlters.map((a) => [a.id, a])), [allAlters]);
   const layerById = useMemo(() => Object.fromEntries(layers.map((l) => [l.id, l])), [layers]);
+  useEffect(() => {
+    if (!desk || viewOnly || !selectedLocation) return;
+    if (editingLocation?.id === selectedLocation.id) return;
+    if (layerById[selectedLocation.layer_id]?.is_locked) return;
+    setEditingLocation(selectedLocation);
+  }, [desk, viewOnly, selectedLocation, editingLocation?.id, layerById]);
+  useEffect(() => { setPxPlaceInto(false); }, [selectedLocation?.id, editingLocation?.id]);
   const isLayerLocked = useCallback((layerId) => !!layerById[layerId]?.is_locked, [layerById]);
   const visibleLayerIds = useMemo(() => {
     const solo = soloLayerId && layers.some((l) => l.id === soloLayerId) ? soloLayerId : null;
@@ -569,6 +611,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const handleAlterTap = (alter) => {
     justSelectedRef.current = true;
     setTimeout(() => { justSelectedRef.current = false; }, 50);
+    if (linkArmed && !relModeAlter) { setLinkArmed(false); setRelModeAlter(alter); setSelectedAlter(null); return; }
     if (relModeAlter) {
       if (relModeAlter.id === alter.id) { setRelModeAlter(null); return; }
       setCreateRelModal({ alterA: relModeAlter, alterB: alter });
@@ -635,9 +678,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     return out;
   };
 
-  return (
-    <div className={fullscreen ? "fixed inset-0 z-[100] bg-background p-2 flex flex-col" : "relative w-full h-full flex flex-col"} style={{ touchAction: "none" }}>
-      {/* Maps bar */}
+  const toggleViewOnly = () => { setViewOnly((v) => !v); setPlacingAlter(null); setRelModeAlter(null); setLinkArmed(false); setEditingLocation(null); setEditingImage(null); setSelectedImage(null); setSelectedLocation(null); setSelectedAlter(null); };
+  const mapsBar = (<>
       {!embedded && <div className="px-maps flex items-center gap-1 flex-wrap pb-2" role="group" aria-label="Maps">
         <span className="px-maps-label hidden">Maps</span>
         {maps.map((m) => (
@@ -662,82 +704,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           </>
         )}
       </div>}
-
-      <div className="relative flex-1 min-h-0 flex">
-        {/* Layers + unplaced panel */}
-        {panelOpen ? (
-          <div className="w-44 flex-shrink-0 bg-card border-r border-border overflow-y-auto flex flex-col z-10">
-            <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1"><LayersIcon className="w-3 h-3" /> Layers</p>
-              <button onClick={() => setPanelOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
-            </div>
-            <div className="p-2 space-y-1 border-b border-border/40">
-              {[...layersBottomToTop].reverse().map((layer, idxFromTop) => {
-                const idx = layersBottomToTop.findIndex((l) => l.id === layer.id);
-                return (
-                  <div key={layer.id} onClick={() => { setActiveLayerId(layer.id); setSoloLayerId(null); }}
-                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border cursor-pointer text-xs ${layer.id === activeLayerId ? "border-primary/60 bg-primary/15 ring-1 ring-primary/40" : "border-border/40 bg-muted/15 hover:bg-muted/30"}`}>
-                    <button onClick={(e) => { e.stopPropagation(); setSoloLayerId(null); iw.setLayerVisible(layer.id, !layer.is_visible); }} title={layer.is_visible ? "Hide layer" : "Show layer"} className="text-muted-foreground hover:text-foreground">
-                      {layer.is_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 opacity-50" />}
-                    </button>
-                    <span className={`flex-1 truncate ${layer.is_visible ? "text-foreground" : "text-muted-foreground/60"}`}>{layer.name}{layer.is_locked ? " 🔒" : ""}</span>
-                    {!viewOnly && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); iw.setLayerLocked(layer.id, !layer.is_locked); }} title={layer.is_locked ? "Unlock layer" : "Lock layer (view-only)"} className="text-muted-foreground hover:text-foreground">
-                          {layer.is_locked ? <Lock className="w-3 h-3 text-amber-500" /> : <Unlock className="w-3 h-3" />}
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
-                        <button onClick={async (e) => { e.stopPropagation(); const n = await promptText({ title: "Rename layer", defaultValue: layer.name }); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
-                        {layers.length > 1 && (
-                          <button onClick={async (e) => { e.stopPropagation(); if ((await confirm(`Delete layer "${layer.name}" and everything on it?`))) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-              {!viewOnly && (
-                <button onClick={async () => { const n = await promptText({ title: "New layer", placeholder: "Layer name", defaultValue: `Layer ${layers.length + 1}` }); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
-              )}
-            </div>
-            {!viewOnly && (
-              <>
-                <div className="px-2 py-1.5 border-b border-border/40">
-                  <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wide">Not on this layer · tap to place</p>
-                </div>
-                <div className="flex-1 overflow-y-auto p-2">
-                  {/* Tap an alter to ARM it (single-select highlight), then tap a
-                      spot on the canvas to drop it. Already-placed alters are
-                      DIMMED (not removed) so a subsystem's members stay reachable
-                      even after its owner is placed. */}
-                  <AlterTreeSelect
-                    selectionMode="single"
-                    disabledIds={[...alterIdsOnActiveLayer]}
-                    isSelected={(id) => placingAlter?.id === id}
-                    onToggle={(a) => setPlacingAlter(a)}
-                    maxHeight="46vh"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        ) : null}
-
-        {placingAlter && (
-          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-primary-foreground text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
-            <span>Tap to place {placingAlter.name} on “{activeLayer?.name}”</span>
-            <button onClick={() => setPlacingAlter(null)}><X className="w-3 h-3" /></button>
-          </div>
-        )}
-
-        {/* SVG canvas */}
-        <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
+  </>);
+  const canvasEl = (
+        <div ref={mapContainerRef} className="px-iw-canvas relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
           {/* Active layer / view-mode indicator — doubles as the layers &
               alters panel toggle (the floating corner button was removed). */}
-          <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 max-w-[80%]">
+          <div className="px-iw-layerchip absolute top-3 left-3 z-20 flex items-center gap-1.5 max-w-[80%]">
             <button
-              onClick={() => setPanelOpen((v) => !v)}
+              onClick={() => (px ? setPxSheet((s) => (s === "layers" ? null : "layers")) : setPanelOpen((v) => !v))}
               aria-expanded={panelOpen}
               title={panelOpen ? `Hide layers & ${terms.alters}` : `Show layers & ${terms.alters}`}
               className="px-2.5 py-1 min-h-[32px] rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
@@ -782,7 +756,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                     {/* Locations */}
                     {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
                       <g key={loc.id}>
-                        <LocationNode location={loc} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={layerLocked}
+                        <LocationNode location={loc} layerName={px ? layer.name : null} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={layerLocked}
                           onInteractStart={() => { panMovedRef.current = false; }}
                           onSelect={() => { if (panMovedRef.current || viewOnly) return; setSelectedLocation(loc); }}
                           onDoubleSelect={() => {
@@ -811,7 +785,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                       const canRemove = !layerLocked && selectedAlter?.id === alter.id;
                       return (
                         <g key={p.id}>
-                          <AlterNode alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={locked} isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
+                          <AlterNode pixel={px} alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={locked} isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
                             onTap={() => handleAlterTap(alter)} onDoubleTap={() => handleAlterDoubleTap(alter)} onDragEnd={(nx, ny) => movePlacement(p, nx, ny)} />
                           {/* Remove × only once the alter is selected — stops accidental
                               deletes when you just tap to select, especially zoomed out. */}
@@ -832,6 +806,12 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             </g>
           </svg>
 
+          {linkArmed && !relModeAlter && (
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg z-20 flex items-center gap-2">
+              Link: tap the first {terms.alter} <button onClick={() => setLinkArmed(false)} aria-label="Cancel"><X className="w-3 h-3" /></button>
+            </div>
+          )}
+          {desk && <PixelOverview locations={locations} images={images} placements={placements} visibleLayerIds={visibleLayerIds} alterMap={alterMap} transform={transform} containerRef={mapContainerRef} onCenter={(wx, wy, cw, ch) => setTransform((t) => ({ ...t, x: cw / 2 - wx * t.scale, y: ch / 2 - wy * t.scale }))} />}
           {relModeAlter && (
             <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg z-20">
               Relationship mode: tap another {terms.alter} — Esc to cancel
@@ -839,12 +819,12 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           )}
 
           {/* Toolbar — consistent icon-only buttons */}
-          {!embedded && <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
+          {!embedded && !px && <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
             <button title={fullscreen ? "Exit full screen" : "Full screen"} className={tbBtn(fullscreen)} onClick={() => setFullscreen((v) => !v)}>
               {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button title={viewOnly ? "Switch to edit mode" : "Switch to view mode (display only)"} className={tbBtn(viewOnly)}
-              onClick={() => { setViewOnly((v) => !v); setPlacingAlter(null); setRelModeAlter(null); setEditingLocation(null); setEditingImage(null); setSelectedImage(null); setSelectedLocation(null); setSelectedAlter(null); }}>
+              onClick={toggleViewOnly}>
               {viewOnly ? <PencilOff className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
             </button>
             {!viewOnly && (
@@ -861,7 +841,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           </div>}
 
           {/* Zoom controls */}
-          {!embedded && <div className="absolute bottom-4 right-3 flex flex-col gap-1 z-20">
+          {!embedded && !desk && <div className="px-iw-zoom absolute bottom-4 right-3 flex flex-col gap-1 z-20">
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom("in")}><ZoomIn className="w-3.5 h-3.5" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom("out")}><ZoomOut className="w-3.5 h-3.5" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={handleReset}><RotateCcw className="w-3.5 h-3.5" /></Button>
@@ -906,7 +886,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           {/* Location edit — minimal bottom sheet. Description, lock, and the
               background-image opacity live on the full profile page (↗) to keep
               this compact. */}
-          {editingLocation && !viewOnly && (
+          {editingLocation && !viewOnly && !desk && (
             <div data-iw-panel className="absolute left-2 right-2 bottom-2 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-2xl">
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold text-foreground">Edit Location</p>
@@ -986,7 +966,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
           {/* View-mode location popup — read-only: name (→ profile), description,
               link, an expandable members list, and any sub-locations. */}
-          {viewOnly && selectedLocation && (() => {
+          {viewOnly && selectedLocation && !px && (() => {
             const loc = selectedLocation;
             const inLoc = allAlters.filter((a) => !a.is_archived && a.inner_world_location_id === loc.id);
             const subs = locations.filter((l) => {
@@ -1068,7 +1048,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           })()}
 
           {/* Alter detail panel */}
-          {selectedAlter && !relModeAlter && (
+          {selectedAlter && !relModeAlter && !px && (
             <div data-iw-panel className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2"><SelectedAlterAvatar alter={selectedAlter} /><p className="text-sm font-semibold">{selectedAlter.name}</p></div>
@@ -1080,8 +1060,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             </div>
           )}
         </div>
-      </div>
-
+  );
+  const modals = (<>
       <AssetPickerModal open={assetPicker.open} onClose={() => setAssetPicker({ open: false, mode: null })} onSelect={onAssetSelect} />
       {showLocColor && editingLocation && (
         <ColorPickerModal color={editingLocation.color || "#6366f1"} label="Location colour"
@@ -1095,6 +1075,374 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       {editingRelFromPopover && (
         <EditRelFromPopover rel={editingRelFromPopover} alterMap={alterMap} alters={allAlters} onClose={() => setEditingRelFromPopover(null)} onSaved={() => { queryClient.invalidateQueries({ queryKey: ["alterRelationships"] }); onRefreshRelationships?.(); setEditingRelFromPopover(null); }} />
       )}
+  </>);
+  // ── Pixel look: the mockup's editor (tool column · maps tabs · canvas ·
+  // Layers + Info · status line) on a computer, and the canvas + tool bar +
+  // bottom sheets on a phone. Every control calls the same handlers as the
+  // smooth layout; nothing here writes anything new.
+  const pxRelCount = relationships.filter((r) => posById[r.alter_id_a] && posById[r.alter_id_b]).length;
+  const pxPlacedCount = new Set(placements.map((p) => p.alter_id)).size;
+  const pxAlterCount = allAlters.filter((a) => !a.is_archived).length;
+  const pxLoc = (() => {
+    const l = editingLocation || selectedLocation;
+    if (!l) return null;
+    const fresh = locations.find((x) => x.id === l.id);
+    return editingLocation && editingLocation.id === l.id ? editingLocation : (fresh || l);
+  })();
+  const pxCanEditLoc = pxLoc && !viewOnly && !layerById[pxLoc.layer_id]?.is_locked;
+  const pxWhoIsHere = (loc) => {
+    if (!loc) return [];
+    const ids = new Set(allAlters.filter((a) => !a.is_archived && a.inner_world_location_id === loc.id).map((a) => a.id));
+    const w = loc.width || 200, h = loc.height || 150;
+    for (const p of placements) {
+      if (p.layer_id !== loc.layer_id) continue;
+      const x = p.x ?? 0, y = p.y ?? 0;
+      if (x >= (loc.x ?? 0) && x <= (loc.x ?? 0) + w && y >= (loc.y ?? 0) && y <= (loc.y ?? 0) + h) ids.add(p.alter_id);
+    }
+    return [...ids].map((id) => alterMap[id]).filter((a) => a && !a.is_archived);
+  };
+  const pxPlaceAlterInto = async (loc, alter) => {
+    if (layerById[loc.layer_id]?.is_locked) { toast.error("This layer is locked"); return; }
+    const n = pxWhoIsHere(loc).length;
+    const nx = (loc.x ?? 0) + 40 + (n % 4) * 56;
+    const ny = (loc.y ?? 0) + 60 + Math.floor(n / 4) * 60;
+    await iw.placeAlter(alter.id, loc.layer_id, snapToGrid ? snapVal(nx) : nx, snapToGrid ? snapVal(ny) : ny);
+    setPxPlaceInto(false);
+  };
+  const pxMove = () => { setPlacingAlter(null); setRelModeAlter(null); setLinkArmed(false); setPxSheet(null); };
+  const pxLink = () => { setPlacingAlter(null); setRelModeAlter(null); setSelectedAlter(null); setLinkArmed(true); };
+  const pxPlace = () => { setLinkArmed(false); setRelModeAlter(null); setSelectedLocation(null); setEditingLocation(null); setSelectedAlter(null); if (!desk) setPxSheet("place"); };
+  const pxLayerRows = (
+    <div className="px-iw-pn">
+      <div className="px-iw-ttl"><span>Layers</span>{!viewOnly && <button className="px-iw-link" onClick={async () => { const n = await promptText({ title: "New layer", placeholder: "Layer name", defaultValue: `Layer ${layers.length + 1}` }); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }}>+ layer</button>}</div>
+      <div className="px-iw-layers">
+        {[...layersBottomToTop].reverse().map((layer, idxFromTop) => {
+          const idx = layersBottomToTop.findIndex((l) => l.id === layer.id);
+          const n = locations.filter((l) => l.layer_id === layer.id).length;
+          return (
+            <div key={layer.id} role="button" tabIndex={0} aria-pressed={layer.id === activeLayerId}
+              onClick={() => { setActiveLayerId(layer.id); setSoloLayerId(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { setActiveLayerId(layer.id); setSoloLayerId(null); } }}
+              className={`px-iw-layer${layer.id === activeLayerId ? " sel" : ""}${layer.is_visible ? "" : " off"}`}>
+              <button onClick={(e) => { e.stopPropagation(); setSoloLayerId(null); iw.setLayerVisible(layer.id, !layer.is_visible); }} title={layer.is_visible ? "Hide layer" : "Show layer"} aria-label={layer.is_visible ? `Hide ${layer.name}` : `Show ${layer.name}`}>
+                {layer.is_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              </button>
+              {!viewOnly ? (
+                <button onClick={(e) => { e.stopPropagation(); iw.setLayerLocked(layer.id, !layer.is_locked); }} title={layer.is_locked ? "Unlock layer" : "Lock layer (view-only)"} aria-label={layer.is_locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`}>
+                  {layer.is_locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3 opacity-40" />}
+                </button>
+              ) : <span className="w-3" />}
+              <span className="px-iw-layer-name">{layer.name}</span>
+              <span className="px-iw-layer-n">{n} {n === 1 ? "place" : "places"}</span>
+              {!viewOnly && (
+                <span className="px-iw-layer-acts">
+                  <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} title="Move up" aria-label="Move layer up"><ChevronUp className="w-3 h-3" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} title="Move down" aria-label="Move layer down"><ChevronDown className="w-3 h-3" /></button>
+                  <button onClick={async (e) => { e.stopPropagation(); const nn = await promptText({ title: "Rename layer", defaultValue: layer.name }); if (nn) iw.renameLayer(layer.id, nn); }} title="Rename" aria-label="Rename layer"><Pencil className="w-3 h-3" /></button>
+                  {layers.length > 1 && <button onClick={async (e) => { e.stopPropagation(); if ((await confirm(`Delete layer "${layer.name}" and everything on it?`))) iw.deleteLayer(layer.id); }} title="Delete layer" aria-label="Delete layer"><Trash2 className="w-3 h-3" /></button>}
+                </span>
+              )}
+            </div>
+          );
+        })}
+        <div className={`px-iw-layer px-iw-layer-sub${relMode === "none" ? " off" : ""}`}>
+          <button onClick={() => setRelMode((m) => (m === "all" ? "selected" : m === "selected" ? "none" : "all"))} title={`Relationship lines: ${relMode === "all" ? "all" : relMode === "selected" ? "selected only" : "hidden"}`} aria-label="Relationship lines: change what shows">
+            {relMode === "all" ? <Eye className="w-3.5 h-3.5" /> : relMode === "selected" ? <Users className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          </button>
+          <span className="w-3 text-center">L</span>
+          <span className="px-iw-layer-name">Relationship lines{relMode === "selected" ? " (selected)" : ""}</span>
+          <span className="px-iw-layer-n">{pxRelCount}</span>
+        </div>
+        <div className="px-iw-layer px-iw-layer-sub">
+          <span className="w-3.5" />
+          <span className="w-3 text-center">L</span>
+          <span className="px-iw-layer-name">Backdrop pictures</span>
+          <span className="px-iw-layer-n">{images.length}</span>
+        </div>
+      </div>
+    </div>
+  );
+  const pxPlaceList = !viewOnly ? (
+    <div className="px-iw-place">
+      <p className="px-iw-hint">Pick someone, then tap the map where they go. Already placed on “{activeLayer?.name}” are dimmed.</p>
+      <AlterTreeSelect selectionMode="single" disabledIds={[...alterIdsOnActiveLayer]} isSelected={(id) => placingAlter?.id === id}
+        onToggle={(a) => { setPlacingAlter(a); if (!desk) setPxSheet(null); }} maxHeight={desk ? "100%" : "46vh"} />
+    </div>
+  ) : null;
+  const pxWhoChips = (loc) => {
+    const who = pxWhoIsHere(loc);
+    return (
+      <div className="px-iw-chips">
+        {who.map((a) => (
+          <button key={a.id} className="px-iw-chip" style={{ "--chip": a.color || "#8b5cf6" }} onClick={() => navigate(`/alter/${a.id}`)}>{a.name}</button>
+        ))}
+        {pxCanEditLoc && <button className="px-iw-chip add" aria-expanded={pxPlaceInto} onClick={() => setPxPlaceInto((v) => !v)}>+ place</button>}
+        {!who.length && !pxCanEditLoc && <span className="px-iw-hint">Nobody here yet.</span>}
+      </div>
+    );
+  };
+  const pxPlaceIntoPicker = (loc) => (pxPlaceInto && pxCanEditLoc ? (
+    <AlterTreeSelect selectionMode="single" disabledIds={pxWhoIsHere(loc).map((a) => a.id)} isSelected={() => false} onToggle={(a) => pxPlaceAlterInto(loc, a)} maxHeight="30vh" />
+  ) : null);
+  const pxInfo = (() => {
+    if (pxLoc) {
+      const loc = pxLoc;
+      const ed = pxCanEditLoc ? editingLocation : null;
+      const setF = (fields) => { if (!ed) return; setEditingLocation((l) => ({ ...l, ...fields })); updateLocation(ed, fields); };
+      return (
+        <div className="px-iw-pn px-iw-info" data-iw-panel>
+          <div className="px-iw-ttl"><span className="truncate">Info: {loc.name || "Place"}</span><button className="px-iw-link" onClick={() => navigate(`/location/${loc.id}`)}>Open profile</button></div>
+          <div className="px-iw-form">
+            <label className="px-iw-row"><span>Name</span>
+              {ed ? <input value={ed.name || ""} onChange={(e) => setF({ name: e.target.value })} placeholder="Location name" /> : <span className="px-iw-val">{loc.name}</span>}
+            </label>
+            <div className="px-iw-row"><span>Layer</span><span className="px-iw-val">{layerById[loc.layer_id]?.name || "—"}</span></div>
+            {ed && (
+              <div className="px-iw-row"><span>Size</span>
+                <DimensionInput label="Width" symbol="" value={Math.round(ed.width || 200)} min={40} onCommit={(v) => setF({ width: v })} />
+                <span className="px-iw-x">x</span>
+                <DimensionInput label="Height" symbol="" value={Math.round(ed.height || 150)} min={40} onCommit={(v) => setF({ height: v })} />
+              </div>
+            )}
+            <div className="px-iw-row"><span>Colour</span>
+              <button className="px-iw-swatch" style={{ background: loc.color || "#6366f1" }} disabled={!ed} onClick={() => setShowLocColor(true)} aria-label="Change colour" />
+              <span className="px-iw-hint">{ed ? "tap to change" : ""}</span>
+            </div>
+            <p className="px-iw-sub">Who's here</p>
+            {pxWhoChips(loc)}
+            {pxPlaceIntoPicker(loc)}
+            <p className="px-iw-sub">Notes</p>
+            <div className="px-iw-notes">{loc.description ? <RichText content={loc.description} /> : <span className="px-iw-hint">No notes yet. Write them on the place's profile.</span>}</div>
+            {loc.link_target_type && <button className="px-iw-btn" onClick={() => jumpToLink(loc)}><ExternalLink className="w-3.5 h-3.5" /> Go to the linked map</button>}
+            {ed && (
+              <>
+                <div className="px-iw-row px-iw-row-top"><span>Link to a map</span>
+                  <div className="flex-1 min-w-0">
+                    <SearchableSelect value={linkValue} options={linkOptions} placeholder="Nothing (no link)" searchPlaceholder="Search maps & layers…" renderOption={renderNestedOpt}
+                      onChange={(v) => {
+                        if (!v) { setEditingLocation((l) => ({ ...l, link_target_type: null, link_target_id: null })); iw.clearLocationLink(ed.id); return; }
+                        const [type, id] = v.split(":");
+                        setEditingLocation((l) => ({ ...l, link_target_type: type, link_target_id: id })); iw.setLocationLink(ed.id, type, id);
+                      }} />
+                  </div>
+                </div>
+                <div className="px-iw-btns">
+                  <button className={`px-iw-btn${ed.is_locked ? " on" : ""}`} aria-pressed={!!ed.is_locked} onClick={() => setF({ is_locked: !ed.is_locked })}>{ed.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />} {ed.is_locked ? "Locked" : "Lock"}</button>
+                  <button className="px-iw-btn" onClick={() => setF({ shape: ed.shape === "oval" ? "rectangle" : "oval" })}>Shape: {ed.shape === "oval" ? "oval" : "box"}</button>
+                  <button className="px-iw-btn" onClick={() => setAssetPicker({ open: true, mode: "locationBg" })}><ImageIcon className="w-3.5 h-3.5" /> {ed.background_image_url ? "Change picture" : "Picture"}</button>
+                </div>
+                <SliderRow label="Opacity" value={Math.round((ed.opacity ?? 1) * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => setF({ opacity: Math.max(0.1, Math.min(1, Number(v) / 100)) })} />
+                <SliderRow label="Turn" value={ed.rotation ?? 0} min={0} max={360} step={1} unit="°" onChange={(v) => setF({ rotation: Math.round(Number(v)) || 0 })} />
+                <div className="px-iw-btns">
+                  <button className="px-iw-btn" onClick={() => setF({ order: (ed.order || 0) + 1 })}>↑ Forward</button>
+                  <button className="px-iw-btn" onClick={() => setF({ order: Math.max(0, (ed.order || 0) - 1) })}>↓ Back</button>
+                  <button className="px-iw-btn danger" onClick={async () => { if ((await confirm("Delete this location?"))) { iw.deleteLocation(ed.id); setEditingLocation(null); setSelectedLocation(null); } }}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+    if (selectedAlter) {
+      const a = selectedAlter;
+      const pl = placements.find((p) => p.alter_id === a.id && p.layer_id === activeLayerId) || placements.find((p) => p.alter_id === a.id);
+      return (
+        <div className="px-iw-pn px-iw-info" data-iw-panel>
+          <div className="px-iw-ttl"><span className="truncate">Info: {a.name}</span><button className="px-iw-link" onClick={() => setSelectedAlter(null)} aria-label="Close"><X className="w-3.5 h-3.5" /></button></div>
+          <div className="px-iw-form">
+            <div className="flex items-center gap-3"><SelectedAlterAvatar alter={a} /><div><p className="px-iw-big" style={{ color: a.color || undefined }}>{a.name}</p>{a.pronouns && <p className="px-iw-hint">{a.pronouns}</p>}</div></div>
+            <div className="px-iw-btns">
+              <button className="px-iw-btn on" onClick={() => navigate(`/alter/${a.id}`)}>Open profile</button>
+              {!viewOnly && <button className="px-iw-btn" onClick={() => { setLinkArmed(false); setRelModeAlter(a); setSelectedAlter(null); }}>Link to someone</button>}
+              {!viewOnly && pl && !layerById[pl.layer_id]?.is_locked && <button className="px-iw-btn danger" onClick={() => { iw.removePlacement(pl.id); setSelectedAlter(null); }}>Take off the map</button>}
+            </div>
+            <AlterRelationshipsSection alter={a} relationships={relationships} alterMap={alterMap} />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="px-iw-pn px-iw-info">
+        <div className="px-iw-ttl"><span>{viewOnly ? "Info" : `Place someone`}</span></div>
+        {viewOnly ? <p className="px-iw-hint p-3">Tap a place or someone on the map to see them here.</p> : pxPlaceList}
+      </div>
+    );
+  })();
+  const pxStatus = (
+    <div className="px-iw-status" aria-live="off">
+      <span>{activeMap?.name || "Map"} / {(effectiveSolo ? layerById[effectiveSolo]?.name : activeLayer?.name) || "—"}</span>
+      <span>{pxPlacedCount} of {pxAlterCount} placed</span>
+      <span>{pxRelCount} relationship {pxRelCount === 1 ? "line" : "lines"}</span>
+      {viewOnly && <span>Viewing only</span>}
+      <span className="flex-1" />
+      <span>Zoom {Math.round(transform.scale * 100)}%</span>
+      <span>Snap {snapToGrid ? `to ${SNAP} px` : "off"}</span>
+    </div>
+  );
+  const pxToolBtn = (label, key, icon, onClick, pressed = false, extra = {}) => (
+    <button key={label} className={`px-iw-tool${pressed ? " on" : ""}`} title={key ? `${label} (${key})` : label} aria-label={label} aria-pressed={pressed} onClick={onClick} {...extra}>{icon}</button>
+  );
+  const pxTools = (
+    <div className="px-iw-tools" role="toolbar" aria-label="Map tools" aria-orientation="vertical">
+      {pxToolBtn("Move and select", "V", <MousePointer2 className="w-4 h-4" />, pxMove, !placingAlter && !relModeAlter && !linkArmed)}
+      {!viewOnly && pxToolBtn("Place someone", "P", <UserPlus className="w-4 h-4" />, pxPlace, !!placingAlter)}
+      {!viewOnly && pxToolBtn("Add a place", "L", <MapPin className="w-4 h-4" />, addLocation)}
+      {!viewOnly && pxToolBtn("Link two people", "R", <Spline className="w-4 h-4" />, pxLink, linkArmed || !!relModeAlter)}
+      {!viewOnly && pxToolBtn("Add a backdrop picture", "B", <ImageIcon className="w-4 h-4" />, addImage)}
+      {!viewOnly && pxToolBtn(snapToGrid ? "Snap to grid: on" : "Snap to grid: off", "G", <Grid className="w-4 h-4" />, () => setSnapToGrid((v) => !v), snapToGrid)}
+      <span className="px-iw-tool-gap" />
+      {pxToolBtn("Zoom in", "+", <ZoomIn className="w-4 h-4" />, () => handleZoom("in"))}
+      {pxToolBtn("Zoom out", "-", <ZoomOut className="w-4 h-4" />, () => handleZoom("out"))}
+      {pxToolBtn("Reset the view", "0", <RotateCcw className="w-4 h-4" />, handleReset)}
+      {pxToolBtn(fullscreen ? "Exit full screen" : "Full screen", "", fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />, () => setFullscreen((v) => !v), fullscreen)}
+      <span className="flex-1" />
+      {pxToolBtn(viewOnly ? "Viewing only: switch to editing" : "Switch to viewing only", "", <Eye className="w-4 h-4" />, toggleViewOnly, viewOnly)}
+    </div>
+  );
+  const pxPhoneBar = (
+    <div className="px-iw-phonebar" role="toolbar" aria-label="Map tools">
+      <button className={!placingAlter && !relModeAlter && !linkArmed ? "on" : ""} onClick={pxMove}>Move</button>
+      {!viewOnly && <button className={placingAlter || pxSheet === "place" ? "on" : ""} onClick={pxPlace}>Place</button>}
+      {!viewOnly && <button onClick={addLocation}>Room</button>}
+      {!viewOnly && <button className={linkArmed || relModeAlter ? "on" : ""} onClick={pxLink}>Link</button>}
+      <button className={pxSheet === "layers" ? "on" : ""} onClick={() => setPxSheet((s) => (s === "layers" ? null : "layers"))}>Layers</button>
+      <button className={viewOnly ? "on" : ""} onClick={toggleViewOnly} aria-label={viewOnly ? "Viewing only: switch to editing" : "Switch to viewing only"}><Eye className="w-4 h-4" /></button>
+    </div>
+  );
+  const pxPhoneSheet = (() => {
+    if (pxSheet === "layers") return <div className="px-iw-sheet" data-iw-panel><div className="px-iw-grip" />{pxLayerRows}<button className="px-iw-btn w-full" onClick={() => setPxSheet(null)}>Done</button></div>;
+    if (pxSheet === "place") return <div className="px-iw-sheet" data-iw-panel><div className="px-iw-grip" /><div className="px-iw-pn"><div className="px-iw-ttl"><span>Place someone</span><button className="px-iw-link" onClick={() => setPxSheet(null)} aria-label="Close"><X className="w-3.5 h-3.5" /></button></div>{pxPlaceList}</div></div>;
+    if (selectedLocation && !editingLocation) {
+      const loc = locations.find((l) => l.id === selectedLocation.id) || selectedLocation;
+      return (
+        <div className="px-iw-sheet" data-iw-panel onClick={(e) => e.stopPropagation()}>
+          <div className="px-iw-grip" />
+          <div className="px-iw-sheet-head">
+            <span className="px-iw-swatch" style={{ background: loc.color || "#6366f1" }} />
+            <span className="px-iw-big flex-1 truncate">{loc.name}</span>
+            <span className="px-iw-hint">{layerById[loc.layer_id]?.name}</span>
+            <button className="px-iw-link" onClick={() => setSelectedLocation(null)} aria-label="Close"><X className="w-4 h-4" /></button>
+          </div>
+          {loc.description && <div className="px-iw-notes"><RichText content={loc.description} /></div>}
+          <p className="px-iw-sub">Who's here</p>
+          {pxWhoChips(loc)}
+          {pxPlaceIntoPicker(loc)}
+          {loc.link_target_type && <button className="px-iw-btn w-full" onClick={() => jumpToLink(loc)}><ExternalLink className="w-3.5 h-3.5" /> Go to the linked map</button>}
+          <div className="px-iw-btns two">
+            <button className="px-iw-btn on" onClick={() => navigate(`/location/${loc.id}`)}>Open profile</button>
+            {pxCanEditLoc && <button className="px-iw-btn" onClick={() => openLocationEditor(loc)}>Edit room</button>}
+          </div>
+        </div>
+      );
+    }
+    if (selectedAlter && !relModeAlter) return <div className="px-iw-sheet" data-iw-panel onClick={(e) => e.stopPropagation()}><div className="px-iw-grip" />{pxInfo}</div>;
+    return null;
+  })();
+
+  if (px) {
+    return (
+      <div className={`px-iw ${desk ? "px-iw-desk" : "px-iw-phone"}${fullscreen ? " px-iw-full" : ""}`} style={{ touchAction: "none" }}>
+        {desk && pxTools}
+        <div className="px-iw-center">
+          {mapsBar}
+          <div className="relative flex-1 min-h-0 flex">
+        {placingAlter && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-primary-foreground text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
+            <span>Tap to place {placingAlter.name} on “{activeLayer?.name}”</span>
+            <button onClick={() => setPlacingAlter(null)}><X className="w-3 h-3" /></button>
+          </div>
+        )}
+            {canvasEl}
+          </div>
+          {!desk && pxPhoneBar}
+        </div>
+        {desk && <div className="px-iw-right">{pxLayerRows}{pxInfo}</div>}
+        {desk && pxStatus}
+        {!desk && pxPhoneSheet}
+        {modals}
+      </div>
+    );
+  }
+
+  return (
+    <div className={fullscreen ? "fixed inset-0 z-[100] bg-background p-2 flex flex-col" : "relative w-full h-full flex flex-col"} style={{ touchAction: "none" }}>
+      {/* Maps bar */}
+      {mapsBar}
+
+      <div className="relative flex-1 min-h-0 flex">
+        {/* Layers + unplaced panel */}
+        {panelOpen ? (
+          <div className="w-44 flex-shrink-0 bg-card border-r border-border overflow-y-auto flex flex-col z-10">
+            <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1"><LayersIcon className="w-3 h-3" /> Layers</p>
+              <button onClick={() => setPanelOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+            </div>
+            <div className="p-2 space-y-1 border-b border-border/40">
+              {[...layersBottomToTop].reverse().map((layer, idxFromTop) => {
+                const idx = layersBottomToTop.findIndex((l) => l.id === layer.id);
+                return (
+                  <div key={layer.id} onClick={() => { setActiveLayerId(layer.id); setSoloLayerId(null); }}
+                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border cursor-pointer text-xs ${layer.id === activeLayerId ? "border-primary/60 bg-primary/15 ring-1 ring-primary/40" : "border-border/40 bg-muted/15 hover:bg-muted/30"}`}>
+                    <button onClick={(e) => { e.stopPropagation(); setSoloLayerId(null); iw.setLayerVisible(layer.id, !layer.is_visible); }} title={layer.is_visible ? "Hide layer" : "Show layer"} className="text-muted-foreground hover:text-foreground">
+                      {layer.is_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 opacity-50" />}
+                    </button>
+                    <span className={`flex-1 truncate ${layer.is_visible ? "text-foreground" : "text-muted-foreground/60"}`}>{layer.name}{layer.is_locked ? " 🔒" : ""}</span>
+                    {!viewOnly && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); iw.setLayerLocked(layer.id, !layer.is_locked); }} title={layer.is_locked ? "Unlock layer" : "Lock layer (view-only)"} className="text-muted-foreground hover:text-foreground">
+                          {layer.is_locked ? <Lock className="w-3 h-3 text-amber-500" /> : <Unlock className="w-3 h-3" />}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
+                        <button onClick={async (e) => { e.stopPropagation(); const n = await promptText({ title: "Rename layer", defaultValue: layer.name }); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
+                        {layers.length > 1 && (
+                          <button onClick={async (e) => { e.stopPropagation(); if ((await confirm(`Delete layer "${layer.name}" and everything on it?`))) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              {!viewOnly && (
+                <button onClick={async () => { const n = await promptText({ title: "New layer", placeholder: "Layer name", defaultValue: `Layer ${layers.length + 1}` }); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
+              )}
+            </div>
+            {!viewOnly && (
+              <>
+                <div className="px-2 py-1.5 border-b border-border/40">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Not on this layer · tap to place</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2">
+                  {/* Tap an alter to ARM it (single-select highlight), then tap a
+                      spot on the canvas to drop it. Already-placed alters are
+                      DIMMED (not removed) so a subsystem's members stay reachable
+                      even after its owner is placed. */}
+                  <AlterTreeSelect
+                    selectionMode="single"
+                    disabledIds={[...alterIdsOnActiveLayer]}
+                    isSelected={(id) => placingAlter?.id === id}
+                    onToggle={(a) => setPlacingAlter(a)}
+                    maxHeight="46vh"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        {placingAlter && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-primary-foreground text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
+            <span>Tap to place {placingAlter.name} on “{activeLayer?.name}”</span>
+            <button onClick={() => setPlacingAlter(null)}><X className="w-3 h-3" /></button>
+          </div>
+        )}
+
+        {/* SVG canvas */}
+        {canvasEl}
+      </div>
+
+      {modals}
     </div>
   );
 }
@@ -1190,6 +1538,42 @@ function EditRelFromPopover({ rel, alterMap, alters = [], onClose, onSaved }) {
           <Button className="flex-1" onClick={handleSave} loading={saving} disabled={saving}>Save</Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Pixel look: the small "Overview" map in the canvas corner. Draws the
+// visible places and pictures, a frame for what's on screen, and moves the
+// view to wherever it's clicked. Display only — it never writes.
+function PixelOverview({ locations, images, placements, visibleLayerIds, alterMap, transform, containerRef, onCenter }) {
+  const W = 168, H = 92;
+  const boxes = [
+    ...images.filter((im) => visibleLayerIds.has(im.layer_id)).map((im) => ({ x: im.x ?? 0, y: im.y ?? 0, w: im.width || 200, h: im.height || 150, c: "#3b405d" })),
+    ...locations.filter((l) => visibleLayerIds.has(l.layer_id)).map((l) => ({ x: l.x ?? 0, y: l.y ?? 0, w: l.width || 200, h: l.height || 150, c: l.color || "#6366f1" })),
+  ];
+  const dots = placements.filter((p) => visibleLayerIds.has(p.layer_id) && alterMap[p.alter_id]).map((p) => ({ x: p.x ?? 0, y: p.y ?? 0, c: alterMap[p.alter_id].color || "#8b5cf6" }));
+  const el = containerRef.current;
+  const cw = el?.clientWidth || 800, ch = el?.clientHeight || 600;
+  const view = { x: -transform.x / transform.scale, y: -transform.y / transform.scale, w: cw / transform.scale, h: ch / transform.scale };
+  const all = [...boxes, ...dots.map((d) => ({ x: d.x, y: d.y, w: 1, h: 1 })), view];
+  const minX = Math.min(...all.map((b) => b.x)), minY = Math.min(...all.map((b) => b.y));
+  const maxX = Math.max(...all.map((b) => b.x + b.w)), maxY = Math.max(...all.map((b) => b.y + b.h));
+  const k = Math.min(W / Math.max(1, maxX - minX), H / Math.max(1, maxY - minY));
+  const ox = (W - (maxX - minX) * k) / 2, oy = (H - (maxY - minY) * k) / 2;
+  const sx = (x) => ox + (x - minX) * k, sy = (y) => oy + (y - minY) * k;
+  const onClick = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const wx = minX + (e.clientX - r.left - ox) / k, wy = minY + (e.clientY - r.top - oy) / k;
+    onCenter(wx, wy, cw, ch);
+  };
+  return (
+    <div className="px-iw-overview" data-iw-panel onClick={(e) => e.stopPropagation()}>
+      <div className="px-iw-ttl"><span>Overview</span><span>{Math.round(transform.scale * 100)}%</span></div>
+      <svg width={W} height={H} onClick={onClick} role="img" aria-label="Overview of the whole map; click to move the view there" shapeRendering="crispEdges">
+        {boxes.map((b, i) => <rect key={i} x={sx(b.x)} y={sy(b.y)} width={Math.max(2, b.w * k)} height={Math.max(2, b.h * k)} fill={b.c} fillOpacity={0.55} />)}
+        {dots.map((d, i) => <rect key={`d${i}`} x={sx(d.x) - 1.5} y={sy(d.y) - 1.5} width={3} height={3} fill={d.c} />)}
+        <rect x={sx(view.x)} y={sy(view.y)} width={view.w * k} height={view.h * k} fill="none" stroke="var(--px-accent, #e8a65d)" strokeWidth={2} />
+      </svg>
     </div>
   );
 }

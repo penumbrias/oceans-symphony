@@ -80,8 +80,8 @@ export default function SystemMapPage() {
   const [innerView, setInnerView] = useState(() => (getAccessibilitySettings().a11yMode ? "list" : "canvas"));
 
   return (
-    <div data-tour="system-map-canvas" className="flex flex-col gap-3 pb-6">
-      <div>
+    <div data-tour="system-map-canvas" className="px-sysmap flex flex-col gap-3 pb-6">
+      <div className="px-sysmap-head">
         <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Structure Map</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           {tab === "analytics"
@@ -142,7 +142,7 @@ export default function SystemMapPage() {
         innerView === "list" ? (
           <InnerWorldListView maps={maps} layers={layers} locations={locations} alters={alters} />
         ) : (
-          <div className="h-[calc(100vh-280px)] min-h-[400px]">
+          <div className="px-sysmap-inner h-[calc(100vh-280px)] min-h-[400px]">
             <InnerWorldMap
               alters={alters}
               relationships={relationships}

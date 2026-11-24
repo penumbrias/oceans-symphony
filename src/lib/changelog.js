@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: the inner world map is rebuilt like the design, with a tool rail, Layers and Info panels, an overview and a status bar; phones get a tool bar and a place sheet." },
       { type: "fix", text: "Quick check-in: the rating's name beside the feelings wraps instead of being cut off." },
       { type: "fix", text: "Pixel look on a phone: the chat message box keeps the full width instead of squeezing beside who's speaking." },
       { type: "improve", text: "Pixel look: inner world places get square boxes with a title bar, and maps sit as folder tabs." },
