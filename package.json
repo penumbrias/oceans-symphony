@@ -14,6 +14,8 @@
     "check:doors": "node scripts/check-door-names.mjs",
     "check:ui": "node scripts/check-ui-review.mjs",
     "check:a11y": "node scripts/check-a11y.mjs",
+    "check:budget": "node scripts/house-budget.mjs",
+    "walk": "node scripts/house-walk.mjs",
     "check:settings": "node scripts/check-settings-singleton.mjs",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
