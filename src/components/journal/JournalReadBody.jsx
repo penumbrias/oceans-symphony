@@ -158,6 +158,6 @@ export default function JournalReadBody({ entry, altersById, className = "prose 
           }
         </div>
       )}
-        </>
+    </>
   );
 }

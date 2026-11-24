@@ -20,7 +20,8 @@ import { useTerms } from "@/lib/useTerms";
 import { sortJournalsNewestFirst, normalizeTag } from "@/lib/journalDate";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
 import { sharedList } from "@/lib/sharedLists";
-import { usePixelDesk } from "@/lib/uiLook";
+import { usePixelDesk, useUiLook } from "@/lib/uiLook";
+import JournalPixel from "@/components/journal/JournalPixel";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -47,6 +48,9 @@ export default function Journals() {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const pixelDesk = usePixelDesk();
+  const pixel = useUiLook() === "pixel";
+  // Pixel look on a computer: the entry being read in the middle pane.
+  const [deskEntryId, setDeskEntryId] = useState(null);
   const TABS = [
     { id: "all", label: "All", icon: BookOpen },
     { id: "switch_log", label: `${terms.Switch} Logs`, icon: Shuffle },
@@ -207,7 +211,11 @@ export default function Journals() {
   useEffect(() => {
     if (pendingId && entries.length > 0) {
       const entry = entries.find(e => e.id === pendingId);
-      if (entry) setViewingEntry(entry);
+      if (!entry) return;
+      // Pixel look on a computer reads entries in place: open it in the
+      // middle pane (and its folder) instead of the view sheet.
+      if (pixelDesk) { setViewingFolder(entry.folder || null); setDeskEntryId(entry.id); }
+      else setViewingEntry(entry);
     }
   }, [pendingId, entries.length]);
 
@@ -500,41 +508,207 @@ export default function Journals() {
     return false;
   }, [fronterFilterIds, currentAlterIds]);
 
+  // The author and fronter filters are built once and placed by whichever
+  // layout is showing (the classic filter row, or the pixel toolbar).
+  const authorFilterEl = authoredAlterIds.length > 0 && (
+    <div ref={authorMenuTriggerRef} className="relative">
+      <Button
+        variant={selectedAuthorId ? "default" : "outline"}
+        size="sm"
+        onClick={() => { setShowAuthorFilter(v => !v); setAuthorFilterSearch(""); }}
+        className={`gap-1.5 ${selectedAuthorId ? "bg-primary hover:bg-primary/90" : ""}`}
+      >
+        {selectedAuthorId ? (
+          <>
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: altersById[selectedAuthorId]?.color || "#94a3b8" }} />
+            <span className="max-w-[100px] truncate">{altersById[selectedAuthorId]?.name}</span>
+          </>
+        ) : (
+          <>
+            <UserRound className="w-3.5 h-3.5" />
+            Author
+          </>
+        )}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </Button>
+      {selectedAuthorId && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setSelectedAuthorId(null); }}
+          className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-muted-foreground/20 hover:bg-destructive/20 flex items-center justify-center"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
+      )}
+      {showAuthorFilter && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowAuthorFilter(false)} />
+          <div
+            className="z-50 bg-popover border border-border rounded-xl shadow-xl max-w-[calc(100vw-1rem)] overflow-hidden"
+            style={{ position: "fixed", top: authorMenuPos.top, left: authorMenuPos.left, width: authorMenuPos.width }}
+          >
+            <div className="px-3 py-2 border-b border-border/50">
+              <input
+                autoFocus
+                value={authorFilterSearch}
+                onChange={e => setAuthorFilterSearch(e.target.value)}
+                placeholder={`Search ${terms.alters}...`}
+                className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="max-h-52 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
+              <button
+                type="button"
+                onClick={() => { setSelectedAuthorId(null); setShowAuthorFilter(false); }}
+                className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors ${!selectedAuthorId ? "text-primary font-medium" : "text-muted-foreground"}`}
+              >
+                All authors
+              </button>
+              {authoredAlterIds
+                .map(id => altersById[id])
+                .filter(Boolean)
+                .filter(a => !authorFilterSearch || a.name.toLowerCase().includes(authorFilterSearch.toLowerCase()))
+                .map(a => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => { setSelectedAuthorId(a.id); setShowAuthorFilter(false); }}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${selectedAuthorId === a.id ? "bg-primary/5 text-primary" : ""}`}
+                  >
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                    <span className="flex-1 truncate">{a.name}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const fronterFilterEl = currentAlterIds.length > 0 && (
+    <div ref={fronterMenuTriggerRef} className="relative inline-flex">
+      <Button
+        variant={fronterOnly ? "default" : "outline"}
+        size="sm"
+        onClick={handleFronterButtonTap}
+        onPointerDown={startFronterPress}
+        onPointerUp={cancelFronterPress}
+        onPointerLeave={cancelFronterPress}
+        onPointerCancel={cancelFronterPress}
+        onContextMenu={(e) => { e.preventDefault(); setFronterOnly(true); openFronterMenu(); }}
+        title={`Show entries by currently-${terms.fronting} ${terms.alters} (hold or tap chevron to refine)`}
+        className={`gap-1.5 rounded-r-none ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}
+      >
+        <Eye className="w-3.5 h-3.5" />
+        {terms.Fronter} view
+        {fronterOnly && fronterFilterIsCustom && (
+          <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[0.625rem] font-semibold bg-primary-foreground/20 text-primary-foreground">
+            {fronterFilterCount}
+          </span>
+        )}
+      </Button>
+      <Button
+        variant={fronterOnly ? "default" : "outline"}
+        size="sm"
+        onClick={(e) => { e.stopPropagation(); openFronterMenu(); }}
+        aria-label={`Refine ${terms.fronter}-view filter`}
+        className={`px-1.5 rounded-l-none border-l-0 ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}
+      >
+        <ChevronDown className="w-3 h-3 opacity-70" />
+      </Button>
+
+      {fronterMenuOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setFronterMenuOpen(false)} />
+          <div
+            className="z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
+            style={{
+              position: "fixed",
+              top: fronterMenuPos.top,
+              left: fronterMenuPos.left,
+              width: fronterMenuPos.maxWidth,
+              maxWidth: `calc(100vw - ${VIEWPORT_MARGIN * 2}px)`,
+            }}
+          >
+            <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                Filter by {terms.alter}
+              </span>
+              <button
+                type="button"
+                onClick={() => setFronterFilterIds(new Set(currentAlterIds))}
+                className="text-[0.625rem] font-medium text-primary hover:underline"
+                title={`Reset to currently-${terms.fronting} ${terms.alters}`}
+              >
+                Current {terms.fronters}
+              </button>
+            </div>
+            <div className="px-3 py-2">
+              <AlterTreeSelect
+                isSelected={(id) => (fronterFilterIds || new Set(currentAlterIds)).has(id)}
+                onToggle={(a) => toggleFronterFilterAlter(a.id)}
+                onSetMany={(arr, on) => setFronterFilterIds((prev) => {
+                  const base = prev ? new Set(prev) : new Set(currentAlterIds);
+                  for (const a of arr) { if (on) base.add(a.id); else base.delete(a.id); }
+                  return base;
+                })}
+                maxHeight="48vh"
+              />
+            </div>
+            <div className="px-3 py-2 border-t border-border/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setFronterMenuOpen(false)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   // Breadcrumb path segments
   const breadcrumbs = viewingFolder ? viewingFolder.split("/") : [];
 
   return (
     <motion.div data-tour="journals-list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <div className={pixelDesk ? "px-ws" : undefined}>
-      {/* Pixel look on a computer: every folder as a tree in a side panel
-          (like the mockup). A click opens that folder here. */}
-      {pixelDesk && (
-        <aside className="px-ws-side" aria-label="Folders" data-tour="journals-folder-panel">
-          <div className="px-ws-ttl">
-            <span>Folders</span>
-            <button type="button" className="px-ws-open" aria-label="New folder" title={viewingFolder ? "New subfolder here" : "New folder"}
-              onClick={() => setShowNewFolder(true)}><FolderPlus className="w-4 h-4" /></button>
-          </div>
-          <div className="px-ws-tree">
-            <button type="button" className={`px-ws-row${!viewingFolder ? " sel" : ""}`} aria-pressed={!viewingFolder} onClick={() => setViewingFolder(null)}>
-              <span className="px-ws-name">All entries</span><span className="px-ws-count">{entries.length}</span>
-            </button>
-            {[...allFolderPaths].sort((a, b) => a.localeCompare(b)).map((path) => {
-              const depth = path.split("/").length - 1;
-              const sel = viewingFolder === path;
-              const n = entries.filter((e) => e.folder === path || (e.folder || "").startsWith(`${path}/`)).length;
-              return (
-                <button key={path} type="button" className={`px-ws-row${sel ? " sel" : ""}`} aria-pressed={sel}
-                  style={{ paddingLeft: 6 + Math.min(depth, 8) * 14 }} onClick={() => setViewingFolder(path)}>
-                  <span className="px-ws-name">{path.split("/").pop()}</span><span className="px-ws-count">{n}</span>
-                </button>
-              );
-            })}
-            {allFolderPaths.length === 0 && <p className="px-ws-empty">No folders yet.</p>}
-          </div>
-        </aside>
-      )}
-      <div className={pixelDesk ? "px-ws-main" : undefined}>
+      {pixel ? (
+        <JournalPixel
+          desk={pixelDesk}
+          terms={terms}
+          entries={entries}
+          filtered={filtered}
+          allFolderPaths={allFolderPaths}
+          viewingFolder={viewingFolder}
+          setViewingFolder={setViewingFolder}
+          altersById={altersById}
+          search={search}
+          setSearch={setSearch}
+          allTags={allTags}
+          selectedTag={selectedTag}
+          setSelectedTag={setSelectedTag}
+          authorFilterEl={authorFilterEl}
+          fronterFilterEl={fronterFilterEl}
+          tabsEl={<PageStrip subtabs tour="journals-tabs" label="Journal views" items={TABS} value={tab} onChange={setTab} />}
+          selectedId={deskEntryId}
+          setSelectedId={setDeskEntryId}
+          onNew={openNew}
+          onEdit={openEdit}
+          onOpen={openEntry}
+          onDelete={handleDeleteEntry}
+          onNewFolder={() => setShowNewFolder(true)}
+          onImport={() => setShowImport(true)}
+          onRenameFolder={handleRenameFolder}
+          onDeleteFolder={handleDeleteFolder}
+          fronterOnly={fronterOnly}
+          onClearFronter={() => { setFronterOnly(false); setFronterFilterIds(null); }}
+        />
+      ) : (
+      <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
@@ -595,167 +769,8 @@ export default function Journals() {
           <Input placeholder="Search entries..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
 
-        {/* Author filter */}
-        {authoredAlterIds.length > 0 && (
-          <div ref={authorMenuTriggerRef} className="relative">
-            <Button
-              variant={selectedAuthorId ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setShowAuthorFilter(v => !v); setAuthorFilterSearch(""); }}
-              className={`gap-1.5 ${selectedAuthorId ? "bg-primary hover:bg-primary/90" : ""}`}
-            >
-              {selectedAuthorId ? (
-                <>
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: altersById[selectedAuthorId]?.color || "#94a3b8" }} />
-                  <span className="max-w-[100px] truncate">{altersById[selectedAuthorId]?.name}</span>
-                </>
-              ) : (
-                <>
-                  <UserRound className="w-3.5 h-3.5" />
-                  Author
-                </>
-              )}
-              <ChevronDown className="w-3 h-3 opacity-60" />
-            </Button>
-            {selectedAuthorId && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setSelectedAuthorId(null); }}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-muted-foreground/20 hover:bg-destructive/20 flex items-center justify-center"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            )}
-            {showAuthorFilter && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowAuthorFilter(false)} />
-                <div
-                  className="z-50 bg-popover border border-border rounded-xl shadow-xl max-w-[calc(100vw-1rem)] overflow-hidden"
-                  style={{ position: "fixed", top: authorMenuPos.top, left: authorMenuPos.left, width: authorMenuPos.width }}
-                >
-                  <div className="px-3 py-2 border-b border-border/50">
-                    <input
-                      autoFocus
-                      value={authorFilterSearch}
-                      onChange={e => setAuthorFilterSearch(e.target.value)}
-                      placeholder={`Search ${terms.alters}...`}
-                      className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-                    />
-                  </div>
-                  <div className="max-h-52 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedAuthorId(null); setShowAuthorFilter(false); }}
-                      className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors ${!selectedAuthorId ? "text-primary font-medium" : "text-muted-foreground"}`}
-                    >
-                      All authors
-                    </button>
-                    {authoredAlterIds
-                      .map(id => altersById[id])
-                      .filter(Boolean)
-                      .filter(a => !authorFilterSearch || a.name.toLowerCase().includes(authorFilterSearch.toLowerCase()))
-                      .map(a => (
-                        <button
-                          key={a.id}
-                          type="button"
-                          onClick={() => { setSelectedAuthorId(a.id); setShowAuthorFilter(false); }}
-                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${selectedAuthorId === a.id ? "bg-primary/5 text-primary" : ""}`}
-                        >
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
-                          <span className="flex-1 truncate">{a.name}</span>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {currentAlterIds.length > 0 && (
-          <div ref={fronterMenuTriggerRef} className="relative inline-flex">
-            <Button
-              variant={fronterOnly ? "default" : "outline"}
-              size="sm"
-              onClick={handleFronterButtonTap}
-              onPointerDown={startFronterPress}
-              onPointerUp={cancelFronterPress}
-              onPointerLeave={cancelFronterPress}
-              onPointerCancel={cancelFronterPress}
-              onContextMenu={(e) => { e.preventDefault(); setFronterOnly(true); openFronterMenu(); }}
-              title={`Show entries by currently-${terms.fronting} ${terms.alters} (hold or tap chevron to refine)`}
-              className={`gap-1.5 rounded-r-none ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              {terms.Fronter} view
-              {fronterOnly && fronterFilterIsCustom && (
-                <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[0.625rem] font-semibold bg-primary-foreground/20 text-primary-foreground">
-                  {fronterFilterCount}
-                </span>
-              )}
-            </Button>
-            <Button
-              variant={fronterOnly ? "default" : "outline"}
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); openFronterMenu(); }}
-              aria-label={`Refine ${terms.fronter}-view filter`}
-              className={`px-1.5 rounded-l-none border-l-0 ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}
-            >
-              <ChevronDown className="w-3 h-3 opacity-70" />
-            </Button>
-
-            {fronterMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setFronterMenuOpen(false)} />
-                <div
-                  className="z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
-                  style={{
-                    position: "fixed",
-                    top: fronterMenuPos.top,
-                    left: fronterMenuPos.left,
-                    width: fronterMenuPos.maxWidth,
-                    maxWidth: `calc(100vw - ${VIEWPORT_MARGIN * 2}px)`,
-                  }}
-                >
-                  <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Filter by {terms.alter}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setFronterFilterIds(new Set(currentAlterIds))}
-                      className="text-[0.625rem] font-medium text-primary hover:underline"
-                      title={`Reset to currently-${terms.fronting} ${terms.alters}`}
-                    >
-                      Current {terms.fronters}
-                    </button>
-                  </div>
-                  <div className="px-3 py-2">
-                    <AlterTreeSelect
-                      isSelected={(id) => (fronterFilterIds || new Set(currentAlterIds)).has(id)}
-                      onToggle={(a) => toggleFronterFilterAlter(a.id)}
-                      onSetMany={(arr, on) => setFronterFilterIds((prev) => {
-                        const base = prev ? new Set(prev) : new Set(currentAlterIds);
-                        for (const a of arr) { if (on) base.add(a.id); else base.delete(a.id); }
-                        return base;
-                      })}
-                      maxHeight="48vh"
-                    />
-                  </div>
-                  <div className="px-3 py-2 border-t border-border/50 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setFronterMenuOpen(false)}
-                      className="text-xs font-medium text-primary hover:underline"
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {authorFilterEl}
+        {fronterFilterEl}
       </div>
 
       {/* Tag filters */}
@@ -831,7 +846,7 @@ export default function Journals() {
       ) : null}
 
       </div>
-      </div>
+      )}
 
       <JournalViewModal
         open={!!viewingEntry}
