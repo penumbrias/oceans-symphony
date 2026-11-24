@@ -202,6 +202,28 @@ From step 1.1, `npm run check:ui` fails on: px `font-size`; a button, chip, tick
 
 ---
 
+## 10. Tokens (step 1.1): choices this page didn't make before
+
+The tokens live in `src/house/tokens/` (`tokens.css`, `look-smooth.css`, `look-pixel.css`, with `scales.js` holding the same numbers for code). Every rule is scoped to `[data-house]`, set by `HouseRoot`, so the old house never sees them. Values come from the person's paint through the paint translator; nothing writes a setting. `scripts/test-house-tokens.mjs` checks all of this.
+
+- **Colour roles.** page, panel, raised, sunken, text, muted, accent, accent text, on accent, danger, danger text, on danger, focus, border, divider, bevel light/dark, outline. Page, panel and raised are the person's own colours, never changed. **Sunken** (fields) is 60% of the way from panel to page; when page and panel are the same colour, a step toward black.
+- **Readable shades, not the person's settings.** When a role built from the person's colours would miss its minimum (4.5:1 text; 3:1 accent, border, focus), the house draws the nearest readable shade (same hue first, then toward black or white) and the paint translator's readability offer is still what changes their setting. The sample page says which roles moved.
+- **Two accent roles.** *Accent* is for parts (3:1 on page and panel). *Accent text* is the accent as words or links (4.5:1). Same split for danger.
+- **Text on a filled colour** is white whenever white reaches 4.5:1, otherwise whichever of white or black reads better; if neither does, the fill is deepened.
+- **Field borders** are 45% from panel toward the text colour, raised to 3:1 against page, panel and sunken. A *divider* (decorative) is 18% and has no minimum.
+- **The focus ring** is the accent when it reaches 3:1 on page and panel, otherwise the text colour. 2 px, offset 2 px.
+- **High contrast** replaces the paint with fixed black/white roles, as the old house does.
+- **Shape per look.** Smooth: corners 12 px (8 small), 1 px borders, no bevel, a soft shadow, round icon caps. Pixel: square corners, 2 px outline, 2 px bevel (light top-left, dark bottom-right), square caps and mitred joins. The person's own corners and pixel bevel win. Corners and borders are px (they are not text).
+- **Fonts.** Label = the person's heading font if they chose one; otherwise, when their body font is an easy-read one (OpenDyslexic, Atkinson, Lexend) or easy-read mode is on, the body font (R2: no pixel letters); otherwise the pixel font in the pixel look (unless "plain type"), the body font in the smooth look. **The smooth look's labels use the body font**, not DM Serif Display: labels are buttons and tabs, and a display serif doesn't read there. Values (times, dates, numbers) are always the body font with tabular figures. The unchosen body font is Inter.
+- **Ligatures** are off for the whole house tree, on the `[data-house]` root (`font-variant-ligatures: none` plus `font-feature-settings`), which covers the label token. The pixel font's `@font-face` comes from `@fontsource` and can't carry the descriptor without forking it, so the root rule is the "once" place. The pixel font is named only in `PIXEL_LABEL_FONT` (`src/house/tokens/roles.js`), and an `.house-label.house-text-xs` falls back to the body font.
+- **Old-house heading rules.** The old pixel look styles every `h1`–`h3` at high specificity. Inside the house, headings take the house's fonts through a longer attribute chain, never `!important`.
+- **The 1.3× frame cap** is `min(rem, 1.3 × the 100% px size)`: `--house-frame-text-xs/sm/lg` and `--house-frame-icon`. Below 100% the frame shrinks with the text like everything else.
+- **Motion.** fast 120 ms, base 200 ms, slow 320 ms; ease-out `cubic-bezier(0.2, 0, 0, 1)`, ease-in-out `cubic-bezier(0.4, 0, 0.2, 1)`. All three become 0 under `prefers-reduced-motion` and the app's own Reduce motion (`html.a11y-reduce-motion`). Code reads `motionMs()` / `prefersReducedMotion()` from `scales.js`.
+- **Icons.** `<HouseIcon icon={…} page|iconKey size>` (`src/house/tokens/HouseIcon.jsx`) takes the Lucide component rather than a string name, so each icon tree-shakes; the person's own icon (by page or key) replaces it.
+- **The guard** (§9) is `scripts/check-house-guard.mjs`, run by `npm run check:ui` (and `npm run check:house` alone). It reads whole files under `src/house/` only. "The kit" is `src/house/kit/`: raw buttons, ticks, tabs, native date/time and `<select>` are allowed only there; `type="color"` and `!important` nowhere. A line marked `house-ok: <why>` is skipped.
+
+---
+
 ## Lantern review (2026-11-24)
 
 Reviewed for 200% text, 390 px phones, trauma-informed design, one-handed use and plain language. The code was already strong here: rem sizes, `max(44px, rem)` targets, effective width = width ÷ text scale, Support on every screen, and one attention line. What I changed:
