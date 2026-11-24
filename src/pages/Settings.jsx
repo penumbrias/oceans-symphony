@@ -237,8 +237,6 @@ export default function Settings() {
       <div className="flex flex-col gap-3 pb-2">
         <div className="pxs-actions">
           {backupMenu}
-          {APP_RELEASE_STAGE && <span className="pxs-chip">{APP_RELEASE_STAGE}</span>}
-          <span className="pxs-ver">v{APP_VERSION}</span>
           <span className="flex-1" />
           <button type="button" className="pxs-icon-link" onClick={() => openExternalUrl("https://penumbrialecosystem.neocities.org/os")}
             aria-label="Official website" title="Official website"><Globe /></button>

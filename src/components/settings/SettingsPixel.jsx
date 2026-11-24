@@ -119,6 +119,7 @@ export default function SettingsPixel({
   const showPreview = desk && openPage && LOOK_PAGES.has(openPage.id);
   const sideGroups = query ? shownGroups : groups;
   return (
+    <div className="pxs-wrap">
     <div className={`pxs-ws${showPreview ? " pxs-has-preview" : ""}`}>
       {desk && (
         <aside className="pxs-panel pxs-side" aria-label="Settings sections" data-tour="settings-side-panel">
@@ -154,7 +155,7 @@ export default function SettingsPixel({
                 </button>
                 <h1>{foundGroup?.label ? `${foundGroup.label}: ` : ""}{openPage.label}</h1>
               </span>
-              <span className="pxs-ttl-r">{openPage.id === "display" ? "every change shows live" : openPage.hint}</span>
+              <span className="pxs-ttl-r pxs-hint">{openPage.id === "display" ? "every change shows live" : openPage.hint}</span>
             </div>
             <div className="pxs-body">
               <div key={openPage.id} className="pxs-page">{openPage.render()}</div>
@@ -187,6 +188,7 @@ export default function SettingsPixel({
       </section>
 
       {showPreview && <LookPreview />}
+    </div>
     </div>
   );
 }
