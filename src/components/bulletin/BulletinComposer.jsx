@@ -46,7 +46,12 @@ function parseSignposts(content, alters, systemKeywords) {
 // Boxing it twice ate ~2.5rem of width on a phone, so the writing box sat
 // well short of the screen edge. `showHeader={false}` is for a host that
 // has its own title and close button.
-export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "", groupId = null, embedded = false, showHeader = true }) {
+// `pixel` (the pixel look's board): the same composer laid out like the
+// mockup — writing box, one "Add to post" row of chips, who it's signed by,
+// then Post. Same state, same save; only the arrangement differs.
+// `extraChips` lets the host add its own chips to that row (the board's
+// "Plan to do"). The pixel host shows the signing help on its own panel.
+export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "", groupId = null, embedded = false, showHeader = true, pixel = false, autoFocus = true, extraChips = null, postTourAnchor = null }) {
   const qc = useQueryClient();
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
@@ -88,7 +93,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   // The writing box grows with what's written (up to about half the
   // screen, then it scrolls) — a fixed three-line strip read as a thin
   // sliver on a phone (owner report, twice).
-  useAutoGrowTextarea(textareaRef, content, { min: 128, maxScreen: 0.5 });
+  useAutoGrowTextarea(textareaRef, content, { min: pixel ? 72 : 128, maxScreen: 0.5 });
   const imageInputRef = useRef(null);
   // Image waiting in the preview/size dialog before it lands in the post.
   const [pendingImage, setPendingImage] = useState(null);
@@ -418,47 +423,9 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     }
   };
 
-  return (
-    // w-full: a widget whose content alignment is Left/Center/Right lays
-    // its rows out shrink-to-fit, which squeezed the writing box down to
-    // a textarea's default few-word width.
-    <div className={embedded ? "w-full" : "w-full bg-card border border-border/60 rounded-2xl p-4 shadow-sm"}>
-      {showHeader && (
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-foreground">New Bulletin</p>
-          {onClose && (
-            <button onClick={onClose} aria-label="Close composer" className="text-muted-foreground hover:text-foreground">
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      )}
 
-      <div className="flex items-center gap-1 mb-2">
-        <button type="button" onClick={() => setMode(false)}
-          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border transition-all ${!richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-          <Type className="w-3.5 h-3.5" /> Simple
-        </button>
-        <button type="button" onClick={() => setMode(true)}
-          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border transition-all ${richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-          <Sparkles className="w-3.5 h-3.5" /> Fancy
-        </button>
-      </div>
-
-      <MentionTextarea
-        toolbar={false}
-        ref={textareaRef}
-        value={content}
-        onChange={setContent}
-        alters={alters}
-        signposts
-        systemName={systemIdentity.name}
-        placeholder="Write a message… @ to mention, -name to sign, /w @name [secret] to whisper"
-        className="min-h-[128px] w-full text-sm resize-none"
-        autoFocus
-      />
-
-      {richMode && (
+  // Pieces shared by both layouts (smooth and pixel).
+  const richBlock = richMode && (
         <div className="mt-1.5 rounded-lg border border-border/50 overflow-hidden">
           <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
             <button type="button" title="Insert image / GIF"
@@ -478,36 +445,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
             onClose={() => setPendingImage(null)} />
         )}
         </div>
-      )}
-
-      <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} onClearAll={clearAllAuthors} label="Signed by" />
-
-      {showSignpostHelp ? (
-        <div className="mt-1.5 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2 text-[0.6875rem] text-muted-foreground leading-relaxed relative">
-          <button type="button" onClick={dismissSignpostHelp} aria-label="Dismiss" className="absolute top-1.5 right-1.5 text-muted-foreground/60 hover:text-foreground">
-            <X className="w-3.5 h-3.5" />
-          </button>
-          <p className="text-foreground font-medium mb-0.5">Signing your posts</p>
-          <p>
-            Whoever's {terms.fronting} is the author by default (if there is no active {terms.front}, your {terms.system} name and avatar from the settings menu is used, unless you have recently signposted, in which case the author will default to them).
-          </p>
-          <p className="mt-1.5">
-            Type <span className="font-mono text-foreground">-{terms.alter}</span> to set the author (anywhere in the bulletin post), overwriting current {terms.front}. List several (<span className="font-mono text-foreground">-x -y -z</span>), or start signposting with <span className="font-mono text-foreground">+{terms.alter}</span>, and that {terms.alter} and any subsequent signposts will be added to the current {terms.front} instead of replacing.
-          </p>
-        </div>
-      ) : (
-        <button type="button" onClick={() => setShowSignpostHelp(true)} className="mt-1 text-[0.625rem] text-muted-foreground/70 hover:text-foreground">
-          How signing works
-        </button>
-      )}
-
-      <div className="flex gap-1 mt-2 flex-wrap">
-        {QUICK_EMOJIS.map(e => (
-          <button key={e} onClick={() => setContent(c => c + e)} className="text-base hover:scale-125 transition-transform">{e}</button>
-        ))}
-      </div>
-
-      {showPoll && (
+      );
+  const pollEditor = showPoll && (
         <div className="mt-3 border border-border/50 rounded-xl p-3 bg-muted/20 space-y-2">
           <Input placeholder="Poll question…" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="text-sm" />
           {pollOptions.map((opt, i) => (
@@ -526,48 +465,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
             </button>
           )}
         </div>
-      )}
-
-      {showHint && (
-        <div className="mt-3 flex items-start gap-2 text-xs px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-foreground">
-          <span className="text-base leading-none mt-px">💡</span>
-          <p className="flex-1 leading-relaxed">
-            Tip: tap <b>Poll</b> to attach a vote, <b>Pin</b> to keep the post at the top, or <b>Mention</b> to tag {an(terms.alter)}.
-          </p>
-          <button onClick={dismissHint} aria-label="Dismiss hint" className="text-muted-foreground hover:text-foreground flex-shrink-0">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      <div className="mt-3">
-        <div className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Add to post</div>
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={() => { setPinned(p => !p); dismissHint(); }}
-              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${pinned ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-              <Pin className="w-3.5 h-3.5" /> Pin
-            </button>
-            <button onClick={() => { setShowPoll(p => !p); dismissHint(); }}
-              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showPoll ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-              <BarChart2 className="w-3.5 h-3.5" /> Poll
-            </button>
-            <button onClick={() => { setContent(c => c + "@"); textareaRef.current?.focus(); dismissHint(); }}
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all">
-              <AtSign className="w-3.5 h-3.5" /> Mention
-            </button>
-            <button onClick={() => { setWhisperOn(v => !v); dismissHint(); }}
-              aria-pressed={whisperOn}
-              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${whisperOn ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-              <Lock className="w-3.5 h-3.5" /> Whisper
-            </button>
-          </div>
-          <Button onClick={() => { dismissHint(); handlePost(); }} disabled={saving || !content.trim()} size="sm" className="bg-primary">
-            <Send className="w-3 h-3 mr-1" /> Post
-          </Button>
-        </div>
-
-        {whisperOn && (
+      );
+  const whisperPicker = whisperOn && (
           <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-2">
             <p className="text-xs font-medium text-primary flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5" /> Whisper — only the {terms.alters} you pick can read this post
@@ -620,7 +519,197 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
               <p className="text-[0.625rem] text-amber-600 dark:text-amber-400">Pick at least one recipient — otherwise this posts as a normal bulletin.</p>
             )}
           </div>
-        )}
+        );
+
+  if (pixel) return (
+    <PixelComposerLayout
+      textarea={(
+        <MentionTextarea
+          toolbar={false}
+          ref={textareaRef}
+          value={content}
+          onChange={setContent}
+          alters={alters}
+          signposts
+          systemName={systemIdentity.name}
+          placeholder="Write a message… @ to mention, -name to sign, /w @name [secret] to whisper"
+          className="pxb-write min-h-[64px] w-full text-sm resize-none"
+          autoFocus={autoFocus}
+        />
+      )}
+      richBlock={richBlock}
+      pollEditor={pollEditor}
+      whisperPicker={whisperPicker}
+      chips={[
+        { key: "poll", label: "Poll", on: showPoll, onClick: () => setShowPoll((p) => !p) },
+        { key: "fancy", label: "Picture & style", on: richMode, onClick: () => setMode(!richMode) },
+        { key: "mention", label: "Mention", on: false, onClick: () => { setContent((c) => c + "@"); textareaRef.current?.focus(); } },
+        { key: "whisper", label: "Whisper", on: whisperOn, onClick: () => setWhisperOn((v) => !v) },
+        { key: "pin", label: "Pin", on: pinned, onClick: () => setPinned((p) => !p) },
+      ]}
+      extraChips={extraChips}
+      emojis={QUICK_EMOJIS}
+      onEmoji={(e) => setContent((c) => c + e)}
+      authors={<AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} onClearAll={clearAllAuthors} label="Signed by" />}
+      onPost={() => { dismissHint(); handlePost(); }}
+      canPost={!saving && !!content.trim()}
+      postTourAnchor={postTourAnchor}
+    />
+  );
+
+  return (
+    // w-full: a widget whose content alignment is Left/Center/Right lays
+    // its rows out shrink-to-fit, which squeezed the writing box down to
+    // a textarea's default few-word width.
+    <div className={embedded ? "w-full" : "w-full bg-card border border-border/60 rounded-2xl p-4 shadow-sm"}>
+      {showHeader && (
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-foreground">New Bulletin</p>
+          {onClose && (
+            <button onClick={onClose} aria-label="Close composer" className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1 mb-2">
+        <button type="button" onClick={() => setMode(false)}
+          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border transition-all ${!richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+          <Type className="w-3.5 h-3.5" /> Simple
+        </button>
+        <button type="button" onClick={() => setMode(true)}
+          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border transition-all ${richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+          <Sparkles className="w-3.5 h-3.5" /> Fancy
+        </button>
+      </div>
+
+      <MentionTextarea
+        toolbar={false}
+        ref={textareaRef}
+        value={content}
+        onChange={setContent}
+        alters={alters}
+        signposts
+        systemName={systemIdentity.name}
+        placeholder="Write a message… @ to mention, -name to sign, /w @name [secret] to whisper"
+        className="min-h-[128px] w-full text-sm resize-none"
+        autoFocus
+      />
+
+      {richBlock}
+
+      <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} onClearAll={clearAllAuthors} label="Signed by" />
+
+      {showSignpostHelp ? (
+        <div className="mt-1.5 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2 text-[0.6875rem] text-muted-foreground leading-relaxed relative">
+          <button type="button" onClick={dismissSignpostHelp} aria-label="Dismiss" className="absolute top-1.5 right-1.5 text-muted-foreground/60 hover:text-foreground">
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <p className="text-foreground font-medium mb-0.5">Signing your posts</p>
+          <SignpostHelpText />
+        </div>
+      ) : (
+        <button type="button" onClick={() => setShowSignpostHelp(true)} className="mt-1 text-[0.625rem] text-muted-foreground/70 hover:text-foreground">
+          How signing works
+        </button>
+      )}
+
+      <div className="flex gap-1 mt-2 flex-wrap">
+        {QUICK_EMOJIS.map(e => (
+          <button key={e} onClick={() => setContent(c => c + e)} className="text-base hover:scale-125 transition-transform">{e}</button>
+        ))}
+      </div>
+
+      {pollEditor}
+
+      {showHint && (
+        <div className="mt-3 flex items-start gap-2 text-xs px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-foreground">
+          <span className="text-base leading-none mt-px">💡</span>
+          <p className="flex-1 leading-relaxed">
+            Tip: tap <b>Poll</b> to attach a vote, <b>Pin</b> to keep the post at the top, or <b>Mention</b> to tag {an(terms.alter)}.
+          </p>
+          <button onClick={dismissHint} aria-label="Dismiss hint" className="text-muted-foreground hover:text-foreground flex-shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div className="mt-3">
+        <div className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Add to post</div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => { setPinned(p => !p); dismissHint(); }}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${pinned ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+              <Pin className="w-3.5 h-3.5" /> Pin
+            </button>
+            <button onClick={() => { setShowPoll(p => !p); dismissHint(); }}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showPoll ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+              <BarChart2 className="w-3.5 h-3.5" /> Poll
+            </button>
+            <button onClick={() => { setContent(c => c + "@"); textareaRef.current?.focus(); dismissHint(); }}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all">
+              <AtSign className="w-3.5 h-3.5" /> Mention
+            </button>
+            <button onClick={() => { setWhisperOn(v => !v); dismissHint(); }}
+              aria-pressed={whisperOn}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${whisperOn ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+              <Lock className="w-3.5 h-3.5" /> Whisper
+            </button>
+          </div>
+          <Button onClick={() => { dismissHint(); handlePost(); }} disabled={saving || !content.trim()} size="sm" className="bg-primary">
+            <Send className="w-3 h-3 mr-1" /> Post
+          </Button>
+        </div>
+
+        {whisperPicker}
+      </div>
+    </div>
+  );
+}
+
+// How signing works — the composer's note, and the pixel board's side panel.
+export function SignpostHelpText() {
+  const terms = useTerms();
+  return (
+    <>
+      <p>
+        Whoever's {terms.fronting} is the author by default (if there is no active {terms.front}, your {terms.system} name and avatar from the settings menu is used, unless you have recently signposted, in which case the author will default to them).
+      </p>
+      <p className="mt-1.5">
+        Type <span className="font-mono text-foreground">-{terms.alter}</span> to set the author (anywhere in the bulletin post), overwriting current {terms.front}. List several (<span className="font-mono text-foreground">-x -y -z</span>), or start signposting with <span className="font-mono text-foreground">+{terms.alter}</span>, and that {terms.alter} and any subsequent signposts will be added to the current {terms.front} instead of replacing.
+      </p>
+    </>
+  );
+}
+
+function PixelComposerLayout({ textarea, richBlock, pollEditor, whisperPicker, chips, extraChips, emojis, onEmoji, authors, onPost, canPost, postTourAnchor }) {
+  const [showEmoji, setShowEmoji] = useState(false);
+  return (
+    <div className="pxb-compose w-full">
+      {textarea}
+      {richBlock}
+      {pollEditor}
+      {whisperPicker}
+      {showEmoji && (
+        <div className="pxb-emoji">
+          {emojis.map((e) => (
+            <button key={e} type="button" onClick={() => onEmoji(e)} aria-label={`Add ${e}`}>{e}</button>
+          ))}
+        </div>
+      )}
+      <div className="pxb-addrow">
+        <span className="pxb-addlbl">Add to post</span>
+        {chips.map((c) => (
+          <button key={c.key} type="button" className={`pxb-chip${c.on ? " on" : ""}`} aria-pressed={c.on} onClick={c.onClick}>{c.label}</button>
+        ))}
+        <button type="button" className={`pxb-chip${showEmoji ? " on" : ""}`} aria-pressed={showEmoji} onClick={() => setShowEmoji((v) => !v)}>Emoji</button>
+        {extraChips}
+        <span className="pxb-grow" />
+        <div className="pxb-signed">{authors}</div>
+      </div>
+      <div>
+        <button type="button" className="pxb-btn pxb-btn-on" onClick={onPost} disabled={!canPost} data-tour={postTourAnchor || undefined}>Post</button>
       </div>
     </div>
   );

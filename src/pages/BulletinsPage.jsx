@@ -8,6 +8,8 @@ import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import BulletinComposerModal from "@/components/bulletin/BulletinComposerModal";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { useUiLook } from "@/lib/uiLook";
+import PixelBulletinDesk from "@/components/bulletin/PixelBulletinDesk";
 
 // Full-screen Bulletin Board view. Same component the dashboard
 // widget uses, but mounted in `pageMode` so it:
@@ -21,6 +23,7 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // `/bulletins`.
 export default function BulletinsPage() {
   const [composerOpen, setComposerOpen] = useState(false);
+  const pixel = useUiLook() === "pixel";
   const navigate = useNavigate();
   const location = useLocation();
   const highlightId = new URLSearchParams(location.search).get("id");
@@ -53,6 +56,19 @@ export default function BulletinsPage() {
   const currentAlterId = primaryFronter
     ? (primaryFronter.alter_id || primaryFronter.primary_alter_id)
     : (frontingAlterIds[0] || null);
+
+  // The pixel look: boards, the open board and its side panels (mockup).
+  if (pixel) {
+    return (
+      <PixelBulletinDesk
+        alters={alters}
+        currentAlterId={currentAlterId}
+        frontingAlterIds={frontingAlterIds}
+        highlightId={highlightId}
+        boardOnly={uiV2On}
+      />
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4" data-tour="bulletins-page">

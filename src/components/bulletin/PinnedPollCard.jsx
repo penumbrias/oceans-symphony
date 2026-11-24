@@ -14,7 +14,8 @@ import { markPollVotedToday } from "@/lib/dailyTaskSystem";
  * pinned bulletin's BulletinCard, so we deliberately don't render
  * them twice.
  */
-export default function PinnedPollCard({ poll, currentAlterId }) {
+// `pixel`: the pixel board's "Pinned poll" side panel (Bulletins mockup).
+export default function PinnedPollCard({ poll, currentAlterId, pixel = false }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const voterId = currentAlterId || "";
@@ -90,6 +91,38 @@ export default function PinnedPollCard({ poll, currentAlterId }) {
     e.stopPropagation();
     navigate(`/polls?id=${poll.id}`);
   };
+
+  if (pixel) {
+    return (
+      <section className="pxb-panel pxb-side-sec">
+        <div className="pxb-ttl"><span>Pinned poll</span><span className="pxb-ttl-dim">from Polls</span></div>
+        <div className="pxb-side-body">
+          <b className="pxb-poll-title">{poll.question}{poll.is_closed ? <span className="pxb-dim"> · closed</span> : null}</b>
+          {(poll.options || []).map((label, i) => {
+            const optionVotes = (poll.votes || {})[String(i)] || [];
+            const votes = optionVotes.length;
+            const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+            const voted = !poll.tally_mode && optionVotes.includes(voterId);
+            return (
+              <div key={i} className="pxb-sopt">
+                <button type="button" className="pxb-sopt-main" onClick={() => handleVote(i)} disabled={poll.is_closed} aria-pressed={voted}>
+                  <span className="pxb-opt-row"><span className={voted ? "pxb-voted" : ""}>{label}</span><span className="pxb-num">{votes}</span></span>
+                  <span className="pxb-bar"><span style={{ width: `${pct}%` }} /></span>
+                </button>
+                {poll.tally_mode && !poll.is_closed && (
+                  <button type="button" className="pxb-chip" onClick={(e) => handleDecrement(i, e)} disabled={votes === 0} aria-label={`Decrement ${label} count`}>-</button>
+                )}
+              </div>
+            );
+          })}
+          <div className="pxb-side-links">
+            <button type="button" className="pxb-link" onClick={handleOpen}>Open in Polls</button>
+            <button type="button" className="pxb-link" onClick={handleUnpin}>Unpin</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="bg-card px-4 py-3 rounded-2xl border border-border/50">

@@ -8,6 +8,8 @@ import SystemAvatar from "@/components/shared/SystemAvatar";
 import { alterNameColorVar } from "@/lib/useFrontPresence";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import SharedAlterAvatar from "@/components/shared/AlterAvatar";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -49,13 +51,50 @@ function AlterAvatar({ alter, size = "md" }) {
 // record). If empty, the post renders as "System" rather than falling
 // back to the current front — authors are fixed to whoever wrote the
 // post, never the live front state.
-export default function AuthorsRow({ authorIds = [], alters = [], timestamp, showNames = true }) {
+// `pixel`: the pixel board's byline — square marks (the avatar, else the
+// colour), the names together in each one's own colour, then the time.
+export default function AuthorsRow({ authorIds = [], alters = [], timestamp, showNames = true, pixel = false }) {
   const systemIdentity = useSystemIdentity();
+  const formatAlter = useAlterLabel();
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   // Group config: members of a group flagged "hide_from_authorship" are
   // dropped from the byline (if that leaves none, it renders as the system).
   const hidden = useMemo(() => getAlterIdsByGroupFlag(groups, alters, "hide_from_authorship"), [groups, alters]);
   const ids = authorIds.filter((id) => !hidden.has(id));
+  if (pixel) {
+    const shown = ids.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+    return (
+      <div className="pxb-by">
+        {shown.length === 0 ? (
+          <>
+            <SystemAvatar size="sm" className="pxb-mark" />
+            <b className="pxb-by-names">{systemIdentity.name}</b>
+          </>
+        ) : (
+          <>
+            <span className="pxb-marks">
+              {shown.slice(0, 5).map((a) => (
+                <Link key={a.id} to={`/alter/${a.id}`} title={formatAlter(a)} onClick={(e) => e.stopPropagation()}>
+                  <SharedAlterAvatar alter={a} size="w-[22px] h-[22px]" rounded="none" className="pxb-mark" />
+                </Link>
+              ))}
+              {shown.length > 5 && <span className="pxb-more">+{shown.length - 5}</span>}
+            </span>
+            <b className="pxb-by-names">
+              {shown.map((a, i) => (
+                <React.Fragment key={a.id}>
+                  {i > 0 && ", "}
+                  <span className="os-alter-name" style={nameColorVar(a)}>{formatAlter(a)}</span>
+                </React.Fragment>
+              ))}
+            </b>
+          </>
+        )}
+        {timestamp && <span className="pxb-when">{timestamp}</span>}
+      </div>
+    );
+  }
+
   if (ids.length === 0) {
     return (
       <div className="flex items-center gap-2">

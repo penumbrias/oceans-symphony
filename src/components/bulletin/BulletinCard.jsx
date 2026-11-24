@@ -12,12 +12,15 @@ import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { clockPattern } from "@/lib/timeFormat";
 import { sharedList } from "@/lib/sharedLists";
+import BulletinEditModal from "./BulletinEditModal";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
 const NO_IDS = [];
 
-function BulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = NO_IDS, canDelete, highlight, commentCount = 0 }) {
+// `pixel`: the pixel board's post (the Bulletins mockup) — the same card,
+// handlers and menus, laid out as a panel with text actions.
+function BulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = NO_IDS, canDelete, highlight, commentCount = 0, pixel = false }) {
   const terms = useTerms();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -231,6 +234,7 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
   const longPressFired = useRef(false);
   const pressStart = useRef({ x: 0, y: 0 });
   const [showActions, setShowActions] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const onPressStart = (e) => {
     longPressFired.current = false;
@@ -302,6 +306,132 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     () => renderBulletinContent(bulletin.content, alters, terms, { isRich: !!bulletin.is_rich }),
     [bulletin.content, bulletin.is_rich, alters, terms]
   );
+
+
+  if (pixel) {
+    const shownReactions = Object.entries(reactions).filter(([, ids]) => ids.length > 0);
+    const whenLabel = format(dateObj, clockPattern("MMM d · h:mm a"));
+    const stop = (e) => e.stopPropagation();
+    return (
+      <div className={`pxb-post${highlight ? " pxb-hl" : ""}`}
+        data-own-hold
+        onClick={handleClick}
+        onMouseDown={onPressStart} onMouseMove={onPressMove} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
+        onTouchStart={onPressStart} onTouchMove={onPressMove} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
+        style={{ touchAction: "pan-y" }}>
+        <div className="pxb-post-head">
+          <AuthorsRow authorIds={authorIds} alters={alters} timestamp={whenLabel} pixel />
+          <span className="pxb-grow" />
+          {bulletin.is_pinned && <span className="pxb-flag">pinned</span>}
+          <span className="pxb-acts" onClick={stop}>
+            <button type="button" onClick={handlePin} aria-label={bulletin.is_pinned ? "Unpin bulletin" : "Pin bulletin"}>{bulletin.is_pinned ? "unpin" : "pin"}</button>
+            <button type="button" onClick={() => setEditOpen(true)} aria-label="Edit bulletin">edit</button>
+            {canDelete && (
+              <button type="button" onClick={handleDelete} className={deleteArmed ? "pxb-danger" : ""}
+                aria-label={deleteArmed ? "Tap again to delete" : "Delete bulletin"} title={deleteArmed ? "Tap again to confirm" : "Delete"}>
+                {deleteArmed ? "confirm" : "del"}
+              </button>
+            )}
+            <button type="button" onClick={() => setShowActions(true)} aria-label="More actions" title="More">...</button>
+          </span>
+        </div>
+
+        <div
+          className="pxb-post-text bulletin-prose"
+          onClickCapture={(e) => {
+            const wh = e.target?.closest?.(".whisper");
+            if (wh && !wh.classList.contains("revealed")) { e.preventDefault(); e.stopPropagation(); wh.classList.add("revealed"); return; }
+            const sp = e.target?.closest?.(".spoiler");
+            if (sp && !sp.classList.contains("revealed")) { e.preventDefault(); e.stopPropagation(); sp.classList.add("revealed"); }
+          }}
+          onClick={stop}
+        >
+          {renderedContent}
+        </div>
+
+        {pollView && (
+          <div className="pxb-poll" onClick={(e) => { e.stopPropagation(); handlePollSectionClick(e); }}>
+            <div className="pxb-poll-q">
+              <b>{pollView.question}</b>{pollView.isClosed ? <span className="pxb-dim"> · closed</span> : null}
+              <span className="pxb-grow" />
+              {pollView.source === "linked" && (
+                <button type="button" className="pxb-link" onClick={(e) => { e.stopPropagation(); navigate(`/polls?id=${bulletin.poll_id}`); }}>open in Polls</button>
+              )}
+            </div>
+            {pollView.options.map((opt, i) => {
+              const votes = opt.voters.length;
+              const pct = totalVotes > 0 ? Math.round(votes / totalVotes * 100) : 0;
+              const voted = !pollView.tallyMode && opt.voters.includes(voterId);
+              return (
+                <button key={i} type="button" className="pxb-opt" onClick={() => handleVote(i)} disabled={pollView.isClosed} aria-pressed={voted}>
+                  <span className={`pxb-tick${voted ? " y" : ""}`} aria-hidden>{voted ? "x" : ""}</span>
+                  <span className="pxb-opt-main">
+                    <span className="pxb-opt-row"><span>{opt.label}</span><span className="pxb-num">{votes}</span></span>
+                    <span className="pxb-bar"><span style={{ width: `${pct}%` }} /></span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div ref={reactionRowRef} className="pxb-post-foot" onClick={stop}>
+          {shownReactions.map(([emoji, ids]) => {
+            const youReacted = ids.includes(voterId);
+            const reactors = ids.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+            return (
+              <div key={emoji} className="relative">
+                <button type="button" className={`pxb-chip${youReacted ? " on" : ""}`} onClick={() => setOpenReactionList((cur) => cur === emoji ? null : emoji)} title="Who reacted">
+                  {emoji} {ids.length}
+                </button>
+                {openReactionList === emoji && (
+                  <div className="pxb-pop">
+                    <div className="pxb-pop-head">
+                      <span>{emoji} · {ids.length}</span>
+                      <button type="button" className="pxb-chip" onClick={() => { setOpenReactionList(null); handleReact(emoji); }}>{youReacted ? "Remove yours" : "Add yours"}</button>
+                    </div>
+                    {reactors.length === 0 ? <p className="pxb-dim">No reactors yet.</p> : reactors.map((r) => (
+                      <Link key={r.id} to={`/alter/${r.id}`} onClick={() => setOpenReactionList(null)} className="pxb-pop-row">
+                        <span className="pxb-sq" style={{ background: r.color || "var(--px-text-2)" }} />
+                        <span>{r.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div className="relative">
+            <button type="button" className="pxb-chip" onClick={() => setShowReactPicker((p) => !p)} aria-label="React">+</button>
+            {showReactPicker && (
+              <div className="pxb-pop pxb-pop-emoji">
+                {REACTION_EMOJIS.map((e) => <button key={e} type="button" onClick={() => handleReact(e)}>{e}</button>)}
+              </div>
+            )}
+          </div>
+          <button type="button" className="pxb-comments" onClick={() => setShowComments((p) => !p)} aria-expanded={showComments}>
+            {commentCount > 0 ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}` : "no comments yet"}
+          </button>
+          <span className="pxb-grow" />
+          <button type="button" className="pxb-textbtn" onClick={() => setShowComments(true)}>reply</button>
+        </div>
+
+        {showComments && (
+          <div className="pxb-thread" onClick={stop}>
+            <BulletinCommentThread comments={comments} bulletinId={bulletin.id} alters={alters} currentAlterId={currentAlterId}
+              frontingAlterIds={frontingAlterIds} onRefresh={refetchComments} maxDepth={2} isFullPage={false} />
+          </div>
+        )}
+        {showActions && (
+          <BulletinActionMenu bulletin={bulletin} alters={alters} open={showActions}
+            onClose={() => setShowActions(false)} onOpen={() => navigate(`/bulletin/${bulletin.id}`)} />
+        )}
+        {editOpen && (
+          <BulletinEditModal bulletin={bulletin} alters={alters} open={editOpen} onClose={() => setEditOpen(false)} />
+        )}
+      </div>
+    );
+  }
 
   return (
     // data-own-hold: this card runs its own long-press (the action menu), so
@@ -536,5 +666,6 @@ export default React.memo(BulletinCard, (prev, next) =>
   prev.canDelete === next.canDelete &&
   prev.highlight === next.highlight &&
   prev.commentCount === next.commentCount &&
+  prev.pixel === next.pixel &&
   sameIds(prev.frontingAlterIds, next.frontingAlterIds)
 );

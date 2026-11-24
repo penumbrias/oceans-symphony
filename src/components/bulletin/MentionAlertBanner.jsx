@@ -3,9 +3,16 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { stripHtml } from "@/lib/globalSearch";
+import { alterNameColorVar } from "@/lib/useFrontPresence";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 
-export default function MentionAlertBanner({ bulletins, currentAlterId, alters, onJumpToBulletin }) {
+// `pixel`: the pixel board's "Mentions for who's in front" side panel — a
+// row per unread mention (tap to jump), and Seen to mark them read. Shows
+// "Nothing new" instead of disappearing, so the panel keeps its place.
+export default function MentionAlertBanner({ bulletins, currentAlterId, alters, onJumpToBulletin, pixel = false }) {
   const qc = useQueryClient();
+  const formatAlter = useAlterLabel();
 
   const unread = bulletins.filter(
     (b) =>
@@ -13,7 +20,7 @@ export default function MentionAlertBanner({ bulletins, currentAlterId, alters, 
       !b.read_by_alter_ids?.includes(currentAlterId)
   );
 
-  if (unread.length === 0) return null;
+  if (unread.length === 0 && !pixel) return null;
 
   const markRead = async () => {
     for (const b of unread) {
@@ -39,6 +46,35 @@ export default function MentionAlertBanner({ bulletins, currentAlterId, alters, 
     onJumpToBulletin?.(target.id);
     markRead();
   };
+
+  if (pixel) {
+    const byId = (id) => alters.find((a) => a.id === id);
+    const me = byId(currentAlterId);
+    return (
+      <section className="pxb-panel pxb-side-sec">
+        <div className="pxb-ttl pxb-ttl-hot"><span>Mentions for who's in front</span><span className="pxb-num">{unread.length}</span></div>
+        <div className="pxb-side-body">
+          {!currentAlterId || unread.length === 0 ? (
+            <p className="pxb-dim">Nothing new.</p>
+          ) : (
+            <>
+              {unread.slice(0, 6).map((b) => {
+                const author = byId(b.author_alter_ids?.[0] || b.author_alter_id);
+                const text = stripHtml(b.content || "").slice(0, 60);
+                return (
+                  <button key={b.id} type="button" className="pxb-mention" onClick={() => onJumpToBulletin?.(b.id)}>
+                    {author ? <span className="os-alter-name" style={alterNameColorVar(author)}>{formatAlter(author)}</span> : "Someone"} mentioned{" "}
+                    {me ? <span className="os-alter-name" style={alterNameColorVar(me)}>{formatAlter(me)}</span> : "you"}: <span className="pxb-dim">{text}</span>
+                  </button>
+                );
+              })}
+              <div><button type="button" className="pxb-btn" onClick={markRead}>Seen</button></div>
+            </>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   const fronterName = alters.find((a) => a.id === currentAlterId)?.name || "You";
 
