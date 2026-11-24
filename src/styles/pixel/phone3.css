@@ -232,7 +232,7 @@ html[data-ui-look="pixel"] .os-ewp > :is(.os-ewp-guided, .os-ewp-classic) { orde
 html[data-ui-look="pixel"] .os-ewp > .os-ewp-search { order: 4; }
 html[data-ui-look="pixel"] .os-ewp > .os-ewp-results { order: 5; }
 html[data-ui-look="pixel"] .os-ewp > .os-ewp-add { order: 6; border-top: 0; padding-top: 0; }
-html[data-ui-look="pixel"] .os-ewp > .os-ewp-color { order: 7; }
+html[data-ui-look="pixel"] .os-ewp > .os-ewp-add + div { order: 7; }
 html[data-ui-look="pixel"] .os-ewp-search input { height: 34px; border-radius: 0 !important; }
 html[data-ui-look="pixel"] .os-ewp :is(.os-ewp-pill, .os-ewp-chip, .os-ewp-root, .os-ewp-core) {
   border-radius: 0 !important; border: 0 !important;

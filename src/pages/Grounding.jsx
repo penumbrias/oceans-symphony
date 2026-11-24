@@ -615,7 +615,7 @@ export default function Grounding({ initialPath = null }) {
     const tiles = [
       ...favorites.slice(0, 4).map((t) => ({ key: t.id, name: t.name, sub: CATEGORY_LABELS[resolveCategory(t.category)] || "favourite", onClick: () => handleOpenTechnique(t) })),
       { key: "breathe", tour: "grounding-breathing", name: "Breathe", sub: "guided breathing", onClick: () => setPath("breathing-picker") },
-      { key: "check", tour: "grounding-state-check", name: "Help me figure out what I need", sub: "a few questions, then ideas", onClick: () => setPath("state-check") },
+      { key: "check", tour: "grounding-state-check", name: "What do I need?", sub: "a few questions, then ideas", onClick: () => setPath("state-check") },
       { key: "sound", tour: "grounding-soundscape", name: "Soundscape", sub: "nature sounds, tones, visuals", onClick: () => setPath("soundscape") },
       { key: "all", tour: "grounding-browse", name: "Browse all", sub: `${visibleTechniques.length} techniques`, onClick: () => setPath("all") },
     ];

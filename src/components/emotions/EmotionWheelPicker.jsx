@@ -597,7 +597,7 @@ export default function EmotionWheelPicker({
         </div>
       )}
       {!search && customInput.trim() && (
-        <div className="os-ewp-color flex items-center gap-2 text-[0.6875rem] text-muted-foreground">
+        <div className="flex items-center gap-2 text-[0.6875rem] text-muted-foreground">
           <span>Colour (optional):</span>
           <EmotionColorField value={customColor} onChange={setCustomColor} compact />
         </div>
