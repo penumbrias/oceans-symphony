@@ -1,9 +1,12 @@
 import React, { useRef, useState, useEffect } from "react";
 
 import { pictureStyle } from "@/lib/imageFraming";
+import { useUiLook } from "@/lib/uiLook";
 const MIN_SIZE = 80;
 
 export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1 }) {
+  // Pixel look: square boxes with a title bar, like the mockup's places.
+  const pixel = useUiLook() === "pixel";
   const [dragging, setDragging] = useState(false);
   const [pressingId, setPressingId] = useState(false);
   const dragStart = useRef(null);
@@ -198,8 +201,9 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const fill = color + "26"; // 15% opacity
   const borderColor = color;
   const isOval = shape === "oval";
-  const rx = isOval ? width / 2 : 8;
-  const ry = isOval ? height / 2 : 8;
+  const rx = isOval ? width / 2 : pixel ? 0 : 8;
+  const ry = isOval ? height / 2 : pixel ? 0 : 8;
+  const titleBar = pixel && !isOval;
 
   return (
     <g opacity={opacity} transform={rotation ? `rotate(${rotation} ${x + width / 2} ${y + height / 2})` : undefined}
@@ -224,7 +228,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
           through to the fill rect below; clipped to the box shape. */}
       {resolvedBgUrl && (
         <foreignObject x={x} y={y} width={width} height={height} style={{ pointerEvents: "none" }}>
-          <div style={{ width: "100%", height: "100%", borderRadius: isOval ? "50%" : 8, overflow: "hidden" }}>
+          <div style={{ width: "100%", height: "100%", borderRadius: isOval ? "50%" : pixel ? 0 : 8, overflow: "hidden" }}>
             <img src={resolvedBgUrl} alt="" draggable={false}
               style={{ width: "100%", height: "100%", opacity: background_opacity ?? 0.7, display: "block", ...pictureStyle(location, background_image_url) }} />
           </div>
@@ -237,10 +241,15 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         rx={rx} ry={ry}
         fill="none"
         stroke={borderColor}
-        strokeWidth={isSelected ? 2.5 : 1.5}
+        strokeWidth={isSelected ? 2.5 : pixel ? 2 : 1.5}
         strokeDasharray={isSelected ? "6,3" : "none"}
         pointerEvents="none"
       />
+
+      {/* Pixel title bar behind the name */}
+      {titleBar && (
+        <rect x={x} y={y} width={width} height={Math.min(26, height)} fill={color + "59"} pointerEvents="none" />
+      )}
 
       {/* Name label */}
       <text

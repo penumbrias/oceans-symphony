@@ -99,17 +99,19 @@ export default function SystemMapPage() {
       {/* Inner World: canvas vs accessible list toggle */}
       {tab === "inner" && (
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit" role="group" aria-label="Inner world view">
+          <div className="os-tabs flex gap-1 bg-muted/40 rounded-xl p-1 w-fit" role="group" aria-label="Inner world view">
             <button
               onClick={() => setInnerView("canvas")}
               aria-pressed={innerView === "canvas"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "canvas" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              data-state={innerView === "canvas" ? "active" : "inactive"}
+              className={`os-tabs-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "canvas" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <LayoutGrid className="w-3.5 h-3.5" /> Canvas
             </button>
             <button
               onClick={() => setInnerView("list")}
               aria-pressed={innerView === "list"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "list" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              data-state={innerView === "list" ? "active" : "inactive"}
+              className={`os-tabs-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "list" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <List className="w-3.5 h-3.5" /> List
             </button>
           </div>

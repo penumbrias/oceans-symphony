@@ -708,3 +708,10 @@ html[data-px-front="bottom"][data-px-status="1"] { --px-below-dock: calc(24px + 
 .px-ws-cal { padding: 8px; font-size: 12px; }
 .px-ws-cal button { border-radius: 0 !important; }
 .px-ws-head { margin: 8px 6px 2px; font-family: var(--px-font); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--px-text-2); }
+
+/* System map: the maps strip reads as folder tabs with a "Maps" label. */
+html[data-ui-look="pixel"] .px-maps { align-items: flex-end; gap: 4px; padding: 4px 6px 0; margin-bottom: 8px; background: var(--px-sunk); box-shadow: inset 0 -2px 0 var(--px-line); }
+html[data-ui-look="pixel"] .px-maps-label { display: inline; font-family: var(--px-font); color: var(--px-text-2); font-size: 13px; padding: 0 6px 6px 0; }
+html[data-ui-look="pixel"] .px-maps > button { border-radius: 0 !important; border: 0 !important; outline: 2px solid var(--px-line); background: var(--px-tab); color: var(--px-text-2); font-family: var(--px-font); }
+html[data-ui-look="pixel"] .px-maps > .px-maps-tab[aria-pressed="true"] { background: var(--px-panel); color: var(--px-text); box-shadow: inset 2px 2px 0 var(--px-hi); padding-bottom: 6px; }
+html[data-ui-look="pixel"] .os-tabs-tab[aria-pressed="true"] { background: var(--px-panel); color: var(--px-text); }

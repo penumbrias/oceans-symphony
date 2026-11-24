@@ -638,10 +638,12 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   return (
     <div className={fullscreen ? "fixed inset-0 z-[100] bg-background p-2 flex flex-col" : "relative w-full h-full flex flex-col"} style={{ touchAction: "none" }}>
       {/* Maps bar */}
-      {!embedded && <div className="flex items-center gap-1 flex-wrap pb-2">
+      {!embedded && <div className="px-maps flex items-center gap-1 flex-wrap pb-2" role="group" aria-label="Maps">
+        <span className="px-maps-label hidden">Maps</span>
         {maps.map((m) => (
           <button key={m.id} onClick={() => { setActiveMapId(m.id); setSoloLayerId(null); }}
-            className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${m.id === activeMapId ? "bg-primary/15 border-primary/50 text-primary" : "border-border/50 bg-card text-muted-foreground hover:bg-muted/40"}`}>
+            aria-pressed={m.id === activeMapId}
+            className={`px-maps-tab px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${m.id === activeMapId ? "bg-primary/15 border-primary/50 text-primary" : "border-border/50 bg-card text-muted-foreground hover:bg-muted/40"}`}>
             {m.name}
           </button>
         ))}
