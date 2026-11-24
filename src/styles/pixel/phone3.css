@@ -1,0 +1,113 @@
+/* Pixel look — Support (/grounding), Medications and the Quick check-in,
+   drawn as their mockups (SupportPhone, MedsPhone, CheckInPhone,
+   CheckInWhoPhone). Every rule is scoped to the pixel look. */
+
+/* ── Shared pieces: panel, title bar, button ───────────────────────── */
+html[data-ui-look="pixel"] :is(.px-sup-pn, .px-p3-pn) {
+  background: var(--px-panel);
+  box-shadow: var(--px-bevel);
+  outline: 2px solid var(--px-line);
+  color: var(--px-text);
+}
+html[data-ui-look="pixel"] :is(.px-sup-ttl, .px-p3-ttl) {
+  font-family: var(--px-font);
+  font-size: 13px;
+  color: var(--px-text);
+  background: var(--px-bar);
+  min-height: 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 0 10px;
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] :is(.px-sup-mut, .px-p3-mut) { color: var(--px-text-2); }
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn) {
+  font-family: var(--px-font);
+  font-size: 14px;
+  color: var(--px-text);
+  background: var(--px-bar);
+  border: 0;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  outline: 2px solid var(--px-line);
+  min-height: 44px;
+  padding: 0 12px;
+}
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn):active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn):focus-visible { outline: 3px solid var(--color-primary); }
+html[data-ui-look="pixel"] :is(.px-sup-btn, .px-p3-btn).on {
+  background: var(--color-primary);
+  color: var(--px-sunk);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--color-primary) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--color-primary) 60%, #000);
+}
+
+/* ── Support ───────────────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .px-sup {
+  padding: 12px 12px 0;
+  max-width: 1180px;
+  margin: 0 auto;
+  font-size: 15px;
+  min-height: 100%;
+  display: flex; flex-direction: column;
+}
+html[data-ui-look="pixel"] .px-sup .os-page-strip { margin-bottom: 12px; }
+html[data-ui-look="pixel"] .px-sup-grid { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+@media (min-width: 1024px) {
+  html[data-ui-look="pixel"] .px-sup-grid {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start;
+  }
+  html[data-ui-look="pixel"] .px-sup-grid > .px-sup-help,
+  html[data-ui-look="pixel"] .px-sup-grid > .px-sup-disc { grid-column: 1 / -1; }
+}
+html[data-ui-look="pixel"] .px-sup-help {
+  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  outline-color: #e3897c;
+}
+html[data-ui-look="pixel"] .px-sup-h { font-family: var(--px-font); font-size: 16px; font-weight: 400; margin: 0; }
+html[data-ui-look="pixel"] .px-sup-help > .px-sup-mut { line-height: 1.4; margin: 0; }
+html[data-ui-look="pixel"] .px-sup-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html[data-ui-look="pixel"] .px-sup-help > div:has(> p) { border-radius: 0 !important; }
+html[data-ui-look="pixel"] .px-sup-emerg {
+  border-radius: 0 !important; border: 0 !important;
+  background: var(--px-sunk) !important; box-shadow: var(--px-sunken); margin-top: 2px;
+}
+html[data-ui-look="pixel"] .px-sup-tiles {
+  padding: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+}
+html[data-ui-look="pixel"] .px-sup-tile {
+  min-height: 64px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  gap: 2px; text-align: left; padding: 6px 12px;
+}
+html[data-ui-look="pixel"] .px-sup-tile-name { line-height: 1.2; }
+html[data-ui-look="pixel"] .px-sup-tile-sub { font-family: var(--font-sans); font-size: 12px; color: var(--px-text-2); line-height: 1.25; }
+html[data-ui-look="pixel"] .px-sup-ring { padding: 0 10px 12px; }
+html[data-ui-look="pixel"] .px-sup-ring .os-qs-ring { padding-top: 6px; }
+html[data-ui-look="pixel"] .px-sup-ring .os-qs-ring > div:first-child { width: 88px; height: 88px; }
+html[data-ui-look="pixel"] .px-sup-rows { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+html[data-ui-look="pixel"] .px-sup-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  text-align: left; min-height: 32px; color: var(--px-text);
+}
+html[data-ui-look="pixel"] .px-sup-row:hover .px-sup-row-name { text-decoration: underline; }
+html[data-ui-look="pixel"] .px-sup-row-name { min-width: 0; }
+html[data-ui-look="pixel"] .px-sup-state { font-family: var(--px-font); flex-shrink: 0; color: var(--px-text-2); }
+html[data-ui-look="pixel"] .px-sup-state-done { color: var(--color-success, #9cc46b); }
+html[data-ui-look="pixel"] .px-sup-state-in-progress { color: var(--color-warning, #f2c08a); }
+html[data-ui-look="pixel"] .px-sup-open { align-self: flex-start; margin-top: 4px; min-height: 36px; font-size: 13px; }
+/* The not-medical-advice fold: a plain panel like the mockup's. */
+html[data-ui-look="pixel"] details.px-sup-disc {
+  background: var(--px-panel); border: 0 !important; border-radius: 0 !important;
+  box-shadow: var(--px-bevel); outline: 2px solid var(--px-line);
+}
+html[data-ui-look="pixel"] details.px-sup-disc > summary { font-family: var(--px-font); font-size: 13px; color: var(--px-text); }
+/* What's playing: the bar along the bottom. */
+html[data-ui-look="pixel"] .px-sup-player { position: sticky; bottom: 0; margin: 12px -12px 0; z-index: 5; }
+html[data-ui-look="pixel"] .px-sup-player .os-sound-mini { max-width: none; padding: 0; }
+html[data-ui-look="pixel"] .px-sup-player .os-sound-mini-bar {
+  border: 0; border-radius: 0 !important; background: var(--px-panel);
+  box-shadow: var(--px-bevel); outline: 2px solid var(--px-line);
+  padding: 6px 8px 6px 12px; min-height: 52px; font-size: 14px;
+}
+html[data-ui-look="pixel"] .os-sound-mini-bar button[aria-label] {
+  border-radius: 0 !important; min-width: 40px; min-height: 40px; display: flex; align-items: center; justify-content: center;
+  background: var(--px-bar); outline: 2px solid var(--px-line); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+  margin-left: 6px; color: var(--px-text);
+}
