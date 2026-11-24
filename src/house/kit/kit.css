@@ -23,7 +23,9 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
   position: relative;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--house-space-2);
   min-height: var(--house-h-control); min-width: var(--house-target);
-  padding: var(--house-space-2) var(--house-space-4);
+  /* Side padding gives way in a narrow container (a phone at large text)
+     so the words keep the room, never under 12 px. */
+  padding: var(--house-space-2) min(var(--house-space-4), max(12px, 4cqi));
   font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 600;
   text-align: center; overflow-wrap: break-word;
   border: var(--house-border-w) solid var(--house-border);
@@ -53,6 +55,7 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 [data-house] .hk-btn[aria-disabled="true"] { cursor: not-allowed; border-style: dashed; border-color: var(--house-border); background: transparent; color: var(--house-muted); box-shadow: none; }
 [data-house] .hk-btn[aria-busy="true"] { cursor: progress; }
 [data-house] .hk-btn-wrap { display: inline-flex; flex-direction: column; align-items: flex-start; gap: var(--house-space-1); max-width: 100%; }
+[data-house] .hk-btn { max-width: 100%; }
 [data-house] .hk-btn-wrap--block { display: flex; align-items: stretch; }
 [data-house] .hk-reason { display: flex; gap: var(--house-space-1); align-items: flex-start; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); }
 
@@ -65,6 +68,10 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 
 /* ── Fields ──────────────────────────────────────────────────────── */
 [data-house] .hk-field { display: flex; flex-direction: column; gap: var(--house-space-1); min-width: 0; }
+/* Value fields (number, date, time, duration) are size containers, so a
+   narrow one stacks its parts (below). Only these: a container has no
+   width of its own, so a field sitting in a row would collapse to nothing. */
+[data-house] .hk-field--sized { container-type: inline-size; width: 100%; }
 [data-house] .hk-field-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--house-space-1) var(--house-space-3); }
 [data-house] .hk-label { font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 600; color: var(--house-text); }
 [data-house] .hk-hint { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); margin: 0; }
@@ -84,9 +91,15 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 [data-house] .hk-input::placeholder { color: var(--house-muted); opacity: 1; }
 [data-house] .hk-inputwrap { display: flex; align-items: stretch; padding: 0; }
 [data-house] .hk-inputwrap .hk-bare {
-  flex: 1 1 auto; width: 0; min-width: 3ch; border: 0; background: transparent; color: inherit; font: inherit;
+  /* At least as wide as the words in it (--hk-chars, set by the field), so
+     a value is never cut ("1 h 30 min" shows whole); never wider than the box. */
+  flex: 1 1 auto; width: 0; min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + var(--house-space-3) * 2));
+  border: 0; background: transparent; color: inherit; font: inherit;
   padding: var(--house-space-2) var(--house-space-3); border-radius: var(--house-corner-sm);
 }
+/* The value and its unit, kept together (number and duration). */
+[data-house] .hk-stepval { flex: 1 1 auto; display: flex; align-items: stretch; min-width: 0; }
+[data-house] .hk-stepval > .hk-bare { min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + var(--house-space-3) * 2)); }
 [data-house] .hk-inputwrap .hk-bare::placeholder { color: var(--house-muted); opacity: 1; }
 [data-house] .hk-inputwrap .hk-bare:focus-visible { outline: none; }
 [data-house] .hk-inputwrap:focus-within { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }
@@ -107,6 +120,21 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 [data-house] .hk-input:disabled,
 [data-house] .hk-inputwrap[data-disabled="true"] { border-style: dashed; color: var(--house-muted); cursor: not-allowed; box-shadow: none; }
 [data-house] .hk-unit { display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap; padding-right: var(--house-space-3); color: var(--house-muted); font-size: var(--house-text-sm); }
+/* Narrow (a phone at large text): the parts of a field stack instead of
+   squeezing the value. − value + becomes the value on its own line with −
+   and + under it; a date or time box puts its calendar/list button under
+   the words. The thresholds are rem, so they grow with text size. */
+@container (max-width: 18rem) {
+  [data-house] .hk-inputwrap--stepper { flex-wrap: wrap; }
+  [data-house] .hk-inputwrap--stepper > .hk-stepval { order: -1; flex: 1 0 100%; border-bottom: var(--house-border-w) solid var(--house-divider); }
+  [data-house] .hk-inputwrap--stepper > .hk-btn { flex: 1 1 0; width: auto; }
+  [data-house] .hk-inputwrap--stepper > .hk-btn:first-child { border-left: 0; border-bottom-left-radius: var(--house-corner-sm); }
+}
+@container (max-width: 16rem) {
+  [data-house] .hk-inputwrap--picker { flex-wrap: wrap; }
+  [data-house] .hk-inputwrap--picker > .hk-bare { flex: 1 0 100%; }
+  [data-house] .hk-inputwrap--picker > .hk-btn { flex: 1 1 100%; width: auto; border-left: 0; border-top: var(--house-border-w) solid var(--house-divider); border-radius: 0 0 var(--house-corner-sm) var(--house-corner-sm); }
+}
 /* The words a typed date, time or duration was read as. */
 [data-house] .hk-readback { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); margin: 0; }
 
@@ -127,6 +155,7 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 /* The save-state slot under a field: saving / saved / failed. */
 [data-house] .hk-save { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1) var(--house-space-2); min-height: 1.5rem; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); }
 [data-house] .hk-save[data-state="failed"] { color: var(--house-danger-text); font-weight: 600; }
+[data-house] .hk-save > span { flex: 1 1 8rem; min-width: 0; }
 [data-house] .hk-save:empty { min-height: 0; }
 
 /* ── The form row: label · value · edit (editing a record looks like its Info) ── */
@@ -137,13 +166,18 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
   border-bottom: var(--house-border-w) solid var(--house-divider);
 }
 [data-house] .hk-formrow-label { font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 600; color: var(--house-muted); }
-[data-house] .hk-formrow-value { min-width: 0; overflow-wrap: anywhere; }
+[data-house] .hk-formrow-value { min-width: 0; overflow-wrap: break-word; }
 [data-house] .hk-formrow-value[data-empty="true"] { color: var(--house-muted); font-style: italic; }
 [data-house] .hk-formrow[data-editing="true"] { grid-template-columns: minmax(0, 1fr); padding: var(--house-space-3) 0; }
 [data-house] .hk-formrow-actions { display: flex; flex-wrap: wrap; gap: var(--house-space-2); justify-content: flex-end; }
 @container (max-width: 30rem) {
   [data-house] .hk-formrow { grid-template-columns: minmax(0, 1fr) auto; }
   [data-house] .hk-formrow-label { grid-column: 1 / -1; }
+}
+/* Narrower still: label, value and Edit each on their own line. */
+@container (max-width: 18rem) {
+  [data-house] .hk-formrow { grid-template-columns: minmax(0, 1fr); }
+  [data-house] .hk-formrow > :last-child:not(.hk-formrow-actions) { justify-self: start; }
 }
 [data-house] .hk-form { container-type: inline-size; display: flex; flex-direction: column; }
 
@@ -181,7 +215,7 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 }
 [data-house] .hk-check:active .hk-check-box,
 [data-house] .hk-radio:active .hk-radio-dot { transform: scale(0.92); }
-[data-house] .hk-check-text { display: flex; flex-direction: column; min-width: 0; line-height: var(--house-lh-md); overflow-wrap: anywhere; }
+[data-house] .hk-check-text { display: flex; flex-direction: column; min-width: 0; line-height: var(--house-lh-md); overflow-wrap: break-word; }
 [data-house] .hk-check[data-disabled="true"],
 [data-house] .hk-radio[data-disabled="true"] { cursor: not-allowed; color: var(--house-muted); }
 [data-house] .hk-check[data-disabled="true"] .hk-check-box,
@@ -192,12 +226,14 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 
 /* ── Switch: a track, a thumb and the word On / Off ──────────────── */
 [data-house] .hk-switch {
-  display: flex; align-items: center; gap: var(--house-space-3); width: 100%;
+  /* Wraps when narrow: the words take the first line, the track and
+     On / Off go under them (never words a letter wide beside the track). */
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1) var(--house-space-3); width: 100%;
   min-height: var(--house-target); padding: var(--house-space-1) 0;
   background: transparent; border: 0; color: var(--house-text); text-align: left; cursor: pointer;
   font: inherit;
 }
-[data-house] .hk-switch-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow-wrap: anywhere; }
+[data-house] .hk-switch-text { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; overflow-wrap: break-word; }
 [data-house] .hk-switch-track {
   position: relative; flex-shrink: 0; width: 2.75rem; height: 1.5rem; border-radius: 999px;
   background: var(--house-sunken); border: 2px solid var(--house-border);
@@ -229,7 +265,8 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 [data-house][data-house-look="pixel"] .hk-seg { border-color: var(--house-outline); }
 [data-house] .hk-seg-opt:first-child { border-left: 0; }
 [data-house] .hk-seg-opt {
-  flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--house-space-1);
+  /* Never narrower than its words: options wrap to a new line instead. */
+  flex: 1 0 auto; max-width: 100%; overflow-wrap: break-word; display: inline-flex; align-items: center; justify-content: center; gap: var(--house-space-1);
   min-height: var(--house-target); min-width: var(--house-target); padding: 0 var(--house-space-3);
   border: 0; border-left: var(--house-border-w) solid var(--house-divider); border-radius: 0; background: transparent; color: var(--house-text);
   font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); cursor: pointer;
@@ -295,7 +332,7 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 @media (hover: hover) { [data-house] .hk-menuitem:hover, [data-house] .hk-option:hover { box-shadow: inset 0 0 0 1px var(--house-border); } }
 [data-house] .hk-menuitem--danger { color: var(--house-danger-text); font-weight: 600; }
 [data-house] .hk-menuitem[aria-disabled="true"] { color: var(--house-muted); cursor: not-allowed; }
-[data-house] .hk-menuitem-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+[data-house] .hk-menuitem-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; overflow-wrap: break-word; }
 [data-house] .hk-menusep { height: 0; margin: var(--house-space-1) var(--house-space-2); border-top: var(--house-border-w) solid var(--house-divider); }
 [data-house] .hk-option { white-space: nowrap; }
 [data-house] .hk-option[aria-selected="true"] { font-weight: 700; }

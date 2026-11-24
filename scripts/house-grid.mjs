@@ -16,6 +16,12 @@
 //        [--sizes 390,820,1280] [--texts 100,200] [--paints dark,light,hc]
 //        [--looks smooth,pixel] [--no-axe] [--name panels] [--title 'Panels, content and sheets']
 //        [--popups]   also shoot each [data-story="popups"] picker opened (390 px)
+//        --paints pxlabel  (pixel look only) dark with the labels really in Pixelify Sans
+//
+// Every width is also saved at 1:1 in <out>/1x/. The run exits 1 on any
+// sideways scroll, text under 12 px, target under 44 px, squeezed text
+// (words a letter or two wide), clipped value (a typed box too narrow for
+// its words) or serious axe finding.
 //
 // Example data only. A fresh, empty browser profile gets past the welcome
 // screen with "Not now" (no backup, no import) and turns Preview Mode on by
@@ -61,6 +67,8 @@ const POPUPS = args.includes('--popups');
 const SHOT_DIR = path.join('/tmp', 'house-grid-shots');
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(SHOT_DIR, { recursive: true });
+const ONE_DIR = path.join(OUT, '1x');
+fs.mkdirSync(ONE_DIR, { recursive: true });
 
 const TEXT_CLASS = { 100: null, 112: 'a11y-text-lg', 125: 'a11y-text-xl', 150: 'a11y-text-xl3', 175: 'a11y-text-xl4', 200: 'a11y-text-xl5' };
 
@@ -134,6 +142,22 @@ async function setPaint(page, { paint, text, look }) {
   await page.evaluate(({ paint, textClass, wallpaper }) => {
     const html = document.documentElement;
     try { localStorage.setItem('symphony_themeMode', paint === 'light' ? 'light' : 'dark'); } catch { /* */ }
+    // "pxlabel": the dark paint with the example system's easy-read font
+    // set aside for this throwaway profile, so the pixel look's labels are
+    // really drawn in Pixelify Sans (rule R2 otherwise gives them the body
+    // font). Put back for every other paint.
+    const FONT_KEYS = ['symphony_a11y_fontFamily', 'symphony_a11y_headingFont', 'symphony_a11y_fontBeforeEasyRead'];
+    try {
+      if (paint === 'pxlabel') {
+        if (!window.__gridFontSaved) window.__gridFontSaved = Object.fromEntries(FONT_KEYS.map((k) => [k, localStorage.getItem(k)]));
+        localStorage.setItem('symphony_a11y_fontFamily', 'inter');
+        localStorage.removeItem('symphony_a11y_headingFont');
+        localStorage.removeItem('symphony_a11y_fontBeforeEasyRead');
+      } else if (window.__gridFontSaved) {
+        for (const [k, v] of Object.entries(window.__gridFontSaved)) { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); }
+        window.__gridFontSaved = null;
+      }
+    } catch { /* */ }
     html.classList.toggle('dark', paint !== 'light');
     html.classList.toggle('a11y-high-contrast', paint === 'hc');
     for (const c of [...html.classList]) if (/^a11y-text-/.test(c)) html.classList.remove(c);
@@ -199,9 +223,64 @@ async function measure(page) {
       const floor = 12 * (capped ? Math.min(scale, 1.3) : scale);
       if (fs < floor - 0.5) { belowFloor += 1; if (floorSamples.length < 5) floorSamples.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} ${fs}px "${el.textContent.trim().slice(0, 20)}"`); }
     }
+    const label = (el) => `${el.tagName.toLowerCase()}.${String(el.className?.baseVal ?? el.className).split(' ').slice(0, 2).join('.')}`;
+    // Squeezed text (kit gate item 2): a box holding its own words, one of
+    // them 4+ letters long, drawn narrower than ~2 characters. That is text
+    // stacked a letter or two per line beside things that wouldn't give way.
+    let squeezed = 0; const squeezeSamples = [];
+    for (const el of root.querySelectorAll('*')) {
+      if (el.closest('.hk-sr, [aria-hidden="true"] svg') || el.matches('svg, svg *:not(text)')) continue;
+      const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ').trim();
+      if (!/\p{L}{4,}/u.test(own)) continue;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      const r = el.getBoundingClientRect();
+      if (!r.height && !r.width) continue;
+      const fsz = parseFloat(cs.fontSize);
+      // Two signs: the box is under ~2 characters wide and its words take
+      // more than one line, or any word of 4+ letters is broken across
+      // lines ("Showe / r"). A short word that fits ("Title") is fine.
+      const tops = new Set();
+      let broken = null;
+      for (const n of el.childNodes) {
+        if (n.nodeType !== 3 || !n.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        for (const rr of range.getClientRects()) if (rr.width > 0) tops.add(Math.round(rr.top));
+        if (broken) continue;
+        for (const mt of n.textContent.matchAll(/[\p{L}\p{N}'’-]{4,}/gu)) {
+          const wr = document.createRange();
+          wr.setStart(n, mt.index); wr.setEnd(n, mt.index + mt[0].length);
+          const wt = new Set([...wr.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top)));
+          // A hyphenated compound may break at its hyphen.
+          if (wt.size > 1 && mt[0].split('-').some((part) => {
+            if (part.length < 2) return false;
+            const at = mt.index + mt[0].indexOf(part);
+            const pr = document.createRange(); pr.setStart(n, at); pr.setEnd(n, at + part.length);
+            return new Set([...pr.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1;
+          })) { broken = mt[0]; break; }
+        }
+      }
+      if (broken || (r.width < 2.2 * fsz && (tops.size > 1 || r.width < 1))) {
+        squeezed += 1;
+        if (squeezeSamples.length < 12) squeezeSamples.push(`${el.parentElement ? `${label(el.parentElement)} > ` : ""}${label(el)} ${Math.round(r.width)}px wide at ${fsz}px "${own.slice(0, 24)}"${broken ? ` (breaks "${broken}")` : ''}`);
+      }
+    }
+    // Clipped values: a value box (number, date, time, duration: the kit's
+    // .hk-bare inputs) whose words don't fit inside it. Free-text boxes
+    // scroll their words by design and aren't counted.
+    let clipped = 0; const clipSamples = [];
+    for (const el of root.querySelectorAll('input.hk-bare')) {
+      if (!el.getBoundingClientRect().width || !el.value) continue;
+      if (el.scrollWidth > el.clientWidth + 1) {
+        clipped += 1;
+        if (clipSamples.length < 12) clipSamples.push(`${label(el)} "${el.value.slice(0, 20)}" needs ${el.scrollWidth}px, has ${el.clientWidth}px`);
+      }
+    }
     let smallTargets = 0; const targetSamples = [];
-    // A typed field inside a kit field box is measured by its box.
-    for (const el of root.querySelectorAll('button, a[href], [role="switch"], [role="radio"], [role="menuitem"], [role="option"], label.hk-check, label.hk-radio, .hk-inputwrap, input:not([type="checkbox"]):not([type="radio"]):not(.hk-bare)')) {
+    // A typed field inside a kit field box is measured by its box. Pointer
+    // targets that aren't buttons count too (the tree's fold target).
+    for (const el of root.querySelectorAll('button, a[href], [role="switch"], [role="radio"], [role="menuitem"], [role="option"], label.hk-check, label.hk-radio, .hk-inputwrap, input:not([type="checkbox"]):not([type="radio"]):not(.hk-bare), .hk-tree-toggle[data-fold]')) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) continue;
       if (el.closest('.hk-check, .hk-radio') && el.matches('input')) continue;
@@ -211,7 +290,7 @@ async function measure(page) {
         if (targetSamples.length < 6) targetSamples.push(`${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[${el.getAttribute('role')}]` : ''}.${String(el.className).split(' ').slice(0, 2).join('.')} ${Math.round(r.width)}×${Math.round(r.height)} "${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24)}"`);
       }
     }
-    return { sideways, wideSamples, rootPx, belowFloor, floorSamples, smallTargets, targetSamples, title: document.title };
+    return { sideways, wideSamples, rootPx, belowFloor, floorSamples, smallTargets, targetSamples, squeezed, squeezeSamples, clipped, clipSamples, labelFont: root.getAttribute('data-house-label'), title: document.title };
   });
 }
 
@@ -267,6 +346,7 @@ try {
     const shownLook = await page.evaluate(() => document.querySelector('[data-house]')?.getAttribute('data-house-look'));
     if (shownLook !== look) throw new Error(`The sheet shows the ${shownLook} look, not ${look}.`);
     for (const paint of PAINTS) {
+      if (paint === 'pxlabel' && look !== 'pixel') continue;
       for (const text of TEXTS) {
         const shots = [];
         for (const width of SIZES) {
@@ -277,14 +357,18 @@ try {
           const name = `${NAME}-${look}-${paint}-${text}-${width}`;
           const file = path.join(SHOT_DIR, `${name}.png`);
           await page.screenshot({ path: file, fullPage: true });
+          // The same picture at 1:1 too, so the phone column can be read
+          // without cropping the contact sheet (kit gate item 2).
+          fs.copyFileSync(file, path.join(ONE_DIR, `${name}.png`));
           const m = await measure(page);
           const a = AXE && width === 390 ? await runAxe(page) : null;
           report.push({ name, look, paint, text, width, ...m, axe: a });
           shots.push({ file, width });
-          console.log(`${name}: sideways ${m.sideways}, below 12px ${m.belowFloor}, small targets ${m.smallTargets}${a ? `, axe serious ${a.serious ?? a.skipped}` : ''}`);
+          console.log(`${name}: sideways ${m.sideways}, below 12px ${m.belowFloor}, small targets ${m.smallTargets}, squeezed ${m.squeezed}, clipped ${m.clipped}, labels ${m.labelFont}${a ? `, axe serious ${a.serious ?? a.skipped}` : ''}`);
         }
         const sheet = path.join(OUT, `${NAME}-${look}-${paint}-${text}.png`);
-        await contactSheet(browser, `${TITLE} · ${look} · ${paint === 'hc' ? 'high contrast' : paint} · ${text}% text · one wallpaper · example data`, shots, sheet);
+        const paintName = paint === 'hc' ? 'high contrast' : paint === 'pxlabel' ? 'dark, labels in Pixelify Sans' : paint;
+        await contactSheet(browser, `${TITLE} · ${look} · ${paintName} · ${text}% text · one wallpaper · example data`, shots, sheet);
       }
     }
   }
@@ -334,8 +418,14 @@ try {
     }
   }
   fs.writeFileSync(path.join(OUT, 'grid.json'), JSON.stringify({ story: STORY, pageErrors: errors, report, popups }, null, 1));
-  console.log(`\nWrote ${LOOKS.length * PAINTS.length * TEXTS.length} contact sheets and grid.json to ${OUT}`);
+  const sheets = new Set(report.map((r) => `${r.look}-${r.paint}-${r.text}`)).size;
+  console.log(`\nWrote ${sheets} contact sheets, ${report.length} 1:1 pictures (1x/) and grid.json to ${OUT}`);
   if (errors.length) console.log('Page errors:', errors.slice(0, 5));
+  // The run fails on any finding a picture can hide (kit gate item 2).
+  const sum = (k) => report.reduce((n, r) => n + (r[k] || 0), 0);
+  const totals = { sideways: sum('sideways'), belowFloor: sum('belowFloor'), smallTargets: sum('smallTargets'), squeezed: sum('squeezed'), clipped: sum('clipped'), axeSerious: report.reduce((n, r) => n + (r.axe?.serious || 0), 0) + popups.reduce((n, p) => n + (p.axe?.serious || 0), 0) };
+  console.log('Totals:', JSON.stringify(totals));
+  if (Object.values(totals).some((n) => n > 0)) process.exitCode = 1;
 } finally {
   await browser.close();
 }

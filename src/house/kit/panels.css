@@ -5,21 +5,25 @@
 
 /* ── Panel ───────────────────────────────────────────────────────── */
 [data-house] .hk-panel {
-  display: flex; flex-direction: column; min-width: 0;
+  display: flex; flex-direction: column; min-width: 0; container-type: inline-size;
   background: var(--house-panel); color: var(--house-text);
   border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner);
   box-shadow: var(--house-surface-shadow), var(--house-raise);
 }
 [data-house][data-house-look="pixel"] .hk-panel { border-color: var(--house-outline); border-width: 2px; }
+/* Heads wrap when narrow: the title keeps the first line (at least 8 rem
+   of it), tools and the fold go under it, never a title a letter wide. */
 [data-house] .hk-panel-head {
-  display: flex; align-items: center; gap: var(--house-space-2);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2);
   min-height: var(--house-h-control); padding: 0 var(--house-space-1) 0 var(--house-space-3);
   border-bottom: var(--house-border-w) solid var(--house-divider);
 }
 [data-house] .hk-panel[data-open="false"] .hk-panel-head { border-bottom-color: transparent; }
-[data-house] .hk-panel-title { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 700; overflow-wrap: anywhere; }
-[data-house] .hk-panel-tools { display: flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; }
-[data-house] .hk-panel-body { padding: var(--house-space-3); min-width: 0; }
+[data-house] .hk-panel-title { flex: 1 1 8rem; min-width: 0; padding: var(--house-space-1) 0; margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 700; overflow-wrap: break-word; }
+[data-house] .hk-panel-tools { display: flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; max-width: 100%; }
+[data-house] .hk-panel-head > .hk-iconbtn { margin-left: auto; }
+/* Side padding gives way a little in a narrow panel (cqi: the panel's width). */
+[data-house] .hk-panel-body { padding: var(--house-space-3) min(var(--house-space-3), 4cqi); min-width: 0; }
 [data-house] .hk-panel-body[hidden] { display: none; }
 
 /* ── Page tabs: flat strip, current = bold + 3 px accent underline ── */
@@ -44,7 +48,7 @@
 
 /* ── List and tree ───────────────────────────────────────────────── */
 [data-house] .hk-list-wrap { display: flex; flex-direction: column; gap: var(--house-space-2); min-width: 0; }
-[data-house] .hk-list { display: flex; flex-direction: column; min-width: 0; }
+[data-house] .hk-list { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
 [data-house] .hk-listrow {
   position: relative; display: flex; align-items: center; gap: var(--house-space-2);
   min-height: var(--house-h-row); padding: var(--house-space-1) var(--house-space-3);
@@ -59,31 +63,47 @@
 [data-house] .hk-listrow[aria-selected="true"] { background: var(--house-sunken); box-shadow: inset 4px 0 0 var(--house-accent); }
 [data-house] .hk-listrow[aria-selected="true"] .hk-rowtext-title { font-weight: 700; }
 [data-house] .hk-listrow-lead { display: inline-flex; flex-shrink: 0; }
-[data-house] .hk-listrow-body { flex: 1 1 auto; min-width: 0; }
-[data-house] .hk-tree-indent { flex-shrink: 0; width: calc(var(--hk-depth, 0) * var(--house-space-5)); }
-[data-house] .hk-tree-toggle { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: var(--house-icon-control); min-height: var(--house-icon-control); margin-left: calc(var(--house-space-2) * -1); padding: 0 var(--house-space-2); box-sizing: content-box; color: var(--house-muted); }
+[data-house] .hk-listrow-body { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+/* The indent stops at 15% of the list's width, so deep rows keep room
+   for their words (aria-level still says the real level). */
+[data-house] .hk-tree-indent { flex-shrink: 0; width: min(calc(var(--hk-depth, 0) * 1.25rem), 15cqi); }
+/* The fold target: the row's full height and a whole target wide
+   (2.75rem); in a narrow list at large text it gives way down to the
+   44 px floor, never below, so the name keeps room for whole words. */
+[data-house] .hk-treerow { padding-top: 0; padding-bottom: 0; align-items: stretch; }
+[data-house] .hk-treerow > .hk-listrow-body { align-self: center; padding: var(--house-space-1) 0; }
+[data-house] .hk-tree-toggle { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: max(44px, min(var(--house-target), 16cqi)); min-height: var(--house-h-row); margin-left: calc(var(--house-space-3) * -1); margin-right: calc(var(--house-space-2) * -1); color: var(--house-muted); }
+[data-house] .hk-tree-toggle[data-fold] { cursor: pointer; }
+@media (hover: hover) { [data-house] .hk-tree-toggle[data-fold]:hover { color: var(--house-text); box-shadow: inset 0 0 0 1px var(--house-border); border-radius: var(--house-corner-sm); } }
 [data-house] .hk-rowtext { display: flex; flex-direction: column; min-width: 0; }
-[data-house] .hk-rowtext-title { overflow-wrap: anywhere; }
-[data-house] .hk-rowtext-sub { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); overflow-wrap: anywhere; }
+[data-house] .hk-rowtext-title { overflow-wrap: break-word; }
+[data-house] .hk-rowtext-sub { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); overflow-wrap: break-word; }
 [data-house] .hk-rowtext-meta { font-size: var(--house-text-sm); color: var(--house-muted); font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
 [data-house] .hk-pager { position: sticky; bottom: 0; background: var(--house-panel); display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); flex-wrap: wrap; padding-top: var(--house-space-2); border-top: var(--house-border-w) solid var(--house-divider); }
 [data-house] .hk-pager-words { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-sm); color: var(--house-muted); }
 
 /* ── Info ────────────────────────────────────────────────────────── */
-[data-house] .hk-info { display: flex; flex-direction: column; gap: var(--house-space-4); min-width: 0; }
-[data-house] .hk-info-head { display: flex; align-items: center; gap: var(--house-space-3); min-width: 0; }
+[data-house] .hk-info { display: flex; flex-direction: column; gap: var(--house-space-4); min-width: 0; container-type: inline-size; }
+[data-house] .hk-info-head { display: flex; align-items: center; gap: var(--house-space-2) var(--house-space-3); min-width: 0; }
+/* Narrow: picture and ⋯ on the first line, the title under them. */
+@container (max-width: 20rem) {
+  [data-house] .hk-info-head { flex-wrap: wrap; }
+  [data-house] .hk-info-titles { order: 1; flex-basis: 100%; }
+  [data-house] .hk-info-head > .hk-iconbtn { margin-left: auto; }
+}
 [data-house] .hk-info-lead { flex-shrink: 0; }
 [data-house] .hk-info-titles { flex: 1 1 auto; min-width: 0; }
-[data-house] .hk-info-title { margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: anywhere; }
+[data-house] .hk-info-title { margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
 [data-house] .hk-info-kind { margin: 0; font-size: var(--house-text-sm); color: var(--house-muted); }
 [data-house] .hk-info-section { display: flex; flex-direction: column; gap: var(--house-space-1); }
 [data-house] .hk-info-section-title { margin: 0; font-size: var(--house-text-sm); color: var(--house-muted); font-weight: 700; }
 
 /* ── Inspector ───────────────────────────────────────────────────── */
 [data-house] .hk-insp { display: flex; flex-direction: column; min-width: 0; min-height: 0; max-height: 100%; background: var(--house-panel); }
-[data-house] .hk-insp-head { display: flex; align-items: center; gap: var(--house-space-1); padding: 0 var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-row); flex-wrap: wrap; }
-[data-house] .hk-insp-title { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: anywhere; }
-[data-house] .hk-insp-actions { display: flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; }
+[data-house] .hk-insp-head { display: flex; flex-shrink: 0; align-items: center; gap: var(--house-space-1); padding: 0 var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-row); flex-wrap: wrap; }
+[data-house] .hk-insp > .hk-tabs-wrap { flex-shrink: 0; }
+[data-house] .hk-insp-title { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
+[data-house] .hk-insp-actions { display: flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; margin-left: auto; }
 [data-house] .hk-insp-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--house-space-4) var(--house-space-4); }
 [data-house] .hk-insp-tab:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
 [data-house] .hk-insp-group { display: flex; flex-direction: column; padding-top: var(--house-space-3); }
@@ -98,15 +118,17 @@
 [data-house] .hk-layer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-2); min-height: var(--house-h-row); border-bottom: var(--house-border-w) solid var(--house-divider); }
 [data-house] .hk-layer[data-hidden="true"] { color: var(--house-muted); }
 [data-house] .hk-layer[data-hidden="true"] .hk-layer-name > span:first-child { text-decoration: line-through; text-decoration-style: dashed; }
-[data-house] .hk-layer-name { flex: 1 1 8rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); overflow-wrap: anywhere; }
+[data-house] .hk-layer-name { flex: 1 1 8rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); overflow-wrap: break-word; }
 [data-house] .hk-layer-state { font-size: var(--house-text-sm); font-style: italic; }
 /* At 200% text on a phone the move buttons drop under the name rather than run off the side. */
 [data-house] .hk-layer-moves { display: inline-flex; flex-shrink: 0; margin-left: auto; }
 [data-house] .hk-layer-lead { display: inline-flex; flex-shrink: 0; }
 
 /* ── Row ─────────────────────────────────────────────────────────── */
+/* Wraps when narrow: the words keep at least 6 rem, meta and trailing
+   bits go under them (right-aligned) instead of squeezing them. */
 [data-house] .hk-row {
-  display: flex; align-items: center; gap: var(--house-space-3); width: 100%;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1) var(--house-space-3); width: 100%;
   min-height: var(--house-h-row); padding: var(--house-space-2) var(--house-space-3);
   background: transparent; border: 0; border-bottom: var(--house-border-w) solid var(--house-divider); border-radius: 0;
   color: var(--house-text); text-align: left; font: inherit; text-decoration: none;
@@ -119,11 +141,11 @@
 [data-house] .hk-row[data-selected="true"] .hk-row-title { font-weight: 700; }
 [data-house] .hk-row[aria-disabled="true"] { cursor: not-allowed; color: var(--house-muted); border-bottom-style: dashed; }
 [data-house] .hk-row-lead { display: inline-flex; flex-shrink: 0; }
-[data-house] .hk-row-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-[data-house] .hk-row-title { overflow-wrap: anywhere; }
-[data-house] .hk-row-sub { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); overflow-wrap: anywhere; }
-[data-house] .hk-row-meta { flex-shrink: 0; font-size: var(--house-text-sm); color: var(--house-muted); font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
-[data-house] .hk-row-trailing { display: inline-flex; flex-shrink: 0; gap: var(--house-space-1); }
+[data-house] .hk-row-text { flex: 1 1 6rem; min-width: 0; display: flex; flex-direction: column; }
+[data-house] .hk-row-title { overflow-wrap: break-word; }
+[data-house] .hk-row-sub { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); overflow-wrap: break-word; }
+[data-house] .hk-row-meta { flex-shrink: 0; margin-left: auto; font-size: var(--house-text-sm); color: var(--house-muted); font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
+[data-house] .hk-row-trailing { display: inline-flex; flex-shrink: 0; gap: var(--house-space-1); margin-left: auto; }
 
 /* ── Card ────────────────────────────────────────────────────────── */
 [data-house] .hk-card {
@@ -132,17 +154,17 @@
   box-shadow: var(--house-surface-shadow), var(--house-raise);
 }
 [data-house][data-house-look="pixel"] .hk-card { border-color: var(--house-outline); border-width: 2px; }
-[data-house] .hk-card-head { display: flex; align-items: center; gap: var(--house-space-2); padding: var(--house-space-2) var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); }
-[data-house] .hk-card-title { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--house-text-md); line-height: var(--house-lh-md); overflow-wrap: anywhere; }
-[data-house] .hk-card-tools { display: flex; gap: var(--house-space-1); }
+[data-house] .hk-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2); padding: var(--house-space-2) var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); }
+[data-house] .hk-card-title { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: var(--house-text-md); line-height: var(--house-lh-md); overflow-wrap: break-word; }
+[data-house] .hk-card-tools { display: flex; gap: var(--house-space-1); margin-left: auto; }
 [data-house] .hk-card-body { padding: var(--house-space-2) var(--house-space-4) var(--house-space-4); min-width: 0; }
 [data-house] .hk-card-foot { padding: var(--house-space-2) var(--house-space-4); border-top: var(--house-border-w) solid var(--house-divider); display: flex; gap: var(--house-space-2); flex-wrap: wrap; justify-content: flex-end; }
 
 /* ── Stat ────────────────────────────────────────────────────────── */
 [data-house] .hk-stat { display: flex; flex-direction: column; gap: var(--house-space-1); min-width: 0; }
-[data-house] .hk-stat-label { font-family: var(--house-font-label); font-size: var(--house-text-sm); color: var(--house-muted); font-weight: 600; overflow-wrap: anywhere; }
+[data-house] .hk-stat-label { font-family: var(--house-font-label); font-size: var(--house-text-sm); color: var(--house-muted); font-weight: 600; overflow-wrap: break-word; }
 [data-house] .hk-stat-value { display: flex; align-items: baseline; gap: var(--house-space-1); flex-wrap: wrap; }
-[data-house] .hk-stat-number { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-2xl); line-height: var(--house-lh-2xl); font-weight: 700; overflow-wrap: anywhere; }
+[data-house] .hk-stat-number { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-2xl); line-height: var(--house-lh-2xl); font-weight: 700; overflow-wrap: break-word; }
 [data-house] .hk-stat-unit { font-size: var(--house-text-sm); color: var(--house-muted); }
 [data-house] .hk-stat-change { font-size: var(--house-text-sm); }
 
@@ -166,7 +188,7 @@
   min-height: var(--house-target); padding: var(--house-space-1) var(--house-space-3) var(--house-space-1) var(--house-space-1);
   background: transparent; border: 0; color: var(--house-text); font: inherit; text-align: left;
 }
-[data-house] .hk-alterchip > .hk-chipname { min-width: 0; overflow-wrap: anywhere; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
+[data-house] .hk-alterchip > .hk-chipname { min-width: 0; overflow-wrap: break-word; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
 [data-house] .hk-alterchip[data-size="lg"] > .hk-chipname { font-size: var(--house-text-md); line-height: var(--house-lh-md); }
 [data-house] span.hk-alterchip,
 [data-house] button.hk-alterchip { position: relative; }
@@ -190,7 +212,7 @@
 /* ── Charts ──────────────────────────────────────────────────────── */
 [data-house] .hk-chart { margin: 0; display: flex; flex-direction: column; gap: var(--house-space-2); min-width: 0; }
 [data-house] .hk-chart-head { display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); flex-wrap: wrap; }
-[data-house] .hk-chart-title { font-size: var(--house-text-md); font-weight: 700; overflow-wrap: anywhere; }
+[data-house] .hk-chart-title { font-size: var(--house-text-md); font-weight: 700; overflow-wrap: break-word; }
 [data-house] .hk-chart-plot { width: 100%; min-width: 0; }
 [data-house] .hk-chart-plot text { font-family: var(--house-font-body); font-size: var(--house-text-sm); fill: var(--house-muted); }
 [data-house] .hk-chart .recharts-tooltip-wrapper { font-size: var(--house-text-sm); }
@@ -205,11 +227,11 @@
 [data-house] .hk-table thead th { color: var(--house-muted); font-weight: 700; }
 
 /* ── Empty, loading, error ───────────────────────────────────────── */
-[data-house] .hk-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--house-space-2); padding: var(--house-space-6) var(--house-space-4); }
+[data-house] .hk-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--house-space-2); padding: var(--house-space-6) var(--house-space-4); container-type: inline-size; }
 [data-house] .hk-empty[data-compact="true"] { padding: var(--house-space-4); }
 [data-house] .hk-empty-icon { color: var(--house-muted); }
-[data-house] .hk-empty-title { margin: 0; font-size: var(--house-text-md); font-weight: 700; overflow-wrap: anywhere; }
-[data-house] .hk-empty-body { margin: 0; max-width: 30rem; color: var(--house-muted); font-size: var(--house-text-sm); overflow-wrap: anywhere; }
+[data-house] .hk-empty-title { margin: 0; font-size: var(--house-text-md); font-weight: 700; overflow-wrap: break-word; }
+[data-house] .hk-empty-body { margin: 0; max-width: 30rem; color: var(--house-muted); font-size: var(--house-text-sm); overflow-wrap: break-word; }
 [data-house] .hk-loading { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 [data-house] .hk-ph { display: block; background: var(--house-divider); border-radius: var(--house-corner-sm); animation: hk-pulse calc(var(--house-dur-slow) * 5) var(--house-ease-in-out) infinite alternate; }
 @keyframes hk-pulse { from { opacity: 1; } to { opacity: 0.45; } }
@@ -226,8 +248,16 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 [data-house] .hk-ph-stat { display: flex; flex-direction: column; gap: var(--house-space-2); }
 [data-house] .hk-ph-stat .hk-ph-line--thin { width: 8rem; }
 [data-house] .hk-ph-big { width: 5rem; height: var(--house-text-2xl); }
-[data-house] .hk-error-block { display: flex; flex-direction: column; align-items: flex-start; gap: var(--house-space-2); padding: var(--house-space-4); border: 2px solid var(--house-danger); border-radius: var(--house-corner); background: var(--house-panel); }
-[data-house] .hk-error-what { margin: 0; display: flex; gap: var(--house-space-2); align-items: flex-start; font-weight: 700; color: var(--house-danger-text); overflow-wrap: anywhere; }
+[data-house] .hk-error-block { display: flex; flex-direction: column; align-items: flex-start; gap: var(--house-space-2); padding: var(--house-space-4); border: 2px solid var(--house-danger); border-radius: var(--house-corner); background: var(--house-panel); container-type: inline-size; }
+[data-house] .hk-error-block { padding-left: min(var(--house-space-4), 5cqi); padding-right: min(var(--house-space-4), 5cqi); }
+/* Narrow: the one next step goes full width, its words wrap between words. */
+@container (max-width: 18rem) {
+  [data-house] :is(.hk-empty, .hk-error-block) > :is(.hk-btn, .hk-btn-wrap) { align-self: stretch; width: 100%; padding-left: var(--house-space-2); padding-right: var(--house-space-2); }
+  [data-house] :is(.hk-empty, .hk-error-block) > .hk-btn-wrap > .hk-btn { width: 100%; }
+}
+
+[data-house] .hk-empty { padding-left: min(var(--house-space-4), 4cqi); padding-right: min(var(--house-space-4), 4cqi); }
+[data-house] .hk-error-what { margin: 0; display: flex; gap: var(--house-space-2); align-items: flex-start; font-weight: 700; color: var(--house-danger-text); overflow-wrap: break-word; }
 [data-house] .hk-error-safe { margin: 0; display: flex; gap: var(--house-space-2); align-items: flex-start; font-size: var(--house-text-sm); }
 
 /* ── Toast ───────────────────────────────────────────────────────── */
@@ -244,8 +274,8 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 [data-house] .hk-toast[data-tone="failed"] { border-color: var(--house-danger); }
 [data-house] .hk-toast[data-tone="failed"] .hk-toast-message { color: var(--house-danger-text); }
 [data-house] .hk-toast-text { flex: 1 1 12rem; min-width: 0; display: flex; flex-direction: column; }
-[data-house] .hk-toast-message { font-weight: 700; font-size: var(--house-text-sm); overflow-wrap: anywhere; }
-[data-house] .hk-toast-detail { font-size: var(--house-text-sm); color: var(--house-muted); overflow-wrap: anywhere; }
+[data-house] .hk-toast-message { font-weight: 700; font-size: var(--house-text-sm); overflow-wrap: break-word; }
+[data-house] .hk-toast-detail { font-size: var(--house-text-sm); color: var(--house-muted); overflow-wrap: break-word; }
 
 /* ── Sheets ──────────────────────────────────────────────────────── */
 [data-house] .hk-scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.55); }
@@ -272,15 +302,17 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 [data-house] .hk-sheet-grab { display: flex; justify-content: center; align-items: center; width: 100%; min-height: var(--house-target); background: transparent; border: 0; cursor: grab; touch-action: none; flex-shrink: 0; }
 [data-house] .hk-sheet-grabbar { width: 3rem; height: 0.3125rem; border-radius: 999px; background: var(--house-border); }
 [data-house] .hk-sheet-grab:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
-[data-house] .hk-sheet-head { display: flex; align-items: center; gap: var(--house-space-2); padding: 0 var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); border-bottom: var(--house-border-w) solid var(--house-divider); flex-shrink: 0; }
-[data-house] .hk-sheet-title { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: anywhere; }
-[data-house] .hk-sheet-tools { display: flex; gap: var(--house-space-1); }
+[data-house] .hk-sheet-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2); padding: 0 var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); border-bottom: var(--house-border-w) solid var(--house-divider); flex-shrink: 0; }
+[data-house] .hk-sheet-title { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
+[data-house] .hk-sheet-tools { display: flex; gap: var(--house-space-1); margin-left: auto; }
 [data-house] .hk-sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--house-space-3) var(--house-space-4) var(--house-space-4); }
 [data-house] .hk-sheet-foot { flex-shrink: 0; display: flex; gap: var(--house-space-2); flex-wrap: wrap; justify-content: flex-end; padding: var(--house-space-2) var(--house-space-4); border-top: var(--house-border-w) solid var(--house-divider); }
 [data-house] .hk-confirm { display: flex; flex-direction: column; gap: var(--house-space-3); }
 [data-house] .hk-confirm-words { margin: 0; }
-/* Delete on the left, "Keep it" on the right where Save would sit. */
-[data-house] .hk-confirm-actions { display: flex; flex-wrap: wrap-reverse; justify-content: space-between; gap: var(--house-space-3); }
+/* Delete on the left, "Keep it" on the right where Save would sit. When
+   the two stack (a phone at large text), "Keep it" is the bottom line,
+   where the thumb rests, and Delete is above it (building code §1, §12). */
+[data-house] .hk-confirm-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--house-space-3); }
 
 /* The safety sheet: no app chrome, the whole screen. */
 [data-house] .hk-safety {
@@ -291,7 +323,7 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
 }
 [data-house] .hk-safety[data-inline="true"] { position: relative; inset: auto; min-height: 30rem; border: 2px solid var(--house-border); border-radius: var(--house-corner); }
 [data-house] .hk-safety-head { display: flex; }
-[data-house] .hk-safety-title { margin: 0; font-size: var(--house-text-xl); line-height: var(--house-lh-xl); overflow-wrap: anywhere; }
+[data-house] .hk-safety-title { margin: 0; font-size: var(--house-text-xl); line-height: var(--house-lh-xl); overflow-wrap: break-word; }
 [data-house] .hk-safety-body { flex: 1 1 auto; max-width: 42rem; width: 100%; }
 [data-house] .hk-safety-foot { position: sticky; bottom: 0; padding-top: var(--house-space-2); background: var(--house-page); max-width: 42rem; width: 100%; }
 [data-house] .hk-chart-svg { width: 100%; height: 100%; }

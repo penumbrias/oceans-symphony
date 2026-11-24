@@ -168,7 +168,7 @@ function Motion() {
 function FrameCap() {
   return (
     <div className="kit-frame-demo">
-      <div className="kit-frame-bar">
+      <div className="kit-frame-bar" data-house-frame="">
         <span className="kit-frame-label">Header label (stops at 1.3×)</span>
       </div>
       <p className="house-text-sm">Content label (grows to 200%)</p>

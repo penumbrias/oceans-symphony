@@ -209,7 +209,8 @@ export function TreeView({ label, nodes = [], getId = (x) => x.id, getParentId, 
               <span className="hk-tree-indent" aria-hidden="true" />
               {row.hasChildren ? (
                 // A pointer target for folding; the keyboard uses ← and →.
-                <span className="hk-tree-toggle" aria-hidden="true"
+                // The row's full height and a whole target wide (kit gate item 5).
+                <span className="hk-tree-toggle" aria-hidden="true" data-fold=""
                   onClick={(e) => { e.stopPropagation(); toggle(row.id, !row.expanded); }}>
                   <HouseIcon icon={row.expanded ? ChevronDown : ChevronRight} />
                 </span>

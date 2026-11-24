@@ -129,6 +129,14 @@ export function AuthoredField({ label, hint, error, save, value = "", onChange, 
   );
 }
 
+// How many characters the value box must show whole (kit gate item 1):
+// the words in it, or the placeholder's when empty, so the box is never
+// narrower than what it holds.
+export function valueChars(text, placeholder) {
+  const n = String(text || "").length || Math.min(String(placeholder || "").length, 12);
+  return Math.max(2, n);
+}
+
 // Typed text kept while it's being edited; re-shown from the value after.
 function useDraft(display) {
   const [text, setText] = useState(display);
@@ -162,16 +170,17 @@ export function NumberField({ label, hint, error, save, value, onChange, min = -
     onChange?.(v);
   };
   return (
-    <FieldShell label={label} hint={hint} error={bad || error} save={save}>
+    <FieldShell label={label} hint={hint} error={bad || error} save={save} className="hk-field--sized">
       {({ inputId, describedBy, invalid }) => (
-        <div className="hk-inputwrap" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+        <div className="hk-inputwrap hk-inputwrap--stepper" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
           <IconButton icon={Minus} label={`${label}: less`} onClick={() => nudge(-step)} disabledReason={disabled ? "Not available here" : n != null && n <= min ? `Already the smallest (${min})` : undefined} />
+          <span className="hk-stepval">
           <input
             id={inputId}
             type="text"
             inputMode="decimal"
             className="hk-bare hk-value"
-            style={{ textAlign: "center" }}
+            style={{ textAlign: "center", "--hk-chars": valueChars(text, placeholder) }}
             value={text}
             placeholder={placeholder}
             disabled={disabled}
@@ -187,6 +196,7 @@ export function NumberField({ label, hint, error, save, value, onChange, min = -
             aria-describedby={describedBy}
           />
           {unit ? <span className="hk-unit" aria-hidden="true">{unit}</span> : null}
+          </span>
           <IconButton icon={Plus} label={`${label}: more`} onClick={() => nudge(step)} disabledReason={disabled ? "Not available here" : n != null && n >= max ? `Already the largest (${max})` : undefined} />
         </div>
       )}
@@ -298,14 +308,15 @@ export function DateField({ label, hint, error, save, value, onChange, clearable
     setText(formatDayWords(day, { today }));
   };
   return (
-    <FieldShell label={label} hint={hint} error={bad || error} save={save}>
+    <FieldShell label={label} hint={hint} error={bad || error} save={save} className="hk-field--sized">
       {({ inputId, describedBy, invalid }) => (
         <>
-          <div className="hk-inputwrap" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+          <div className="hk-inputwrap hk-inputwrap--picker" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
             <input
               id={inputId}
               type="text"
               className="hk-bare"
+              style={{ "--hk-chars": valueChars(text, placeholder) }}
               value={text}
               placeholder={placeholder}
               disabled={disabled}
@@ -391,14 +402,15 @@ export function TimeField({ label, hint, error, save, value, onChange, clearable
     setText(formatTimeValue(v, format));
   };
   return (
-    <FieldShell label={label} hint={hint} error={bad || error} save={save}>
+    <FieldShell label={label} hint={hint} error={bad || error} save={save} className="hk-field--sized">
       {({ inputId, describedBy, invalid }) => (
         <>
-          <div className="hk-inputwrap" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+          <div className="hk-inputwrap hk-inputwrap--picker" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
             <input
               id={inputId}
               type="text"
               className="hk-bare hk-value"
+              style={{ "--hk-chars": valueChars(text, placeholder ?? "9:30 pm") }}
               value={text}
               placeholder={placeholder ?? (format === "24" ? "21:30" : "9:30 pm")}
               disabled={disabled}
@@ -443,17 +455,18 @@ export function DurationField({ label, hint, error, save, value, onChange, step 
   const n = Number.isFinite(value) ? value : null;
   const nudge = (d) => accept(Math.min(max, Math.max(min, (n ?? 0) + d)));
   return (
-    <FieldShell label={label} hint={hint} error={bad || error} save={save}>
+    <FieldShell label={label} hint={hint} error={bad || error} save={save} className="hk-field--sized">
       {({ inputId, describedBy, invalid }) => (
         <>
-          <div className="hk-inputwrap" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+          <div className="hk-inputwrap hk-inputwrap--stepper" data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
             <IconButton icon={Minus} label={`${label}: ${step} minutes less`} onClick={() => nudge(-step)}
               disabledReason={disabled ? "Not available here" : n != null && n <= min ? "Already as short as it goes" : undefined} />
+            <span className="hk-stepval">
             <input
               id={inputId}
               type="text"
               className="hk-bare hk-value"
-              style={{ textAlign: "center" }}
+              style={{ textAlign: "center", "--hk-chars": valueChars(text, placeholder) }}
               value={text}
               placeholder={placeholder}
               disabled={disabled}
@@ -465,6 +478,7 @@ export function DurationField({ label, hint, error, save, value, onChange, step 
               aria-invalid={invalid || undefined}
               aria-describedby={describedBy}
             />
+            </span>
             <IconButton icon={Plus} label={`${label}: ${step} minutes more`} onClick={() => nudge(step)}
               disabledReason={disabled ? "Not available here" : n != null && n >= max ? "Already as long as it goes" : undefined} />
           </div>
