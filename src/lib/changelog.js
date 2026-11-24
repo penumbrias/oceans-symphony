@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: Bulletins is a three-column board with an always-open post box, polls vote right on the card, and Friends shows your friends beside what they can see." },
+      { type: "feature", text: "Pixel look: \"Use the pixel layout\" in the home screen's edit menu adds a page arranged like the new design, leaving your pages as they are." },
+      { type: "fix", text: "Polls whose options were saved in an older format no longer crash the poll view." },
       { type: "improve", text: "Pixel look: the set-front sheet, search results, unlock screen and Quick jump settings follow their new designs, and the unlock screen now opens in your look." },
       { type: "improve", text: "Pixel look: To-do is a table with an edit panel beside it, Activities shows the tree with each activity's details, and Routines has a level panel with square ticks." },
       { type: "improve", text: "Pixel look: Groups, Contacts and Assets open as desks with a list on the left and the chosen group, person or file beside it." },
