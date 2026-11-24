@@ -159,3 +159,79 @@ html[data-ui-look="pixel"] .pxg-side-foot { display: flex; align-items: center; 
 @media (max-width: 1023px) {
   html[data-ui-look="pixel"] .pxg-hide-phone { display: none !important; }
 }
+
+/* ── Therapy report ──────────────────────────────────────────────── */
+html[data-ui-look="pixel"] .pxg-report {
+  display: grid; grid-template-columns: 430px minmax(0, 1fr); gap: 4px;
+  height: calc(100vh - 140px); min-height: 560px;
+}
+html[data-ui-look="pixel"] .pxg-build, html[data-ui-look="pixel"] .pxg-preview { min-height: 0; }
+html[data-ui-look="pixel"] .pxg-ttl-link { font-family: var(--px-font); font-size: 12.5px; color: var(--px-text-2); min-height: 22px; padding: 0 6px; }
+html[data-ui-look="pixel"] .pxg-ttl-link:hover, html[data-ui-look="pixel"] .pxg-ttl-link[aria-expanded="true"] { color: var(--px-text); }
+html[data-ui-look="pixel"] .pxg-build-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+html[data-ui-look="pixel"] .pxg-build-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; box-shadow: inset 0 2px 0 var(--px-sunk); }
+html[data-ui-look="pixel"] .pxg-h { font-family: var(--px-font); font-size: 13px; color: var(--px-text); margin-top: 4px; }
+html[data-ui-look="pixel"] .pxg-between { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+html[data-ui-look="pixel"] .pxg-hacts { display: flex; align-items: baseline; gap: 10px; font-family: var(--font-sans); font-size: 12.5px; }
+html[data-ui-look="pixel"] .pxg-count { color: var(--px-text-2); }
+html[data-ui-look="pixel"] .pxg-link { color: var(--px-text-2); text-decoration: underline; text-underline-offset: 2px; font-size: 12.5px; min-height: 24px; }
+html[data-ui-look="pixel"] .pxg-link:hover { color: var(--px-text); }
+html[data-ui-look="pixel"] .pxg-small { font-size: 12.5px; }
+html[data-ui-look="pixel"] .pxg-mt { margin-top: 6px; }
+html[data-ui-look="pixel"] .pxg-seg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+html[data-ui-look="pixel"] .pxg-seg .pxg-chip { white-space: normal; text-align: left; }
+html[data-ui-look="pixel"] .pxg-ticks { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; }
+html[data-ui-look="pixel"] .pxg-ticks .pxg-tickrow > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-optrow { display: flex; align-items: flex-start; gap: 10px; }
+html[data-ui-look="pixel"] .pxg-optlbl { width: 118px; flex: none; padding-top: 5px; color: var(--px-text-2); text-align: left; }
+html[data-ui-look="pixel"] .pxg-optbody { flex: 1; min-width: 0; }
+html[data-ui-look="pixel"] .pxg-optbody label { font-size: 12.5px; }
+html[data-ui-look="pixel"] .pxg-box { padding: 8px 10px; background: var(--px-sunk); box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi); display: flex; flex-direction: column; gap: 6px; }
+html[data-ui-look="pixel"] .pxg-box .pxg-h { margin-top: 0; }
+html[data-ui-look="pixel"] .pxg-tplrow { display: flex; align-items: center; gap: 6px; }
+html[data-ui-look="pixel"] .pxg-tplname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-dates { display: flex; gap: 10px; flex-wrap: wrap; }
+html[data-ui-look="pixel"] .pxg-dates label { display: flex; align-items: center; gap: 6px; }
+html[data-ui-look="pixel"] .pxg-stack { display: flex; flex-direction: column; gap: 6px; }
+html[data-ui-look="pixel"] .pxg-note { min-height: 64px; resize: vertical; font-family: var(--font-sans); }
+/* The ~therapy card inside the builder: flat, like the rest of the panel. */
+html[data-ui-look="pixel"] .pxg-build-body [data-tour="therapy-notes"] { margin-top: 6px; }
+
+/* The preview: a page of paper on a dark desk (solid, no grid). */
+html[data-ui-look="pixel"] .pxg-desk-floor {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 12px;
+  padding: 14px 16px; background: var(--px-sunk);
+  box-shadow: inset 2px 2px 0 var(--px-line), inset -2px -2px 0 var(--px-hi);
+  display: flex; justify-content: center; align-items: flex-start;
+}
+html[data-ui-look="pixel"] .pxg-paper {
+  width: 100%; max-width: 590px; min-height: 100%; padding: 32px 34px;
+  background: #f3efe6; color: #23222b; outline: 2px solid var(--px-line);
+  font-family: Georgia, "Times New Roman", serif; font-size: 14px; line-height: 1.5;
+}
+html[data-ui-look="pixel"]:not([data-heading-font]) .pxg-paper :is(h2, h3) { font-family: Georgia, "Times New Roman", serif; }
+html[data-ui-look="pixel"] .pxg-paper h2 { font-size: 21px; font-weight: 700; margin: 14px 0 6px; color: #18171e; }
+html[data-ui-look="pixel"] .pxg-paper h3 { font-size: 17px; font-weight: 700; margin: 16px 0 6px; color: #18171e; }
+html[data-ui-look="pixel"] .pxg-paper p { margin: 0 0 6px; }
+html[data-ui-look="pixel"] .pxg-paper-head { font-size: 11.5px; color: #6b6874; letter-spacing: .02em; }
+html[data-ui-look="pixel"] .pxg-paper-note { font-style: italic; }
+html[data-ui-look="pixel"] .pxg-paper-bars { display: flex; flex-direction: column; gap: 5px; }
+html[data-ui-look="pixel"] .pxg-paper-bar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+html[data-ui-look="pixel"] .pxg-paper-name { width: 70px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui-look="pixel"] .pxg-paper-track { width: 180px; max-width: 45%; height: 10px; flex: none; }
+html[data-ui-look="pixel"] .pxg-paper-track > span { display: block; height: 100%; min-width: 4px; }
+html[data-ui-look="pixel"] .pxg-paper-val { color: #6b6874; font-size: 13px; }
+html[data-ui-look="pixel"] .pxg-paper-foot { margin-top: 22px !important; font-size: 12px; color: #6b6874; border-top: 1px solid #d6d0c2; padding-top: 8px; }
+
+@media (max-width: 1023px) {
+  html[data-ui-look="pixel"] .pxg-report { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 0; gap: 10px; }
+  html[data-ui-look="pixel"] .pxg-build-body { overflow: visible; }
+  html[data-ui-look="pixel"] .pxg-build-foot { position: sticky; bottom: 0; background: var(--px-panel); z-index: 2; }
+  html[data-ui-look="pixel"] .pxg-desk-floor { margin: 8px; padding: 8px; max-height: none; }
+  html[data-ui-look="pixel"] .pxg-paper { padding: 18px 16px; font-size: 13px; }
+  html[data-ui-look="pixel"] .pxg-optrow { flex-direction: column; gap: 4px; }
+  html[data-ui-look="pixel"] .pxg-optlbl { width: auto; padding-top: 0; }
+}
+@media (max-width: 420px) {
+  html[data-ui-look="pixel"] .pxg-ticks { grid-template-columns: minmax(0, 1fr); }
+}
