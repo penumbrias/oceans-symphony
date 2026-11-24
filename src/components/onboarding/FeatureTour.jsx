@@ -665,6 +665,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/journals", target: "journals-list", look: `the highlighted folders and entries`,
     }),
     s("journals", {
+      emoji: "🗂️", title: "Folder panel", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, every folder sits in a panel on the left. Click one to open it; All entries goes back to the top.`,
+      route: "/journals", target: "journals-folder-panel",
+    }),
+    s("journals", {
       emoji: "📁", title: "Folders",
       body: `"New Folder" makes a folder here, as deep as you like. Entries written inside a folder are filed there.`,
       route: "/journals", target: "journals-folder-btn", look: `the highlighted "New Folder" button`,

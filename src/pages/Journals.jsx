@@ -20,6 +20,7 @@ import { useTerms } from "@/lib/useTerms";
 import { sortJournalsNewestFirst, normalizeTag } from "@/lib/journalDate";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
 import { sharedList } from "@/lib/sharedLists";
+import { usePixelDesk } from "@/lib/uiLook";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -45,6 +46,7 @@ const getDepth = (path) => path.split("/").length - 1;
 export default function Journals() {
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const pixelDesk = usePixelDesk();
   const TABS = [
     { id: "all", label: "All", icon: BookOpen },
     { id: "switch_log", label: `${terms.Switch} Logs`, icon: Shuffle },
@@ -503,6 +505,36 @@ export default function Journals() {
 
   return (
     <motion.div data-tour="journals-list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+      <div className={pixelDesk ? "px-ws" : undefined}>
+      {/* Pixel look on a computer: every folder as a tree in a side panel
+          (like the mockup). A click opens that folder here. */}
+      {pixelDesk && (
+        <aside className="px-ws-side" aria-label="Folders" data-tour="journals-folder-panel">
+          <div className="px-ws-ttl">
+            <span>Folders</span>
+            <button type="button" className="px-ws-open" aria-label="New folder" title={viewingFolder ? "New subfolder here" : "New folder"}
+              onClick={() => setShowNewFolder(true)}><FolderPlus className="w-4 h-4" /></button>
+          </div>
+          <div className="px-ws-tree">
+            <button type="button" className={`px-ws-row${!viewingFolder ? " sel" : ""}`} aria-pressed={!viewingFolder} onClick={() => setViewingFolder(null)}>
+              <span className="px-ws-name">All entries</span><span className="px-ws-count">{entries.length}</span>
+            </button>
+            {[...allFolderPaths].sort((a, b) => a.localeCompare(b)).map((path) => {
+              const depth = path.split("/").length - 1;
+              const sel = viewingFolder === path;
+              const n = entries.filter((e) => e.folder === path || (e.folder || "").startsWith(`${path}/`)).length;
+              return (
+                <button key={path} type="button" className={`px-ws-row${sel ? " sel" : ""}`} aria-pressed={sel}
+                  style={{ paddingLeft: 6 + Math.min(depth, 8) * 14 }} onClick={() => setViewingFolder(path)}>
+                  <span className="px-ws-name">{path.split("/").pop()}</span><span className="px-ws-count">{n}</span>
+                </button>
+              );
+            })}
+            {allFolderPaths.length === 0 && <p className="px-ws-empty">No folders yet.</p>}
+          </div>
+        </aside>
+      )}
+      <div className={pixelDesk ? "px-ws-main" : undefined}>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
@@ -797,6 +829,9 @@ export default function Journals() {
           </div>
         </>
       ) : null}
+
+      </div>
+      </div>
 
       <JournalViewModal
         open={!!viewingEntry}
