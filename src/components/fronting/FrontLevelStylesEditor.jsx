@@ -13,6 +13,7 @@ import { IconSlot } from "@/components/shared/LucideByName";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { useTerms } from "@/lib/useTerms";
 import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
 import { AVATAR_SHAPES, shapeLayerStyles } from "@/lib/avatarShapes";
@@ -30,27 +31,26 @@ export default function FrontLevelStylesEditor() {
   const setFrontIcon = async ({ iconName = "", iconUrl = "" }) => {
     const value = iconName || iconUrl ? { iconName, iconUrl } : null;
     try {
-      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { front_button_icon: value });
-      else await base44.entities.SystemSettings.create({ front_button_icon: value });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      // The one settings writer: creates the row only if none exists at all.
+      await writeSettings({ front_button_icon: value }, { create: true, queryClient: qc });
     } catch { /* next interaction retries */ }
   };
   const config = settings?.pinned_alters_config || {};
   const levelStyles = (config.levelStyles && typeof config.levelStyles === "object") ? config.levelStyles : {};
 
+  // Built on the FRESH row inside the settings writer's queue, so two quick
+  // changes (or a change in another editor) never undo each other.
   const setLevelStyle = async (levelId, patch) => {
-    const cur = levelStyles[levelId] || {};
-    const next = { ...cur, ...patch };
-    for (const k of Object.keys(next)) if (next[k] === "" || next[k] == null) delete next[k];
-    const all = { ...levelStyles };
-    if (Object.keys(next).length) all[levelId] = next; else delete all[levelId];
     try {
-      if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, { pinned_alters_config: { ...config, levelStyles: all } });
-      } else {
-        await base44.entities.SystemSettings.create({ pinned_alters_config: { levelStyles: all } });
-      }
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings((fresh) => {
+        const cfg = fresh.pinned_alters_config && typeof fresh.pinned_alters_config === "object" ? fresh.pinned_alters_config : {};
+        const styles = cfg.levelStyles && typeof cfg.levelStyles === "object" ? cfg.levelStyles : {};
+        const next = { ...(styles[levelId] || {}), ...patch };
+        for (const k of Object.keys(next)) if (next[k] === "" || next[k] == null) delete next[k];
+        const all = { ...styles };
+        if (Object.keys(next).length) all[levelId] = next; else delete all[levelId];
+        return { pinned_alters_config: { ...cfg, levelStyles: all } };
+      }, { create: true, queryClient: qc });
     } catch { /* next interaction retries */ }
   };
 

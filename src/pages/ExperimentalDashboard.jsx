@@ -24,7 +24,7 @@ import { createPortal } from "react-dom";
 import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
 import UndoRedoButtons, { markMachineWrite } from "@/components/v2/UndoRedoHistory";
 import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -944,10 +944,12 @@ export default function ExperimentalDashboard({
   // The user's own saved styles live beside the layout, on the settings row,
   // so they travel with backups and device sync for free.
   const userStyles = useMemo(() => resolveUserStyles(settingsRow?.ui_v2_styles), [settingsRow?.ui_v2_styles]);
-  const persistStyles = useCallback(async (next) => {
+  // `change` maps the FRESH saved styles to the next list (read inside the
+  // settings writer's queue), so two quick saves both land.
+  const persistStyles = useCallback(async (change) => {
     try {
-      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2_styles: next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      if (!settingsRow?.id) return;
+      await writeSettings((fresh) => ({ ui_v2_styles: change(resolveUserStyles(fresh.ui_v2_styles)) }), { queryClient: qc });
     } catch (e) { toast.error(e?.message || "Couldn't save the style"); }
   }, [settingsRow?.id, qc]);
   // Phase 2: multiple pages. activePageId is transient (each visit starts
@@ -1508,10 +1510,7 @@ export default function ExperimentalDashboard({
       if (!homeOverrideOn && home.defaultPageId !== page.id) {
         await persist({ ...boardRef.current.board, defaultPageId: page.id });
       }
-      const nextUi = { ...(settingsRow?.ui_v2 || {}), homeDefault: homeOverrideOn ? "classic" : "board" };
-      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2: nextUi });
-      else await base44.entities.SystemSettings.create({ ui_v2: nextUi });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ ui_v2: { homeDefault: homeOverrideOn ? "classic" : "board" } }, { create: true, queryClient: qc });
       toast.success(homeOverrideOn
         ? "The classic home screen is home again"
         : "This page is your home screen now — Home comes here");
@@ -1660,8 +1659,7 @@ export default function ExperimentalDashboard({
   const writePinnedBar = useCallback(async (patch) => {
     if (!settingsRow?.id) return;
     try {
-      await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, patch));
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings((fresh) => pinnedBarPatch(fresh, patch), { queryClient: qc });
     } catch (e) { toast.error(e?.message || "Couldn't save"); }
   }, [settingsRow, qc]);
   const altersBarOn = pinnedBar.enabled;
@@ -1993,9 +1991,7 @@ export default function ExperimentalDashboard({
   const toggleBoardSnap = async () => {
     const next = !boardSnap;
     try {
-      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { board_snap: next });
-      else await base44.entities.SystemSettings.create({ board_snap: next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ board_snap: next }, { create: true, queryClient: qc });
       toast.success(next ? "Snap to grid is on" : "Snap to grid is off — widgets move and size in small steps");
     } catch (e) {
       toast.error(e?.message || "Couldn't change snapping");
@@ -2904,8 +2900,8 @@ export default function ExperimentalDashboard({
           widgets.find((w) => w.instanceId === configId)?.settings || {},
           userStyles, home.styleMode
         )}
-        onSaveStyle={(label, look) => persistStyles([...userStyles, { id: newStyleId(), label, look }])}
-        onDeleteStyle={(id) => persistStyles(userStyles.filter((x) => x.id !== id))}
+        onSaveStyle={(label, look) => { const id = newStyleId(); persistStyles((cur) => [...cur, { id, label, look }]); }}
+        onDeleteStyle={(id) => persistStyles((cur) => cur.filter((x) => x.id !== id))}
         onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
         api={widgetApi}
         widget={widgets.find((w) => w.instanceId === configId) || null}

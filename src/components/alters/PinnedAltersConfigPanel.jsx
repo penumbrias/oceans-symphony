@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronUp, ChevronDown, Search, Images, X, ListOrdered } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -102,11 +103,8 @@ export default function PinnedAltersConfigPanel({ parts = "all", sizes = false }
   // editor open on another screen) never writes over the first.
   const persist = async (patch) => {
     try {
-      const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list()) || settings;
-      if (!fresh?.id) return;
-      const current = (fresh.pinned_alters_config && typeof fresh.pinned_alters_config === "object") ? fresh.pinned_alters_config : {};
-      await base44.entities.SystemSettings.update(fresh.id, { pinned_alters_config: { ...current, ...patch } });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      // The settings writer merges pinned_alters_config key by key.
+      await writeSettings({ pinned_alters_config: patch }, { queryClient: qc });
     } catch { toast.error("Couldn't save pinned settings"); }
   };
   // One alter's bar picture, on a fresh read (an Image widget can set it too).
