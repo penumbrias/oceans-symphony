@@ -165,7 +165,7 @@ import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeRemind
 import ReminderInstanceCard from "@/components/reminders/ReminderInstanceCard";
 import { DEFAULT_SNOOZE_OPTIONS, formatSnoozeLabel } from "@/components/reminders/snoozeHelpers";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { castPollVote, pollCounts, currentFrontVoterIds } from "@/lib/pollVote";
+import { castPollVote, pollCounts, currentFrontVoterIds } from "@/lib/pollEntry";
 import { createActivityEntry, ENTRY_MODES } from "@/lib/activityEntry";
 import { foldWidget } from "@/lib/widgetFold";
 

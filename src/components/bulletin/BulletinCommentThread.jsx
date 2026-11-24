@@ -6,7 +6,7 @@ import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
-import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
+import { postBulletinComment, editBulletinComment, reactToBulletinComment, trashBulletinComment } from "@/lib/bulletinEntry";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
 import { applyLogCommands } from "@/lib/logCommands";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -208,64 +208,20 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     }
     // Honour authors removed from the live chip list; dedupe.
     finalAuthorIds = [...new Set(finalAuthorIds.filter((id) => !removedAuthorIds.has(id)))];
-    const comment = await base44.entities.BulletinComment.create({
-      bulletin_id: bulletinId,
-      parent_comment_id: parentCommentId || null,
-      author_alter_id: finalAuthorIds[0] || null,
-      author_alter_ids: finalAuthorIds,
+    // Saves the comment, bumps the bulletin's activity time, then notifies
+    // (a whisper only its recipients) — bulletinEntry.js.
+    await postBulletinComment({
+      bulletinId,
+      parentCommentId,
+      authorIds: finalAuthorIds,
       content: cleanContent,
       // A whisper embeds an HTML span — force rich rendering so it shows the
       // hidden bar rather than raw tags.
-      is_rich: richMode || isWhisper,
-      reactions: {},
+      isRich: richMode || isWhisper,
+      isWhisper,
+      whisperRecipientIds,
+      alters,
     });
-
-    // Update last_activity_at on the parent bulletin for sort-by-activity
-    await base44.entities.Bulletin.update(bulletinId, {
-      last_activity_at: new Date().toISOString(),
-    });
-
-    const sourceType = parentCommentId ? "reply" : "comment";
-    const commentNavPath = `/bulletin/${bulletinId}?commentId=${comment.id}`;
-    for (const authorId of finalAuthorIds) {
-      await saveAuthoredLog({
-        authorAlterId: authorId,
-        sourceType,
-        sourceId: comment.id,
-        sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
-        navigatePath: commentNavPath,
-        previewText: cleanContent,
-      });
-    }
-    // Skip public @mention notifications for whispers (the body is hidden;
-    // only the chosen recipients are notified, via the loop below).
-    if (!isWhisper) {
-      await saveMentions({
-        content: cleanContent,
-        alters,
-        sourceType,
-        sourceId: comment.id,
-        sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
-        navigatePath: commentNavPath,
-        authorAlterId: finalAuthorIds[0] || null,
-      });
-    }
-    // Whisper recipients are peeled off the body — notify them explicitly.
-    for (const rid of whisperRecipientIds) {
-      try {
-        await base44.entities.MentionLog.create({
-          mentioned_alter_id: rid,
-          author_alter_id: finalAuthorIds[0] || null,
-          log_type: "mention",
-          source_type: sourceType,
-          source_id: comment.id,
-          source_label: `${sourceType === "reply" ? "Reply" : "Comment"} (whisper)`,
-          source_date: new Date().toISOString(),
-          preview_text: "🔒 private whisper",
-          navigate_path: commentNavPath,
-        });
-      } catch { /* notification best-effort */ }
-    }
     setText("");
     setSaving(false);
     onRefresh();
@@ -468,13 +424,11 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
     if (prepared === null) return;
     const v = prepared.content.trim();
     if (!v) return;
-    await base44.entities.BulletinComment.update(comment.id, {
+    await editBulletinComment(comment.id, {
       content: v,
-      author_alter_id: prepared.authorIds[0] || null,
-      author_alter_ids: prepared.authorIds,
+      authorIds: prepared.authorIds,
       // Chips and whisper bars are HTML — keep them rendering as such.
-      is_rich: !!comment.is_rich || prepared.isWhisper || prepared.logged.length > 0,
-      edited_date: new Date().toISOString(),
+      isRich: !!comment.is_rich || prepared.isWhisper || prepared.logged.length > 0,
     });
     const sourceType = comment.parent_comment_id ? "reply" : "comment";
     await recordAuthoredText({
@@ -509,16 +463,7 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
     setShowReactPicker(false);
     // Read the freshest reactions before merging so two quick taps don't clobber
     // each other from a render-stale copy.
-    let base = reactions;
-    try {
-      const fresh = await base44.entities.BulletinComment.get(comment.id);
-      if (fresh) base = fresh.reactions || {};
-    } catch { /* fall back to cached */ }
-    const existing = base[emoji] || [];
-    const next = existing.includes(currentAlterId)
-      ? existing.filter(id => id !== currentAlterId)
-      : [...existing, currentAlterId];
-    await base44.entities.BulletinComment.update(comment.id, { reactions: { ...base, [emoji]: next } });
+    await reactToBulletinComment(comment.id, emoji, currentAlterId, reactions);
     qc.invalidateQueries({ queryKey: ["bulletinComments", bulletinId] });
   };
 
@@ -684,7 +629,7 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
         for (const id of Object.keys(next)) {
           const newCount = next[id].countdown - 1;
           if (newCount <= 0) {
-            base44.entities.BulletinComment.delete(id).then(() => {
+            trashBulletinComment(id).then(() => {
               onRefresh();
               qc.invalidateQueries({ queryKey: ["bulletinCommentsAll"] });
             });
@@ -715,7 +660,7 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
       if (newCount >= 3) {
         setPendingDeletes(p => { const n = { ...p }; delete n[comment.id]; return n; });
         setDeleteTapCounts(p => { const n = { ...p }; delete n[comment.id]; return n; });
-        base44.entities.BulletinComment.delete(comment.id).then(() => {
+        trashBulletinComment(comment.id).then(() => {
           onRefresh();
           qc.invalidateQueries({ queryKey: ["bulletinCommentsAll"] });
         });

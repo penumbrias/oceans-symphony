@@ -14,6 +14,7 @@
 
 import { base44 } from "@/api/base44Client";
 import { withTrashBatch } from "@/lib/localDb";
+import { createBulletin, trashBulletin } from "@/lib/bulletinEntry";
 
 // A to-do's note. `description` is the one field written; planner-made
 // to-dos from older builds stored it as `notes`, so read both.
@@ -37,7 +38,7 @@ export async function createTask(fields, { companionBulletin = false, authorAlte
         authors = active.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean);
       } catch { /* unsigned is fine */ }
     }
-    await base44.entities.Bulletin.create({
+    await createBulletin({
       content: `[task:${task.id}] ${title}`,
       author_alter_ids: authors,
       author_alter_id: authors[0] || null,
@@ -87,7 +88,7 @@ export async function deleteTask(taskId) {
     for (const b of cards) {
       const content = String(b?.content || "");
       if (!marks.some((m) => content.startsWith(m))) continue;
-      try { await base44.entities.Bulletin.delete(b.id); } catch { /* stays visible */ }
+      try { await trashBulletin(b.id); } catch { /* stays visible */ }
     }
   });
 }

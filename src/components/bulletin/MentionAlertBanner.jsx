@@ -1,5 +1,5 @@
 import React from "react";
-import { base44 } from "@/api/base44Client";
+import { markBulletinsRead } from "@/lib/bulletinEntry";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,14 +23,7 @@ export default function MentionAlertBanner({ bulletins, currentAlterId, alters, 
   if (unread.length === 0 && !pixel) return null;
 
   const markRead = async () => {
-    for (const b of unread) {
-      const already = b.read_by_alter_ids || [];
-      if (!already.includes(currentAlterId)) {
-        await base44.entities.Bulletin.update(b.id, {
-          read_by_alter_ids: [...already, currentAlterId],
-        });
-      }
-    }
+    await markBulletinsRead(unread, currentAlterId);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 

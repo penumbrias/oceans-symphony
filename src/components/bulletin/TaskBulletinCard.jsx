@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { setTaskBulletinContent, setBulletinPinned, trashBulletin } from "@/lib/bulletinEntry";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { setTaskCompleted } from "@/lib/linkedCompletion";
@@ -71,7 +72,7 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     const newContent = newCompleted
       ? `[task:${parsed.taskId}:done] ${parsed.title}`
       : `[task:${parsed.taskId}] ${parsed.title}`;
-    await base44.entities.Bulletin.update(bulletin.id, { content: newContent });
+    await setTaskBulletinContent(bulletin.id, newContent);
     await setTaskCompleted(parsed.taskId, newCompleted);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
     qc.invalidateQueries({ queryKey: ["activities"] });
@@ -85,14 +86,14 @@ const timeAgo = `${format(dateObj, clockPattern("MMM d 'at' h:mm a"))} · ${form
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
       Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, is_pinned: newPinned } : b) : old
     );
-    await base44.entities.Bulletin.update(bulletin.id, { is_pinned: newPinned });
+    await setBulletinPinned(bulletin.id, newPinned);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
   const handleDelete = async (e) => {
     e.stopPropagation();
     if (!(await confirm({ title: "Delete this task post?", body: "The linked task itself is not deleted.", confirmLabel: "Delete", destructive: true }))) return;
-    await base44.entities.Bulletin.delete(bulletin.id);
+    await trashBulletin(bulletin.id);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 

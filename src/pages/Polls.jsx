@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
-import { castPollVote } from "@/lib/pollVote";
+import { castPollVote, decrementTallyVote, createPoll, editPoll, addPollOption, setPollTallyMode, closePoll, trashPoll, setPollPinned, defaultTallyMode, rememberTallyMode } from "@/lib/pollEntry";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import FronterPicker from "@/components/fronting/FronterPicker";
 import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
@@ -28,15 +28,9 @@ import "@/styles/pixel/social.css";
 // Per-user default for what voting mode a NEW poll should start in.
 // Persists in localStorage so the user's preferred mode carries forward.
 // Per-poll override is still possible from the poll's detail view.
-const TALLY_DEFAULT_KEY = "symphony_polls_default_tally_mode";
-function readTallyDefault() {
-  try { return localStorage.getItem(TALLY_DEFAULT_KEY) === "1"; }
-  catch { return false; }
-}
-function writeTallyDefault(on) {
-  try { localStorage.setItem(TALLY_DEFAULT_KEY, on ? "1" : "0"); }
-  catch { /* non-fatal */ }
-}
+// (defaultTallyMode / rememberTallyMode in pollEntry.js)
+const readTallyDefault = defaultTallyMode;
+const writeTallyDefault = rememberTallyMode;
 
 // "Created By" picker — compact signpost-style dropdown (single
 // trigger button → searchable popover). The previous FronterPicker
@@ -115,17 +109,6 @@ const optionLabel = (o) => (typeof o === "string" ? o : (o?.label ?? ""));
 // Tally mode: take one anonymous mark off an option (the detail view's −
 // and the pixel card's − both call this). Pops the last anonymous ""
 // first, so alter-tagged votes from before a switch to tally mode stay.
-async function decrementTallyVote(poll, optionIdx) {
-  if (!poll || poll.is_closed) return false;
-  const key = optionIdx.toString();
-  const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
-  if (!newVotes[key] || newVotes[key].length === 0) return false;
-  const lastAnon = newVotes[key].lastIndexOf("");
-  if (lastAnon >= 0) newVotes[key].splice(lastAnon, 1);
-  else newVotes[key].pop();
-  await base44.entities.Poll.update(poll.id, { votes: newVotes });
-  return true;
-}
 
 function PollListView({ polls, alters, onSelectPoll }) {
   const terms = useTerms();
@@ -235,22 +218,9 @@ export function CreatePollModal({ open, onClose, alters }) {
 
     setSaving(true);
     try {
-      // Initialize votes object
-      const votes = {};
-      filledOptions.forEach((_, idx) => {
-        votes[idx.toString()] = [];
-      });
-
-      await base44.entities.Poll.create({
-        question: question.trim(),
-        options: filledOptions,
-        // In tally mode there's no per-alter accounting, so the
-        // creator-alter concept is meaningless — store null.
-        created_by_alter_id: tallyMode ? null : (selectedAlter || null),
-        is_closed: false,
-        tally_mode: tallyMode,
-        votes,
-      });
+      // In tally mode there's no per-alter accounting, so the
+      // creator-alter concept is meaningless — createPoll stores null.
+      await createPoll({ question: question.trim(), options: filledOptions, tallyMode, createdByAlterId: selectedAlter || null });
       // Remember this mode as the default for future polls.
       writeTallyDefault(tallyMode);
 
@@ -409,22 +379,9 @@ function EditPollModal({ open, onClose, poll }) {
 
     setSaving(true);
     try {
-      // Migrate votes: each new index pulls from its origin's old key.
-      // Newly-added rows (origin null) start with [].
-      const newVotes = {};
-      filledOpts.forEach((_, newIdx) => {
-        const origin = filledOrigin[newIdx];
-        newVotes[String(newIdx)] = origin != null ? ((poll.votes || {})[String(origin)] || []) : [];
-      });
-      await base44.entities.Poll.update(poll.id, {
-        question: question.trim(),
-        options: filledOpts,
-        votes: newVotes,
-        tally_mode: tallyMode,
-        // If the user flipped to tally mode in the editor, drop the
-        // creator alter to match the create-flow's behaviour.
-        ...(tallyMode ? { created_by_alter_id: null } : {}),
-      });
+      // Votes follow their option to its new index; new rows start empty;
+      // flipping to tally mode drops the creator (editPoll, pollEntry.js).
+      await editPoll(poll, { question: question.trim(), options: filledOpts, optionOrigin: filledOrigin, tallyMode });
       writeTallyDefault(tallyMode);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       toast.success("Poll updated");
@@ -636,7 +593,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
 
     setSaving(true);
     try {
-      // One vote path for the page and the widgets (src/lib/pollVote.js):
+      // One vote path for the page and the widgets (src/lib/pollEntry.js):
       // tally polls add one anonymous mark; per-alter polls toggle each
       // selected voter, an empty selection being one system-wide vote.
       await castPollVote(poll, optionIdx, selectedVoters);
@@ -661,10 +618,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
       return;
     }
     try {
-      const newOptions = [...(poll.options || []), label];
-      const newVotes = { ...(poll.votes || {}) };
-      newVotes[String(newOptions.length - 1)] = [];
-      await base44.entities.Poll.update(poll.id, { options: newOptions, votes: newVotes });
+      await addPollOption(poll, label);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       setNewOptionText("");
       setAddingOption(false);
@@ -688,7 +642,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   const handleToggleTallyMode = async () => {
     const next = !poll.tally_mode;
     try {
-      await base44.entities.Poll.update(poll.id, { tally_mode: next });
+      await setPollTallyMode(poll.id, next);
       writeTallyDefault(next);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
     } catch (e) {
@@ -699,7 +653,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   const handleClosePoll = async () => {
     setSaving(true);
     try {
-      await base44.entities.Poll.update(poll.id, { is_closed: true });
+      await closePoll(poll.id);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       toast.success("Poll closed");
       onBack();
@@ -727,13 +681,9 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
     setDeleteArmed(false);
     setSaving(true);
     try {
-      if (poll.bulletin_id) {
-        try {
-          await base44.entities.Bulletin.update(poll.bulletin_id, { poll_id: null });
-          queryClient.invalidateQueries({ queryKey: ["bulletins"] });
-        } catch { /* non-fatal */ }
-      }
-      await base44.entities.Poll.delete(poll.id);
+      // A poll posted from a bulletin is unlinked from that post first.
+      await trashPoll(poll);
+      if (poll.bulletin_id) queryClient.invalidateQueries({ queryKey: ["bulletins"] });
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       toast.success("Poll deleted");
       onBack();
@@ -747,19 +697,12 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   const handleTogglePin = async () => {
     const next = !poll.pinned_to_dashboard;
     try {
-      await base44.entities.Poll.update(poll.id, { pinned_to_dashboard: next });
+      // A poll posted from a bulletin pins that post too, so it shows in the
+      // board's Pinned section (setPollPinned, pollEntry.js).
+      await setPollPinned(poll, next);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       queryClient.invalidateQueries({ queryKey: ["polls", "pinned_in_board"] });
-      // Polls created from a bulletin are also pinned in-place via the
-      // bulletin's `is_pinned` flag so the bulletin (with the poll
-      // embedded) shows in the board's Pinned section. Standalone polls
-      // surface in the same section via PinnedPollCard.
-      if (poll.bulletin_id) {
-        try {
-          await base44.entities.Bulletin.update(poll.bulletin_id, { is_pinned: next });
-          queryClient.invalidateQueries({ queryKey: ["bulletins"] });
-        } catch { /* non-fatal: the poll pin still flips */ }
-      }
+      if (poll.bulletin_id) queryClient.invalidateQueries({ queryKey: ["bulletins"] });
       toast.success(next ? "Pinned to Bulletin Board" : "Unpinned from Bulletin Board");
     } catch (e) {
       toast.error(e.message || "Failed to update pin");
