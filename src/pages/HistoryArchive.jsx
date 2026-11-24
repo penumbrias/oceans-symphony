@@ -24,6 +24,7 @@ import TrashPanel from "@/components/settings/TrashPanel";
 import { getTrashSettings } from "@/lib/trash";
 import { useUiLook } from "@/lib/uiLook";
 import RowMenu from "@/components/shared/RowMenu";
+import PageStrip from "@/components/shared/PageStrip";
 import "@/styles/pixel/logs.css";
 
 const FIELD_LABELS = {
@@ -161,14 +162,8 @@ export default function HistoryArchive() {
     const tone = (e) => (e.action === "deleted" ? "bad" : e.action === "synced" || e.category === "sync" ? "info" : "warn");
     return (
       <div className="pxg-hist" data-tour="history-archive">
-        <div className="pxg-histtabs" role="tablist" aria-label="Kinds of change">
-          {CATS.map((c) => (
-            <button key={c.id} type="button" role="tab" aria-selected={c.id === cat.id}
-              className={`pxg-chip${c.id === cat.id ? " sel" : ""}`} onClick={() => setOpenCat(c.id)}>
-              {c.label}{(byCat[c.id] || []).length ? ` ${(byCat[c.id] || []).length}` : ""}
-            </button>
-          ))}
-        </div>
+        <PageStrip label="Kinds of change" className="pxg-histtabs" value={cat.id} onChange={setOpenCat}
+          items={CATS.map((c) => ({ id: c.id, label: c.label, count: (byCat[c.id] || []).length || null }))} />
         <section className="pxg-pn" aria-label="Recent changes">
           <div className="pxg-ttl"><span>Recent changes</span><span className="pxg-ttl-sub">newest first</span></div>
           {rows.length === 0 ? (
