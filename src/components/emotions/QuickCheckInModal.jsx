@@ -1426,8 +1426,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 <div className="os-side-rating flex flex-col items-center gap-1.5 pl-2.5 border-l border-border/40 flex-shrink-0">
                   <button type="button" onClick={() => setShowSliderPicker(true)}
                     aria-label={`Rating tracks ${sliderSymptom?.label || "Energy"} — change`}
-                    className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground max-w-[3.75rem] truncate leading-tight text-center flex items-center gap-0.5">
-                    {sliderSymptom?.label || "Energy"}<ChevronRight className="w-2.5 h-2.5 rotate-90 flex-shrink-0" />
+                    className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground max-w-[3.75rem] leading-tight text-center flex items-center gap-0.5">
+                    <span className="min-w-0 line-clamp-2 break-words">{sliderSymptom?.label || "Energy"}</span><ChevronRight className="w-2.5 h-2.5 rotate-90 flex-shrink-0" />
                   </button>
                   <RatingMeter
                     value={sliderValue}
