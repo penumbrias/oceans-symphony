@@ -54,31 +54,23 @@ function ContrastTable() {
   for (const [fg, bgs, min] of ROLE_PAIRS) for (const bg of bgs) rows.push({ fg, bg, min, ratio: contrastRatio(roles[fg], roles[bg]) ?? 0 });
   const name = (k) => (ROLE_NAMES.find(([key]) => key === k) || [k, k])[1];
   return (
-    <div className="kit-table-wrap">
-      <table className="kit-table house-text-sm">
-        <caption className="house-text-sm house-muted">Each pair the house promises, measured in your colours.</caption>
-        <thead>
-          <tr><th scope="col">Words or part</th><th scope="col">On</th><th scope="col">Needs</th><th scope="col">Reads at</th></tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const ok = r.ratio >= r.min;
-            return (
-              <tr key={`${r.fg}-${r.bg}`}>
-                <td>
-                  <span className="kit-pair" style={{ background: roles[r.bg], color: roles[r.fg], borderColor: roles[r.fg] }}>{name(r.fg)}</span>
-                </td>
-                <td>{name(r.bg)}</td>
-                <td className="house-value">{r.min}:1</td>
-                <td className="house-value">
-                  {r.ratio.toFixed(2)}:1 {ok ? <span aria-label="meets it">✓</span> : <strong className="kit-danger">below</strong>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <p className="house-text-sm house-muted kit-note">Each pair the house promises, measured in your colours.</p>
+      <ul className="kit-list kit-pairs">
+        {rows.map((r) => {
+          const ok = r.ratio >= r.min;
+          return (
+            <li key={`${r.fg}-${r.bg}`} className="kit-pair-row house-text-sm">
+              <span className="kit-pair" style={{ background: roles[r.bg], color: roles[r.fg], borderColor: roles[r.fg] }}>{name(r.fg)}</span>
+              <span>on {name(r.bg)}</span>
+              <span className="house-value">
+                needs {r.min}:1, reads at {r.ratio.toFixed(2)}:1 {ok ? <span aria-label="meets it">✓</span> : <strong className="kit-danger">below</strong>}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 
@@ -103,10 +95,10 @@ function Fonts() {
   const { fonts } = useHouse();
   return (
     <dl className="kit-dl house-text-sm">
-      <dt className="house-label">Label font</dt><dd className="house-label house-text-md">Today's check-in · Planner</dd>
-      <dt className="house-label">Body font</dt><dd className="house-text-md">Felt calmer after the walk.</dd>
-      <dt className="house-label">Values</dt><dd className="house-value house-text-md">09:12 · 3 5 8 · 2026-11-24</dd>
-      <dt className="house-muted">Fonts in use</dt><dd className="house-value house-text-xs house-muted">{fonts.label} / {fonts.body}</dd>
+      <div><dt className="house-label">Label font</dt><dd className="house-label house-text-md">Today's check-in · Planner</dd></div>
+      <div><dt className="house-label">Body font</dt><dd className="house-text-md">Felt calmer after the walk.</dd></div>
+      <div><dt className="house-label">Values</dt><dd className="house-value house-text-md">09:12 · 3 5 8 · 2026-11-24</dd></div>
+      <div><dt className="house-muted">Fonts in use</dt><dd className="house-value house-text-xs house-muted">{fonts.label} / {fonts.body}</dd></div>
     </dl>
   );
 }
