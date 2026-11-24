@@ -10,6 +10,26 @@ import crypto from 'crypto'
 // Google's Digital Asset Links verifier (zero redirects allowed). Copy the
 // file into place at build time so it's served from the canonical path with
 // no rewrite at all.
+// The changelog holds every release ever (over half a megabyte). The home
+// screen's "What's new" bar only needs the newest few days, so this plugin
+// serves them as a tiny virtual module; the full list loads only when the
+// person asks for older changes (new house step 0.3).
+const CHANGELOG_LATEST_ID = 'virtual:changelog-latest'
+const changelogLatest = () => ({
+  name: 'changelog-latest',
+  resolveId(id) { return id === CHANGELOG_LATEST_ID ? '\0' + CHANGELOG_LATEST_ID : null },
+  async load(id) {
+    if (id !== '\0' + CHANGELOG_LATEST_ID) return null
+    const file = path.resolve('src/lib/changelog.js')
+    this.addWatchFile(file)
+    const url = new URL('file://' + file)
+    url.searchParams.set('t', String(fs.statSync(file).mtimeMs))
+    const { CHANGELOG = [] } = await import(url.href)
+    const latest = CHANGELOG.slice(0, 4)
+    return `export const LATEST = ${JSON.stringify(latest)};\nexport const TOTAL = ${CHANGELOG.length};\n`
+  },
+})
+
 const copyWellKnownAssetlinks = () => ({
   name: 'copy-well-known-assetlinks',
   closeBundle() {
@@ -130,7 +150,7 @@ const injectCspMeta = () => ({
 
 export default defineConfig({
   logLevel: 'error',
-  plugins: [react(), copyWellKnownAssetlinks(), injectCspMeta(), emitAssetList()],
+  plugins: [react(), changelogLatest(), copyWellKnownAssetlinks(), injectCspMeta(), emitAssetList()],
   resolve: {
     alias: {
       '@': path.resolve('./src'),

@@ -13,6 +13,7 @@
 
 import { getAudioContext, createLayer, getBusAnalyser, holdBus, releaseBus } from "@/lib/audio/soundBus";
 import { clampParams, makeLoop, motionValue, windDownValue, rainShape, rainKey } from "./soundMath";
+import { markSoundLoaded } from "@/lib/soundPresence";
 
 const MAX_GAIN = 1.0;
 const BUS_KEY = "soundscape";
@@ -277,3 +278,6 @@ export function stopSoundscape({ fade = 1.5 } = {}) {
   }, fade * 1000 + 100);
   try { cb?.(); } catch { /* listener */ }
 }
+
+// The frame shows the "now playing" pill only once sound code is here.
+markSoundLoaded();

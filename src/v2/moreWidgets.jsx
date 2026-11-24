@@ -38,7 +38,7 @@ import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import { groundingPreferenceHandlers } from "@/lib/groundingPreferences";
 import TopicView, { CURRICULUM } from "@/components/support/TopicView";
-import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+const QuickCheckInModal = lazyWhenOpen(() => import("@/components/emotions/QuickCheckInModal"), (p) => p.isOpen);
 import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useFrontersFirst } from "@/lib/alterSort";
@@ -48,6 +48,7 @@ import { isCountedTask, taskCountState, countLabel } from "@/lib/taskCounts";
 import { checkInIsDistress } from "@/lib/emotionDistress";
 import { Row as SettingRow } from "@/components/shared/SettingRows";
 import { sharedList } from "@/lib/sharedLists";
+import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.

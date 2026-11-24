@@ -18,6 +18,7 @@
 import { natureSoundById } from "./catalog";
 import { natureSoundSrc } from "./natureOffline";
 import { readNaturePrefs, writeNaturePrefs } from "./naturePrefs";
+import { markSoundLoaded } from "@/lib/soundPresence";
 import { isOwnSoundId, listMySounds } from "./ownSounds";
 import { clampShape, makeRoomImpulse } from "./recordingShape";
 import { motionValue } from "@/lib/soundscape/soundMath";
@@ -658,3 +659,6 @@ export function setRecordingShape(patch) {
 
 // Test hook: the routed chain's nodes (null until a routed sound has played).
 export const recordingChainForTests = () => chain;
+
+// The frame shows the "now playing" pill only once sound code is here.
+markSoundLoaded();

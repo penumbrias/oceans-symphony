@@ -47,7 +47,19 @@ import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
-import SoundscapeGlobalBar from "@/components/grounding/soundscape/SoundscapeGlobalBar";
+import { isSoundLoaded, onSoundLoaded } from "@/lib/soundPresence";
+const SoundscapeGlobalBarLazy = React.lazy(() => import("@/components/grounding/soundscape/SoundscapeGlobalBar"));
+// The "now playing" pill and its sound code load only once a sound has.
+function SoundscapeGlobalBar() {
+  const [ready, setReady] = React.useState(isSoundLoaded);
+  React.useEffect(() => {
+    if (ready) return undefined;
+    if (isSoundLoaded()) { setReady(true); return undefined; }
+    return onSoundLoaded(() => setReady(true));
+  }, [ready]);
+  if (!ready) return null;
+  return <React.Suspense fallback={null}><SoundscapeGlobalBarLazy /></React.Suspense>;
+}
 import ActiveActivityBubble from "@/components/activities/ActiveActivityBubble";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";

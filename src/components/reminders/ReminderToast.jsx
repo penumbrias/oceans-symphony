@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { formatSnoozeLabel, snoozeUntilDate } from "./snoozeHelpers";
-import SetFrontSheet from "@/components/fronting/SetFrontSheet";
-import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
+const QuickCheckInModal = lazyWhenOpen(() => import("@/components/emotions/QuickCheckInModal"), (p) => p.isOpen);
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ import { isFocusQuiet, subscribeFocusQuiet } from "@/lib/soundscape/focusMode";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 import PixelReminderStrip from "./PixelReminderStrip";
+import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 
 // How long a newly fired reminder shows in full before it folds into a
 // small pill (UI critique C1). The pill stays until the reminder is dealt

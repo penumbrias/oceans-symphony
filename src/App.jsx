@@ -343,6 +343,9 @@ const AuthenticatedApp = () => {
         {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
         <Route path="/mods" element={<ExperimentalGate name="Mods"><ModsPage /></ExperimentalGate>} />
         <Route path="/mod/:modId/:pageId" element={<ExperimentalGate name="Mods"><ModPage /></ExperimentalGate>} />
+        {/* Opened from inside the app (Settings → About): the same page the
+            outside link shows, here inside the frame instead of a dead end. */}
+        <Route path="/privacy" element={<Privacy />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>

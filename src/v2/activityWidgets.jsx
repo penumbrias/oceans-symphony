@@ -29,10 +29,11 @@ import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityDayView from "@/components/activities/ActivityDayView";
-import ActivityEditor from "@/components/activities/ActivityEditor";
+const ActivityEditor = lazyWhenOpen(() => import("@/components/activities/ActivityEditor"), (p) => !!p.request);
 import PlanDetailsSheet from "@/components/planner/PlanDetailsSheet";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { sharedList } from "@/lib/sharedLists";
+import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 
 // The grid's display filters and sizing live in the WIDGET's options (gear
 // menu), not buried in a toolbar inside the tile. Only keys the user

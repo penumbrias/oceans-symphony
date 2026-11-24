@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { toast } from "sonner";
-import SetFrontSheet from "@/components/fronting/SetFrontSheet";
+const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
@@ -37,6 +37,7 @@ import RichText from "@/components/shared/RichText";
 import { latestBy } from "@/lib/latestRecord";
 import { sharedList } from "@/lib/sharedLists";
 import { bySymptomOrder } from "@/lib/symptomOrder";
+import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
