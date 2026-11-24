@@ -25,9 +25,11 @@ import "@/styles/pixel/sheets.css";
 // The alter's mark: their picture, else their colour square.
 function Mark({ alter }) {
   const resolved = useResolvedAvatarUrl(alter.avatar_url);
+  const hasColour = !!alter.color;
+  const inner = resolved ? <img src={resolved} alt="" /> : hasColour ? null : <User className="w-4 h-4" />;
   return (
     <span className="psh-av" style={{ backgroundColor: alter.color || "var(--px-tab)" }}>
-      {resolved ? <img src={resolved} alt="" /> : !alter.color ? <User className="w-4 h-4" /> : null}
+      {inner}
     </span>
   );
 }
@@ -118,6 +120,7 @@ export default function SetFrontSheetPixel(p) {
         </span>
       </div>
 
+      {/* ui-ok: the board's three tabs inside a dialog (PageStrip would publish them to the frame); same tabs the smooth sheet has */}
       <div className="psh-tabs" role="tablist">
         {tabs.map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={pxTab === id}
@@ -243,7 +246,7 @@ export default function SetFrontSheetPixel(p) {
             aria-pressed={journalSwitch} disabled={isUnsure}
             onClick={() => setJournalSwitch(!journalSwitch)}>
             <span className={`psh-tick${journalSwitch && !isUnsure ? " y" : ""}`} aria-hidden="true">{journalSwitch && !isUnsure ? "x" : ""}</span>
-            <span>Write {an(terms.switch)} {terms.switch} journal after saving</span>
+            <span>Write {an(terms.switch)} journal after saving</span>
           </button>
         </div>
       )}

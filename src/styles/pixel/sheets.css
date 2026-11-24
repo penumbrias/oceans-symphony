@@ -224,3 +224,4 @@ html[data-ui-look="pixel"] .psh-qj-pic {
   overflow: hidden; border: 0; padding: 0; font-family: var(--px-font);
 }
 html[data-ui-look="pixel"] .psh-qj-pic > img { width: 100%; height: 100%; object-fit: cover; }
+html[data-ui-look="pixel"] .psh-gs-row mark { padding: 0 !important; border-radius: 0 !important; }
