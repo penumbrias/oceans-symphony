@@ -705,3 +705,5 @@ html[data-px-front="bottom"][data-px-status="1"] { --px-below-dock: calc(24px + 
 .px-ws-row:focus-visible, .px-ws-pick:focus-visible, .px-ws-open:focus-visible { outline: 2px solid var(--color-primary); }
 .px-ws-empty { padding: 8px; font-size: 12.5px; color: var(--px-text-2); }
 .px-ws-main { min-width: 0; }
+.px-ws-cal { padding: 8px; font-size: 12px; }
+.px-ws-cal button { border-radius: 0 !important; }

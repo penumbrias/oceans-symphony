@@ -796,6 +796,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/planner", target: "planner",
     }),
     s("activities", {
+      emoji: "🗓️", title: "Go to a day", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, a month sits beside the planner. Click any day to jump the calendar there.`,
+      route: "/planner", target: "planner-month-panel",
+    }),
+    s("activities", {
       emoji: "🧭", title: "Calendar",
       body: `Calendar shows a Day, Week, Month or Year. Tap a day on the month or year to open it, or hold and drag across days to plan one entry over them all.`,
       route: "/planner", target: ["planner-sections", "px-subtabs"], look: `the Calendar / Plans / Insights switch`,

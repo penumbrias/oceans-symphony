@@ -16,6 +16,8 @@ import { useSearchParams } from "react-router-dom";
 import PlannerSurface from "@/components/planner/PlannerSurface";
 import EventSheet from "@/components/planner/EventSheet";
 import { usePlannerEvents } from "@/lib/plannerEvents";
+import { usePixelDesk } from "@/lib/uiLook";
+import { Calendar } from "@/components/ui/calendar";
 
 function parseDay(s) {
   if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
@@ -56,17 +58,39 @@ export default function Planner() {
     setParams(next, { replace: true });
   }, [params, setParams]);
 
-  return (
-    <>
-    {eventRequest && <EventSheet request={eventRequest} onClose={() => setEventLink(null)} />}
+  // The page holds the day the calendar shows, so the pixel look's month
+  // panel (computer) can jump it. Same starting day as before.
+  const pixelDesk = usePixelDesk();
+  const [anchor, setAnchor] = useState(() => initialAnchor || new Date());
+  const [month, setMonth] = useState(anchor);
+  useEffect(() => { setMonth(anchor); }, [anchor]);
+
+  const surface = (
     <PlannerSurface
       dayCount={7}
       chrome
+      anchor={anchor}
+      onAnchorChange={setAnchor}
       initialAnchor={initialAnchor}
       initialView={initialView}
       openActivityId={openId}
       onOpenedActivity={() => setOpenId(null)}
     />
+  );
+
+  return (
+    <>
+    {eventRequest && <EventSheet request={eventRequest} onClose={() => setEventLink(null)} />}
+    {pixelDesk ? (
+      <div className="px-ws">
+        <aside className="px-ws-side" aria-label="Month" data-tour="planner-month-panel">
+          <div className="px-ws-ttl"><span>Go to a day</span></div>
+          <Calendar mode="single" selected={anchor} month={month} onMonthChange={setMonth}
+            onSelect={(d) => { if (d) setAnchor(d); }} className="px-ws-cal" />
+        </aside>
+        <div className="px-ws-main">{surface}</div>
+      </div>
+    ) : surface}
     </>
   );
 }
