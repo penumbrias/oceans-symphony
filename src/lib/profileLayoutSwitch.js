@@ -5,8 +5,8 @@
 // Every write reads the record fresh and sends only these fields.
 
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { NEW_PROFILE_LAYOUT } from "@/lib/profileBoard";
-import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 const ENTITY = { alter: "Alter", group: "Group", contact: "Contact", location: "InnerWorldLocation" };
 // SystemSettings field that turns the "Try the new profile" card off for
@@ -52,7 +52,5 @@ export function dismissRecordNewProfileOffer(type, id) {
 export async function turnOffNewProfileOffer(type) {
   const field = OFFER_OFF_FIELD[type];
   if (!field) return;
-  const fresh = pickPrimarySystemSettings(await base44.entities.SystemSettings.list());
-  if (fresh?.id) await base44.entities.SystemSettings.update(fresh.id, { [field]: true });
-  else await base44.entities.SystemSettings.create({ [field]: true });
+  await writeSettings({ [field]: true }, { create: true, invalidate: false });
 }
