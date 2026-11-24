@@ -198,6 +198,7 @@ function Body() {
         <p className="house-text-sm house-muted">The new house's building blocks in your colours. A preview: nothing here changes your settings.</p>
         <Summary />
         <Link to="/" className="house-text-sm kit-link">Back to the app</Link>
+        <Link to="/house/kit/controls" className="house-text-sm kit-link">Controls and pickers (step 1.2)</Link>
       </header>
       <Section title="Colours"><Swatches /></Section>
       <Section title="Can it be read?"><ContrastTable /></Section>

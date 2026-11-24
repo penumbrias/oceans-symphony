@@ -20,8 +20,8 @@ import { Button, IconButton } from "@/house/kit/Button";
 import { KitPopover } from "@/house/kit/KitLayer";
 import "@/house/kit/kit.css";
 
-export default function Menu({ label, items = [], icon = MoreHorizontal, children, rank }) {
-  const [open, setOpen] = useState(false);
+export default function Menu({ label, items = [], icon = MoreHorizontal, children, rank, openInline = false }) {
+  const [open, setOpen] = useState(openInline);
   const triggerRef = useRef(null);
   const popRef = useRef(null);
   const menuId = useId();
@@ -38,7 +38,7 @@ export default function Menu({ label, items = [], icon = MoreHorizontal, childre
     const els = [...(popRef.current?.querySelectorAll('[role="menuitem"]') || [])];
     return els.indexOf(document.activeElement);
   };
-  useEffect(() => { if (open) requestAnimationFrame(() => focusItem(0)); }, [open]);
+  useEffect(() => { if (open && !openInline) requestAnimationFrame(() => focusItem(0)); }, [open, openInline]);
   const close = (refocus = true) => { setOpen(false); if (refocus) triggerRef.current?.focus(); };
 
   const onKey = (e) => {
@@ -72,7 +72,7 @@ export default function Menu({ label, items = [], icon = MoreHorizontal, childre
       {children
         ? <Button rank={rank || "secondary"} {...triggerProps}>{children}</Button>
         : <IconButton icon={icon} label={label} rank={rank || "quiet"} {...triggerProps} />}
-      <KitPopover open={open} anchorRef={triggerRef} popRef={popRef} onClose={() => setOpen(false)} role="menu" label={label} id={menuId} onKeyDown={onKey}>
+      <KitPopover open={open} inline={openInline} anchorRef={triggerRef} popRef={popRef} onClose={() => setOpen(false)} role="menu" label={label} id={menuId} onKeyDown={onKey}>
         {ordered.map((it, i) => {
           const off = !!it.disabledReason;
           return (

@@ -95,7 +95,7 @@ export function RadioGroup({ label, hint, options = [], value, onChange, name })
 }
 
 // ── Switch ────────────────────────────────────────────────────────────
-export function Switch({ label, description, checked = false, onChange, disabledReason, onWord = "On", offWord = "Off" }) {
+export function Switch({ label, description, checked = false, onChange, disabledReason, onWord = "On", offWord = "Off", ...rest }) {
   const id = useId();
   const off = !!disabledReason;
   return (
@@ -108,6 +108,7 @@ export function Switch({ label, description, checked = false, onChange, disabled
       aria-describedby={description || off ? `${id}-d` : undefined}
       aria-disabled={off || undefined}
       onClick={() => { if (!off) onChange?.(!checked); }}
+      {...rest}
     >
       <span className="hk-switch-text">
         <span id={`${id}-l`}>{label}</span>

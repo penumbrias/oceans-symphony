@@ -1,0 +1,8 @@
+/* The step 1.2 story sheet's layout. Uses only the house tokens. */
+[data-house] .ks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--house-space-4) var(--house-space-3); align-items: start; }
+[data-house] .ks-cell { display: flex; flex-direction: column; gap: var(--house-space-1); min-width: 0; padding: var(--house-space-1); border: var(--house-border-w) dashed var(--house-divider); border-radius: var(--house-corner-sm); }
+[data-house] .ks-cell--wide { grid-column: 1 / -1; }
+[data-house] .ks-cell-body { min-width: 0; }
+[data-house] .ks-cell-name { overflow-wrap: anywhere; }
+[data-house] .ks-rank { display: flex; flex-direction: column; gap: var(--house-space-2); }
+[data-house] .ks-rank-title { margin: var(--house-space-3) 0 0; }

@@ -196,16 +196,18 @@ export function NumberField({ label, hint, error, save, value, onChange, min = -
 // ── Date ─────────────────────────────────────────────────────────────
 const todayDay = () => toDay(new Date());
 
-function Calendar({ value, onPick, onClose, weekStart = 1, clearable, onClear }) {
+function Calendar({ value, onPick, onClose, weekStart = 1, clearable, onClear, autoFocus = true }) {
   const today = todayDay();
   const [focusDay, setFocusDay] = useState(isDay(value) ? value : today);
   const d = dayToDate(focusDay);
   const year = d.getFullYear(), month = d.getMonth();
   const cells = useMemo(() => monthGrid(year, month, weekStart), [year, month, weekStart]);
   const gridRef = useRef(null);
+  const first = useRef(true);
   useEffect(() => {
+    if (first.current) { first.current = false; if (!autoFocus) return; }
     gridRef.current?.querySelector(`[data-day="${focusDay}"]`)?.focus();
-  }, [focusDay]);
+  }, [focusDay, autoFocus]);
   const title = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const dows = cells.slice(0, 7).map((c) => dayToDate(c.day));
   const move = (day) => setFocusDay(day);
@@ -265,12 +267,12 @@ function Calendar({ value, onPick, onClose, weekStart = 1, clearable, onClear })
   );
 }
 
-export function DateField({ label, hint, error, save, value, onChange, clearable = false, disabled, weekStart = 1, placeholder = "Today, tomorrow, 23 Nov…" }) {
+export function DateField({ label, hint, error, save, value, onChange, clearable = false, disabled, weekStart = 1, placeholder = "Today, tomorrow, 23 Nov…", openInline = false }) {
   const today = todayDay();
   const display = isDay(value) ? formatDayWords(value, { today }) : "";
   const { text, setText, setEditing } = useDraft(display);
   const [bad, setBad] = useState(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openInline);
   const btnRef = useRef(null);
   const order = useMemo(() => localeDateOrder(undefined), []);
   const accept = (day) => { setBad(null); setEditing(false); if (day !== value) onChange?.(day); };
@@ -310,8 +312,8 @@ export function DateField({ label, hint, error, save, value, onChange, clearable
               disabledReason={disabled ? "Not available here" : undefined} onClick={() => setOpen((o) => !o)} />
           </div>
           {isDay(value) ? <p className="hk-readback">{formatDayLong(value)}</p> : null}
-          <KitPopover open={open} anchorRef={btnRef} onClose={() => setOpen(false)} label={`${label}: calendar`}>
-            <Calendar value={value} weekStart={weekStart} clearable={clearable}
+          <KitPopover open={open} inline={openInline} anchorRef={btnRef} onClose={() => setOpen(false)} label={`${label}: calendar`}>
+            <Calendar value={value} weekStart={weekStart} clearable={clearable} autoFocus={!openInline}
               onPick={(day) => { accept(day); setOpen(false); btnRef.current?.focus(); }}
               onClear={() => { accept(null); setOpen(false); btnRef.current?.focus(); }}
               onClose={() => { setOpen(false); btnRef.current?.focus(); }} />
@@ -323,15 +325,17 @@ export function DateField({ label, hint, error, save, value, onChange, clearable
 }
 
 // ── Time ─────────────────────────────────────────────────────────────
-function TimeList({ value, step, format, onPick, label, onClose }) {
+function TimeList({ value, step, format, onPick, label, onClose, autoFocus = true }) {
   const slots = useMemo(() => timeSlots(step), [step]);
   const start = Math.max(0, slots.indexOf(nearestSlot(value, step) || "09:00"));
   const [active, setActive] = useState(start);
   const listRef = useRef(null);
   const baseId = useId();
-  useEffect(() => { listRef.current?.focus(); }, []);
+  useEffect(() => { if (autoFocus) listRef.current?.focus(); }, [autoFocus]);
   useEffect(() => {
-    listRef.current?.querySelector(`[data-idx="${active}"]`)?.scrollIntoView({ block: "nearest" });
+    const el = listRef.current?.querySelector(`[data-idx="${active}"]`);
+    const box = listRef.current?.closest(".hk-pop");
+    if (el && box) box.scrollTop = el.offsetTop - box.clientHeight / 2;
   }, [active]);
   const onKey = (e) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(slots.length - 1, i + 1)); }
@@ -356,12 +360,12 @@ function TimeList({ value, step, format, onPick, label, onClose }) {
   );
 }
 
-export function TimeField({ label, hint, error, save, value, onChange, clearable = false, disabled, step = 15, placeholder }) {
+export function TimeField({ label, hint, error, save, value, onChange, clearable = false, disabled, step = 15, placeholder, openInline = false }) {
   const format = useTimeFormat();
   const display = isTime(value) ? formatTimeValue(value, format) : "";
   const { text, setText, setEditing } = useDraft(display);
   const [bad, setBad] = useState(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openInline);
   const btnRef = useRef(null);
   const accept = (t) => { setBad(null); setEditing(false); if (t !== value) onChange?.(t); };
   const commit = () => {
@@ -396,8 +400,8 @@ export function TimeField({ label, hint, error, save, value, onChange, clearable
             <IconButton ref={btnRef} icon={Clock} label={`Choose ${label} from a list`} aria-haspopup="listbox" aria-expanded={open}
               disabledReason={disabled ? "Not available here" : undefined} onClick={() => setOpen((o) => !o)} />
           </div>
-          <KitPopover open={open} anchorRef={btnRef} onClose={() => setOpen(false)} role="presentation">
-            <TimeList value={value} step={step} format={format} label={`${label}: times`}
+          <KitPopover open={open} inline={openInline} anchorRef={btnRef} onClose={() => setOpen(false)} role="presentation">
+            <TimeList value={value} step={step} format={format} label={`${label}: times`} autoFocus={!openInline}
               onPick={(t) => { accept(t); setOpen(false); btnRef.current?.focus(); }}
               onClose={() => setOpen(false)} />
           </KitPopover>

@@ -3,7 +3,7 @@
    top and left, dark along the bottom and right. The same Lucide icons with
    square caps and mitred joins (building code §8). */
 [data-house][data-house-look="pixel"] {
-  --house-surface-shadow: none;
+  --house-surface-shadow: 0 0 0 0 transparent; /* never `none`: used in lists */
   --house-raise:
     inset var(--house-bevel) var(--house-bevel) 0 0 var(--house-bevel-light),
     inset calc(var(--house-bevel) * -1) calc(var(--house-bevel) * -1) 0 0 var(--house-bevel-dark);

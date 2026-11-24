@@ -75,21 +75,24 @@ export function useOutsidePress(open, refs, onClose) {
 // A pop-up anchored to a trigger: portaled into a house layer, placed by
 // useAnchoredPosition, closed by Escape (focus goes back to the trigger) or
 // a press outside. `role` and `label` describe it to screen readers.
-export function KitPopover({ open, anchorRef, onClose, children, role = "dialog", label, className = "", id, popRef: outerRef, onKeyDown, ...rest }) {
+export function KitPopover({ open, anchorRef, onClose, children, role = "dialog", label, className = "", id, popRef: outerRef, onKeyDown, inline = false, ...rest }) {
   const innerRef = React.useRef(null);
   const popRef = outerRef || innerRef;
-  const pos = useAnchoredPosition(anchorRef, popRef, open);
-  useOutsidePress(open, [anchorRef, popRef], onClose);
+  // `inline`: drawn in the page flow instead of floating (story sheets only,
+  // so the proof grid can show an open pop-up in a full-page picture).
+  const pos = useAnchoredPosition(anchorRef, popRef, open && !inline);
+  useOutsidePress(open && !inline, [anchorRef, popRef], onClose);
   if (!open) return null;
+  const Wrap = inline ? React.Fragment : KitLayer;
   return (
-    <KitLayer>
+    <Wrap>
       <div
         ref={popRef}
         id={id}
         role={role}
         aria-label={label}
-        className={`hk-pop ${className}`}
-        style={pos ? pos : { visibility: "hidden", left: 0, top: 0 }}
+        className={`hk-pop${inline ? " hk-pop--inline" : ""} ${className}`}
+        style={inline ? { position: "relative", marginTop: "var(--house-space-1)" } : pos ? pos : { visibility: "hidden", left: 0, top: 0 }}
         onKeyDown={(e) => {
           if (e.key === "Escape") { e.stopPropagation(); onClose(); anchorRef.current?.focus?.(); return; }
           onKeyDown?.(e);
@@ -98,6 +101,6 @@ export function KitPopover({ open, anchorRef, onClose, children, role = "dialog"
       >
         {children}
       </div>
-    </KitLayer>
+    </Wrap>
   );
 }
