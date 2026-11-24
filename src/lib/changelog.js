@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "feature", text: "Try the new house now works on phones: one page at a time, with Support always one tap away in the bottom bar." },
       { type: "feature", text: "New: try the new house on desktop and tablets (Settings → Look → Try the new house). Same data, and you can switch back any time." },
       { type: "hotfix", text: "Hotfix: screen readers now name the search list and colour code box in pickers." },
       { type: "fix", text: "Whisper previews stay hidden in notifications, and a saved meeting no longer comes back as a draft." },
