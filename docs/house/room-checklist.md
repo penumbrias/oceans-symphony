@@ -108,7 +108,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 | State check | "What do I need right now", suggestions, crisis resources [8.4] | — | — | 3.1 | old |
 | Safety plan (`/safety-plan`) | Warning signs, coping cards, tolerance window; written where it is read [8.6] | SupportJournalEntry | MISSING (see Learn reflections) → 0.6 | 3.1 | old |
 | Emergency info and card (`/emergency`) | Card for a helper, deliberate way back | EmergencyInfo | `emergencyInfo.js`, `medications.js` | 3.1 | old |
-| Crisis resources, floating support button | Always current, not-medical disclaimer [8.9] | — | — | 3.1, button into the frame zones 2.2 | old |
+| Crisis resources, floating support button | Always current, not-medical disclaimer [8.9] | — | — | 3.1, button into the frame zones 2.2 | in new frame (2.2: Support is the phone bar's last place; the bubble is not drawn in the house) |
 | Panic cover | Quick-taps open a working decoy, usable before unlock [8.8.1] | GroceryItem, GroceryFavorite | `noteLists.js` | 2.1 / 2.2 frame | old |
 | Lock screen | Unlock, panic cover before unlock [8.8.3] | — (storage mode) | — | 3.1 (look only; boot path untouched) | old |
 | Learn (psychoeducation) | Lessons, reflections, needs checks [8.7] | LearningProgress, SupportJournalEntry | MISSING → 0.6 | 3.1 (reached from Support), 5.2 for reflections | old |
@@ -135,7 +135,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 | Page looks, profile looks, widget looks, presets, look history | Per-page backgrounds and songs, `PS.*` profile styling, widget looks, presets, linked themes [12.5, 12.6] | SystemSettings, Alter/Group custom fields, board settings | `writePageLook`, `profileStyle.js`, `widgetLook.js`, `presetSync.js` | 0.5, then 5.5 | old |
 | Layout and navigation | Bars, grid, docks, per-screen view prefs [12.3] | SystemSettings (`navigation_config`, `ui_v2`…) | `barsModel.js`; kept in the data, ignored by the new house (plan §5) | 4.1 (new arrangements field) | old |
 | Home boards (`/`) | Widget boards, pages, styles, "Home opens on" | SystemSettings (`classic_home`, `ui_v2_home`) | `boardWriter.js`, `stampBoardChanges` | 3.2 (Home with Now; old boards are pages of Home), 4.2 | old |
-| Quick actions | One-tap actions, command keys [12.4] | QuickAction, `ui_v2.commandKeys` | MISSING: page writes directly (1 file) → 0.6 | 2.2 (Do sheet) | old |
+| Quick actions | One-tap actions, command keys [12.4] | QuickAction, `ui_v2.commandKeys` | MISSING: page writes directly (1 file) → 0.6 | 2.2 (Do sheet) | in new frame (2.2: the Do sheet runs the same quick actions; the write path is still 0.6) |
 | Accessibility | Text scale, reduce motion, high contrast, touch size, single column [12.7] | localStorage (`BACKUP_LS_KEYS`) | `useAccessibility.js` | 1.1 kit, every room | old |
 | Setup, Tour, wiki | First run, setup card, tour, page tutorials, example systems [14.1, 14.2] | SystemSettings.onboarding | `onboardingState.js` | 5.5 | old |
 | Mods (`/mods`, `/mod/:modId/:pageId`) | Sandboxed mod pages and data | ModPackage, ModData | `mods/modStore.js`, `mods/broker.js` | 5.5 | old |
