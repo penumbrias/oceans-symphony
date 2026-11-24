@@ -69,8 +69,25 @@ export function readPixelLook(settings) {
   // edge. On unless switched off; left unless moved right.
   out.rail = raw.rail !== false;
   out.railSide = raw.railSide === "right" ? "right" : "left";
+  // The timeline dock along the bottom of Home (computer): off unless
+  // switched on, and which of its layers are hidden.
+  out.dock = raw.dock === true;
+  out.dockHidden = Array.isArray(raw.dockHidden) ? raw.dockHidden.filter((id) => PIXEL_DOCK_LAYERS.some((l) => l.id === id)) : [];
   return out;
 }
+
+// The timeline dock's layers, top to bottom. Each reads one kind of record;
+// "fronting" draws one row per {alter} who was in front that day.
+export const PIXEL_DOCK_LAYERS = [
+  { id: "fronting", label: "{{Fronting}}" },
+  { id: "activities", label: "Activities" },
+  { id: "feelings", label: "Feelings" },
+  { id: "symptoms", label: "Symptoms" },
+  { id: "sleep", label: "Sleep" },
+  { id: "locations", label: "Locations" },
+  { id: "statuses", label: "Statuses" },
+  { id: "journals", label: "Journals" },
+];
 
 // The status bar's items, in order (Display options → Bars → Status bar).
 export const PIXEL_STATUS_ITEMS = [
@@ -128,7 +145,7 @@ export function UiLookApplier() {
   const look = readUiLook(row);
   const px = look === UI_LOOKS.PIXEL ? readPixelLook(row) : {};
   // Only the parts that draw CSS re-run the applier.
-  const pxKey = JSON.stringify({ ...px, statusBar: undefined, statusHidden: undefined, rail: undefined, railSide: undefined });
+  const pxKey = JSON.stringify({ ...px, statusBar: undefined, statusHidden: undefined, rail: undefined, railSide: undefined, dock: undefined, dockHidden: undefined });
   useEffect(() => {
     const el = document.documentElement;
     if (look === UI_LOOKS.PIXEL) el.setAttribute("data-ui-look", "pixel");

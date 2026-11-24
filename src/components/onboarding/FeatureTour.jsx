@@ -297,6 +297,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/", target: "px-tool-rail",
     }),
     s("dashboard", {
+      emoji: "🗂️", title: "Subtabs", pixelDeskOnly: true,
+      body: `A page with its own tabs, like Home's pages, shows them right beside its tab at the top. Click one to switch.`,
+      route: "/", target: "px-subtabs",
+    }),
+    s("dashboard", {
+      emoji: "🎞️", title: "Timeline dock", pixelDeskOnly: true,
+      body: `Turn on the timeline dock with the calendar key in the rail. It shows the day as layers; click anything on it to see its details on the right.`,
+      route: "/", target: ["px-timeline-dock", "px-tool-rail"],
+    }),
+    s("dashboard", {
       emoji: "📟", title: "Status bar", pixelDeskOnly: true,
       body: `The bar along the bottom says whether everything is saved, when you last synced, and what's next. Choose its items in Display options → Bars → Status bar.`,
       route: "/", target: "px-status",

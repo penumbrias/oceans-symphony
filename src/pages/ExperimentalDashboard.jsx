@@ -92,6 +92,7 @@ import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
 import { startHoldTimer } from "@/lib/holdTimer";
 import { WidgetSuspense } from "@/lib/lazyNamed";
 import { keepScroll } from "@/lib/keepScroll";
+import { publishSubtabs } from "@/lib/pageSubtabs";
 import { announceBoard } from "@/lib/boardPresence";
 import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 
@@ -2457,9 +2458,26 @@ export default function ExperimentalDashboard({
         // Pixel look: the same pages as named tabs (the shared PageStrip),
         // with the home screen and the widget board as tabs of their own,
         // so a mouse reaches both without a swipe.
+        <>
+        <PublishSubtabs owner={eventPrefix} data={{
+          label: "Homescreen pages",
+          value: page.id,
+          onChange: (id) => {
+            if (id === "__home_screen") { onExitLeft?.(); return; }
+            if (id === "__widget_board") { onExitRight?.(); return; }
+            const i = visiblePages.findIndex((p) => p.id === id);
+            if (i >= 0) goToPage(i);
+          },
+          items: [
+            ...(onExitLeft ? [{ id: "__home_screen", label: "Home screen" }] : []),
+            ...visiblePages.map((p, i) => ({ id: p.id, label: applyTerms(p.label, t) || `Page ${i + 1}` })),
+            ...(onExitRight ? [{ id: "__widget_board", label: "Widget board" }] : []),
+          ],
+          onAdd: editMode ? handleAddPage : null,
+        }} />
         <PageStrip
           label="Homescreen pages"
-          className="px-pages mb-3"
+          className="px-pages px-pages-sub mb-3"
           value={page.id}
           onChange={(id) => {
             if (id === "__home_screen") { onExitLeft?.(); return; }
@@ -2480,6 +2498,7 @@ export default function ExperimentalDashboard({
             </button>
           )}
         </PageStrip>
+        </>
       ) : (visiblePages.length > 1 || editMode || onExitLeft) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
           {onExitLeft && (
@@ -3110,4 +3129,11 @@ export default function ExperimentalDashboard({
     </div>
     </div>
   );
+}
+
+// Hands this board's page tabs to the pixel frame, which shows them as
+// subtabs beside the open page's tab on a computer (see pageSubtabs.js).
+function PublishSubtabs({ owner, data }) {
+  useEffect(() => publishSubtabs(owner, data));
+  return null;
 }

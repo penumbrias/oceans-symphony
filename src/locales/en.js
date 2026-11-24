@@ -933,6 +933,8 @@ export default {
   "editSheet.barStatusHint": "Along the bottom on a computer: saved, last sync, next plan, next medication",
   "editSheet.barToolRail": "Tool rail",
   "editSheet.barToolRailHint": "Down one side on a computer: your quick actions, then this page's tools",
+  "editSheet.barTimelineDock": "Timeline dock",
+  "editSheet.barTimelineDockHint": "Along the bottom of Home on a computer: today's records as layers you can click",
   "editSheet.toolRailKeys": "Choose its quick actions (Quick action bar)",
   "editSheet.pixelType": "Lettering",
   "editSheet.pixelTypeHint": "Pixel letters, or the app's own type with the pixel frame",

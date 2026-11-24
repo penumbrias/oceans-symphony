@@ -30,7 +30,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { installExtraFonts, uninstallExtraFonts } from "@/lib/fontPacks";
 import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFaces";
 import { CORNER_MODES } from "@/lib/useCornerMode";
-import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS, PIXEL_STATUS_ITEMS } from "@/lib/uiLook";
+import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS, PIXEL_STATUS_ITEMS, PIXEL_DOCK_LAYERS } from "@/lib/uiLook";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
 import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, LinkRow, useInspectorPages } from "@/components/shared/SettingRows";
@@ -711,7 +711,7 @@ function BarsTab({ v2, alignX }) {
   const [bar, setBar] = useState(() => {
     let id = null;
     try { id = sessionStorage.getItem("os_bars_focus"); sessionStorage.removeItem("os_bars_focus"); } catch { /* storage off */ }
-    return ["top", "tabs", "actions", "alters", "rail", "sidebar", "status", "pxrail"].includes(id) ? id : "top";
+    return ["top", "tabs", "actions", "alters", "rail", "sidebar", "status", "pxrail", "pxdock"].includes(id) ? id : "top";
   });
 
   // Top-bar arrangement — order + per-item show/hide (the wireframe's
@@ -735,9 +735,9 @@ function BarsTab({ v2, alignX }) {
     { value: "actions", label: labels.actions }, { value: "alters", label: labels.alters },
     ...(v2Chrome ? [{ value: "rail", label: labels.rail }] : [{ value: "sidebar", label: tr("editSheet.barSidebar") }]),
     // The pixel look's status bar along the bottom (computer only).
-    ...(pixelTop ? [{ value: "status", label: tr("editSheet.barStatus") }, { value: "pxrail", label: tr("editSheet.barToolRail") }] : []),
+    ...(pixelTop ? [{ value: "status", label: tr("editSheet.barStatus") }, { value: "pxrail", label: tr("editSheet.barToolRail") }, { value: "pxdock", label: tr("editSheet.barTimelineDock") }] : []),
   ];
-  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) || ((bar === "status" || bar === "pxrail") && !pixelTop) ? "top" : bar;
+  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) || ((bar === "status" || bar === "pxrail" || bar === "pxdock") && !pixelTop) ? "top" : bar;
 
   return (
     <div>
@@ -869,6 +869,28 @@ function BarsTab({ v2, alignX }) {
             <LinkRow label={tr("editSheet.toolRailKeys")} onClick={() => setBar("actions")} />
           </BarPart>
         </>)}
+      </div>)}
+
+      {/* ── Timeline dock (pixel look, computer, Home) ── */}
+      {shownBar === "pxdock" && (<div data-bar-section="pxdock">
+        <BarPart label={tr("editSheet.show")} first>
+          <SwitchRow label={tr("editSheet.barTimelineDock")} hint={tr("editSheet.barTimelineDockHint")}
+            checked={pixelLook.px.dock} onChange={(on) => pixelLook.write({ dock: on ? true : "" })} />
+        </BarPart>
+        {pixelLook.px.dock && (
+          <BarPart label={tr("editSheet.partContent")}>
+            {PIXEL_DOCK_LAYERS.map((layer) => {
+              const hidden = pixelLook.px.dockHidden;
+              return (
+                <SwitchRow key={layer.id} label={applyTerms(layer.label, terms)} checked={!hidden.includes(layer.id)}
+                  onChange={(on) => {
+                    const next = on ? hidden.filter((x) => x !== layer.id) : [...hidden, layer.id];
+                    pixelLook.write({ dockHidden: next.length ? next : "" });
+                  }} />
+              );
+            })}
+          </BarPart>
+        )}
       </div>)}
 
       {/* ── Bottom tabs ── */}
@@ -1105,6 +1127,8 @@ function BarsTab({ v2, alignX }) {
           await pixelLook.write({ statusBar: "", statusHidden: "" });
         } else if (shownBar === "pxrail") {
           await pixelLook.write({ rail: "", railSide: "" });
+        } else if (shownBar === "pxdock") {
+          await pixelLook.write({ dock: "", dockHidden: "" });
         } else if (shownBar === "sidebar") {
           await writeSettings({ navigation_config: { ...navConfig, sidebar: {} } });
         }

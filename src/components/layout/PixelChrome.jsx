@@ -24,14 +24,14 @@ import { resolveUiV2 } from "@/lib/uiV2";
 import { useFrontPresence, useClock, alterNameColorVar } from "@/lib/useFrontPresence";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { ActiveNowChip } from "@/components/v2/ActiveNow";
-import { readPixelLook } from "@/lib/uiLook";
+import { readPixelLook, usePixelLook } from "@/lib/uiLook";
 import { APP_VERSION } from "@/lib/appVersion";
 import { getSaveHealth, retrySave } from "@/lib/localDb";
 import { getLastRun, getSyncFolder } from "@/lib/deviceSyncRunner";
 import { useMedications, useMedicationDoses, dosesOnDay, MEDICATIONS_PATH } from "@/lib/medications";
 import { clockOpts } from "@/lib/timeFormat";
 import { isScheduled } from "@/lib/activityStatus";
-import { Bell, ChevronLeft, X, Plus, HelpCircle, Search, Heart, LifeBuoy, Pencil, LayoutGrid, SlidersHorizontal } from "lucide-react";
+import { Bell, ChevronLeft, X, Plus, HelpCircle, Search, Heart, LifeBuoy, Pencil, LayoutGrid, SlidersHorizontal, CalendarClock } from "lucide-react";
 import { V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { CommandKeyButton, QuickNoteSheet, KEY_ICONS, KEY_LABEL_KEYS } from "@/components/v2/V2Frame";
 import { ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
@@ -48,6 +48,8 @@ import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import PixelHelpPanel, { usePixelHelp } from "@/components/layout/PixelHelpPanel";
+import { useSubtabs, SUBTABS_ATTR } from "@/lib/pageSubtabs";
+import PixelTimelineDock, { PixelInfoPanel } from "@/components/layout/PixelTimelineDock";
 
 const TABS_KEY = "symphony_pixel_tabs_v1";
 const MAX_TABS = 12;
@@ -150,6 +152,13 @@ function PixelPageTabs({ help }) {
     });
   };
 
+  const subtabs = useSubtabs();
+  React.useEffect(() => {
+    if (!subtabs?.items?.length) return undefined;
+    document.documentElement.setAttribute(SUBTABS_ATTR, "1");
+    return () => document.documentElement.removeAttribute(SUBTABS_ATTR);
+  }, [subtabs?.items?.length]);
+
   React.useEffect(() => {
     const on = (e) => { if (e.detail?.path) open(e.detail.path); };
     window.addEventListener(PIXEL_OPEN_TAB_EVENT, on);
@@ -162,7 +171,8 @@ function PixelPageTabs({ help }) {
         const sel = tab.id === state.active;
         const name = label(tab.path);
         return (
-          <div key={tab.id} className={sel ? "px-doctab sel" : "px-doctab"}>
+          <React.Fragment key={tab.id}>
+          <div className={sel ? "px-doctab sel" : "px-doctab"}>
             <button type="button" role="tab" aria-selected={sel} onClick={() => select(tab)} className="px-doctab-name">
               {name}
             </button>
@@ -172,6 +182,23 @@ function PixelPageTabs({ help }) {
               </button>
             )}
           </div>
+          {sel && subtabs?.items?.length > 0 && (
+            <div className="px-subtabs" role="group" aria-label={subtabs.label || "This page's tabs"} data-tour="px-subtabs">
+              {subtabs.items.map((it) => (
+                <button key={it.id} type="button" aria-pressed={it.id === subtabs.value}
+                  className={it.id === subtabs.value ? "px-subtab sel" : "px-subtab"}
+                  onClick={() => subtabs.onChange?.(it.id)}>
+                  {it.label}
+                </button>
+              ))}
+              {subtabs.onAdd && (
+                <button type="button" className="px-subtab" aria-label="Add page" title="Add page" onClick={subtabs.onAdd}>
+                  <Plus className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+          </React.Fragment>
         );
       })}
       <button type="button" className="px-doctab px-doctab-new" aria-label="New tab" title="New tab" onClick={() => open("/")}>
@@ -616,6 +643,13 @@ export function PixelToolRail() {
   return useDesk() ? <ToolRail /> : null;
 }
 
+// The timeline dock along the bottom of Home and the Info panel for what
+// was clicked in it (computer). See PixelTimelineDock.jsx.
+export function PixelDock() {
+  if (!useDesk()) return null;
+  return (<><PixelTimelineDock /><PixelInfoPanel /></>);
+}
+
 function useEditingScopes() {
   const read = () => { try { return { ...(window.__osEditing || {}) }; } catch { return {}; } };
   const [editing, setEditing] = React.useState(read);
@@ -654,6 +688,7 @@ function ToolRail() {
   });
   const row = pickPrimarySystemSettings(list);
   const px = readPixelLook(row);
+  const pixelLook = usePixelLook();
   const uiV2 = resolveUiV2(row?.ui_v2);
   const boards = useBoardsOnScreen();
   const editing = useEditingScopes();
@@ -680,6 +715,10 @@ function ToolRail() {
     pageTools.push({
       id: "edit-board", label: "Edit widget board", Icon: LayoutGrid, sel: !!editing["os-v2"],
       run: () => window.dispatchEvent(new CustomEvent("os-v2-edit-home")),
+    });
+    pageTools.push({
+      id: "dock", label: px.dock ? "Hide the timeline dock" : "Show the timeline dock", Icon: CalendarClock, sel: px.dock,
+      run: () => pixelLook.write({ dock: px.dock ? "" : true }),
     });
   } else if (boards.includes("os-profile")) {
     pageTools.push({
