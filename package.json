@@ -28,7 +28,8 @@
     "desktop:build:win": "npm run build && electron-builder --win --x64 --config electron-builder.config.cjs",
     "desktop:build:mac": "npm run build && electron-builder --mac --config electron-builder.config.cjs",
     "check:house": "node scripts/check-house-guard.mjs",
-    "test:house-home": "node scripts/test-house-home.mjs"
+    "test:house-home": "node scripts/test-house-home.mjs",
+    "test:house-support": "node scripts/test-house-support.mjs"
   },
   "dependencies": {
     "@base44/vite-plugin": "^1.0.13",
