@@ -123,18 +123,18 @@ export function Swatches({ label, colours = [], value, onChange, columns = 4, na
     refs.current[j]?.focus();
   };
   return (
-    <div className="hk-swatches" role="radiogroup" aria-label={label} style={{ "--hk-sw-cols": columns }}>
+    <div className="hk-swpick-grid" role="radiogroup" aria-label={label} style={{ "--hk-sw-cols": columns }}>
       {colours.map((c, i) => {
         const on = i === at;
         return (
           <button key={c} ref={(el) => { refs.current[i] = el; }} type="button" role="radio" aria-checked={on}
             aria-label={nameOf(c)} tabIndex={on || (at < 0 && i === 0) ? 0 : -1}
-            className="hk-swatch" style={{ "--hk-sw": c }} onClick={() => onChange?.(c)}
+            className="hk-swpick" style={{ "--hk-sw": c }} onClick={() => onChange?.(c)}
             onKeyDown={(e) => {
               if (e.key === "ArrowRight" || e.key === "ArrowDown") move(i + 1, e);
               else if (e.key === "ArrowLeft" || e.key === "ArrowUp") move(i - 1, e);
             }}>
-            {on ? <span className="hk-swatch-tick" aria-hidden="true">✓</span> : null}
+            {on ? <span className="hk-swpick-tick" aria-hidden="true">✓</span> : null}
           </button>
         );
       })}

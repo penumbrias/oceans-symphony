@@ -392,5 +392,11 @@ test("typed dates: number, date, time and duration report words they couldn't re
   const field = read("src/house/kit/Field.jsx");
   assert.equal((field.match(/^  useInvalidReport\(bad, onInvalidChange\);$/gm) || []).length, 4);
 });
+test("Swatches keep their own class names (the frame's signing swatch, .hk-swatch, once hid every colour)", () => {
+  const pickers = read("src/house/kit/Pickers.jsx");
+  assert.ok(pickers.includes('className="hk-swpick"') && !pickers.includes('className="hk-swatch"'));
+  for (const f of ["src/house/kit/frame/frameKit.css", "src/house/kit/panels.css"]) assert.ok(!/\.hk-swpick/.test(read(f)), f);
+  assert.match(read("src/house/kit/kit.css"), /\.hk-swpick \{[^}]*background-color: var\(--hk-sw\)/);
+});
 
 console.log(`\n${passed} passed.`);
