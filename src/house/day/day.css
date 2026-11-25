@@ -28,7 +28,7 @@
 [data-house] .hd-tl-bar .hk-btn { min-height: 2rem; height: 2rem; padding: 0 var(--house-space-2); }
 [data-house] .hd-tl-bar .hk-iconbtn { width: 2rem; min-width: 2rem; height: 2rem; min-height: 2rem; }
 [data-house] .hd-tl-date { font-family: var(--house-font-value); white-space: nowrap; }
-[data-house] .hd-tl-empty { margin: var(--house-space-2) var(--house-space-3); }
+[data-house] .hd-hint.hd-tl-empty { margin: var(--house-space-2) var(--house-space-3); }
 
 [data-house] .hd-hint { margin: var(--house-space-2) 0 0; color: var(--house-muted); font-size: var(--house-text-xs); line-height: var(--house-lh-sm); }
 [data-house] .hd-muted { color: var(--house-muted); }
@@ -85,3 +85,9 @@
 /* In the narrow side column the name gets the room; the source word gives way. */
 [data-house] .hd-layers .hk-layer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 [data-house] .hd-layers .hk-layer-meta { flex: 0 0 auto; max-width: 4.5rem; }
+/* Title bars stay one slim line: a long name ends in "…" (the full name is
+   the first row of Info). */
+[data-house] .hd-panel > .hk-panel-head > .hk-panel-title { min-width: 0; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-house] .hd-info > .hk-panel-head > .hk-panel-tools { flex: 0 0 auto; }
+[data-house] .hd-timeline > .hk-panel-head > .hk-panel-title { flex: 0 0 auto; }
+[data-house] .hd-timeline > .hk-panel-head > .hk-panel-tools { margin-left: auto; }
