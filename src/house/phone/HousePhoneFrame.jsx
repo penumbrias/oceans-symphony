@@ -25,10 +25,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, Search, LayoutGrid, Info as InfoIcon, Layers as LayersIcon, History, GraduationCap, Pencil,
-  SlidersHorizontal, PlayCircle, Map as MapIcon, Boxes, ShoppingCart, Eye, LogOut, Settings as SettingsIcon,
-  PenLine, Heart, Users, StickyNote, CalendarPlus, MessageSquare, LifeBuoy, Clock,
+  SlidersHorizontal, PlayCircle, Map as MapIcon, Boxes, ShoppingCart, Eye, LogOut, Settings as SettingsIcon, Clock,
 } from "lucide-react";
-import { localEntities, base44 } from "@/api/base44Client";
+import { localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useBoardsOnScreen } from "@/lib/boardPresence";
@@ -42,7 +41,6 @@ import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 import { useHouseTokens } from "@/house/tokens/useHouseTokens";
 import { HouseScope } from "@/house/tokens/HouseRoot";
-import HouseIcon from "@/house/tokens/HouseIcon";
 import { Button, IconButton } from "@/house/kit/Button";
 import Menu from "@/house/kit/Menu";
 import { Sheet } from "@/house/kit/Sheet";
@@ -55,8 +53,7 @@ import { documentTitleFor, resolvePageTitle, APP_NAME } from "@/house/frame/page
 import { usePreviewOn, usePageTitle } from "@/house/frame/useFrameData";
 import { resolvePlaces, isSupportRoute, pickAttention } from "@/house/phone/phonePlaces";
 import { HOUSE_RECENT_KEY, readRecent, recordVisit, touch, lastTimeFrom, awayWords, placePath } from "@/house/phone/lastTime";
-import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
-import { useRunQuickAction } from "@/components/dashboard/QuickActionsHost";
+import DoSheet, { HouseIconLite } from "@/house/frame/DoSheet";
 import { QuickNoteSheet } from "@/components/v2/V2Frame";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
@@ -154,55 +151,6 @@ function useBottomZoneHeight(ref, hidden) {
     document.documentElement.style.removeProperty("--house-sheet-bottom");
     document.documentElement.style.removeProperty("--house-dialog-sab");
   }, []);
-}
-
-// ── Do: the quick tools (the capture place) ────────────────────────────
-function DoSheet({ open, onClose, onSetFront, onNote }) {
-  const t = useTerms();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const run = useRunQuickAction({});
-  const { data: raw = [] } = useQuery({
-    queryKey: ["quickActions"],
-    queryFn: () => base44.entities.QuickAction.list("order"),
-    enabled: open,
-  });
-  const actions = [...raw].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const go = (path) => { onClose(); navigate(path); };
-  // Write first (plan decision 1). Each tool opens the door it opens today:
-  // no new capture logic here.
-  const tools = [
-    { id: "write", label: "Write", sub: "A new journal entry", icon: PenLine, run: () => go("/journals?compose=1") },
-    { id: "checkin", label: "Check in", sub: "How it feels right now", icon: Heart, run: () => {
-      onClose();
-      if (pathname === "/") window.dispatchEvent(new CustomEvent("open-quick-checkin"));
-      else navigate("/?action=quick-checkin");
-    } },
-    { id: "front", label: `Set ${t.front}`, sub: `Who is ${t.fronting} now`, icon: Users, run: () => { onClose(); onSetFront(); } },
-    { id: "status", label: "Status or note", sub: "A status, a journal or a post", icon: StickyNote, run: () => { onClose(); onNote(); } },
-    { id: "plan", label: "Plan or to-do", sub: "Something to do, with or without a time", icon: CalendarPlus, run: () => go("/?action=quick-thing") },
-    { id: "chat", label: pageLabel("chat", t), sub: `Talk with each other`, icon: MessageSquare, run: () => go("/chat") },
-  ];
-  return (
-    <Sheet open={open} onClose={onClose} title="Do" size="half" label="Quick tools">
-      <ul className="hp-list" aria-label="Quick tools">
-        {tools.map((x) => (
-          <li key={x.id}><Row title={x.label} subtitle={x.sub} lead={<HouseIconLite icon={x.icon} />} onClick={x.run} /></li>
-        ))}
-        <li><Row title="Not OK?" subtitle="Support, right now" lead={<HouseIconLite icon={LifeBuoy} />} onClick={() => go("/grounding")} /></li>
-      </ul>
-      <h3 className="house-label hp-subhead">Your quick actions</h3>
-      <div className="hp-old-room">
-        <QuickActionsMenu docked actions={actions} onClose={() => {}}
-          onAction={async (action, extra) => { onClose(); await run(action, extra); }} />
-      </div>
-    </Sheet>
-  );
-}
-
-// A small icon for a row's lead (decorative; the row's words name it).
-function HouseIconLite({ icon, page }) {
-  return <HouseIcon icon={icon} page={page} className="hp-lead" />;
 }
 
 // ── Everything: every page by area, and what's open recently ───────────

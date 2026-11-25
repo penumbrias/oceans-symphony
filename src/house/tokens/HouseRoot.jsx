@@ -8,6 +8,8 @@ import { useHouseTokens } from "@/house/tokens/useHouseTokens";
 import "@/house/tokens/tokens.css";
 import "@/house/tokens/look-smooth.css";
 import "@/house/tokens/look-pixel.css";
+// The mockups' pixel recipe for the kit (panels, title bars, buttons, fields).
+import "@/house/kit/pixel.css";
 
 const HouseTokensContext = createContext(null);
 

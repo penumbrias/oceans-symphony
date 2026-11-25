@@ -120,3 +120,54 @@
   background: var(--house-accent); color: var(--house-on-accent);
   font-size: var(--house-frame-text-xs); font-weight: 700; line-height: 1.3;
 }
+
+/* ── Area menus (board 01-Main's header) ─────────────────────────── */
+[data-house] .hk-areas { display: flex; align-items: center; gap: 2px; min-width: 0; }
+[data-house] .hk-area { position: relative; display: flex; align-items: stretch; flex: 0 0 auto; }
+[data-house] .hk-area-name,
+[data-house] .hk-area-caret {
+  display: inline-flex; align-items: center; border: 0; background: transparent; color: var(--house-text);
+  font-family: var(--house-font-label); font-size: var(--house-frame-text-sm); line-height: 1.2; cursor: pointer;
+  min-height: var(--house-target);
+}
+[data-house] .hk-area-name { padding: 0 2px 0 var(--house-space-2); }
+[data-house] .hk-area-caret { padding: 0 var(--house-space-1) 0 0; color: var(--house-muted); }
+[data-house] .hk-area-caret svg { width: 0.75rem; height: 0.75rem; }
+[data-house] .hk-area[data-active] .hk-area-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.25em; }
+[data-house] .hk-area[data-open] { background: var(--house-panel); box-shadow: 0 0 0 2px var(--house-outline); }
+@media (hover: hover) { [data-house] .hk-area:hover { background: var(--house-panel); box-shadow: 0 0 0 2px var(--house-outline); } }
+[data-house] .hk-area-name:focus-visible,
+[data-house] .hk-area-caret:focus-visible { outline-offset: -2px; }
+[data-house] .hk-area-menu {
+  position: absolute; left: 0; top: 100%; z-index: 60; min-width: 13rem; padding: var(--house-space-1) 0;
+  background: var(--house-panel); color: var(--house-text);
+  border: 2px solid var(--house-outline); box-shadow: var(--house-px-raise, none);
+}
+[data-house] .hk-area-row { display: flex; align-items: stretch; }
+[data-house] .hk-area-row[data-current] { background: var(--house-bevel-light); }
+[data-house] .hk-area-item {
+  flex: 1 1 auto; display: flex; align-items: center; gap: var(--house-space-2); min-width: 0;
+  min-height: var(--house-h-row); padding: 0 var(--house-space-3);
+  border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer;
+  font-family: var(--house-font-body); font-size: var(--house-text-sm);
+}
+[data-house] .hk-area-item-text { flex: 1 1 auto; overflow-wrap: break-word; }
+[data-house] .hk-area-key { font-family: var(--house-font-label); font-size: var(--house-frame-text-xs); color: var(--house-muted); background: transparent; border: 0; padding: 0; }
+[data-house] .hk-area-newtab { flex: 0 0 auto; width: var(--house-target); border: 0; background: transparent; color: var(--house-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+[data-house] .hk-area-newtab svg { width: 0.875rem; height: 0.875rem; }
+[data-house] .hk-area-item:focus,
+[data-house] .hk-area-item:focus-visible { background: var(--house-bevel-light); outline: none; box-shadow: inset 2px 0 0 var(--house-accent); }
+@media (hover: hover) {
+  [data-house] .hk-area-item:hover { background: var(--house-bevel-light); }
+  [data-house] .hk-area-newtab:hover { color: var(--house-text); box-shadow: inset 0 0 0 2px currentColor; }
+}
+[data-house] .hk-area-sep { height: 2px; margin: var(--house-space-1) 0; background: var(--house-outline); }
+[data-house] .hk-area-more { color: var(--house-muted); }
+[data-house] .hk-area-more[aria-checked="true"] { color: var(--house-accent-text); font-weight: 700; }
+
+/* ── The header wave ─────────────────────────────────────────────── */
+[data-house] .hk-wave { position: absolute; left: 0; top: 0; pointer-events: none; animation: hk-wave 40s linear infinite; }
+[data-house] .hk-wave path { fill: var(--house-wave); fill-opacity: 0.45; }
+@keyframes hk-wave { from { transform: translateX(0); } to { transform: translateX(-1280px); } }
+@media (prefers-reduced-motion: reduce) { [data-house] .hk-wave { animation: none; } }
+html.a11y-reduce-motion [data-house] .hk-wave { animation: none; }
