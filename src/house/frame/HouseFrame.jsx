@@ -45,7 +45,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom } from "@/lib/houseSwitch";
 import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
@@ -79,6 +79,7 @@ import "@/house/frame/frame.css";
 const GlobalSearch = React.lazy(() => import("@/components/dashboard/GlobalSearch"));
 // The house's own Home room (boards 01-Main and 08-Phone), its own chunk.
 const HouseHome = React.lazy(() => import("@/house/home/HouseHome"));
+const HouseSupport = React.lazy(() => import("@/house/support/HouseSupport"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 const RAIL_REM = 3.5;
@@ -250,6 +251,7 @@ export default function HouseFrame({ children, mainRef }) {
 
   const page = usePageTitle(location.pathname, location.search, { terms, formatAlter });
   const homeRoom = isHouseHomeRoom(location.pathname, location.search);
+  const supportRoom = houseSupportRoom(location.pathname);
   const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
@@ -424,6 +426,11 @@ export default function HouseFrame({ children, mainRef }) {
             ? "app-content-main hf-canvas hf-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
             : "app-content-main hf-canvas focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-4 lg:py-8 overflow-y-auto overflow-x-hidden"}>
           {children}
+          {supportRoom ? (
+            <Suspense fallback={null}>
+              <HouseSupport room={supportRoom} size={size} tokens={tokens} />
+            </Suspense>
+          ) : null}
           {homeRoom ? (
             <Suspense fallback={null}>
               <HouseHome size={size} tokens={tokens} onSetFront={() => setFrontOpen(true)} />

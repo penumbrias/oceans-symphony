@@ -39,7 +39,7 @@ import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { openPageTour, openFullTour } from "@/lib/pageTutorials";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
-import { setHouseSwitch, announceSupportJump, isHouseHomeRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, announceSupportJump, isHouseHomeRoom, houseSupportRoom } from "@/lib/houseSwitch";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
@@ -69,6 +69,7 @@ import "@/house/phone/phone.css";
 const GlobalSearch = React.lazy(() => import("@/components/dashboard/GlobalSearch"));
 // The house's own Home room (board 08-Phone), its own chunk.
 const HouseHome = React.lazy(() => import("@/house/home/HouseHome"));
+const HouseSupport = React.lazy(() => import("@/house/support/HouseSupport"));
 // The bar's pixel icons (board 08-Phone), by place.
 const PLACE_GLYPHS = { home: PixelHome, alters: PixelAlters, day: PixelTimeline, write: PixelPen, support: PixelSupport, do: PixelPlus };
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
@@ -237,6 +238,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
   const groups = useMemo(() => navAreaGroups(terms, { omit: [] }), [terms]);
   const places = useMemo(() => resolvePlaces(null, ALL_PAGES, terms).map((p) => ({ ...p, icon: PLACE_GLYPHS[p.id] || p.icon })), [terms]);
   const homeRoom = isHouseHomeRoom(location.pathname, location.search);
+  const supportRoom = houseSupportRoom(location.pathname);
 
   useEffect(() => activateHouseZones(), []);
   useEffect(() => { document.title = documentTitleFor(page.title); }, [page.title]);
@@ -347,6 +349,11 @@ export default function HousePhoneFrame({ children, mainRef }) {
           </HouseScope>
         ) : null}
         {children}
+        {supportRoom ? (
+          <Suspense fallback={null}>
+            <HouseSupport room={supportRoom} size="phone" tokens={tokens} />
+          </Suspense>
+        ) : null}
         {homeRoom ? (
           <Suspense fallback={null}>
             <HouseHome size="phone" tokens={tokens} onSetFront={() => setFrontOpen(true)}
