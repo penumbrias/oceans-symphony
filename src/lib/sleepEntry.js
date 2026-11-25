@@ -46,7 +46,8 @@ async function sleepCategory() {
 
 // Best-effort: the Sleep record is already saved, a failed mirror only
 // means the planner doesn't show the night yet.
-export async function mirrorSleepActivity(sleep, { bedtime, wakeTime, notes } = {}) {
+// `create: false` only keeps an existing mirror in step (never makes one).
+export async function mirrorSleepActivity(sleep, { bedtime, wakeTime, notes, create = true } = {}) {
   if (!sleep?.id) return null;
   const bedtimeISO = new Date(bedtime || sleep.bedtime).toISOString();
   const wake = wakeTime || sleep.wake_time;
@@ -59,6 +60,7 @@ export async function mirrorSleepActivity(sleep, { bedtime, wakeTime, notes } = 
         return base44.entities.Activity.update(existing.id, { timestamp: bedtimeISO, duration_minutes: durationMinutes, notes: note });
       }
     }
+    if (!create) return null;
     const cat = await sleepCategory();
     const act = await base44.entities.Activity.create({
       timestamp: bedtimeISO,
@@ -88,4 +90,61 @@ export async function endSleep(sleep, { wakeTime, ...fields } = {}) {
   const updated = await base44.entities.Sleep.update(sleep.id, { ...fields, wake_time: wakeISO });
   await mirrorSleepActivity({ ...sleep, ...updated }, { wakeTime: wakeISO });
   return updated;
+}
+
+// ── Editing and deleting a night (house 3.3) ──────────────────────────
+// fields: date, bedtime, wake_time, quality, notes, author_alter_ids,
+// interruptions, dreamed, had_nightmare… Read fresh, only changed fields
+// written, the version before kept in Recent changes. A night with a wake
+// time keeps its planner mirror in step: an existing mirror is updated;
+// an older night without the link finds its "Sleep" activity by bedtime
+// and links both ways. A night that never had a mirror doesn't get one
+// here (the edit modal never created one). `journal_entry_id` (the dream
+// journal link) is only ever changed when the caller passes it.
+export class SleepEditError extends Error {}
+
+async function legacyMirrorFor(sleep) {
+  try {
+    const candidates = await base44.entities.Activity.filter({ activity_name: "Sleep" });
+    const match = (candidates || []).find((a) => a.timestamp === sleep.bedtime);
+    if (!match) return null;
+    await base44.entities.Sleep.update(sleep.id, { linked_activity_id: match.id });
+    await base44.entities.Activity.update(match.id, { source_sleep_id: sleep.id });
+    return match.id;
+  } catch {
+    return null;
+  }
+}
+
+export async function editSleep(id, { baseline = null, ...fields } = {}) {
+  const { readFresh, editRecord } = await import("@/lib/recordEdit");
+  const fresh = await readFresh("Sleep", id);
+  const bed = fields.bedtime ?? fresh.bedtime;
+  const wake = fields.wake_time ?? fresh.wake_time;
+  if (fields.bedtime !== undefined && (!bed || Number.isNaN(new Date(bed).getTime()))) throw new SleepEditError("Pick a bedtime");
+  if (bed && wake && new Date(wake) <= new Date(bed)) throw new SleepEditError("Wake time has to be after bedtime");
+  const saved = await editRecord("Sleep", id, fields, { baseline, fresh });
+  if (saved.wake_time) {
+    const activityId = saved.linked_activity_id || (await legacyMirrorFor(fresh));
+    if (activityId) {
+      await mirrorSleepActivity({ ...saved, linked_activity_id: activityId }, { create: false });
+    }
+  }
+  return base44.entities.Sleep.get(id);
+}
+
+// A night and its planner "Sleep" activity go to the trash together. The
+// dream journal entry stays in Journals (journals outlive the night).
+// Returns { trashed, journalKept }.
+export async function deleteSleep(id) {
+  const { trashRecords } = await import("@/lib/recordEdit");
+  const fresh = await base44.entities.Sleep.get(id).catch(() => null);
+  if (!fresh) return { trashed: 0, journalKept: false };
+  const items = [{ entity: "Sleep", id }];
+  if (fresh.linked_activity_id) {
+    const act = await base44.entities.Activity.get(fresh.linked_activity_id).catch(() => null);
+    if (act) items.push({ entity: "Activity", id: act.id });
+  }
+  const trashed = await trashRecords(items);
+  return { trashed, journalKept: !!fresh.journal_entry_id };
 }

@@ -131,9 +131,9 @@ export async function logSymptomCheckIns(rows, defaults = {}) {
   const list = (rows || []).filter((r) => r?.symptomId);
   if (!list.length) return [];
   const fallback = await whoFor(defaults.frontingAlterIds);
-  return base44.entities.SymptomCheckIn.bulkCreate(list.map((r) => symptomRow(
+  return base44.entities.SymptomCheckIn.bulkCreate(list.map(({ frontingAlterIds, ...r }) => symptomRow(
     { timestamp: defaults.timestamp, checkInId: defaults.checkInId, ...r },
-    Array.isArray(r.frontingAlterIds) ? r.frontingAlterIds : fallback,
+    Array.isArray(frontingAlterIds) ? frontingAlterIds : fallback,
   )));
 }
 
