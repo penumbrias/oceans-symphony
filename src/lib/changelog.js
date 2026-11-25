@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 24, 2026",
     changes: [
+      { type: "fix", text: "New house: Support stays one tap away even with a check-in, journal or Set front open, and Write opens the journal editor every time." },
       { type: "feature", text: "Try the new house now works on phones: one page at a time, with Support always one tap away in the bottom bar." },
       { type: "feature", text: "New: try the new house on desktop and tablets (Settings → Look → Try the new house). Same data, and you can switch back any time." },
       { type: "hotfix", text: "Hotfix: screen readers now name the search list and colour code box in pickers." },
