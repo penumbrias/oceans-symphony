@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
+import { useHouseSwitch, isHouseHomeRoom } from "@/lib/houseSwitch";
 import { base44 } from "@/api/base44Client";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { motion, AnimatePresence } from "framer-motion";
@@ -91,6 +92,13 @@ function HomeResetHost() {
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  // The new house's Home room draws its own page (src/house/home); this
+  // page then only hosts its dialogs there, so ?action= links, Quick
+  // Check-In, the welcome steps and the rest keep working. Off (or on the
+  // board page), nothing changes.
+  const houseSwitchOn = useHouseSwitch();
+  const routeHere = useLocation();
+  const hostsOnly = houseSwitchOn && isHouseHomeRoom(routeHere.pathname, routeHere.search);
   const [showEmotionModal, setShowEmotionModal] = useState(false);
   const [showStartActivity, setShowStartActivity] = useState(false);
   // One composer for anything you intend to do. The old quick-task and
@@ -716,14 +724,14 @@ export default function Dashboard() {
           own V2Notices stack (inside the canvas, where the wallpaper can't
           cover them). Only the old experimental home still uses the
           classic cards. */}
-      {experimentalOn && <BackupHealthNotice className="mb-3" />}
-      {experimentalOn && <EmptyAppRescueNotice className="mb-3" />}
+      {experimentalOn && !hostsOnly && <BackupHealthNotice className="mb-3" />}
+      {experimentalOn && !hostsOnly && <EmptyAppRescueNotice className="mb-3" />}
       {/* The "Top/Bottom of Dashboard" upcoming-plans surfaces are the
           upcoming_top / upcoming_bottom WIDGETS on the home canvas — never
           mount them here as well (0.243.x did, and "Coming up" showed
           twice, the extra copy above the header). */}
-      {experimentalOn && <CriticalPinnedPlans />}
-      {experimentalOn && <UnresolvedPlansCard />}
+      {experimentalOn && !hostsOnly && <CriticalPinnedPlans />}
+      {experimentalOn && !hostsOnly && <UnresolvedPlansCard />}
       <NotificationHistoryModal
         open={showNotifHistory}
         onClose={() => setShowNotifHistory(false)}
@@ -734,15 +742,15 @@ export default function Dashboard() {
 
       {/* The creator's feedback survey invitation — only for people past
           first-run setup, never in preview mode or over the Guide. */}
-      <FeedbackSurveyBanner ready={surveyReady} />
+      {!hostsOnly && <FeedbackSurveyBanner ready={surveyReady} />}
 
       {/* ── UI v2 Home (rebuilt from the function tree) ── */}
-      {uiV2On && <HomeV2 settingsRow={pickPrimarySystemSettings(settings) || null} api={homeApi} />}
+      {uiV2On && !hostsOnly && <HomeV2 settingsRow={pickPrimarySystemSettings(settings) || null} api={homeApi} />}
 
       {/* The widget board as the classic home's swipe-left page — the
           SAME board, same saved layout; swiping right past its first
           page (or a board's own exit) returns to classic. */}
-      {boardShowing && (
+      {boardShowing && !hostsOnly && (
         <motion.div
           key="classic-board"
           // The SAME slide the board uses between its own pages, so
@@ -760,7 +768,7 @@ export default function Dashboard() {
       <HomeResetHost />
 
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
-      {experimentalOn && (
+      {experimentalOn && !hostsOnly && (
         <ExperimentalDashboard settingsRow={pickPrimarySystemSettings(settings) || null} api={homeApi} />
       )}
 
@@ -768,7 +776,7 @@ export default function Dashboard() {
           mode, drawer and gestures as the widget board, editing its own
           classic_home layout (seeded once from dashboard_layout). Swiping
           left past its last page slides onto the widget board. */}
-      {showClassic && (
+      {showClassic && !hostsOnly && (
       <motion.div
         // Sliding back FROM the board mirrors the board's own page slide;
         // a plain first load (dir 0) doesn't animate.

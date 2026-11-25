@@ -128,3 +128,23 @@ export function useCloseOnSupportJump(open, onOpenChange) {
     return () => window.removeEventListener(HOUSE_SUPPORT_EVENT, on);
   }, [open]);
 }
+
+// ── The house's own Home room (the approved mockups, boards 01 and 08) ──
+// With the new house on, "/" is the house's Home room: its pages are
+// Today · Me · Plans, picked with ?page=. The person's own home screen and
+// widget board (the old Dashboard) stay one tab away as ?page=board, so no
+// board, widget or layout is lost. On the Home room the old Dashboard still
+// mounts, but only for the dialogs it hosts (Quick Check-In, ?action= links,
+// the welcome steps, notifications…), never its board.
+export const HOUSE_HOME_PAGES = Object.freeze(["today", "me", "plans", "board"]);
+
+export function houseHomePage(search) {
+  let p = null;
+  try { p = new URLSearchParams(search || "").get("page"); } catch { /* bad search */ }
+  return HOUSE_HOME_PAGES.includes(p) ? p : "today";
+}
+
+/** Is this the house's Home room (not the person's old board)? */
+export function isHouseHomeRoom(pathname, search) {
+  return pathname === "/" && houseHomePage(search) !== "board";
+}
