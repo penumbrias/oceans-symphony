@@ -116,9 +116,11 @@ export function setLayerColour(id, colour, storage) {
 
 // ── What each page shows (board 09: Show · Whose) ─────────────────────
 export const TIMELINE_RANGES = Object.freeze(["day", "hours6", "week"]);
-const VIEW_DEFAULTS = Object.freeze({ home: { range: "hours6", whose: null }, timeline: { range: "day", whose: null } });
+// Home's studio dock opens on today (board 01), the phone's Home on the
+// next six hours (board 08), the Timeline room on the day.
+const VIEW_DEFAULTS = Object.freeze({ home: { range: "day", whose: null }, homePhone: { range: "hours6", whose: null }, timeline: { range: "day", whose: null } });
 
-/** { range: "day"|"hours6"|"week", whose: alterId|null } for a page ("home" | "timeline"). */
+/** { range: "day"|"hours6"|"week", whose: alterId|null } for a page ("home" | "homePhone" | "timeline"). */
 export function readTimelineView(page, storage) {
   const def = VIEW_DEFAULTS[page] || VIEW_DEFAULTS.timeline;
   const v = readObj(storage);

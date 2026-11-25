@@ -316,7 +316,7 @@ function useInvalidatePlans() {
   return () => { for (const key of [["activities"], ["tasks"], ["dailyProgress"], ["activeActivities"]]) qc.invalidateQueries({ queryKey: key }); };
 }
 
-export function DayInfoPanel({ pick, tl, editors, onSetFront, inRoom = false, onClose }) {
+export function DayInfoPanel({ pick, tl, editors, onSetFront, inRoom = false, onClose, bare = false }) {
   const terms = useTerms();
   const navigate = useNavigate();
   const run = useInvalidatePlans();
@@ -454,11 +454,18 @@ export function DayInfoPanel({ pick, tl, editors, onSetFront, inRoom = false, on
       </div>
     );
   }
-  return (
-    <Panel title={`Info: ${pick.label}`} className="hd-panel hd-info" tools={onClose ? <Button rank="quiet" onClick={onClose}>Close</Button> : null}>
+  const body = (
+    <>
       <Info title={pick.label} kind={kind} sections={[{ id: "about", title: "About", rows }]} />
       {menu.length ? <div className="hd-info-more"><Menu label={`More for ${pick.label}`} items={menu} rank="quiet">More</Menu></div> : null}
       {actions}
+    </>
+  );
+  // In a sheet (the phone), the sheet's own title bar names the thing.
+  if (bare) return <div className="hd-info">{body}</div>;
+  return (
+    <Panel title={`Info: ${pick.label}`} className="hd-panel hd-info" tools={onClose ? <Button rank="quiet" onClick={onClose}>Close</Button> : null}>
+      {body}
     </Panel>
   );
 }

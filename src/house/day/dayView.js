@@ -38,7 +38,7 @@ export function startOfWeek(d, weekStart = 1) {
 
 /** The words the range picker uses: Home's are board 09's, the room's say what they show. */
 export function rangeLabels(page) {
-  return page === "home"
+  return String(page).startsWith("home")
     ? { day: "Today", hours6: "Next 6 h", week: "Week" }
     : { day: "Day", hours6: "6 hours", week: "Week" };
 }

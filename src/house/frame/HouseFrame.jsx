@@ -45,7 +45,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom } from "@/lib/houseSwitch";
 import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
@@ -80,6 +80,7 @@ const GlobalSearch = React.lazy(() => import("@/components/dashboard/GlobalSearc
 // The house's own Home room (boards 01-Main and 08-Phone), its own chunk.
 const HouseHome = React.lazy(() => import("@/house/home/HouseHome"));
 const HouseSupport = React.lazy(() => import("@/house/support/HouseSupport"));
+const HouseTimeline = React.lazy(() => import("@/house/timeline/HouseTimeline"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 const RAIL_REM = 3.5;
@@ -252,6 +253,9 @@ export default function HouseFrame({ children, mainRef }) {
   const page = usePageTitle(location.pathname, location.search, { terms, formatAlter });
   const homeRoom = isHouseHomeRoom(location.pathname, location.search);
   const supportRoom = houseSupportRoom(location.pathname);
+  // The Timeline room draws its own Info and Layers too (board 01's right dock).
+  const timelineRoom = houseTimelineRoom(location.pathname);
+  const ownDocks = homeRoom || timelineRoom;
   const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
@@ -275,7 +279,7 @@ export default function HouseFrame({ children, mainRef }) {
   // as board 01-Main does, so the frame's side panels stay away from it.
   const minCanvas = CANVAS_MIN[size];
   const room = vp.w - RAIL_REM;
-  const rightDocked = !homeRoom && size === "full" && right.shown && room - (left.shown ? leftW : 0) - rightW >= minCanvas;
+  const rightDocked = !ownDocks && size === "full" && right.shown && room - (left.shown ? leftW : 0) - rightW >= minCanvas;
   const [sheetOpen, setSheetOpen] = useState(false);
   useEffect(() => { setSheetOpen(false); }, [pageKey]);
   const leftFits = room - leftW - (rightDocked ? rightW : 0) >= minCanvas;
@@ -351,7 +355,7 @@ export default function HouseFrame({ children, mainRef }) {
     const tools = [
       { id: "t-display", label: "Display options", icon: SlidersHorizontal, onSelect: displayOptions },
       { id: "t-pages", label: leftDocked ? "Hide the pages panel" : "Show the pages panel", icon: PanelLeft, onSelect: toggleLeft },
-      ...(homeRoom ? [] : [{ id: "t-side", label: (rightDocked || sheetOpen) ? "Hide the side panel" : "Show the side panel", icon: PanelRight, onSelect: toggleRight }]),
+      ...(ownDocks ? [] : [{ id: "t-side", label: (rightDocked || sheetOpen) ? "Hide the side panel" : "Show the side panel", icon: PanelRight, onSelect: toggleRight }]),
       { id: "t-around", label: "Show me around this page", icon: PlayCircle, onSelect: () => openPageTour(location.pathname) },
       { id: "t-tour", label: "Take the tour", icon: MapIcon, onSelect: openFullTour },
       { id: "t-systems", label: `Switch ${terms.system}`, icon: Boxes, onSelect: () => openSystemSwitcher() },
@@ -363,7 +367,7 @@ export default function HouseFrame({ children, mainRef }) {
     const out = all.map((g) => (g.id === "more" ? { ...g, items: [...g.items, ...tools] } : g));
     return hasMore ? out : [...out, { id: "more", label: "More", items: tools }];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [terms, preview, homeRoom, leftDocked, rightDocked, sheetOpen, location.pathname]);
+  }, [terms, preview, homeRoom, ownDocks, leftDocked, rightDocked, sheetOpen, location.pathname]);
   const browseGroups = useMemo(() => groups.map((g) => ({ ...g, items: g.items.filter((it) => it.path) })).filter((g) => g.items.length), [groups]);
 
   const scope = (extra = {}) => ({ tokens, "data-house-size": size, ...extra });
@@ -422,13 +426,18 @@ export default function HouseFrame({ children, mainRef }) {
         ) : null}
 
         <main ref={mainRef} id="main-content" tabIndex={-1} role="main" aria-label={page.title}
-          className={homeRoom
+          className={ownDocks
             ? "app-content-main hf-canvas hf-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
             : "app-content-main hf-canvas focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-4 lg:py-8 overflow-y-auto overflow-x-hidden"}>
           {children}
           {supportRoom ? (
             <Suspense fallback={null}>
               <HouseSupport room={supportRoom} size={size} tokens={tokens} />
+            </Suspense>
+          ) : null}
+          {timelineRoom ? (
+            <Suspense fallback={null}>
+              <HouseTimeline size={size} tokens={tokens} onSetFront={() => setFrontOpen(true)} />
             </Suspense>
           ) : null}
           {homeRoom ? (
@@ -454,7 +463,7 @@ export default function HouseFrame({ children, mainRef }) {
       {/* Compact studio (and a full studio too narrow to dock it): the
           dock opens as a sheet from the right. */}
       <HouseScope {...scope()} className="hf-sheet-host">
-        <Sheet open={!homeRoom && dockAsSheet && sheetOpen} onClose={() => setSheetOpen(false)} side="right" title={page.title}
+        <Sheet open={!ownDocks && dockAsSheet && sheetOpen} onClose={() => setSheetOpen(false)} side="right" title={page.title}
           tools={size === "full" ? <Button rank="quiet" onClick={() => { setSheetOpen(false); keep("right", { shown: true }); }}>Dock it</Button> : null}>
           {dockBody}
         </Sheet>

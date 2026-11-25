@@ -39,7 +39,7 @@ import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { openPageTour, openFullTour } from "@/lib/pageTutorials";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
-import { setHouseSwitch, announceSupportJump, isHouseHomeRoom, houseSupportRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom } from "@/lib/houseSwitch";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
@@ -70,6 +70,7 @@ const GlobalSearch = React.lazy(() => import("@/components/dashboard/GlobalSearc
 // The house's own Home room (board 08-Phone), its own chunk.
 const HouseHome = React.lazy(() => import("@/house/home/HouseHome"));
 const HouseSupport = React.lazy(() => import("@/house/support/HouseSupport"));
+const HouseTimeline = React.lazy(() => import("@/house/timeline/HouseTimeline"));
 // The bar's pixel icons (board 08-Phone), by place.
 const PLACE_GLYPHS = { home: PixelHome, alters: PixelAlters, day: PixelTimeline, write: PixelPen, support: PixelSupport, do: PixelPlus };
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
@@ -239,6 +240,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
   const places = useMemo(() => resolvePlaces(null, ALL_PAGES, terms).map((p) => ({ ...p, icon: PLACE_GLYPHS[p.id] || p.icon })), [terms]);
   const homeRoom = isHouseHomeRoom(location.pathname, location.search);
   const supportRoom = houseSupportRoom(location.pathname);
+  const timelineRoom = houseTimelineRoom(location.pathname);
 
   useEffect(() => activateHouseZones(), []);
   useEffect(() => { document.title = documentTitleFor(page.title); }, [page.title]);
@@ -342,7 +344,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
       <main ref={mainRef} id="main-content" tabIndex={-1} role="main" aria-label={page.title}
         className={homeRoom
           ? "app-content-main hp-canvas hp-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
-          : `app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 ${supportRoom ? "px-0" : "px-4"} py-0 overflow-y-auto overflow-x-hidden`}>
+          : `app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 ${supportRoom || timelineRoom ? "px-0" : "px-4"} py-0 overflow-y-auto overflow-x-hidden`}>
         {location.pathname === "/" && lastTime && !homeRoom ? (
           <HouseScope {...scope()}>
             <LastTimeCard lastTime={lastTime} onDismiss={dismissLastTime} terms={terms} formatAlter={formatAlter} />
@@ -352,6 +354,11 @@ export default function HousePhoneFrame({ children, mainRef }) {
         {supportRoom ? (
           <Suspense fallback={null}>
             <HouseSupport room={supportRoom} size="phone" tokens={tokens} />
+          </Suspense>
+        ) : null}
+        {timelineRoom ? (
+          <Suspense fallback={null}>
+            <HouseTimeline size="phone" tokens={tokens} onSetFront={() => setFrontOpen(true)} />
           </Suspense>
         ) : null}
         {homeRoom ? (

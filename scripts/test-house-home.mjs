@@ -119,26 +119,26 @@ test("the day's lanes: fronting per alter, plans split, check-ins, whispers mask
   assert.deepEqual(lanes.allDay.map((a) => a.label), ["Payday"]);
   const st = lanes.groups.find((g) => g.id === "checkins").rows.find((r) => r.id === "statuses").items[0].label;
   assert.ok(!/secret/.test(st), `whisper leaked: ${st}`);
-  const vis = L.visibleGroups(lanes, ["fronting", "locations", "journals"]);
+  const vis = L.visibleGroups(lanes, ["fronting", "locations", "meds", "journals", "other"]);
   assert.ok(!vis.some((g) => g.id === "fronting"), "a hidden layer's group goes when it has no rows");
   assert.ok(!vis.some((g) => g.id === "more"));
 });
 
 test("layer prefs: defaults, one layer changed, unreadable value kept, backed up", () => {
   const s = memStore();
-  assert.deepEqual(P.readHiddenLayers(s), ["locations", "journals"]);
-  assert.deepEqual(P.setLayerShown("locations", true, s), ["journals"]);
-  assert.deepEqual(P.setLayerShown("sleep", false, s).sort(), ["journals", "sleep"]);
+  assert.deepEqual(P.readHiddenLayers(s), ["locations", "meds", "journals", "other"]);
+  assert.deepEqual(P.setLayerShown("locations", true, s), ["meds", "journals", "other"]);
+  assert.deepEqual(P.setLayerShown("sleep", false, s).sort(), ["journals", "meds", "other", "sleep"]);
   assert.equal(P.setLayerShown("nope", false, s), null);
   const bad = memStore({ [P.HOUSE_HOME_LAYERS_KEY]: "{oops" });
-  assert.deepEqual(P.readHiddenLayers(bad), ["locations", "journals"]);
+  assert.deepEqual(P.readHiddenLayers(bad), ["locations", "meds", "journals", "other"]);
   P.setLayerShown("sleep", false, bad);
   assert.equal(bad.getItem(P.HOUSE_HOME_LAYERS_KEPT_KEY), "{oops", "the unreadable value is kept, not overwritten blind");
   assert.ok(BACKUP_LS_KEYS.includes(P.HOUSE_HOME_LAYERS_KEY));
   assert.equal(P.readLayerOrder(s)[0], "fronting");
   const ord = P.setLayerOrder(["sleep", "nope", "planned", "sleep"], s);
   assert.deepEqual(ord.slice(0, 3), ["sleep", "planned", "fronting"]);
-  assert.deepEqual(P.readHiddenLayers(s).sort(), ["journals", "sleep"], "the order write keeps the hidden list");
+  assert.deepEqual(P.readHiddenLayers(s).sort(), ["journals", "meds", "other", "sleep"], "the order write keeps the hidden list");
 });
 
 test("layer order moves rows and groups", () => {

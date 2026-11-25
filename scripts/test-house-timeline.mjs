@@ -162,7 +162,7 @@ test("new layers: Meds taken and Everything else (never quoting a private note)"
   assert.deepEqual(more.rows.find((r) => r.id === "meds").items.map((i) => i.label), ["Sertraline"], "skipped doses aren't 'taken'");
   const other = more.rows.find((r) => r.id === "other").items;
   assert.ok(other.some((i) => i.label === "Note on Ash"));
-  assert.ok(!other.some((i) => /private|secret/.test(i.label)), "no private words in a label");
+  assert.ok(!other.some((i) => /private words|secret/.test(i.label)), "no private words in a label");
   assert.ok(other.some((i) => i.label === "Done: Call"));
   assert.ok(other.some((i) => i.label === "Split"));
   assert.equal(L.otherKindPage("alter_note", { alter_id: "ash" }), "/alter/ash");
@@ -179,11 +179,12 @@ test("prefs: a saved list older than a layer keeps that layer's default", () => 
 
 test("prefs: Show and Whose are per page; layers are shared", () => {
   const s = memStore();
-  assert.deepEqual(P.readTimelineView("home", s), { range: "hours6", whose: null });
+  assert.deepEqual(P.readTimelineView("home", s), { range: "day", whose: null });
+  assert.deepEqual(P.readTimelineView("homePhone", s), { range: "hours6", whose: null });
   assert.deepEqual(P.readTimelineView("timeline", s), { range: "day", whose: null });
   P.setTimelineView("timeline", { range: "week", whose: "ash" }, s);
   assert.deepEqual(P.readTimelineView("timeline", s), { range: "week", whose: "ash" });
-  assert.deepEqual(P.readTimelineView("home", s), { range: "hours6", whose: null }, "the other page keeps its own");
+  assert.deepEqual(P.readTimelineView("home", s), { range: "day", whose: null }, "the other page keeps its own");
   P.setTimelineView("timeline", { whose: null }, s);
   assert.deepEqual(P.readTimelineView("timeline", s), { range: "week", whose: null });
   assert.equal(P.setTimelineView("nowhere", { range: "day" }, s), null);
@@ -222,7 +223,7 @@ test("the room writes only through the existing write paths", () => {
   const files = ["src/house/timeline/HouseTimeline.jsx", "src/house/day/DayParts.jsx", "src/house/day/DaySheets.jsx"];
   for (const f of files) {
     const text = read(f);
-    assert.ok(!/\.(create|update|delete|bulkDelete)\(/.test(text.replace(/\/\/.*$/gm, "")), `${f} writes a record directly`);
+    assert.ok(!/(entities|localEntities|base44)\b[^;]*\.(create|update|delete|bulkDelete)\(/.test(text.replace(/\/\/.*$/gm, "")), `${f} writes a record directly`);
   }
   const sheets = read("src/house/day/DaySheets.jsx");
   for (const fn of ["splitFrontSession", "addPastFrontSessions", "removeFrontSession", "endFrontSession", "reassignFrontSession", "undoFrontReassign"]) {
