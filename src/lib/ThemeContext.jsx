@@ -173,7 +173,12 @@ export function ThemeProvider({ children }) {
     if (!mounted) return;
     
     localStorage.setItem('symphony_themeMode', themeMode);
-    localStorage.setItem('symphony_selectedTheme', selectedTheme);
+    // The untouched default is not written down, so "never picked a theme"
+    // stays readable (the new house paints the mockups' palette then). The
+    // old house reads the same 'cool' either way; any real pick is written.
+    if (selectedTheme !== 'cool' || localStorage.getItem('symphony_selectedTheme') !== null) {
+      localStorage.setItem('symphony_selectedTheme', selectedTheme);
+    }
     // Persist customColors when set, REMOVE the localStorage entry when
     // cleared. The old "if (customColors) localStorage.setItem(...)" only
     // wrote when truthy, never deleted when falsy — so once a user set

@@ -5,7 +5,11 @@
 //   ├ page tabs (a rebuilt room's own; old rooms have none) ──────────────┤
 //   │ the page (the old room), nothing floating over it                   │
 //   ├ attention line: one item, +N (only when something needs it) ────────┤
-//   └ bottom bar: Home · Alters · Do · Day · Support ─────────────────────┘
+//   └ bottom bar: Home · Alters · Timeline · Write · Support (board 08) ──┘
+//
+// Do (the quick tools) opens from the ⋯ menu. On "/" the middle is the
+// house's own Home room (board 08-Phone's stacked panels); the old
+// Dashboard stays mounted underneath only to host its dialogs.
 //
 // Loaded ONLY when "Try the new house" is on for this device and the window
 // is phone-sized (src/lib/houseSwitch.js); AppLayout imports it lazily, so
@@ -21,14 +25,13 @@
 // place, on every screen, and sheets stop above the bar so it stays live.
 
 import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft, Search, LayoutGrid, Info as InfoIcon, Layers as LayersIcon, History, GraduationCap, Pencil,
-  SlidersHorizontal, PlayCircle, Map as MapIcon, Boxes, ShoppingCart, Eye, LogOut, Settings as SettingsIcon,
-  PenLine, Heart, Users, StickyNote, CalendarPlus, MessageSquare, LifeBuoy, Clock,
+  ArrowLeft, LayoutGrid, Info as InfoIcon, Layers as LayersIcon, History, GraduationCap, Pencil,
+  SlidersHorizontal, PlayCircle, Map as MapIcon, Boxes, ShoppingCart, Eye, LogOut, Settings as SettingsIcon, Clock,
 } from "lucide-react";
-import { localEntities, base44 } from "@/api/base44Client";
+import { localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useBoardsOnScreen } from "@/lib/boardPresence";
@@ -36,13 +39,12 @@ import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { openPageTour, openFullTour } from "@/lib/pageTutorials";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
-import { setHouseSwitch, announceSupportJump } from "@/lib/houseSwitch";
+import { setHouseSwitch, announceSupportJump, isHouseHomeRoom } from "@/lib/houseSwitch";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 import { useHouseTokens } from "@/house/tokens/useHouseTokens";
 import { HouseScope } from "@/house/tokens/HouseRoot";
-import HouseIcon from "@/house/tokens/HouseIcon";
 import { Button, IconButton } from "@/house/kit/Button";
 import Menu from "@/house/kit/Menu";
 import { Sheet } from "@/house/kit/Sheet";
@@ -55,15 +57,20 @@ import { documentTitleFor, resolvePageTitle, APP_NAME } from "@/house/frame/page
 import { usePreviewOn, usePageTitle } from "@/house/frame/useFrameData";
 import { resolvePlaces, isSupportRoute, pickAttention } from "@/house/phone/phonePlaces";
 import { HOUSE_RECENT_KEY, readRecent, recordVisit, touch, lastTimeFrom, awayWords, placePath } from "@/house/phone/lastTime";
-import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
-import { useRunQuickAction } from "@/components/dashboard/QuickActionsHost";
+import DoSheet, { HouseIconLite } from "@/house/frame/DoSheet";
 import { QuickNoteSheet } from "@/components/v2/V2Frame";
+import HeaderWave from "@/house/kit/frame/HeaderWave";
+import { PixelHome, PixelAlters, PixelTimeline, PixelPen, PixelSupport, PixelSearch, PixelDots, PixelPlus } from "@/house/tokens/PixelGlyphs";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 import "@/house/kit/frame/phoneKit.css";
 import "@/house/phone/phone.css";
 
 const GlobalSearch = React.lazy(() => import("@/components/dashboard/GlobalSearch"));
+// The house's own Home room (board 08-Phone), its own chunk.
+const HouseHome = React.lazy(() => import("@/house/home/HouseHome"));
+// The bar's pixel icons (board 08-Phone), by place.
+const PLACE_GLYPHS = { home: PixelHome, alters: PixelAlters, day: PixelTimeline, write: PixelPen, support: PixelSupport, do: PixelPlus };
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 // ── Runtime: recent pages and the gap since last time ──────────────────
@@ -156,55 +163,6 @@ function useBottomZoneHeight(ref, hidden) {
   }, []);
 }
 
-// ── Do: the quick tools (the capture place) ────────────────────────────
-function DoSheet({ open, onClose, onSetFront, onNote }) {
-  const t = useTerms();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const run = useRunQuickAction({});
-  const { data: raw = [] } = useQuery({
-    queryKey: ["quickActions"],
-    queryFn: () => base44.entities.QuickAction.list("order"),
-    enabled: open,
-  });
-  const actions = [...raw].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const go = (path) => { onClose(); navigate(path); };
-  // Write first (plan decision 1). Each tool opens the door it opens today:
-  // no new capture logic here.
-  const tools = [
-    { id: "write", label: "Write", sub: "A new journal entry", icon: PenLine, run: () => go("/journals?compose=1") },
-    { id: "checkin", label: "Check in", sub: "How it feels right now", icon: Heart, run: () => {
-      onClose();
-      if (pathname === "/") window.dispatchEvent(new CustomEvent("open-quick-checkin"));
-      else navigate("/?action=quick-checkin");
-    } },
-    { id: "front", label: `Set ${t.front}`, sub: `Who is ${t.fronting} now`, icon: Users, run: () => { onClose(); onSetFront(); } },
-    { id: "status", label: "Status or note", sub: "A status, a journal or a post", icon: StickyNote, run: () => { onClose(); onNote(); } },
-    { id: "plan", label: "Plan or to-do", sub: "Something to do, with or without a time", icon: CalendarPlus, run: () => go("/?action=quick-thing") },
-    { id: "chat", label: pageLabel("chat", t), sub: `Talk with each other`, icon: MessageSquare, run: () => go("/chat") },
-  ];
-  return (
-    <Sheet open={open} onClose={onClose} title="Do" size="half" label="Quick tools">
-      <ul className="hp-list" aria-label="Quick tools">
-        {tools.map((x) => (
-          <li key={x.id}><Row title={x.label} subtitle={x.sub} lead={<HouseIconLite icon={x.icon} />} onClick={x.run} /></li>
-        ))}
-        <li><Row title="Not OK?" subtitle="Support, right now" lead={<HouseIconLite icon={LifeBuoy} />} onClick={() => go("/grounding")} /></li>
-      </ul>
-      <h3 className="house-label hp-subhead">Your quick actions</h3>
-      <div className="hp-old-room">
-        <QuickActionsMenu docked actions={actions} onClose={() => {}}
-          onAction={async (action, extra) => { onClose(); await run(action, extra); }} />
-      </div>
-    </Sheet>
-  );
-}
-
-// A small icon for a row's lead (decorative; the row's words name it).
-function HouseIconLite({ icon, page }) {
-  return <HouseIcon icon={icon} page={page} className="hp-lead" />;
-}
-
 // ── Everything: every page by area, and what's open recently ───────────
 function EverythingSheet({ open, onClose, groups, recent, terms, formatAlter, here }) {
   const recentRows = useMemo(() => recent
@@ -277,7 +235,8 @@ export default function HousePhoneFrame({ children, mainRef }) {
   const page = usePageTitle(location.pathname, location.search, { terms, formatAlter });
   const preview = usePreviewOn();
   const groups = useMemo(() => navAreaGroups(terms, { omit: [] }), [terms]);
-  const places = useMemo(() => resolvePlaces(null, ALL_PAGES, terms), [terms]);
+  const places = useMemo(() => resolvePlaces(null, ALL_PAGES, terms).map((p) => ({ ...p, icon: PLACE_GLYPHS[p.id] || p.icon })), [terms]);
+  const homeRoom = isHouseHomeRoom(location.pathname, location.search);
 
   useEffect(() => activateHouseZones(), []);
   useEffect(() => { document.title = documentTitleFor(page.title); }, [page.title]);
@@ -310,10 +269,11 @@ export default function HousePhoneFrame({ children, mainRef }) {
   // ── The pencil: the existing Edit page where there is one ──
   const boards = useBoardsOnScreen();
   const editTarget = location.pathname === "/"
-    ? (boards.includes("os-classic") || !boards.includes("os-v2") ? "os-classic-edit-home" : "os-v2-edit-home")
+    ? (homeRoom ? null : (boards.includes("os-classic") || !boards.includes("os-v2") ? "os-classic-edit-home" : "os-v2-edit-home"))
     : boards.includes("os-profile") ? "os-profile-edit-home" : null;
 
   const moreItems = [
+    { id: "do", label: "Do: quick tools", icon: PixelPlus, onSelect: () => setSheet("do") },
     { id: "everything", label: "Everything", icon: LayoutGrid, onSelect: () => setSheet("everything") },
     { id: "info", label: "Info", icon: InfoIcon, onSelect: () => openPanels("info") },
     { id: "layers", label: "Layers", icon: LayersIcon, onSelect: () => openPanels("layers") },
@@ -356,8 +316,13 @@ export default function HousePhoneFrame({ children, mainRef }) {
       <div aria-live="polite" role="status" className="hp-sr">{page.title}</div>
 
       <HouseScope {...scope()} as="header" className="hp-head">
+        {tokens?.paint?.tokens?.waveOff ? null : <HeaderWave />}
         {atPlace
-          ? <IconButton icon={LayoutGrid} label="Everything: every page, by area" onClick={() => setSheet("everything")} aria-haspopup="dialog" aria-expanded={sheet === "everything"} />
+          ? (
+            <Link to="/" className="hp-logo-link" aria-label={`${APP_NAME}: Home`}>
+              <img src="/logo.png" alt="" className="hp-logo" />
+            </Link>
+          )
           : <IconButton icon={ArrowLeft} label="Back" onClick={back} />}
         <div className="hp-titles">
           <span className="hp-title house-label">{page.title}</span>
@@ -368,18 +333,26 @@ export default function HousePhoneFrame({ children, mainRef }) {
             ) : null}
           </span>
         </div>
-        <IconButton icon={Search} label="Search everything" onClick={() => setSheet("search")} aria-haspopup="dialog" aria-expanded={sheet === "search"} />
-        <Menu label={`More for ${page.title}`} items={moreItems} />
+        <IconButton icon={PixelSearch} label="Search everything" rank="secondary" onClick={() => setSheet("search")} aria-haspopup="dialog" aria-expanded={sheet === "search"} />
+        <Menu label={`More for ${page.title}`} icon={PixelDots} rank="secondary" items={moreItems} />
       </HouseScope>
 
       <main ref={mainRef} id="main-content" tabIndex={-1} role="main" aria-label={page.title}
-        className="app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 px-4 py-0 overflow-y-auto overflow-x-hidden">
-        {location.pathname === "/" && lastTime ? (
+        className={homeRoom
+          ? "app-content-main hp-canvas hp-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
+          : "app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 px-4 py-0 overflow-y-auto overflow-x-hidden"}>
+        {location.pathname === "/" && lastTime && !homeRoom ? (
           <HouseScope {...scope()}>
             <LastTimeCard lastTime={lastTime} onDismiss={dismissLastTime} terms={terms} formatAlter={formatAlter} />
           </HouseScope>
         ) : null}
         {children}
+        {homeRoom ? (
+          <Suspense fallback={null}>
+            <HouseHome size="phone" tokens={tokens} onSetFront={() => setFrontOpen(true)}
+              lead={lastTime ? <LastTimeCard lastTime={lastTime} onDismiss={dismissLastTime} terms={terms} formatAlter={formatAlter} /> : null} />
+          </Suspense>
+        ) : null}
       </main>
 
       <HouseScope {...scope()} className="hp-bottom" data-keyboard={keyboard || undefined}>

@@ -29,6 +29,8 @@ export const BACKUP_LS_KEYS = [
   // drop them. Neither holds any record; both houses share every record.
   "symphony_new_house_v1",
   "symphony_house_layout_v1",
+  // Which layers the house Home's timeline shows (src/house/home/layerPrefs.js).
+  "symphony_house_home_layers_v1",
   "symphony_pixel_help_open_v1",
   "symphony_time_format_v1",
   "symphony_experimental_features_v1",

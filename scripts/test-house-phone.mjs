@@ -37,14 +37,16 @@ const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
 const terms = { system: "crew", System: "Crew", alters: "parts", Alters: "Parts", alter: "part", Alter: "Part", front: "front", Front: "Front" };
 
 // ── The bar ───────────────────────────────────────────────────────────
-await test("bar: Home and Support at the ends, Alters · Do · the Day in the middle by default", () => {
+await test("bar: Home and Support at the ends, Alters · Timeline · Write in the middle by default (board 08)", () => {
   const ps = P.resolvePlaces(undefined, ALL_PAGES, terms);
-  assert.deepEqual(ps.map((p) => p.id), ["home", "alters", "do", "day", "support"]);
+  assert.deepEqual(ps.map((p) => p.id), ["home", "alters", "day", "write", "support"]);
   assert.equal(ps[0].path, "/");
   assert.equal(ps[4].path, "/grounding");
   assert.equal(ps[4].label, "Support");
-  assert.equal(ps[2].sheet, "do");
-  assert.equal(ps[3].path, "/timeline");
+  assert.equal(ps[2].path, "/timeline");
+  assert.equal(ps[3].path, "/journals");
+  assert.equal(ps[3].label, "Write");
+  assert.equal(P.resolvePlaces(["do"], ALL_PAGES, terms)[1].sheet, "do", "Do can still be chosen");
 });
 await test("bar: the Alters place is named in the person's words", () => {
   const ps = P.resolvePlaces(undefined, ALL_PAGES, terms);
@@ -53,7 +55,7 @@ await test("bar: the Alters place is named in the person's words", () => {
 });
 await test("bar: a chosen middle keeps known places, drops unknown and duplicate ones, fills from defaults", () => {
   const ps = P.resolvePlaces(["journals", "nope", "journals", "home", "support"], ALL_PAGES, terms);
-  assert.deepEqual(ps.map((p) => p.id), ["home", "journals", "alters", "do", "support"]);
+  assert.deepEqual(ps.map((p) => p.id), ["home", "journals", "alters", "day", "support"], "Write is the same page as Journals, so it isn't added twice");
   assert.equal(P.resolvePlaces("garbage", ALL_PAGES, terms).length, 5);
 });
 await test("bar: labels never pass 12 characters; the full name stays", () => {
@@ -67,7 +69,7 @@ await test("bar: labels never pass 12 characters; the full name stays", () => {
   }
 });
 await test("bar: which place is current (/ is exact; /Home also owns profiles; Support owns every support route)", () => {
-  const [home, alters, , day, support] = P.resolvePlaces(undefined, ALL_PAGES, terms);
+  const [home, alters, day, , support] = P.resolvePlaces(undefined, ALL_PAGES, terms);
   assert.equal(P.placeIsCurrent(home, "/"), true);
   assert.equal(P.placeIsCurrent(home, "/Home"), false);
   assert.equal(P.placeIsCurrent(alters, "/alter/abc"), true);

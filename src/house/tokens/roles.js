@@ -19,8 +19,10 @@ import { CONTRAST } from "@/house/tokens/scales";
 // The one place the pixel font is named (building code §7, §9). It is used
 // only in the label role, never below text-sm and never for values.
 export const PIXEL_LABEL_FONT = "'Pixelify Sans', 'Atkinson Hyperlegible', sans-serif";
-// The house's body font when the person hasn't chosen one (decision 3).
-export const HOUSE_BODY_FONT = "'Inter', 'Atkinson Hyperlegible', system-ui, sans-serif";
+// The house's body font when the person hasn't chosen one (decision 3). The
+// approved mockups (board 01-Main, 08-Phone) set body text in Atkinson
+// Hyperlegible under Pixelify labels, so that pair is the house default.
+export const HOUSE_BODY_FONT = "'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif";
 
 // Legacy short keys the old font picker stored (useAccessibility.js).
 const LEGACY_FONTS = {
@@ -33,7 +35,10 @@ const LEGACY_FONTS = {
 const fontCss = (v) => (v ? LEGACY_FONTS[v] || v : null);
 // Body fonts chosen for reading ease: with one of these, labels use it too,
 // so a person who picked OpenDyslexic sees no pixel letters (board 33, R2).
-const EASY_READ = /opendyslexic|atkinson|lexend|comic/i;
+// Atkinson Hyperlegible is NOT on this list any more: the mockups pair it
+// with the pixel labels, and it is the house's own default body font.
+// Easy-read mode (fonts.easyRead) still takes the pixel letters out.
+const EASY_READ = /opendyslexic|lexend|comic/i;
 
 // High contrast (Accessibility → High contrast) replaces the paint with
 // fixed colours, as the old house does (index.css html.a11y-high-contrast).
@@ -52,11 +57,19 @@ export function houseLook(look) {
   return look === "pixel" ? "pixel" : "smooth";
 }
 
+// The house's look from the settings row. The mockups ARE the house, so the
+// house draws the pixel look unless the person explicitly chose the smooth
+// one (SystemSettings.ui_look === "smooth"). The old house keeps its own
+// default (smooth) through readUiLook; nothing is written.
+export function houseLookFromRow(row) {
+  return row && row.ui_look === "smooth" ? "smooth" : "pixel";
+}
+
 function buildRoles(sw, variant, highContrast) {
   const dark = variant === "dark";
   if (highContrast) {
     const hc = HIGH_CONTRAST[dark ? "dark" : "light"];
-    return { ...hc, divider: hc.border, bevelLight: hc.border, bevelDark: hc.border, wave: hc.accent, good: dark ? "#9BE07A" : "#1E5E14", info: hc.accent, note: hc.text };
+    return { ...hc, divider: hc.border, bevelLight: hc.border, bevelDark: hc.border, wave: hc.accent, good: dark ? "#9BE07A" : "#1E5E14", info: hc.accent, note: hc.text, title: hc.raised, bevelRaised: hc.border };
   }
   const page = sw.deep;
   const panel = sw.panel;
@@ -81,6 +94,11 @@ function buildRoles(sw, variant, highContrast) {
     good: sw.good,
     info: sw.info,
     note: sw.note,
+    // Title bars (the mockups' panel heads, menus, the header and the
+    // status bar): the pixel title-bar override when set, else the raised
+    // colour. The raised bevel: a lighter step of it, for buttons.
+    title: sw.titleBar || raised,
+    bevelRaised: mix(sw.titleBar || raised, sw.text, 0.2),
   };
 }
 
@@ -94,7 +112,7 @@ function enforce(r) {
     if (next !== r[key] && key in r) adjusted.push(key);
     out[key] = next;
   };
-  fix("text", r.text, [r.page, r.panel, r.raised, r.sunken], CONTRAST.text);
+  fix("text", r.text, [r.page, r.panel, r.raised, r.sunken, r.title].filter(Boolean), CONTRAST.text);
   fix("muted", r.muted, [r.page, r.panel, r.sunken], CONTRAST.text);
   fix("accent", r.accent, [r.page, r.panel], CONTRAST.part);
   out.accentText = readableOnAll(out.accent, [r.page, r.panel], CONTRAST.text);

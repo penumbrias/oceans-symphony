@@ -32,14 +32,22 @@
 }
 
 /* ── Top: the bar and the open-page tabs ─────────────────────────── */
-[data-house].hf-top { flex: 0 0 auto; background: var(--house-panel); position: relative; z-index: 3; }
+[data-house].hf-top { flex: 0 0 auto; background: var(--house-page); position: relative; z-index: 3; }
+/* Board 01-Main: a 3 rem bar over the header wave, the name in the label
+   font, the area menus, and Search as a sunken box on the right. */
 [data-house] .hf-topbar {
-  display: flex; align-items: center; gap: var(--house-space-2);
-  min-width: 0; padding: var(--house-space-1) var(--house-space-2);
+  position: relative; display: flex; align-items: center; gap: var(--house-space-2);
+  min-width: 0; min-height: 3rem; padding: var(--house-space-1) var(--house-space-2);
+  background: var(--house-panel); border-bottom: 2px solid var(--house-outline);
+  overflow: hidden;
 }
+[data-house] .hf-topbar > :not(.hk-wave) { position: relative; z-index: 1; }
+[data-house] .hf-home { width: auto; gap: var(--house-space-2); padding-right: var(--house-space-2); color: var(--house-text); text-decoration: none; }
+[data-house] .hf-appname { font-size: var(--house-text-md); white-space: nowrap; }
+[data-house][data-house-size="compact"] .hf-appname { display: none; }
 [data-house] .hf-home {
   display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
-  width: var(--house-target); height: var(--house-target); border-radius: var(--house-corner-sm);
+  height: var(--house-target); border-radius: var(--house-corner-sm);
 }
 [data-house] .hf-logo { width: 1.75rem; height: 1.75rem; object-fit: contain; }
 [data-house] .hf-areas {
@@ -48,6 +56,10 @@
 }
 [data-house] .hf-areas > * { flex: 0 0 auto; }
 [data-house] .hf-search-btn { flex: 0 0 auto; }
+[data-house][data-house-look="pixel"] .hf-search-btn:not(.hk-btn--quiet) {
+  background: var(--house-page); box-shadow: var(--house-px-sink); border-color: var(--house-outline);
+  min-width: 13rem; justify-content: space-between;
+}
 [data-house] .hf-kbd {
   margin-left: var(--house-space-2); padding: 0 var(--house-space-1);
   border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner-sm);
@@ -61,13 +73,21 @@
 
 /* ── Body: rail · left panel · page · right dock ─────────────────── */
 [data-house-frame] .hf-body { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0; }
+/* Board 01-Main's rail: QUICK tools, then PAGE tools, bevelled. */
 [data-house].hf-rail {
   display: flex; flex-direction: column; align-items: center; gap: var(--house-space-2);
-  flex: 0 0 3rem; width: 3rem; padding: var(--house-space-2) 0;
+  flex: 0 0 3.5rem; width: 3.5rem; padding: var(--house-space-2) 0;
   background: var(--house-panel);
-  border-right: var(--house-border-w) solid var(--house-divider);
+  border-right: 2px solid var(--house-outline);
   overflow-y: auto; overflow-x: hidden;
 }
+[data-house] .hf-rail-label { color: var(--house-muted); font-size: var(--house-text-xs); letter-spacing: 0.04em; text-transform: uppercase; }
+[data-house][data-house-look="pixel"] .hf-rail .hk-iconbtn {
+  width: 2.5rem; height: 2.5rem; min-height: 2.5rem;
+  border: 2px solid var(--house-outline); border-radius: 0;
+  background: var(--house-title); box-shadow: var(--house-px-btn);
+}
+[data-house][data-house-look="pixel"] .hf-rail .hk-iconbtn.hk-btn--primary { background: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--house-px-on); }
 [data-house] .hf-rail-gap { flex: 1 1 auto; }
 [data-house].hf-left,
 [data-house].hf-right {
@@ -80,6 +100,8 @@
 
 /* The page: the old room, outside any house root, over the wallpaper. */
 [data-house-frame] .hf-canvas { min-height: 0; }
+/* The house's own Home room fills the middle edge to edge (HouseHome). */
+[data-house-frame] .hf-canvas--room { padding: 0; }
 
 /* ── Panels' insides ─────────────────────────────────────────────── */
 [data-house] .hf-panel-title { margin: 0 0 var(--house-space-2); font-size: var(--house-frame-text-sm); color: var(--house-muted); }

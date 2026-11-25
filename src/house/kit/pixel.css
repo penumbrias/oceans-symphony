@@ -1,0 +1,127 @@
+/* The pixel look, drawn as the approved mockups draw it (boards 01-Main,
+   08-Phone, 09-TimelineOptions, 10-Inspector). Every value is a house
+   token, so the person's paint (their theme, title bar, outline, floor)
+   reaches it; with no paint of their own the house's default IS the
+   mockups' palette (src/house/tokens/roles.js, translate.js houseDefault).
+
+   The mockups' recipe:
+   - a panel: the panel colour, a 2 px dark outline, a 2 px bevel (light
+     along the top and left, the floor colour along the bottom and right);
+   - a title bar: the title colour, the label font, a 2 px dark line under it;
+   - a button: the title colour with its own lighter bevel, the outline;
+     the main button in the accent with an accent bevel;
+   - a field: sunken (dark bevel along the top and left);
+   - sizes: compact on a mouse (a 28 px control, a 2 rem target), the
+     44 px floor on touch.
+   Loaded with the house roots (HouseRoot.jsx), scoped to the pixel look. */
+
+[data-house][data-house-look="pixel"] {
+  --house-px-raise: inset 2px 2px 0 var(--house-bevel-light), inset -2px -2px 0 var(--house-page);
+  --house-px-btn: inset 2px 2px 0 var(--house-bevel-raised), inset -2px -2px 0 var(--house-page);
+  --house-px-on: inset 2px 2px 0 color-mix(in srgb, var(--house-accent) 62%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--house-accent) 62%, #000);
+  --house-px-sink: inset 2px 2px 0 var(--house-outline), inset -2px -2px 0 var(--house-bevel-light);
+  --house-px-title-h: max(22px, 1.375rem);
+  --house-px-label: 0.8125rem;
+}
+/* A mouse: the mockups' compact sizes. Touch keeps the 44 px floor. */
+@media (pointer: fine) {
+  [data-house][data-house-look="pixel"] {
+    --house-h-control: max(28px, 1.75rem);
+    --house-target: max(32px, 2rem);
+    --house-h-row: max(28px, 1.75rem);
+  }
+}
+
+/* ── Panels and cards ────────────────────────────────────────────── */
+[data-house][data-house-look="pixel"] .hk-panel,
+[data-house][data-house-look="pixel"] .hk-card {
+  border: 2px solid var(--house-outline); border-radius: 0;
+  background: var(--house-panel);
+  box-shadow: var(--house-px-raise);
+}
+[data-house][data-house-look="pixel"] .hk-panel-head,
+[data-house][data-house-look="pixel"] .hk-card-head {
+  min-height: var(--house-px-title-h);
+  padding: 0 var(--house-space-1) 0 var(--house-space-2);
+  margin: 2px 2px 0;
+  background: var(--house-title);
+  border-bottom: 0;
+  box-shadow: inset 0 -2px 0 var(--house-outline);
+}
+[data-house][data-house-look="pixel"] .hk-panel-title,
+[data-house][data-house-look="pixel"] .hk-card-title {
+  font-family: var(--house-font-label); font-weight: 400;
+  font-size: var(--house-px-label); letter-spacing: 0.03em; line-height: 1.2;
+  padding: 0;
+}
+[data-house][data-house-look="pixel"] .hk-panel-tools { color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-px-label); }
+[data-house][data-house-look="pixel"] .hk-panel-head .hk-iconbtn { width: var(--house-px-title-h); height: var(--house-px-title-h); min-height: var(--house-px-title-h); }
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+[data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet) {
+  border: 2px solid var(--house-outline); border-radius: 0;
+  background: var(--house-title); color: var(--house-text);
+  box-shadow: var(--house-px-btn);
+  font-weight: 400; font-size: var(--house-px-label);
+  padding: var(--house-space-1) var(--house-space-3);
+}
+[data-house][data-house-look="pixel"] .hk-btn--primary:not(.hk-btn--quiet) {
+  background: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--house-px-on);
+}
+[data-house][data-house-look="pixel"] .hk-btn--danger:not(.hk-btn--quiet) {
+  background: var(--house-danger); color: var(--house-on-danger);
+}
+@media (hover: hover) {
+  [data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet):hover:not([aria-disabled="true"]) {
+    box-shadow: inset 0 0 0 2px currentColor, var(--house-px-btn);
+  }
+}
+[data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet):active:not([aria-disabled="true"]),
+[data-house][data-house-look="pixel"] .hk-btn[data-pressed="true"]:not(.hk-btn--quiet) { box-shadow: var(--house-px-sink); }
+[data-house][data-house-look="pixel"] .hk-btn[aria-disabled="true"]:not(.hk-btn--quiet) { background: transparent; color: var(--house-muted); border-style: dashed; box-shadow: none; }
+/* Touch: the mockups' phone buttons are 44 px with the bigger label. */
+@media (pointer: coarse) {
+  [data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet) { font-size: var(--house-text-sm); padding: 0 var(--house-space-4); }
+}
+
+/* ── Fields: sunken ──────────────────────────────────────────────── */
+[data-house][data-house-look="pixel"] .hk-input,
+[data-house][data-house-look="pixel"] .hk-inputwrap {
+  border: 0; border-radius: 0; background: var(--house-page); box-shadow: var(--house-px-sink);
+}
+
+/* ── Menus and popovers ──────────────────────────────────────────── */
+[data-house][data-house-look="pixel"] .hk-pop { border-radius: 0; box-shadow: var(--house-px-raise); background: var(--house-panel); }
+[data-house][data-house-look="pixel"] .hk-menuitem { border-radius: 0; }
+[data-house][data-house-look="pixel"] .hk-menuitem:focus,
+[data-house][data-house-look="pixel"] .hk-menuitem:focus-visible { background: var(--house-bevel-light); outline: none; }
+@media (hover: hover) { [data-house][data-house-look="pixel"] .hk-menuitem:hover { background: var(--house-bevel-light); box-shadow: none; } }
+[data-house] .hk-menuitem-hint { margin-left: auto; padding-left: var(--house-space-4); color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-sm); }
+
+/* ── The frame (board 01-Main): file tabs, the status bar ────────── */
+[data-house][data-house-look="pixel"] .hk-otabs { background: var(--house-page); border-bottom: 2px solid var(--house-outline); }
+[data-house][data-house-look="pixel"] .hk-otab {
+  background: var(--house-panel); color: var(--house-muted);
+  border: 2px solid var(--house-outline); border-bottom: 0; box-shadow: inset 2px 2px 0 var(--house-bevel-light);
+}
+[data-house][data-house-look="pixel"] .hk-otab[data-current] {
+  background: var(--house-title); color: var(--house-text); border-color: var(--house-outline);
+  margin-bottom: -2px; padding-bottom: 2px;
+}
+[data-house][data-house-look="pixel"] .hk-otab-go,
+[data-house][data-house-look="pixel"] .hk-otab-x { font-weight: 400; font-size: var(--house-px-label); }
+[data-house][data-house-look="pixel"] .hk-status {
+  background: var(--house-title); color: var(--house-text);
+  border-top: 2px solid var(--house-outline);
+  font-family: var(--house-font-label); font-size: var(--house-px-label);
+}
+[data-house][data-house-look="pixel"] .hk-status-item { color: var(--house-text); }
+/* The page-section tabs (Today · Me · Plans): small bevelled tabs. */
+[data-house][data-house-look="pixel"] .hk-tab { font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-px-label); }
+[data-house][data-house-look="pixel"] .hk-tab[aria-selected="true"] { background: var(--house-title); box-shadow: inset 2px 2px 0 var(--house-bevel-raised); }
+/* Tick boxes: square and sunken. */
+[data-house][data-house-look="pixel"] .hk-check-box { border-radius: 0; box-shadow: var(--house-px-sink); }
+/* The phone bar (board 08-Phone): the current place on the title colour. */
+[data-house][data-house-look="pixel"] .hk-pbar { border-top: 2px solid var(--house-outline); }
+[data-house][data-house-look="pixel"] .hk-pbar-label { font-family: var(--house-font-label); font-size: var(--house-px-label); font-weight: 400; }
+[data-house][data-house-look="pixel"] .hk-pbar-place[data-current] { background: var(--house-title); box-shadow: inset 2px 2px 0 var(--house-bevel-raised); color: var(--house-text); }
