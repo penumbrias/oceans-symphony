@@ -642,7 +642,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/timeline", target: ["timeline-add", "timeline-container"], look: `the + button, or press and hold a day`,
     }),
     s("timeline", {
-      emoji: "✂️", title: `Fix a ${t.fronting} record`,
+      emoji: "✂️", title: `Fix ${an(t.fronting)} record`,
       body: `Tap ${an(t.fronting)} bar to see it in Info. Edit changes its times, Split cuts it in two, and the More menu fixes who it was or removes it (it goes to the trash).`,
       route: "/timeline", target: "timeline-container", look: `tap any ${t.fronting} bar`,
     }),
