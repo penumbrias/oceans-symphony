@@ -56,6 +56,19 @@
 }
 [data-house][data-house-look="pixel"] .hk-panel-tools { color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-px-label); }
 [data-house][data-house-look="pixel"] .hk-panel-head .hk-iconbtn { width: var(--house-px-title-h); height: var(--house-px-title-h); min-height: var(--house-px-title-h); }
+/* Every title bar is the same slim height (owner, 2026-11-25): a button in
+   it is drawn at the bar's height, and an invisible box keeps the full
+   tap target (--house-target) centred on it, reaching a little past the bar. */
+[data-house][data-house-look="pixel"] .hk-panel-head .hk-btn,
+[data-house][data-house-look="pixel"] .hk-card-head .hk-btn {
+  position: relative; height: var(--house-px-title-h); min-height: var(--house-px-title-h);
+  padding-top: 0; padding-bottom: 0; line-height: 1;
+}
+[data-house][data-house-look="pixel"] .hk-panel-head .hk-btn::before,
+[data-house][data-house-look="pixel"] .hk-card-head .hk-btn::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%;
+  height: max(100%, var(--house-target)); transform: translateY(-50%);
+}
 
 /* ── Buttons ─────────────────────────────────────────────────────── */
 [data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet) {
