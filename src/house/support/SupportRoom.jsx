@@ -302,7 +302,7 @@ export default function SupportRoom({ size = "full" }) {
     ) : (
       <ViewPanel title="Technique" onBack={back}>
         <EmptyBlock compact title="This technique isn't here any more" body="It may have been archived. Every other technique is in the full list."
-          action={<Button rank="secondary" onClick={() => go("all")}>All techniques</Button>} />
+          action={{ rank: "secondary", label: "All techniques", onClick: () => go("all") }} />
       </ViewPanel>
     );
   } else if (view === "breathing") {

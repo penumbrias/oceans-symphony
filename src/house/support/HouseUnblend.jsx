@@ -92,7 +92,7 @@ export default function HouseUnblend({ size = "full" }) {
       tools={<span>{u.answeredIds.size ? `after ${u.answeredIds.size} answer${u.answeredIds.size === 1 ? "" : "s"}` : "from the time of day"}</span>}>
       {u.activeAlters.length === 0 ? (
         <EmptyBlock compact title={`No ${terms.alters} yet`} body={`Add some ${terms.alters} and this can help work out who's here.`}
-          action={<Button rank="secondary" onClick={() => navigate("/Home")}>{`Open ${terms.alters}`}</Button>} />
+          action={{ rank: "secondary", label: `Open ${terms.alters}`, onClick: () => navigate("/Home") }} />
       ) : (
         <>
           <ul className="hs-list hs-bars" data-tour="unblend-likely">

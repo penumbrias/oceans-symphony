@@ -125,7 +125,7 @@ export default function HouseEmergency({ size = "full" }) {
         <Panel title="Your emergency card" className="hs-panel">
           <EmptyBlock compact title="Nothing on it yet"
             body="Fill in what a helper should know if you can't speak or need help: how to talk with you, allergies, medications and who to call. You choose everything on it."
-            action={<Button rank="primary" onClick={() => setEditing("about")}>Fill it in</Button>} />
+            action={{ rank: "primary", label: "Fill it in", onClick: () => setEditing("about") }} />
         </Panel>
       ) : null}
 

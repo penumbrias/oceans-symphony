@@ -91,7 +91,11 @@
   width: 100%; justify-content: flex-start; gap: var(--house-space-3); color: var(--house-text);
   padding: var(--house-space-1) 0; font-family: var(--house-font-body); font-weight: 400;
 }
-[data-house] .hs-bar-name { flex: 0 0 5.5rem; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The kit Button puts its words in one span: lay the row out inside it. */
+[data-house] .hk-btn.hs-bar-row > span, [data-house] .hk-btn.hs-zone > span {
+  display: flex; align-items: center; gap: var(--house-space-3); flex: 1 1 auto; min-width: 0; width: 100%;
+}
+[data-house] .hs-bar-name { flex: 0 1 7rem; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-house] .hs-bar { flex: 1 1 auto; height: 0.75rem; background: var(--house-page); box-shadow: var(--house-px-sink, inset 0 0 0 1px var(--house-border)); position: relative; }
 [data-house] .hs-bar > span { position: absolute; left: 2px; top: 2px; bottom: 2px; max-width: calc(100% - 4px); }
 [data-house] .hs-bar-pc { flex: 0 0 2.75rem; text-align: right; font-family: var(--house-font-label); font-size: var(--house-text-sm); }
