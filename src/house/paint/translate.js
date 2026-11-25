@@ -133,10 +133,13 @@ export function showingVariant(device = {}) {
 }
 
 // The 8 old colours for each variant, and where they came from.
-function themeColours(device = {}) {
+// `houseDefault`: the theme to use when the person never picked one (the
+// new house passes "pixel", the mockups' palette); a pick always wins.
+function themeColours(device = {}, houseDefault = null) {
   const custom = isObj(device.customColors) ? device.customColors : null;
   const userPresets = isObj(device.userCustomPresets) ? device.userCustomPresets : {};
-  const name = device.selectedTheme || DEFAULT_THEME;
+  const fallback = houseDefault && ALL_PRESETS[houseDefault] ? houseDefault : DEFAULT_THEME;
+  const name = device.selectedTheme || fallback;
   let theme = null;
   let source;
   if (custom && (isObj(custom.light) || isObj(custom.dark))) {
@@ -146,9 +149,10 @@ function themeColours(device = {}) {
   } else if (isObj(userPresets[name])) {
     theme = userPresets[name]; source = { kind: "saved", name };
   } else {
-    theme = ALL_PRESETS[DEFAULT_THEME]; source = { kind: "default", name: DEFAULT_THEME };
+    theme = ALL_PRESETS[fallback]; source = { kind: "default", name: fallback };
   }
-  const base = ALL_PRESETS[DEFAULT_THEME];
+  if (houseDefault && !device.selectedTheme && !(custom && (isObj(custom.light) || isObj(custom.dark)))) source = { kind: "default", name: fallback };
+  const base = ALL_PRESETS[fallback];
   const pick = (v) => {
     // A variant the theme lacks borrows the other one, then the default
     // theme, key by key, so a half-saved custom theme still paints.
@@ -163,7 +167,7 @@ function themeColours(device = {}) {
   return { light: pick("light"), dark: pick("dark"), source };
 }
 
-function swatchesFor(colours, variant, settingsRow, px) {
+function swatchesFor(colours, variant, settingsRow, px, houseDefaultTheme = false) {
   const s = {};
   for (const [key, sw] of Object.entries(THEME_TO_SWATCH)) s[sw] = colours[key];
   // Edges are derived: the outline darker than the floor, the bevels lifted
@@ -177,9 +181,12 @@ function swatchesFor(colours, variant, settingsRow, px) {
   const waveCustom = readWaveCustom(settingsRow);
   const waveKey = readWaveColorKey(settingsRow);
   s.wave = waveCustom || colours[WAVE_KEY_TO_THEME[waveKey]] || colours.muted;
+  // The house's own default palette: the mockups' wave is the second
+  // accent (the periwinkle), unless the person set a wave of their own.
+  if (houseDefaultTheme && !waveCustom && !settingsRow?.wave_color_key) s.wave = colours.accent;
   // Pixel overrides are newer and explicit, so they win.
   if (px.outline) s.outline = px.outline;
-  if (px.titleBar) s.tab = px.titleBar;
+  if (px.titleBar) { s.tab = px.titleBar; s.titleBar = px.titleBar; }
   if (px.floorTop) s.deep = px.floorTop;
   return s;
 }
@@ -228,11 +235,12 @@ export function translatePaint(settingsRow, opts = {}) {
   const device = isObj(opts.device) ? opts.device : {};
   const px = readPixelLook(row);
   const variant = showingVariant(device);
-  const colours = themeColours(device);
+  const colours = themeColours(device, opts.houseDefault || null);
+  const houseDefaultTheme = !!opts.houseDefault && colours.source.kind === "default";
 
   const variants = {
-    light: swatchesFor(colours.light, "light", row, px),
-    dark: swatchesFor(colours.dark, "dark", row, px),
+    light: swatchesFor(colours.light, "light", row, px, houseDefaultTheme),
+    dark: swatchesFor(colours.dark, "dark", row, px, houseDefaultTheme),
   };
   const swatches = variants[variant];
 

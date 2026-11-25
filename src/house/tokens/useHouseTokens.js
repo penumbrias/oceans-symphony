@@ -10,9 +10,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { readUiLook } from "@/lib/pixelLook";
 import { translatePaint, readDevicePaint } from "@/house/paint/translate";
-import { houseTokens } from "@/house/tokens/roles";
+import { houseTokens, houseLookFromRow } from "@/house/tokens/roles";
 
 function readEnv() {
   const root = typeof document !== "undefined" ? document.documentElement : null;
@@ -56,8 +55,10 @@ export function useHouseTokens() {
   }, []);
 
   return useMemo(() => {
-    const paint = translatePaint(row, { device: env.device });
-    const tokens = houseTokens(paint, { look: readUiLook(row), highContrast: env.highContrast });
+    // The house's defaults are the approved mockups' (pixel look, the pixel
+    // palette, Atkinson under Pixelify labels); the person's own picks win.
+    const paint = translatePaint(row, { device: env.device, houseDefault: "pixel" });
+    const tokens = houseTokens(paint, { look: houseLookFromRow(row), highContrast: env.highContrast });
     return { paint, ...tokens };
   }, [row, env]);
 }
