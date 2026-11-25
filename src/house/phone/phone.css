@@ -102,3 +102,13 @@
 :root:has([data-house-phone]) [data-os-sheet][data-side="left"],
 :root:has([data-house-phone]) [data-os-sheet][data-side="right"] { bottom: var(--house-sheet-bottom, 0px); height: auto; }
 [data-house].hp-bottom { pointer-events: auto; }
+
+/* Board 08-Phone: a pixel header over the wave (logo · page name · Search ·
+   ⋯ as bevelled buttons), and the Home room filling the middle. */
+[data-house].hp-head { overflow: hidden; }
+[data-house].hp-head > :not(.hk-wave) { position: relative; z-index: 1; }
+[data-house] .hp-logo-link { display: inline-flex; align-items: center; justify-content: center; width: var(--house-target); height: var(--house-target); }
+[data-house] .hp-logo { width: 2rem; height: 2rem; object-fit: contain; image-rendering: pixelated; border: 2px solid var(--house-outline); }
+[data-house][data-house-look="pixel"].hp-head { border-bottom: 2px solid var(--house-outline); min-height: 3.5rem; }
+[data-house][data-house-look="pixel"].hp-head .hk-iconbtn.hk-btn--secondary { width: 2.75rem; height: 2.75rem; }
+[data-house-phone] .hp-canvas--room { padding: 0; }

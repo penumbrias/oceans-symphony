@@ -97,3 +97,31 @@
 [data-house][data-house-look="pixel"] .hk-menuitem:focus-visible { background: var(--house-bevel-light); outline: none; }
 @media (hover: hover) { [data-house][data-house-look="pixel"] .hk-menuitem:hover { background: var(--house-bevel-light); box-shadow: none; } }
 [data-house] .hk-menuitem-hint { margin-left: auto; padding-left: var(--house-space-4); color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-sm); }
+
+/* ── The frame (board 01-Main): file tabs, the status bar ────────── */
+[data-house][data-house-look="pixel"] .hk-otabs { background: var(--house-page); border-bottom: 2px solid var(--house-outline); }
+[data-house][data-house-look="pixel"] .hk-otab {
+  background: var(--house-panel); color: var(--house-muted);
+  border: 2px solid var(--house-outline); border-bottom: 0; box-shadow: inset 2px 2px 0 var(--house-bevel-light);
+}
+[data-house][data-house-look="pixel"] .hk-otab[data-current] {
+  background: var(--house-title); color: var(--house-text); border-color: var(--house-outline);
+  margin-bottom: -2px; padding-bottom: 2px;
+}
+[data-house][data-house-look="pixel"] .hk-otab-go,
+[data-house][data-house-look="pixel"] .hk-otab-x { font-weight: 400; font-size: var(--house-px-label); }
+[data-house][data-house-look="pixel"] .hk-status {
+  background: var(--house-title); color: var(--house-text);
+  border-top: 2px solid var(--house-outline);
+  font-family: var(--house-font-label); font-size: var(--house-px-label);
+}
+[data-house][data-house-look="pixel"] .hk-status-item { color: var(--house-text); }
+/* The page-section tabs (Today · Me · Plans): small bevelled tabs. */
+[data-house][data-house-look="pixel"] .hk-tab { font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-px-label); }
+[data-house][data-house-look="pixel"] .hk-tab[aria-selected="true"] { background: var(--house-title); box-shadow: inset 2px 2px 0 var(--house-bevel-raised); }
+/* Tick boxes: square and sunken. */
+[data-house][data-house-look="pixel"] .hk-check-box { border-radius: 0; box-shadow: var(--house-px-sink); }
+/* The phone bar (board 08-Phone): the current place on the title colour. */
+[data-house][data-house-look="pixel"] .hk-pbar { border-top: 2px solid var(--house-outline); }
+[data-house][data-house-look="pixel"] .hk-pbar-label { font-family: var(--house-font-label); font-size: var(--house-px-label); font-weight: 400; }
+[data-house][data-house-look="pixel"] .hk-pbar-place[data-current] { background: var(--house-title); box-shadow: inset 2px 2px 0 var(--house-bevel-raised); color: var(--house-text); }

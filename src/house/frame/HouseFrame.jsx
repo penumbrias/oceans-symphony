@@ -32,8 +32,8 @@ import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useR
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Search, MoreHorizontal, LifeBuoy, PanelLeft, PanelRight, SlidersHorizontal, Pencil,
-  Settings as SettingsIcon, PlayCircle, Map as MapIcon, ShoppingCart, Boxes, LogOut, Eye, Compass, Users,
+  Search, PanelLeft, PanelRight, SlidersHorizontal,
+  PlayCircle, Map as MapIcon, ShoppingCart, Boxes, LogOut, Eye, Compass,
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -45,35 +45,43 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom } from "@/lib/houseSwitch";
+import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { useHouseTokens } from "@/house/tokens/useHouseTokens";
 import { HouseScope } from "@/house/tokens/HouseRoot";
 import { Button, IconButton } from "@/house/kit/Button";
-import Menu from "@/house/kit/Menu";
 import { Sheet } from "@/house/kit/Sheet";
 import { TreeView, RowText } from "@/house/kit/TreeList";
 import { KitPopover } from "@/house/kit/KitLayer";
 import OpenTabs from "@/house/kit/frame/OpenTabs";
 import DockResizer from "@/house/kit/frame/DockResizer";
-import SigningSwatch from "@/house/kit/frame/SigningSwatch";
+import AreaMenus from "@/house/kit/frame/AreaMenus";
+import HeaderWave from "@/house/kit/frame/HeaderWave";
+import {
+  PixelHeart, PixelSwitch, PixelCalendar, PixelPerson, PixelPen, PixelBubble, PixelPlus, PixelGrid, PixelGear, PixelSupport,
+} from "@/house/tokens/PixelGlyphs";
+import DoSheet from "@/house/frame/DoSheet";
+import { QuickNoteSheet } from "@/components/v2/V2Frame";
 import { StatusBar, StatusItem, StatusLink, StatusButton, StatusSpacer } from "@/house/kit/frame/StatusBar";
 import DockPanels, { useFreshPageHelp } from "@/house/frame/DockPanels";
 import { signingWords } from "@/house/frame/signing";
 import { DOCK_LIMITS, HOUSE_LAYOUT_EVENT, dockFor, layoutPageKey, loadLayout, saveDock, clampDockSize } from "@/house/frame/dockPrefs";
 import { documentTitleFor, resolvePageTitle, APP_NAME } from "@/house/frame/pageTitle";
 import { HOUSE_TABS_KEY, readTabs, followTo, openTab, selectTab, closeTab } from "@/house/frame/openTabs";
-import { useSettingsRow, useSaveHealth, useLastSync, usePreviewOn, useNextReminder, useAttributionPolicy, usePageTitle } from "@/house/frame/useFrameData";
+import { useSaveHealth, useLastSync, usePreviewOn, useNextReminder, useAttributionPolicy, usePageTitle } from "@/house/frame/useFrameData";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 import "@/house/kit/frame/frameKit.css";
 import "@/house/frame/frame.css";
 
 const GlobalSearch = React.lazy(() => import("@/components/dashboard/GlobalSearch"));
+// The house's own Home room (boards 01-Main and 08-Phone), its own chunk.
+const HouseHome = React.lazy(() => import("@/house/home/HouseHome"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
-const RAIL_REM = 3;
+const RAIL_REM = 3.5;
 const CANVAS_MIN = { full: 30, compact: 20 };
 const timeOf = (d) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...clockOpts() });
 const remPx = () => { try { return parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; } catch { return 16; } };
@@ -122,9 +130,8 @@ function useOpenTabState(here) {
   return [state, (fn) => setState((s) => write(fn(s)))];
 }
 
-// ── Top bar ────────────────────────────────────────────────────────────
-function TopBar({ size, groups, moreItems, onPages, pagesOpen, searchOpen, setSearchOpen }) {
-  const navigate = useNavigate();
+// ── Top bar (board 01-Main): wave · logo + name · area menus · search ──
+function TopBar({ size, groups, currentPath, onGo, onNewTab, onPages, pagesOpen, searchOpen, setSearchOpen, waveOn }) {
   const areasRef = useRef(null);
   const searchRef = useRef(null);
   const needRef = useRef(0);
@@ -153,24 +160,21 @@ function TopBar({ size, groups, moreItems, onPages, pagesOpen, searchOpen, setSe
   const mac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform || "");
   return (
     <div className="hf-topbar">
-      <Link to="/" className="hf-home" aria-label="Home" title="Home">
+      {waveOn ? <HeaderWave /> : null}
+      <Link to="/" className="hf-home" aria-label={`${APP_NAME}: Home`} title="Home">
         <img src="/logo.png" alt="" className="hf-logo" />
+        <span className="hf-appname house-label" aria-hidden="true">{APP_NAME}</span>
       </Link>
       <div ref={areasRef} className="hf-areas" data-collapsed={collapsed || undefined}>
         {collapsed ? (
           <Button rank="quiet" icon={Compass} aria-expanded={pagesOpen} onClick={onPages}>Pages</Button>
         ) : (
-          groups.map((g) => (
-            <Menu key={g.id} label={`${g.label} pages`} rank="quiet"
-              items={g.items.map((p) => ({ id: p.id, label: p.label, icon: p.icon, onSelect: () => navigate(p.path) }))}>
-              {g.label}
-            </Menu>
-          ))
+          <AreaMenus groups={groups} currentPath={currentPath} onGo={onGo} onNewTab={onNewTab} />
         )}
       </div>
-      <Button ref={searchRef} rank="secondary" icon={Search} aria-expanded={searchOpen} aria-haspopup="dialog"
-        onClick={() => setSearchOpen((o) => !o)} className="hf-search-btn">
-        <span>Search</span>
+      <Button ref={searchRef} rank="secondary" aria-expanded={searchOpen} aria-haspopup="dialog"
+        onClick={() => setSearchOpen((o) => !o)} className="hf-search-btn" icon={size === "compact" ? Search : undefined}>
+        <span>{size === "compact" ? "Search" : "Search everything"}</span>
         <span className="hf-kbd" aria-hidden="true">{mac ? "⌘K" : "Ctrl K"}</span>
       </Button>
       <KitPopover open={searchOpen} anchorRef={searchRef} onClose={() => setSearchOpen(false)} label="Search everything" className="hf-search-pop">
@@ -178,7 +182,6 @@ function TopBar({ size, groups, moreItems, onPages, pagesOpen, searchOpen, setSe
           <GlobalSearch autoFocus onNavigate={() => setSearchOpen(false)} />
         </Suspense>
       </KitPopover>
-      <Menu label="More" icon={MoreHorizontal} items={moreItems} />
     </div>
   );
 }
@@ -204,8 +207,8 @@ function BrowsePanel({ groups, currentId }) {
   );
 }
 
-// ── Status bar ─────────────────────────────────────────────────────────
-function FrameStatus({ size, pageTitle, onEditPage, editReason }) {
+// ── Status bar (board 01-Main): Saved · Synced · Next reminder · … · Look · version ──
+function FrameStatus({ size, look }) {
   const terms = useTerms();
   const health = useSaveHealth();
   const lastSync = useLastSync();
@@ -214,7 +217,6 @@ function FrameStatus({ size, pageTitle, onEditPage, editReason }) {
   const [retrying, setRetrying] = useState(false);
   return (
     <StatusBar label="Status" tall={!health.ok}>
-      <StatusButton icon={Pencil} label={`Edit ${pageTitle}`} onClick={onEditPage} disabledReason={editReason} />
       {health.ok
         ? <StatusItem>Saved</StatusItem>
         : (
@@ -223,10 +225,13 @@ function FrameStatus({ size, pageTitle, onEditPage, editReason }) {
           </StatusButton>
         )}
       {lastSync ? <StatusLink to="/settings#device-sync" title="Sync between devices">Synced {timeOf(new Date(lastSync))}</StatusLink> : null}
-      {next ? <StatusLink to="/reminders" title="Your next reminder">Next: {next.title} {timeOf(new Date(next.at))}</StatusLink> : null}
+      {next ? <StatusLink to="/reminders" title="Your next reminder">Next reminder: {next.title} {timeOf(new Date(next.at))}</StatusLink> : null}
       <StatusSpacer />
       {preview ? <span data-house-example=""><StatusItem tone="label" title="Preview Mode: example data, not yours. Leave it from the More menu.">{`Example ${terms.system}`}</StatusItem></span> : null}
-      <StatusItem>{size === "compact" ? "Compact studio" : "Studio"}</StatusItem>
+      <StatusButton label="Look: change it in Display options" onClick={() => window.dispatchEvent(new CustomEvent("os-open-display-options"))}>
+        {`Look: ${look === "pixel" ? "Pixel" : "Smooth"}${size === "compact" ? " · compact" : ""}`}
+      </StatusButton>
+      <StatusItem>{`v${APP_VERSION}`}</StatusItem>
     </StatusBar>
   );
 }
@@ -240,14 +245,12 @@ export default function HouseFrame({ children, mainRef }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const formatAlter = useAlterLabel();
-  const row = useSettingsRow();
   const vp = useViewportRem();
   const here = location.pathname + location.search;
 
   const page = usePageTitle(location.pathname, location.search, { terms, formatAlter });
-  const groups = useMemo(() => navAreaGroups(terms, { omit: [] }), [terms]);
-  const areaGroups = useMemo(() => groups.filter((g) => g.id !== "more"), [groups]);
-  const morePages = useMemo(() => (groups.find((g) => g.id === "more")?.items || []), [groups]);
+  const homeRoom = isHouseHomeRoom(location.pathname, location.search);
+  const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
   useEffect(() => { document.title = documentTitleFor(page.title); }, [page.title]);
@@ -266,17 +269,22 @@ export default function HouseFrame({ children, mainRef }) {
 
   // Collapse order (building code §4): the right dock becomes a sheet
   // first, then the left panel folds; the page never drops under its minimum.
+  // The house's Home room draws its own docks (Info, Layers, the timeline),
+  // as board 01-Main does, so the frame's side panels stay away from it.
   const minCanvas = CANVAS_MIN[size];
   const room = vp.w - RAIL_REM;
-  const rightDocked = size === "full" && right.shown && room - (left.shown ? leftW : 0) - rightW >= minCanvas;
+  const rightDocked = !homeRoom && size === "full" && right.shown && room - (left.shown ? leftW : 0) - rightW >= minCanvas;
   const [sheetOpen, setSheetOpen] = useState(false);
   useEffect(() => { setSheetOpen(false); }, [pageKey]);
   const leftFits = room - leftW - (rightDocked ? rightW : 0) >= minCanvas;
   // Compact: one side panel at a time.
-  const leftDocked = left.shown && leftFits && !(size === "compact" && sheetOpen);
+  const [pagesOverHome, setPagesOverHome] = useState(false);
+  useEffect(() => { setPagesOverHome(false); }, [here]);
+  const leftDocked = homeRoom ? pagesOverHome : (left.shown && leftFits && !(size === "compact" && sheetOpen));
   const dockAsSheet = !rightDocked;
 
   const toggleLeft = () => {
+    if (homeRoom) { setPagesOverHome((o) => !o); return; }
     if (leftDocked) { keep("left", { shown: false }); return; }
     setSheetOpen(false);
     keep("left", { shown: true });
@@ -285,8 +293,6 @@ export default function HouseFrame({ children, mainRef }) {
     if (dockAsSheet) { setSheetOpen((o) => !o); return; }
     keep("right", { shown: !right.shown });
   };
-  // From the docked dock being hidden in a narrow full studio, the toggle
-  // opens it as a sheet; from the sheet, "Dock it" puts it back.
   const setTab = (tab) => keep("right", { tab });
 
   const fresh = useFreshPageHelp(location.pathname);
@@ -309,66 +315,71 @@ export default function HouseFrame({ children, mainRef }) {
 
   // ── Open-page tabs ──
   const [tabs, setTabs] = useOpenTabState(here);
-  const tabTitle = (path) => {
-    if (path === here) return page.title;
-    return null;
-  };
-  // Titles for tabs that aren't on screen come from the same resolver.
+  const tabTitle = (path) => (path === here ? page.title : null);
   const tabNames = useTabNames(tabs.tabs, { terms, formatAlter });
   const tabList = tabs.tabs.map((t) => ({ id: t.id, path: t.path, title: tabTitle(t.path) || tabNames[t.id] || "Page" }));
+  const openInTab = (path) => { setTabs((s) => openTab(s, path)); navigate(path); };
 
-  // ── The signing swatch: who is in front, and what the person's
-  // "Entries belong to" setting does with them (signing.js). It speaks only
-  // for check-ins; journals and posts pick their own author. ──
+  // ── Who is in front, for the rail's Switch tool: what the person's
+  // "Entries belong to" setting does with them (signing.js). ──
   const { fronters } = useFrontPresence();
   const policy = useAttributionPolicy();
   const [frontOpen, setFrontOpen] = useState(false);
-  useEffect(() => { setFrontOpen(false); }, [location.pathname]);
-  const systemName = row?.system_name || terms.System;
-  const swatch = (() => {
-    const names = fronters.map(({ alter }) => formatAlter(alter));
-    const { label } = signingWords({ names, policy, terms });
-    if (!fronters.length) {
-      return { label, colours: [], initials: String(systemName || "").trim().slice(0, 1).toUpperCase(), icon: systemName ? null : Users };
-    }
-    const colours = fronters.map(({ alter }) => (/^#[0-9a-f]{3,8}$/i.test(alter.color || "") ? alter.color : "var(--house-muted)"));
-    return { label, colours, more: Math.max(0, fronters.length - 3) };
-  })();
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [doOpen, setDoOpen] = useState(false);
+  useEffect(() => { setFrontOpen(false); setDoOpen(false); }, [location.pathname]);
+  const signLabel = signingWords({ names: fronters.map(({ alter }) => formatAlter(alter)), policy, terms }).label;
 
-  // ── The pencil: the existing Edit page where there is one (edit mode is Phase 4) ──
+  // ── The page tools: the existing Edit page where there is one ──
   const boards = useBoardsOnScreen();
   const editTarget = location.pathname === "/"
-    ? (boards.includes("os-classic") || !boards.includes("os-v2") ? "os-classic-edit-home" : "os-v2-edit-home")
+    ? (homeRoom ? null : (boards.includes("os-classic") || !boards.includes("os-v2") ? "os-classic-edit-home" : "os-v2-edit-home"))
     : boards.includes("os-profile") ? "os-profile-edit-home" : null;
   const editPage = () => { if (editTarget) window.dispatchEvent(new CustomEvent(editTarget)); };
+  const displayOptions = () => window.dispatchEvent(new CustomEvent("os-open-display-options"));
+  const checkIn = () => {
+    if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-quick-checkin"));
+    else navigate("/?action=quick-checkin");
+  };
 
-  const preview = usePreviewOn();
-  const moreItems = [
-    ...morePages.map((p) => ({ id: p.id, label: p.label, icon: p.icon || SettingsIcon, onSelect: () => navigate(p.path) })),
-    { id: "display", label: "Display options", icon: SlidersHorizontal, onSelect: () => window.dispatchEvent(new CustomEvent("os-open-display-options")) },
-    { id: "around", label: "Show me around this page", icon: PlayCircle, onSelect: () => openPageTour(location.pathname) },
-    { id: "tour", label: "Take the tour", icon: MapIcon, onSelect: openFullTour },
-    { id: "systems", label: `Switch ${terms.system}`, icon: Boxes, onSelect: () => openSystemSwitcher() },
-    { id: "cover", label: "Grocery list (privacy cover)", icon: ShoppingCart, onSelect: () => window.dispatchEvent(new CustomEvent("open-grocery-list")) },
-    ...(preview ? [{ id: "leave-example", label: `Leave the example ${terms.system}`, icon: Eye, onSelect: () => exitPreview() }] : []),
-    { id: "old-house", label: "Use the old house", icon: LogOut, onSelect: () => setHouseSwitch(false) },
-  ];
+  // The area menus (board 01-Main): every area, and the More area also
+  // carries the frame's own tools (rows without a path run their action).
+  const groups = useMemo(() => {
+    const all = navAreaGroups(terms, { omit: [] });
+    const tools = [
+      { id: "t-display", label: "Display options", icon: SlidersHorizontal, onSelect: displayOptions },
+      { id: "t-pages", label: leftDocked ? "Hide the pages panel" : "Show the pages panel", icon: PanelLeft, onSelect: toggleLeft },
+      ...(homeRoom ? [] : [{ id: "t-side", label: (rightDocked || sheetOpen) ? "Hide the side panel" : "Show the side panel", icon: PanelRight, onSelect: toggleRight }]),
+      { id: "t-around", label: "Show me around this page", icon: PlayCircle, onSelect: () => openPageTour(location.pathname) },
+      { id: "t-tour", label: "Take the tour", icon: MapIcon, onSelect: openFullTour },
+      { id: "t-systems", label: `Switch ${terms.system}`, icon: Boxes, onSelect: () => openSystemSwitcher() },
+      { id: "t-cover", label: "Grocery list (privacy cover)", icon: ShoppingCart, onSelect: () => window.dispatchEvent(new CustomEvent("open-grocery-list")) },
+      ...(preview ? [{ id: "t-leave", label: `Leave the example ${terms.system}`, icon: Eye, onSelect: () => exitPreview() }] : []),
+      { id: "t-old", label: "Use the old house", icon: LogOut, onSelect: () => setHouseSwitch(false) },
+    ];
+    const hasMore = all.some((g) => g.id === "more");
+    const out = all.map((g) => (g.id === "more" ? { ...g, items: [...g.items, ...tools] } : g));
+    return hasMore ? out : [...out, { id: "more", label: "More", items: tools }];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terms, preview, homeRoom, leftDocked, rightDocked, sheetOpen, location.pathname]);
+  const browseGroups = useMemo(() => groups.map((g) => ({ ...g, items: g.items.filter((it) => it.path) })).filter((g) => g.items.length), [groups]);
 
   const scope = (extra = {}) => ({ tokens, "data-house-size": size, ...extra });
   const dockBody = <DockPanels tab={right.tab} onTab={setTab} page={page} fresh={fresh} />;
   const limL = DOCK_LIMITS[size].left;
   const limR = DOCK_LIMITS[size].right;
+  const waveOn = !tokens?.paint?.tokens?.waveOff;
 
   return (
-    <div className="hf" data-house-frame="" data-size={size}>
+    <div className="hf" data-house-frame="" data-size={size} data-home-room={homeRoom || undefined}>
       <HouseScope {...scope()} className="hf-skips">
         <a href="#main-content" className="hf-skip">Skip to the page</a>
       </HouseScope>
       <div aria-live="polite" role="status" className="hf-sr">{page.title}</div>
 
       <HouseScope {...scope()} as="header" className="hf-top">
-        <TopBar size={size} groups={areaGroups} moreItems={moreItems} onPages={toggleLeft} pagesOpen={leftDocked}
-          searchOpen={searchOpen} setSearchOpen={setSearchOpen} />
+        <TopBar size={size} groups={groups} currentPath={location.pathname} onGo={(p) => navigate(p)} onNewTab={openInTab}
+          onPages={toggleLeft} pagesOpen={leftDocked} searchOpen={searchOpen} setSearchOpen={setSearchOpen} waveOn={waveOn} />
         <OpenTabs tabs={tabList} current={tabs.active}
           onSelect={(t) => { setTabs((s) => selectTab(s, t.id)); if (t.path !== here) navigate(t.path); }}
           onClose={(t) => {
@@ -376,31 +387,48 @@ export default function HouseFrame({ children, mainRef }) {
             setTabs((s) => { const r = closeTab(s, t.id); goTo = r.goTo; return r.state; });
             setTimeout(() => { if (goTo && goTo !== here) navigate(goTo); }, 0);
           }}
-          onNew={() => { setTabs((s) => openTab(s, "/")); navigate("/"); }}
+          onNew={() => openInTab("/")}
           max={size === "compact" ? 4 : 8} />
       </HouseScope>
 
       <div className="hf-body">
+        {/* The rail (board 01-Main): QUICK tools, then PAGE tools. Support
+            stays one tap away here (building code §14). */}
         <HouseScope {...scope()} as="nav" className="hf-rail" aria-label="Tools">
-          <SigningSwatch {...swatch} onClick={() => setFrontOpen(true)} />
-          <IconButton icon={LifeBuoy} rank="primary" label="Support" className="hf-rail-support" data-house-support="" onClick={() => navigate("/grounding")} />
+          <span className="hf-rail-label house-label" aria-hidden="true">Quick</span>
+          <IconButton icon={PixelHeart} rank="primary" label="Check in" onClick={checkIn} />
+          <IconButton icon={PixelSwitch} label={`${terms.Switch}: ${signLabel}`} onClick={() => setFrontOpen(true)} />
+          <IconButton icon={PixelCalendar} label="Plan or to-do" onClick={() => navigate("/?action=quick-thing")} />
+          <IconButton icon={PixelPerson} label="Start an activity" onClick={() => navigate("/?action=start-activity")} />
+          <IconButton icon={PixelPen} label="Write" onClick={() => navigate("/journals?compose=1")} />
+          <IconButton icon={PixelBubble} label="Status or note" onClick={() => setNoteOpen(true)} />
+          <IconButton icon={PixelPlus} label="More quick tools" onClick={() => setDoOpen(true)} />
+          <IconButton icon={PixelSupport} label="Support" className="hf-rail-support" data-house-support="" onClick={() => navigate("/grounding")} />
           <span className="hf-rail-gap" />
-          <IconButton icon={PanelLeft} label={leftDocked ? "Hide the pages panel" : "Show the pages panel"} aria-pressed={leftDocked} onClick={toggleLeft} />
-          <IconButton icon={PanelRight} label={(rightDocked || sheetOpen) ? "Hide the side panel" : "Show the side panel"} aria-pressed={rightDocked || sheetOpen} onClick={toggleRight} />
-          <IconButton icon={SlidersHorizontal} label="Display options" onClick={() => window.dispatchEvent(new CustomEvent("os-open-display-options"))} />
+          <span className="hf-rail-label house-label" aria-hidden="true">Page</span>
+          <IconButton icon={PixelGrid} label="Edit page" onClick={editPage}
+            disabledReason={editTarget ? undefined : "This page has no layout to edit yet"} />
+          <IconButton icon={PixelGear} label="Display options" onClick={displayOptions} />
         </HouseScope>
 
         {leftDocked ? (
           <HouseScope {...scope()} as="aside" className="hf-left" aria-label="Pages panel" style={{ width: `${leftW}rem` }}>
-            <div className="hf-dock-scroll"><BrowsePanel groups={groups} currentId={page.pageId} /></div>
+            <div className="hf-dock-scroll"><BrowsePanel groups={browseGroups} currentId={page.pageId} /></div>
             <DockResizer label="the pages panel" side="left" value={leftW} min={limL.min} max={limL.max} def={limL.def}
               onChange={(v) => setLive((l) => ({ ...l, left: v }))} onCommit={(v) => { keep("left", { size: v }); setLive((l) => ({ ...l, left: undefined })); }} />
           </HouseScope>
         ) : null}
 
         <main ref={mainRef} id="main-content" tabIndex={-1} role="main" aria-label={page.title}
-          className="app-content-main hf-canvas focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-4 lg:py-8 overflow-y-auto overflow-x-hidden">
+          className={homeRoom
+            ? "app-content-main hf-canvas hf-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
+            : "app-content-main hf-canvas focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-4 lg:py-8 overflow-y-auto overflow-x-hidden"}>
           {children}
+          {homeRoom ? (
+            <Suspense fallback={null}>
+              <HouseHome size={size} tokens={tokens} onSetFront={() => setFrontOpen(true)} />
+            </Suspense>
+          ) : null}
         </main>
 
         {rightDocked ? (
@@ -413,20 +441,21 @@ export default function HouseFrame({ children, mainRef }) {
       </div>
 
       <HouseScope {...scope()}>
-        <FrameStatus size={size} pageTitle={page.title} onEditPage={editPage}
-          editReason={editTarget ? null : "This page has no layout to edit yet"} />
+        <FrameStatus size={size} look={tokens?.look} />
       </HouseScope>
 
       {/* Compact studio (and a full studio too narrow to dock it): the
           dock opens as a sheet from the right. */}
       <HouseScope {...scope()} className="hf-sheet-host">
-        <Sheet open={dockAsSheet && sheetOpen} onClose={() => setSheetOpen(false)} side="right" title={page.title}
+        <Sheet open={!homeRoom && dockAsSheet && sheetOpen} onClose={() => setSheetOpen(false)} side="right" title={page.title}
           tools={size === "full" ? <Button rank="quiet" onClick={() => { setSheetOpen(false); keep("right", { shown: true }); }}>Dock it</Button> : null}>
           {dockBody}
         </Sheet>
+        <DoSheet open={doOpen} onClose={() => setDoOpen(false)} onSetFront={() => setFrontOpen(true)} onNote={() => setNoteOpen(true)} />
       </HouseScope>
 
       {frontOpen ? <SetFrontSheet open onClose={() => setFrontOpen(false)} /> : null}
+      {noteOpen ? <QuickNoteSheet open onClose={() => setNoteOpen(false)} /> : null}
     </div>
   );
 }

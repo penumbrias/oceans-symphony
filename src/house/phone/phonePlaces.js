@@ -4,7 +4,9 @@
 //
 // The bar is five places: Home and Support locked at the two ends, and the
 // person's three in the middle. The middle three default to the Alters place,
-// Do (the capture sheet) and the Day. Choosing them is edit mode's job
+// the Day (Timeline) and Write, as board 08-Phone draws them; Do (the
+// capture sheet) is still a place a person can choose, and the frame's ⋯
+// menu always opens it. Choosing them is edit mode's job
 // (Phase 4); until then `resolvePlaces` reads a list if one is ever passed,
 // keeps only places it knows, and fills the rest from the defaults. Nothing
 // is stored yet, so there is no setting to lose or migrate.
@@ -16,7 +18,7 @@
 import { pageLabel } from "@/utils/navigationConfig";
 
 export const BAR_LABEL_CAP = 12;
-export const DEFAULT_MIDDLE = ["alters", "do", "day"];
+export const DEFAULT_MIDDLE = ["alters", "day", "write"];
 
 // Places that aren't a plain page. `day` is the timeline page until the Day
 // room (step 3.3) takes its place; the place's id stays "day".
@@ -25,6 +27,7 @@ const SPECIAL = {
   support: { id: "support", page: "support", path: "/grounding", locked: true },
   do: { id: "do", sheet: "do" },
   day: { id: "day", page: "timeline", path: "/timeline" },
+  write: { id: "write", page: "journals", path: "/journals", name: "Write" },
 };
 
 /** The bar's label for a name: whole when short, else a short form. */
@@ -41,7 +44,7 @@ function placeFor(id, pages, terms) {
   const spec = SPECIAL[id] || { id, page: id };
   const page = pages.find((p) => p.id === spec.page);
   if (!page) return null;
-  const name = id === "support" ? "Support" : pageLabel(page, terms);
+  const name = id === "support" ? "Support" : spec.name || pageLabel(page, terms);
   return { ...spec, path: spec.path || page.path, icon: page.icon, name, label: shortLabel(name), full: pageLabel(page, terms) };
 }
 
@@ -53,13 +56,15 @@ function placeFor(id, pages, terms) {
 export function resolvePlaces(middle, pages, terms) {
   const out = [];
   const seen = new Set(["home", "support"]);
+  const paths = new Set(["/", "/grounding"]);
   const want = [...(Array.isArray(middle) ? middle : []), ...DEFAULT_MIDDLE];
   for (const id of want) {
     if (out.length === 3) break;
     if (typeof id !== "string" || seen.has(id)) continue;
     const p = placeFor(id, pages, terms);
-    if (!p) continue;
+    if (!p || (p.path && paths.has(p.path))) continue;
     seen.add(id);
+    if (p.path) paths.add(p.path);
     out.push(p);
   }
   return [placeFor("home", pages, terms), ...out, placeFor("support", pages, terms)].filter(Boolean);
