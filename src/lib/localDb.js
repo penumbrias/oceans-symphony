@@ -655,6 +655,22 @@ export function keepLayoutRestorePoint({ entity, record_id, field = null, label 
   }, { coalesce: false });
 }
 
+// Keep a record as it was before a deliberate edit, so Recent changes can
+// put it back (the Day's edit writers, v0.383: check-ins, symptoms, nights,
+// places, diary cards, who a fronting session was). Coalesces like other
+// edits: repeated edits inside the window keep the EARLIER version.
+export function keepEditRestorePoint(entityName, record) {
+  if (!entityName || !record?.id || HISTORY_SKIP.has(entityName)) return;
+  recordHistoryEvent({
+    category: HISTORY_BUCKET_OF(entityName),
+    action: "edited",
+    entity: entityName,
+    record_id: record.id,
+    label: historyLabelFor(entityName, record),
+    snapshot: JSON.parse(JSON.stringify(record)),
+  });
+}
+
 // Put a deleted record back exactly as it was — same id, so every
 // reference to it (alter_id on sessions, group members…) reconnects.
 // Also lifts the deletion tombstone so a later deletion-sync import

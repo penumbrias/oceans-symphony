@@ -267,3 +267,160 @@ export async function logDiaryCard(data, { timestamp, emotions = [], note = "", 
     notes: text ? { optional: text } : null,
   });
 }
+
+// ── Editing and deleting what was logged (house 3.3) ──────────────────
+// The Day edits entries from their Info. Every edit reads the row fresh and
+// writes only what the person changed (recordEdit.js), keeps the version
+// before in Recent changes, and every delete goes to the trash in one batch
+// with what belongs to it, so Undo brings it all back.
+
+// A check-in note: long notes (over 50 words) live in a JournalEntry and
+// the check-in keeps a 300-character preview + the link, the same rule the
+// check-in's create path uses. Returns the two fields to write.
+export async function checkInNoteFields(text, { journalEntryId = null, at, title } = {}) {
+  const next = typeof text === "string" ? text.trim() : "";
+  const wc = next ? next.split(/\s+/).filter(Boolean).length : 0;
+  let linked = journalEntryId || null;
+  if (next && wc > 50) {
+    const { saveCheckInJournal } = await import("@/lib/journalEntry");
+    linked = await saveCheckInJournal({ journalEntryId: linked, content: next, title, at });
+  }
+  return { note: next ? (wc <= 50 ? next : next.substring(0, 300) + "...") : null, journal_entry_id: linked };
+}
+
+// fields: any EmotionCheckIn fields the form edits (timestamp, intensity,
+// note, journal_entry_id, emotion_alters, contact_ids, author_alter_ids…).
+// `emotions` restamps `is_distress` through the distress set;
+// `frontingAlterIds` (an array) says who it was for. `baseline`: the row the
+// form opened with, so a field the person didn't touch is never written.
+export async function editEmotionCheckIn(id, { emotions, frontingAlterIds, customEmotions, baseline = null, ...fields } = {}) {
+  const { editRecord } = await import("@/lib/recordEdit");
+  const patch = { ...fields };
+  if (Array.isArray(emotions)) {
+    const labels = emotions.filter((e) => typeof e === "string" && e);
+    patch.emotions = labels;
+    patch.is_distress = emotionsAreDistressing(labels, customEmotions);
+  }
+  if (Array.isArray(frontingAlterIds)) patch.fronting_alter_ids = frontingAlterIds;
+  return editRecord("EmotionCheckIn", id, patch, { baseline });
+}
+
+// The Check-in log's inline note edit: the full grammar (~commands,
+// whispers, signposts, @mentions). A signpost re-says who it was for.
+// Returns the saved row, or null when the person backed out of a whisper
+// warning. A broken ~command throws (isLogCommandError).
+export async function editEmotionCheckInNote(checkIn, text, { alters = [], terms = {}, title, navigatePath } = {}) {
+  if (!checkIn?.id) return null;
+  const [{ prepareAuthoredText, recordAuthoredText }, { parseSignpostAuthors }] = await Promise.all([
+    authoredText(), import("@/lib/signpostAuthors"),
+  ]);
+  const prepared = await prepareAuthoredText(text || "", {
+    alters, terms, surfaceLabel: "check-in note", baseAuthorIds: checkIn.fronting_alter_ids || [],
+  });
+  if (prepared === null) return null;
+  const signposted = parseSignpostAuthors(text || "", alters, terms?.system ? [terms.system] : undefined).length > 0;
+  const noteFields = await checkInNoteFields(prepared.content, { journalEntryId: checkIn.journal_entry_id, at: checkIn.timestamp, title });
+  const saved = await editEmotionCheckIn(checkIn.id, {
+    ...noteFields,
+    author_alter_ids: prepared.authorIds,
+    ...(signposted ? { frontingAlterIds: prepared.authorIds } : {}),
+  });
+  if (noteFields.note) {
+    await recordAuthoredText({ ...prepared, alters, sourceType: "checkin", sourceId: checkIn.id, sourceLabel: "Check-in note", navigatePath });
+  }
+  return saved;
+}
+
+// A check-in and the symptoms logged with it go to the trash together.
+// A long note's JournalEntry stays (journals outlive the check-in).
+export async function deleteEmotionCheckIn(id) {
+  const { trashRecords } = await import("@/lib/recordEdit");
+  const linked = await base44.entities.SymptomCheckIn.filter({ check_in_id: id }).catch(() => []);
+  return trashRecords([
+    ...(linked || []).map((r) => ({ entity: "SymptomCheckIn", id: r.id })),
+    { entity: "EmotionCheckIn", id },
+  ]);
+}
+
+// fields: severity, timestamp, notes…; `frontingAlterIds` says who it was for.
+export async function editSymptomCheckIn(id, { frontingAlterIds, baseline = null, ...fields } = {}) {
+  const { editRecord } = await import("@/lib/recordEdit");
+  const patch = { ...fields };
+  if (Array.isArray(frontingAlterIds)) patch.fronting_alter_ids = frontingAlterIds;
+  return editRecord("SymptomCheckIn", id, patch, { baseline });
+}
+
+export async function deleteSymptomCheckIns(ids) {
+  const { trashRecords } = await import("@/lib/recordEdit");
+  return trashRecords((ids || []).map((id) => ({ entity: "SymptomCheckIn", id })));
+}
+
+// Editing a check-in restates its symptoms. rows: [{ symptomId, severity,
+// frontingAlterIds? }]. Symptoms no longer listed go to the trash (one
+// batch), listed ones are edited in place, new ones are logged with the
+// check-in's link. Read fresh.
+export async function syncCheckInSymptoms(checkInId, rows, { timestamp, frontingAlterIds } = {}) {
+  if (!checkInId) return { updated: 0, created: 0, removed: 0 };
+  const existing = await base44.entities.SymptomCheckIn.filter({ check_in_id: checkInId });
+  const wanted = new Map((rows || []).filter((r) => r?.symptomId).map((r) => [r.symptomId, r]));
+  const gone = (existing || []).filter((r) => !wanted.has(r.symptom_id)).map((r) => r.id);
+  let updated = 0;
+  for (const row of existing || []) {
+    const want = wanted.get(row.symptom_id);
+    if (!want) continue;
+    await editSymptomCheckIn(row.id, {
+      severity: want.severity ?? null,
+      ...(timestamp ? { timestamp } : {}),
+      frontingAlterIds: Array.isArray(want.frontingAlterIds) ? want.frontingAlterIds : frontingAlterIds,
+    });
+    updated++;
+  }
+  const have = new Set((existing || []).map((r) => r.symptom_id));
+  const fresh = [...wanted.values()].filter((r) => !have.has(r.symptomId));
+  const created = fresh.length
+    ? await logSymptomCheckIns(fresh, { timestamp, checkInId, frontingAlterIds })
+    : [];
+  const removed = gone.length ? await deleteSymptomCheckIns(gone) : 0;
+  return { updated, created: created.length, removed };
+}
+
+// ── Places ────────────────────────────────────────────────────────────
+// Same shape rules as logLocation: a name (the category's label when none
+// was typed), GPS fields only when coordinates came with it.
+export async function editLocation(id, { category, name, lat, lng, frontingAlterIds, baseline = null, ...fields } = {}) {
+  const { editRecord } = await import("@/lib/recordEdit");
+  const patch = { ...fields };
+  if (category !== undefined || name !== undefined) {
+    patch.category = category || "other";
+    patch.name = (typeof name === "string" && name.trim()) || getCategoryMeta(category || "other").label;
+  }
+  if (lat !== undefined || lng !== undefined) {
+    const hasGps = lat != null && lng != null;
+    patch.latitude = hasGps ? lat : null;
+    patch.longitude = hasGps ? lng : null;
+    patch.source = hasGps ? "gps" : "manual";
+  }
+  if (Array.isArray(frontingAlterIds)) patch.fronting_alter_ids = frontingAlterIds;
+  return editRecord("Location", id, patch, { baseline });
+}
+
+export async function deleteLocation(id) {
+  const { trashRecords } = await import("@/lib/recordEdit");
+  return trashRecords([{ entity: "Location", id }]);
+}
+
+// ── Diary cards ───────────────────────────────────────────────────────
+// Only the diary fields are rewritten (diaryDataToPatch keeps the template's
+// groups and every safety field); the card's date, notes, emotions and who
+// stay as they were unless the caller passes them.
+export async function editDiaryCard(id, data, { frontingAlterIds, baseline = null, ...fields } = {}) {
+  const { editRecord } = await import("@/lib/recordEdit");
+  const patch = { ...(data ? diaryDataToPatch(data) : {}), ...fields };
+  if (Array.isArray(frontingAlterIds)) patch.fronting_alter_ids = frontingAlterIds;
+  return editRecord("DiaryCard", id, patch, { baseline });
+}
+
+export async function deleteDiaryCardRecord(id) {
+  const { trashRecords } = await import("@/lib/recordEdit");
+  return trashRecords([{ entity: "DiaryCard", id }]);
+}
