@@ -7,7 +7,10 @@
 //   Fronting   one lane per {alter} who was in front that day
 //   Plans      Planned · Logged, with the day's events written across
 //   Check-ins  Feelings · Symptoms · Sleep · Status notes
-//   (hidden until shown) Locations · Journals
+//   (hidden until shown) Locations · Meds taken · Journals · Everything else
+//
+// The Timeline room (src/house/timeline/) draws the same lanes over a day,
+// six hours or a week, so a layer added here shows in both rooms.
 //
 // PURE: it only DISPLAYS. Nothing here writes a record. Which layers show
 // is a device preference (layerPrefs.js).
@@ -31,9 +34,15 @@ export const DAY_LAYERS = Object.freeze([
   { id: "sleep", group: "checkins", label: "Sleep", color: "var(--house-wave)", source: "Sleep" },
   { id: "statuses", group: "checkins", label: "Status notes", color: "var(--house-note)", source: "Home" },
   { id: "locations", group: "more", label: "Locations", color: "var(--house-info)", source: "Locations" },
+  { id: "meds", group: "more", label: "Meds taken", color: "var(--house-note)", source: "Medications" },
   { id: "journals", group: "more", label: "Journals", color: "var(--house-good)", source: "Journals" },
+  { id: "other", group: "more", label: "Everything else", color: "var(--house-muted)", source: "many" },
 ]);
-export const DEFAULT_HIDDEN_LAYERS = Object.freeze(["locations", "journals"]);
+export const DEFAULT_HIDDEN_LAYERS = Object.freeze(["locations", "meds", "journals", "other"]);
+// The layers that existed before "meds" and "other" (house 3.3). A saved
+// hidden list that predates a layer doesn't know about it, so that layer
+// keeps its default (layerPrefs.js).
+export const FIRST_LAYER_IDS = Object.freeze(["fronting", "planned", "logged", "events", "feelings", "symptoms", "sleep", "statuses", "locations", "journals"]);
 
 export const DAY_GROUPS = Object.freeze([
   { id: "fronting", label: "Fronting", color: "var(--house-text)" },
@@ -65,10 +74,11 @@ export function planTone(a, now = Date.now()) {
  *   slice: sliceTimelineDay(src, day)
  *   opts: { alters (by id map), categories (by id map), symptoms (by id map),
  *           nameOf(alterId) → label, now (ms) }
+ *           medications (by id map, for "Meds taken"), terms (the person's words)
  * Returns { groups: [{ id, label, color, rows: [{ id, layer, label, color, items }] }], allDay: [...] }
  * Items: { key, kind: "bar"|"dot", start, end, label, tone?, color?, ref: { type, id, record } }
  */
-export function buildDayLanes(slice, { alters = {}, categories = {}, symptoms = {}, nameOf = (id) => alters[id]?.name || "Unknown", now = Date.now() } = {}) {
+export function buildDayLanes(slice, { alters = {}, categories = {}, symptoms = {}, medications = {}, nameOf = (id) => alters[id]?.name || "Unknown", terms = {}, now = Date.now() } = {}) {
   const d = slice || {};
   const rows = { fronting: [], plans: [], checkins: [], more: [] };
 
@@ -152,14 +162,66 @@ export function buildDayLanes(slice, { alters = {}, categories = {}, symptoms = 
     items: (d.locations || []).map((l) => ({ key: l.id, kind: "dot", start: l.timestamp, label: l.name || "Location", ref: { type: "location", id: l.id, record: l } })),
   });
   rows.more.push({
+    id: "meds", layer: "meds", label: "Meds taken",
+    items: (d.doses || []).filter((x) => x && !x.trashed_at && x.status !== "skipped").map((x) => ({
+      key: `dose:${x.id}`, kind: "dot", start: x.timestamp, label: medications[x.medication_id]?.name || "A dose",
+      ref: { type: "dose", id: x.id, record: x },
+    })),
+  });
+  rows.more.push({
     id: "journals", layer: "journals", label: "Journals",
     items: (d.journals || []).map((j) => ({
       key: j.id, kind: "dot", start: journalEntryDate(j), label: j.is_encrypted ? "Locked journal" : (j.title || "Journal entry"), ref: { type: "journal", id: j.id, record: j },
     })),
   });
+  rows.more.push({ id: "other", layer: "other", label: "Everything else", items: otherItems(d, { nameOf, terms }) });
 
   const groups = DAY_GROUPS.map((g) => ({ ...g, rows: rows[g.id] }));
   return { groups, allDay };
+}
+
+// "Everything else": the old timeline's event column (system check-ins,
+// posts, to-dos made and done, routines, lineage, diary cards, polls,
+// reminders, reflections and notes on {alters}). Labels never carry a
+// note's private words: whispers are masked and {alter} notes are named,
+// not quoted.
+const OTHER_KINDS = Object.freeze({
+  checkin: { page: "/system-checkin" }, bulletin: { page: "/bulletins" }, task: { page: "/todo" }, task_done: { page: "/todo" },
+  lineage: { page: "/system-history" }, diary: { page: "/checkin-log" }, poll: { page: "/polls" }, reminder: { page: "/reminders" },
+  reflection: { page: "/grounding?tab=learn" }, alter_note: { page: "/Home" }, daily_tasks: { page: "/tasks" },
+});
+export const otherKindPage = (kind, record) => {
+  if (kind === "alter_note" && record?.alter_id) return `/alter/${record.alter_id}`;
+  if (kind === "poll" && record?.id) return `/polls?id=${record.id}`;
+  if (kind === "checkin" && record?.id) return `/system-checkin?id=${record.id}`;
+  return OTHER_KINDS[kind]?.page || "/timeline";
+};
+const LINEAGE_WORDS = { fusion: "Fusion", split: "Split", dormancy: "Dormancy", return: "Return", emergence: "Emergence" };
+
+export function otherItems(d = {}, { nameOf = () => "", terms = {} } = {}) {
+  const T = (k, fb) => terms[k] || fb;
+  const out = [];
+  const add = (kind, rec, at, label) => {
+    if (!rec || rec.trashed_at || !at) return;
+    out.push({ key: `${kind}:${rec.id || at}`, kind: "dot", start: at, label, ref: { type: "other", kind, id: rec.id, record: rec } });
+  };
+  for (const c of d.checkIns || []) add("checkin", c, c.created_date, `${T("System", "System")} check-in`);
+  for (const b of d.bulletins || []) add("bulletin", b, b.created_date, clip(plain(b.content || b.title) || "Post", 24));
+  for (const t of d.tasks || []) {
+    add("task", t, t.created_date, `To-do: ${clip(plain(t.title) || "untitled", 20)}`);
+    if (t.completed && t.completed_date) out.push({ key: `task_done:${t.id}`, kind: "dot", start: t.completed_date, label: `Done: ${clip(plain(t.title) || "a to-do", 20)}`, ref: { type: "other", kind: "task_done", id: t.id, record: t } });
+  }
+  for (const ev of d.lineageEvents || []) add("lineage", ev, ev.date, LINEAGE_WORDS[ev.type] || "A change");
+  for (const c of d.diaryCards || []) add("diary", c, c.created_date || (c.date ? `${c.date}T12:00:00` : null), "Diary card");
+  for (const p of d.polls || []) add("poll", p, p.created_date, clip(plain(p.question) || "Poll", 24));
+  for (const r of d.reminderInstances || []) add("reminder", r, r.fired_at || r.scheduled_for, clip(plain(r.title) || "Reminder", 24));
+  for (const r of d.reflections || []) add("reflection", r, r.created_date, "Reflection");
+  for (const n of d.alterNotes || []) add("alter_note", n, n.created_date, `Note on ${nameOf(n.alter_id) || T("alter", "alter")}`);
+  const prog = d.dailyProgress;
+  if (prog && Array.isArray(prog.completed_task_ids) && prog.completed_task_ids.length && prog.created_date) {
+    add("daily_tasks", prog, prog.updated_date || prog.created_date, `Routines: ${prog.completed_task_ids.length} done`);
+  }
+  return out;
 }
 
 /**

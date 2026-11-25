@@ -321,7 +321,7 @@ const AuthenticatedApp = () => {
             entry links (?activityId= etc.) are forwarded there. */}
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/sleep" element={<SleepTracker />} />
-        <Route path="/timeline" element={<Timeline />} />
+        <Route path="/timeline" element={<HouseRoomGate><Timeline /></HouseRoomGate>} />
         <Route path="/system-map" element={<SystemMapPage />} />
         <Route path="/presences" element={<NewPresencesPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />

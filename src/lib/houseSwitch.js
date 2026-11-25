@@ -173,3 +173,18 @@ export function HouseRoomGate({ children }) {
   const on = useHouseSwitch();
   return on ? null : children;
 }
+
+// ── The house's Timeline room (plan step 3.3, boards 01, 08 and 09) ─────
+// With the new house on, /timeline is drawn by the house itself
+// (src/house/timeline/): the layered timeline over a day, six hours or a
+// week, with Info and Layers. The old page is not mounted (HouseRoomGate);
+// with the switch off it runs exactly as before.
+export function houseTimelineRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/timeline";
+}
+
+/** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
+export function houseRebuiltRoom(pathname) {
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname);
+}
