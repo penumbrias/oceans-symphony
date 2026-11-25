@@ -75,6 +75,12 @@ restoring it there brings back its times, member and notes, but the pieces
 the split made stay (remove them from history). `undoFrontReassign(result)`
 puts everything back at once (pieces to the trash, the trashed stretch
 restored, the original row's fields back) and is what the Day's Undo calls.
+It never reopens a row that has ended: for a session that was still going,
+the pieces are handed back to the original member instead (reopening would
+be re-ended by the next sync, "an end is a fact", with the live piece in the
+trash). Notes written on any piece after the reassignment join the original
+row, the row before the undo is kept in Recent changes, and running it twice
+changes nothing more.
 
 ### Left on purpose
 
