@@ -27,6 +27,13 @@
 //                                frame: --sizes 390x844,360x740,844x390 --touch
 //   --touch                      a touch screen (coarse pointer), so a short landscape
 //                                phone gets the phone frame as it would on a device
+//   --dialogs                    (with --house) Support over the OLD dialogs (§14): at
+//                                each size, open the journal editor, Quick Check-In and
+//                                Set front, tap Support through the real hit point, and
+//                                FAIL unless it lands on Support with no dialog left, the
+//                                journal draft comes back, Write opens the editor twice,
+//                                and "Open recently" holds no one-shot links. Walks only
+//                                these checks (no route walk).
 //
 // Example data only. The walk starts a fresh, empty browser profile, gets past
 // the welcome screen with "Not now" (no backup, no import) and turns Preview
@@ -79,6 +86,7 @@ const SIZES = opt('--sizes', HOUSE ? '1280x800,820x1180' : '390x844,820x1180,128
 });
 const ALL_SHOTS = args.includes('--shots');
 const TOUCH = args.includes('--touch');
+const DIALOGS = HOUSE && args.includes('--dialogs');
 fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
 
 // ── The route list: every <Route path> in src/App.jsx ───────────────────
@@ -327,8 +335,95 @@ function fillRoute(route, ids) {
   return key && ids[key] ? route.replace(':id', ids[key]) : null;
 }
 
+// ── Support over the old dialogs (§14, --dialogs) ───────────────────────
+const SUPPORT_SEL = '[data-house-support], [data-house-phone] nav a[href="/grounding"]';
+async function goTo(page, to) {
+  await page.evaluate((t) => { history.pushState({}, '', t); dispatchEvent(new PopStateEvent('popstate')); }, to);
+  await sleep(1200);
+}
+const openDialog = (page) => page.waitForSelector('[data-os-dialog][data-state="open"]', { timeout: 8000 }).then(() => true).catch(() => false);
+// Tap Support where a finger would: the element at its centre must BE the
+// Support control (not a dialog's scrim over it).
+async function tapSupport(page) {
+  const box = await page.locator(SUPPORT_SEL).first().boundingBox().catch(() => null);
+  if (!box) return { ok: false, why: 'no Support control in the frame' };
+  const x = box.x + box.width / 2; const y = box.y + box.height / 2;
+  const hit = await page.evaluate(({ x, y, sel }) => {
+    const el = document.elementFromPoint(x, y);
+    return { onSupport: !!el?.closest(sel), what: el ? `${el.tagName.toLowerCase()}.${String(el.className || '').slice(0, 60)}` : 'nothing' };
+  }, { x, y, sel: SUPPORT_SEL });
+  if (!hit.onSupport) return { ok: false, why: `Support is covered by ${hit.what}` };
+  if (TOUCH) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+  await sleep(1500);
+  const after = await page.evaluate(() => ({
+    path: location.pathname,
+    dialogs: [...document.querySelectorAll('[data-os-dialog][data-state="open"], [data-os-overlay][data-state="open"]')].length,
+  }));
+  if (after.path !== '/grounding') return { ok: false, why: `landed on ${after.path}` };
+  if (after.dialogs) return { ok: false, why: `${after.dialogs} old dialog part(s) still open over Support` };
+  return { ok: true };
+}
+async function dialogChecks(page, sizeName, phone) {
+  const out = [];
+  const rec = (name, r) => { out.push({ size: sizeName, name, ...r }); process.stdout.write(`dialogs ${sizeName.padEnd(9)} ${name.padEnd(44)} ${r.ok ? 'ok' : `FAIL ${r.why}`}\n`); };
+  // 1. The journal editor: type, tap Support, come back, the draft is there.
+  await goTo(page, '/journals');
+  await goTo(page, '/journals?compose=1');
+  if (!(await openDialog(page))) rec('journal editor opens', { ok: false, why: 'no editor' });
+  else {
+    const draft = `Support check ${sizeName}`;
+    const field = page.locator('[data-os-dialog] input:not([type="hidden"]):not([type="checkbox"])').first();
+    await field.fill(draft).catch(() => {});
+    await sleep(1200); // the draft's write debounce
+    rec('journal editor → Support', await tapSupport(page));
+    await goTo(page, '/journals?compose=1');
+    const back = await openDialog(page) && await field.inputValue().catch(() => '');
+    rec('journal draft kept after Support', back === draft ? { ok: true } : { ok: false, why: `title is "${back}"` });
+    // Close it (the draft stays; the example system is thrown away anyway).
+    await page.keyboard.press('Escape').catch(() => {});
+    await sleep(600);
+  }
+  // 2. Quick Check-In (it refuses outside presses).
+  await goTo(page, '/?action=quick-checkin');
+  if (!(await openDialog(page))) rec('Quick Check-In opens', { ok: false, why: 'no dialog' });
+  else rec('Quick Check-In → Support', await tapSupport(page));
+  // 3. Set front, from the frame's own door.
+  await goTo(page, '/');
+  if (phone) {
+    await clickIf(page, '[data-house-phone] nav button:has-text("Do")', 3000);
+    await clickIf(page, '[role="dialog"] button:has-text("Set "), [role="dialog"] [role="button"]:has-text("Set ")', 3000);
+  } else {
+    await clickIf(page, '.hk-swatch', 3000);
+  }
+  if (!(await openDialog(page))) rec('Set front opens', { ok: false, why: 'no dialog' });
+  else rec('Set front → Support', await tapSupport(page));
+  // 4. Do → Write twice from Journals (phone), or ?compose=1 twice (studio).
+  await goTo(page, '/journals');
+  let opened = 0;
+  for (let i = 0; i < 2; i++) {
+    if (phone) {
+      await clickIf(page, '[data-house-phone] nav button:has-text("Do")', 3000);
+      await clickIf(page, '[role="dialog"] :is(a,button,[role="button"]):has-text("Write")', 3000);
+    } else {
+      await goTo(page, '/journals?compose=1');
+    }
+    if (await openDialog(page)) opened += 1;
+    await page.keyboard.press('Escape').catch(() => {});
+    await sleep(800);
+  }
+  rec('Write opens the editor twice in a row', opened === 2 ? { ok: true } : { ok: false, why: `opened ${opened} of 2` });
+  // 5. "Open recently" holds places, never one-shot links.
+  const recent = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('symphony_house_recent_v1') || 'null'); } catch { return null; } });
+  const paths = (recent?.recent || []).map((r) => r.path);
+  const bad = paths.filter((p) => /[?&](action|compose|import|highlight)=/.test(p));
+  const dup = paths.length !== new Set(paths).size;
+  if (phone) rec('Open recently: places only, once each', !bad.length && !dup ? { ok: true } : { ok: false, why: `${bad.join(', ')}${dup ? ' (duplicates)' : ''}` });
+  return out;
+}
+
 // ── The walk ────────────────────────────────────────────────────────────
 const visits = [];
+const dialogResults = [];
 const skipped = [];
 const setupNotes = [];
 const browser = await chromium.launch();
@@ -356,6 +451,16 @@ try {
     if (look === LOOKS[0]) setupNotes.push(`Example-data ids found: ${Object.entries(ids).map(([k, v]) => `${k}=${v}`).join(', ') || 'none'}.`);
     let routeList = [...APP_ROUTES_IN_FRAME, ...EXTRA];
     if (onlyRoutes) routeList = routeList.filter((r) => onlyRoutes.includes(r));
+    if (DIALOGS) {
+      for (const size of SIZES) {
+        await page.setViewportSize({ width: size.w, height: size.h });
+        await sleep(800);
+        const phone = await page.evaluate(() => !!document.querySelector('[data-house-phone]'));
+        dialogResults.push(...await dialogChecks(page, size.name, phone));
+        await setup();
+      }
+      routeList = [];
+    }
 
     for (const size of SIZES) {
       await page.setViewportSize({ width: size.w, height: size.h });
@@ -413,6 +518,13 @@ try {
   }
 } finally {
   await browser.close();
+}
+
+if (DIALOGS) {
+  const fails = dialogResults.filter((r) => !r.ok);
+  fs.writeFileSync(path.join(OUT, 'dialogs.json'), JSON.stringify(dialogResults, null, 2) + '\n');
+  console.log(`\n[walk] dialogs: ${dialogResults.length - fails.length}/${dialogResults.length} ok${fails.length ? `; FAIL: ${fails.map((f) => `${f.size} ${f.name} (${f.why})`).join('; ')}` : ''}.`);
+  process.exit(fails.length || !dialogResults.length ? 1 : 0);
 }
 
 // ── Report ──────────────────────────────────────────────────────────────
