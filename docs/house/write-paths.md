@@ -41,7 +41,7 @@ The shared step is `src/lib/recordEdit.js` (`editRecord`, `trashRecords`,
 | Sleep | `sleepEntry.js`: `editSleep` (validated; keeps the planner mirror in step, finds an older night's mirror by bedtime, never invents one; the dream journal link changes only when passed), `deleteSleep` (night + mirror in one batch; the dream journal stays) | SleepEditModal, SleepTracker (delete, discard a running night) |
 | Location | `checkinEntry.js`: `editLocation` (logLocation's shape rules), `deleteLocation` | LocationHistory (edit, delete), CheckInLog (delete) |
 | DiaryCard | `checkinEntry.js`: `editDiaryCard` (diary fields through `diaryDataToPatch`, the rest kept), `deleteDiaryCardRecord` | DiaryCardEditDialog (and `deleteDiaryCard`, which CheckInLog uses) |
-| FrontingSession (who it was) | `frontSessionEdit.js`: `reassignFrontSession`, `undoFrontReassign` | none yet (the Day's session Info, boards 05 F4/F5) |
+| FrontingSession (who it was) | `frontSessionEdit.js`: `reassignFrontSession`, `undoFrontReassign` | The Day's session Info (`src/house/day/DaySheets.jsx` `ReassignSheet`: "It wasn't {name}…", toast Undo), in the Timeline room and Home's timeline dock |
 
 Test: `node scripts/test-day-entry.mjs` 20/20.
 

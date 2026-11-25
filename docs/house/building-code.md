@@ -345,3 +345,15 @@ Boards 15-SupportPhone, 38-UnblendPhone, 39-SafetyPlanPhone, 40-EmergencyPhone a
 4. **Ticks are ✓, never ×** (board 40 draws an ×): the kit `Checkbox`.
 5. **Not medical advice** is a folded panel on every Support room, with the compact `MedicalDisclaimer` inside.
 6. **The old flows (state check, guided runs, breathing, soundscape, Learn, crisis lines) are reused inside house panels**, not redrawn; their insides keep the old styling until their own rebuild.
+
+## 17. The Timeline room (2026-11-25, branch house/timeline-room)
+
+Boards 01-Main and 08-Phone's layered timeline given the whole canvas, with board 09's Options and board 10's Info grammar, built in `src/house/timeline/` and drawn by both frames on `/timeline` (`houseTimelineRoom`). With the switch off, the old Timeline page is untouched (`HouseRoomGate`).
+
+1. **One copy of the timeline.** `src/house/day/` holds the parts (`DayParts.jsx`: `useDayTimeline`, `DayTimelinePanel`, `DayInfoPanel`, `DayLayersPanel`, `TimelineOptionsSheet`, `useDayEditors`; `DaySheets.jsx`: Split, Add past, It wasn't…, Remove, Add at, Go to a day; `dayView.js`: the pure ranges, windows, Whose and landings, tested by `scripts/test-house-timeline.mjs`). Home's dock and Next 6 hours draw the same parts; never fork them.
+2. **Show and Whose are per page, layers are shared.** One key (`symphony_house_home_layers_v1`, backed up): hidden layers, their order and colours for every timeline; `views.home`, `views.homePhone` and `views.timeline` each keep their range and Whose. A layer added later starts with its default (`seen`), so meds and "everything else" arrive hidden.
+3. **The room draws its own right dock** (Info, Layers, Tally), as Home does: the frame's side panel stays away (`ownDocks`). On a phone Info is a sheet.
+4. **Edits go through the write paths only**: front sessions through `frontSessionEdit.js` (edit uses the old `AlterSessionEdit`, which already does), plans through `resolvePlan.js`, symptom episodes through `symptomSessions.js`, missed check-ins through `QuickCheckInModal`. Remove goes to the trash with Undo.
+5. **Landings** (`?date`, `?view`, `?focusSessionId`(`&edit=1`), `?highlightStatus`) land once; the one-visit ones are taken off the address.
+6. **Reused old insides**: `AlterSessionEdit`, `SymptomSessionPopup`, `QuickCheckInModal`, `DailyTallyPanel` (in the Tally sheet) keep their old styling until their own rebuild.
+

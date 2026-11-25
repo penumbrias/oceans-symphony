@@ -119,7 +119,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 
 | Room (routes) | Functions | Records | Write path | New home | Status |
 |---|---|---|---|---|---|
-| Timeline (`/timeline`), timeline dock, timeline widget | Any day rebuilt across every record type, layers, infinite backscroll [9.1, 3.3] | readers | read only | 3.3 (one Day, lane view) | old |
+| Timeline (`/timeline`), timeline dock, timeline widget | Any day rebuilt across every record type, layers, infinite backscroll [9.1, 3.3] | readers | read only; session edits via `frontSessionEdit.js`, plans via `resolvePlan.js`, episodes via `symptomSessions.js` | 3.3 (one Day, lane view) | rebuilt (3.3: Timeline room, Day · 6 hours · Week, Whose, layers incl. meds and "everything else", Info with Edit/Split/End/It wasn't…/Remove, Add, Tally, landings; Home's dock draws the same parts; the timeline widget is still old) |
 | Check-in log (`/checkin-log`) with its daily summary, tally, Day review | The record, filterable, editable after the fact; daily summary (keep, Penumbra) [3.3] | readers (edits through the capture writers) | read only; edits via `checkinEntry.js` | 3.3 (list and summary views) | old |
 | Analytics (`/analytics`) | Baselines, presence, wellbeing, life, per-member patterns, observations [9.2–9.7] | readers | read only | 5.4 | old |
 | Therapy report (`/therapy-report`) | Sections, detail levels, pruning, anonymize, PDF/text, saved templates, export log, therapy notes [9.8] | ReportTemplate, ReportExport, TherapyNote | MISSING: page writes directly (`TherapyReport.jsx` via `db.ReportTemplate`); TherapyNote via `logCommands.js` → 0.6 | 0.6, then 5.4 | old |
