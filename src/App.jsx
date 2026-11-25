@@ -14,6 +14,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import Privacy from '@/pages/Privacy';
 import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
+import { HouseRoomGate } from '@/lib/houseSwitch';
 
 // Route-level code splitting (v0.184.0). Every page except the landing
 // (Dashboard), Settings (reached from every header) and Privacy is loaded
@@ -325,13 +326,13 @@ const AuthenticatedApp = () => {
         <Route path="/presences" element={<NewPresencesPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/bulletins" element={<BulletinsPage />} />
-        <Route path="/unblend" element={<HelpMeUnblend />} />
+        <Route path="/unblend" element={<HouseRoomGate><HelpMeUnblend /></HouseRoomGate>} />
         <Route path="/get-to-know-me" element={<GetToKnowMe />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/unblend/questions" element={<UnblendQuestionsManager />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
-        <Route path="/grounding" element={<Grounding />} />
-        <Route path="/safety-plan" element={<SafetyPlan />} />
+        <Route path="/grounding" element={<HouseRoomGate><Grounding /></HouseRoomGate>} />
+        <Route path="/safety-plan" element={<HouseRoomGate><SafetyPlan /></HouseRoomGate>} />
         <Route path="/therapy-report" element={<TherapyReport />} />
         <Route path="/reminders" element={<Reminders />} />
         <Route path="/polls" element={<Polls />} />
@@ -346,7 +347,7 @@ const AuthenticatedApp = () => {
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/needs" element={<NeedsPage />} />
         <Route path="/medications" element={<MedicationsPage />} />
-        <Route path="/emergency" element={<EmergencyPage />} />
+        <Route path="/emergency" element={<HouseRoomGate><EmergencyPage /></HouseRoomGate>} />
         {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
         <Route path="/mods" element={<ExperimentalGate name="Mods"><ModsPage /></ExperimentalGate>} />
         <Route path="/mod/:modId/:pageId" element={<ExperimentalGate name="Mods"><ModPage /></ExperimentalGate>} />

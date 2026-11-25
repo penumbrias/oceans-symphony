@@ -148,3 +148,28 @@ export function houseHomePage(search) {
 export function isHouseHomeRoom(pathname, search) {
   return pathname === "/" && houseHomePage(search) !== "board";
 }
+
+// ── The house's own Support rooms (plan step 3.1, "the fire exit") ───────
+// With the new house on, these four routes are drawn by the house itself
+// (src/house/support/, boards 15, 38, 39, 40 and 41) and the old page is not
+// mounted: `HouseRoomGate` wraps each old page's route element and draws
+// nothing while the house is on. With the switch off the old pages run
+// exactly as before. Exact paths only (/unblend/questions stays old).
+export const HOUSE_SUPPORT_ROOMS = Object.freeze({
+  "/grounding": "support",
+  "/unblend": "unblend",
+  "/safety-plan": "safety",
+  "/emergency": "emergency",
+});
+
+/** The Support room the house draws for this path, or null. */
+export function houseSupportRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return Object.prototype.hasOwnProperty.call(HOUSE_SUPPORT_ROOMS, p) ? HOUSE_SUPPORT_ROOMS[p] : null;
+}
+
+/** An old page's route element: drawn only while the new house is off. */
+export function HouseRoomGate({ children }) {
+  const on = useHouseSwitch();
+  return on ? null : children;
+}
