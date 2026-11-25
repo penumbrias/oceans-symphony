@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 25, 2026",
     changes: [
+      { type: "fix", text: "New house on phones: the header wave shows properly, and the Support pages no longer have odd coloured strips down the sides." },
       { type: "feature", text: "New house: Support, Help me unblend, Safety plan and Emergency info are rebuilt as the approved designs, with crisis help one tap away." },
       { type: "improve", text: "Choosing Unsure for front now goes straight to noting a colour, vibe or note for how it feels, with a \"Just clear front\" button for when you'd rather not." },
       { type: "improve", text: "Penumblob is bigger and sits on a small light tile so they show up on dark themes." },

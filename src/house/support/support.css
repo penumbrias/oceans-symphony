@@ -3,6 +3,9 @@
    the same panels laid out in the studio canvas, two columns. */
 
 [data-house].hs { color: var(--house-text); font-family: var(--house-font-body); }
+/* Phone: the room paints its own page colour edge to edge, with the
+   mockups' slim gutter, so no strip of another colour shows at the sides. */
+[data-house][data-house-size="phone"].hs { background: var(--house-page); padding: 0 var(--house-space-2); min-height: 100%; }
 [data-house] .hs-room { display: flex; flex-direction: column; gap: var(--house-space-3); max-width: 72rem; margin: 0 auto; padding-bottom: var(--house-space-3); }
 [data-house][data-house-size="phone"] .hs-room { padding-top: var(--house-space-3); }
 [data-house] .hs-grid { display: flex; flex-direction: column; gap: var(--house-space-3); min-width: 0; }

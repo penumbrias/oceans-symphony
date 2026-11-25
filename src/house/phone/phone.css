@@ -105,7 +105,7 @@
 
 /* Board 08-Phone: a pixel header over the wave (logo · page name · Search ·
    ⋯ as bevelled buttons), and the Home room filling the middle. */
-[data-house].hp-head { overflow: hidden; }
+[data-house].hp-head { position: relative; overflow: hidden; }
 [data-house].hp-head > :not(.hk-wave) { position: relative; z-index: 1; }
 [data-house] .hp-logo-link { display: inline-flex; align-items: center; justify-content: center; width: var(--house-target); height: var(--house-target); }
 [data-house] .hp-logo { width: 2rem; height: 2rem; object-fit: contain; image-rendering: pixelated; border: 2px solid var(--house-outline); }

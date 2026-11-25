@@ -1,0 +1,7 @@
+/* The header wave (HeaderWave.jsx). Lives with the component so the phone
+   frame, which does not load frameKit.css, draws it too. */
+[data-house] .hk-wave { position: absolute; left: 0; top: 0; pointer-events: none; animation: hk-wave 40s linear infinite; }
+[data-house] .hk-wave path { fill: var(--house-wave); fill-opacity: 0.45; }
+@keyframes hk-wave { from { transform: translateX(0); } to { transform: translateX(-1280px); } }
+@media (prefers-reduced-motion: reduce) { [data-house] .hk-wave { animation: none; } }
+html.a11y-reduce-motion [data-house] .hk-wave { animation: none; }

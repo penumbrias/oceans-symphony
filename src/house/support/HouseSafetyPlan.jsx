@@ -60,7 +60,7 @@ export default function HouseSafetyPlan({ size = "full" }) {
         </Panel>
 
         {isFetched && !hasPlan ? (
-          <Panel title="Not built yet" className="hs-panel">
+          <Panel title="Your safety plan" className="hs-panel">
             <EmptyBlock compact title="Your safety plan is still empty"
               body="Build it in Learn, a little at a time, in a calmer moment: warning signs, what you will do, coping cards and your window of tolerance."
               action={{ rank: "primary", label: "Go to the safety plan lesson", onClick: () => lesson("plan") }} />
