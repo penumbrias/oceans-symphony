@@ -336,6 +336,11 @@ function fillRoute(route, ids) {
 }
 
 // ── Support over the old dialogs (§14, --dialogs) ───────────────────────
+// Do opens from the phone header's ⋯ menu (board 08-Phone's bar has no Do).
+async function openPhoneDo(page) {
+  await clickIf(page, '[data-house-phone] header button[aria-label^="More for"]', 3000);
+  await clickIf(page, '[role="menuitem"]:has-text("Do: quick tools")', 3000);
+}
 const SUPPORT_SEL = '[data-house-support], [data-house-phone] nav a[href="/grounding"]';
 async function goTo(page, to) {
   await page.evaluate((t) => { history.pushState({}, '', t); dispatchEvent(new PopStateEvent('popstate')); }, to);
@@ -390,10 +395,10 @@ async function dialogChecks(page, sizeName, phone) {
   // 3. Set front, from the frame's own door.
   await goTo(page, '/');
   if (phone) {
-    await clickIf(page, '[data-house-phone] nav button:has-text("Do")', 3000);
+    await openPhoneDo(page);
     await clickIf(page, '[role="dialog"] button:has-text("Set "), [role="dialog"] [role="button"]:has-text("Set ")', 3000);
   } else {
-    await clickIf(page, '.hk-swatch', 3000);
+    await clickIf(page, '.hf-rail button[aria-label*=":"]', 3000); // the rail's {Switch}: {who signs} tool
   }
   if (!(await openDialog(page))) rec('Set front opens', { ok: false, why: 'no dialog' });
   else rec('Set front → Support', await tapSupport(page));
@@ -402,7 +407,7 @@ async function dialogChecks(page, sizeName, phone) {
   let opened = 0;
   for (let i = 0; i < 2; i++) {
     if (phone) {
-      await clickIf(page, '[data-house-phone] nav button:has-text("Do")', 3000);
+      await openPhoneDo(page);
       await clickIf(page, '[role="dialog"] :is(a,button,[role="button"]):has-text("Write")', 3000);
     } else {
       await goTo(page, '/journals?compose=1');
