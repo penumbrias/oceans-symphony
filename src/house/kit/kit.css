@@ -43,6 +43,8 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 [data-house][data-house-look="pixel"] .hk-btn--danger { border-color: var(--house-outline); }
 [data-house] .hk-btn--quiet { background: transparent; color: var(--house-accent-text); border-color: transparent; box-shadow: none; }
 [data-house] .hk-btn--block { width: 100%; }
+[data-house] .hk-linkbtn { text-decoration: none; }
+[data-house] .hk-linkbtn:visited { color: inherit; }
 /* Hover: an inner ring in the button's own text colour (a shape, not a tint). */
 @media (hover: hover) {
   [data-house] .hk-btn:hover:not([aria-disabled="true"]) { box-shadow: inset 0 0 0 3px currentColor, var(--house-raise); }
@@ -387,3 +389,19 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
 
 /* An open pop-up drawn in the page flow (story sheets): no height cap. */
 [data-house] .hk-pop--inline { max-height: none; max-width: 100%; min-width: 0; overflow-x: auto; }
+
+/* Swatches (Pickers.jsx): a grid of colours to pick one from. The picked
+   one gets a thick ring in the text colour and a ✓, never colour alone. */
+[data-house] .hk-swatches { display: grid; grid-template-columns: repeat(var(--hk-sw-cols, 4), minmax(0, 1fr)); gap: var(--house-space-2); }
+[data-house] .hk-swatch {
+  position: relative; min-height: max(var(--house-target), 2.5rem); padding: 0; cursor: pointer;
+  background: var(--hk-sw); border: var(--house-border-w) solid var(--house-outline); border-radius: var(--house-corner-sm);
+}
+[data-house][data-house-look="pixel"] .hk-swatch { border-width: 2px; border-radius: 0; }
+[data-house] .hk-swatch[aria-checked="true"] { outline: 3px solid var(--house-text); outline-offset: 0; }
+[data-house] .hk-swatch-tick {
+  position: absolute; right: 0.25rem; top: 0.25rem; width: 1.125rem; height: 1.125rem;
+  display: grid; place-items: center; background: var(--house-text); color: var(--house-page);
+  font-size: var(--house-text-xs); line-height: 1;
+}
+[data-house] .hk-swatch:focus-visible { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }

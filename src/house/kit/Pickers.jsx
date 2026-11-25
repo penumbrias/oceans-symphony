@@ -16,7 +16,7 @@
 // (HousePopups → usePopupTheme → src/house/kit/sharedPops.css); outside the
 // house they are untouched.
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { ImageIcon, Images, Shapes, X } from "lucide-react";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -105,6 +105,40 @@ export function ColourField({ label, hint, error, save, value, onChange, onClear
         </div>
       )}
     </FieldShell>
+  );
+}
+
+// ── Swatches: pick one colour from a few ─────────────────────────────
+// A radio group of colour squares (Help me unblend's "which colour feels
+// right", board 38). Arrow keys move and pick; the picked one shows a ✓.
+// For any colour at all, put a ColourField beside it (never the browser's
+// colour input, building code R3).
+export function Swatches({ label, colours = [], value, onChange, columns = 4, nameOf = (c) => String(c).toUpperCase() }) {
+  const refs = useRef([]);
+  const at = colours.findIndex((c) => String(c).toLowerCase() === String(value || "").toLowerCase());
+  const move = (i, e) => {
+    e.preventDefault();
+    const j = (i + colours.length) % colours.length;
+    onChange?.(colours[j]);
+    refs.current[j]?.focus();
+  };
+  return (
+    <div className="hk-swatches" role="radiogroup" aria-label={label} style={{ "--hk-sw-cols": columns }}>
+      {colours.map((c, i) => {
+        const on = i === at;
+        return (
+          <button key={c} ref={(el) => { refs.current[i] = el; }} type="button" role="radio" aria-checked={on}
+            aria-label={nameOf(c)} tabIndex={on || (at < 0 && i === 0) ? 0 : -1}
+            className="hk-swatch" style={{ "--hk-sw": c }} onClick={() => onChange?.(c)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowDown") move(i + 1, e);
+              else if (e.key === "ArrowLeft" || e.key === "ArrowUp") move(i - 1, e);
+            }}>
+            {on ? <span className="hk-swatch-tick" aria-hidden="true">✓</span> : null}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -102,4 +102,21 @@ export const IconButton = forwardRef(function IconButton(
   );
 });
 
+// A link drawn as a button: a phone number to call (tel:), a text (sms:) or
+// a page outside the app. Same ranks and look as Button; it is an <a>, so
+// the browser's own link behaviour (and the dialler) stays.
+//   <LinkButton rank="primary" href="tel:+441234">Call Dana</LinkButton>
+export const LinkButton = forwardRef(function LinkButton(
+  { rank = "secondary", icon, href, block = false, className = "", children, ...rest },
+  ref
+) {
+  const r = RANKS.has(rank) ? rank : "secondary";
+  return (
+    <a ref={ref} href={href} className={`hk-btn hk-btn--${r} hk-linkbtn${block ? " hk-btn--block" : ""} ${className}`} {...rest}>
+      {icon ? <HouseIcon icon={icon} /> : null}
+      <span>{children}</span>
+    </a>
+  );
+});
+
 export default Button;

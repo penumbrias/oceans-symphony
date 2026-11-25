@@ -2,12 +2,12 @@
 // here. src/house/kit/ is the only place the house guard allows a raw
 // button, tick, tab, <select> or native date/time input
 // (scripts/check-house-guard.mjs); everything else uses these.
-export { Button, IconButton } from "@/house/kit/Button";
+export { Button, IconButton, LinkButton } from "@/house/kit/Button";
 export { SaveState, FieldShell, TextField, AuthoredField, NumberField, DateField, TimeField, DurationField } from "@/house/kit/Field";
 export { Form, FormRow } from "@/house/kit/FormRow";
 export { Checkbox, RadioGroup, Switch, Segmented, FilterChips, SliderRow } from "@/house/kit/Choices";
 export { default as Menu } from "@/house/kit/Menu";
-export { AlterPicker, NestedPicker, ColourField, IconField, AssetField } from "@/house/kit/Pickers";
+export { AlterPicker, NestedPicker, ColourField, IconField, AssetField, Swatches } from "@/house/kit/Pickers";
 // Step 1.3: panels, content and sheets.
 export { Panel, PageTabs, TabPanel } from "@/house/kit/Panel";
 export { ListView, TreeView, RowText } from "@/house/kit/TreeList";
