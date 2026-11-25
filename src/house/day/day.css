@@ -91,3 +91,4 @@
 [data-house] .hd-info > .hk-panel-head > .hk-panel-tools { flex: 0 0 auto; }
 [data-house] .hd-timeline > .hk-panel-head > .hk-panel-title { flex: 0 0 auto; }
 [data-house] .hd-timeline > .hk-panel-head > .hk-panel-tools { margin-left: auto; }
+[data-house] .hd-info > .hk-panel-head { flex-wrap: nowrap; }
