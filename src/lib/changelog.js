@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 25, 2026",
     changes: [
+      { type: "feature", text: "New house: the Home screen and the desktop and phone frames now follow the approved pixel mockups: who's fronting, status, plans, routines, the guide, and a layered timeline." },
       { type: "improve", text: "Pixel look: tapping an area name at the top opens its first page (Support opens Support & Learn); the arrow beside it shows the list." },
       { type: "fix", text: "A new, empty system no longer warns that your data might be missing." },
     ],
