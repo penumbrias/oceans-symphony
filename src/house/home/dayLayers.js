@@ -162,10 +162,19 @@ export function buildDayLanes(slice, { alters = {}, categories = {}, symptoms = 
   return { groups, allDay };
 }
 
-/** Rows whose layer is hidden are left out; a group with no rows left is left out too. */
-export function visibleGroups(lanes, hidden = []) {
+/**
+ * Rows whose layer is hidden are left out; a group with no rows left is left
+ * out too. With `order` (layer ids, the person's order), rows follow it and
+ * each group sits where its first layer does.
+ */
+export function visibleGroups(lanes, hidden = [], order = null) {
   const off = new Set(hidden);
-  return (lanes?.groups || [])
-    .map((g) => ({ ...g, rows: g.rows.filter((r) => !off.has(r.layer)) }))
+  const at = new Map((order || DAY_LAYERS.map((l) => l.id)).map((id, i) => [id, i]));
+  const rank = (layer) => (at.has(layer) ? at.get(layer) : 999);
+  const groups = (lanes?.groups || [])
+    .map((g) => ({ ...g, rows: g.rows.filter((r) => !off.has(r.layer)).map((r, i) => ({ r, i })).sort((a, b) => rank(a.r.layer) - rank(b.r.layer) || a.i - b.i).map((x) => x.r) }))
     .filter((g) => g.rows.length || (g.id === "plans" && !off.has("events") && (lanes.allDay || []).length));
+  if (!order) return groups;
+  const groupRank = (g) => Math.min(...DAY_LAYERS.filter((l) => l.group === g.id).map((l) => rank(l.id)));
+  return groups.map((g, i) => ({ g, i })).sort((a, b) => groupRank(a.g) - groupRank(b.g) || a.i - b.i).map((x) => x.g);
 }

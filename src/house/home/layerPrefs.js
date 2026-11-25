@@ -27,10 +27,26 @@ export function readHiddenLayers(storage) {
   return [...DEFAULT_HIDDEN_LAYERS];
 }
 
-/** Show or hide one layer. Returns the new hidden list (or null if storage refused). */
-export function setLayerShown(id, shown, storage) {
+/** The layers in the person's order (every known layer, new ones last). */
+export function readLayerOrder(storage) {
+  const base = DAY_LAYERS.map((l) => l.id);
+  let raw = null;
+  try { raw = store(storage)?.getItem(HOUSE_HOME_LAYERS_KEY) ?? null; } catch { return base; }
+  if (raw == null) return base;
+  try {
+    const v = JSON.parse(raw);
+    if (v && Array.isArray(v.order)) {
+      const seen = v.order.filter((id, i, a) => KNOWN.has(id) && a.indexOf(id) === i);
+      return [...seen, ...base.filter((id) => !seen.includes(id))];
+    }
+  } catch { /* fall through */ }
+  return base;
+}
+
+// The one writer: a fresh read, one change, an unreadable value kept first.
+function writePrefs(change, storage) {
   const s = store(storage);
-  if (!s || !KNOWN.has(id)) return null;
+  if (!s) return null;
   let raw = null;
   try { raw = s.getItem(HOUSE_HOME_LAYERS_KEY); } catch { return null; }
   let base = null;
@@ -38,10 +54,27 @@ export function setLayerShown(id, shown, storage) {
     try { const v = JSON.parse(raw); if (v && typeof v === "object" && !Array.isArray(v)) base = v; } catch { /* unreadable */ }
     if (!base) { try { s.setItem(HOUSE_HOME_LAYERS_KEPT_KEY, raw); } catch { return null; } }
   }
-  const hidden = new Set(base && Array.isArray(base.hidden) ? base.hidden : DEFAULT_HIDDEN_LAYERS);
-  if (shown) hidden.delete(id); else hidden.add(id);
-  const next = { ...(base || {}), hidden: [...hidden] };
+  const next = change(base || {});
   try { s.setItem(HOUSE_HOME_LAYERS_KEY, JSON.stringify(next)); } catch { return null; }
   try { window.dispatchEvent(new CustomEvent(HOUSE_HOME_LAYERS_EVENT)); } catch { /* no window */ }
-  return next.hidden;
+  return next;
+}
+
+/** Show or hide one layer. Returns the new hidden list (or null if storage refused). */
+export function setLayerShown(id, shown, storage) {
+  if (!KNOWN.has(id)) return null;
+  const next = writePrefs((base) => {
+    const hidden = new Set(Array.isArray(base.hidden) ? base.hidden : DEFAULT_HIDDEN_LAYERS);
+    if (shown) hidden.delete(id); else hidden.add(id);
+    return { ...base, hidden: [...hidden] };
+  }, storage);
+  return next ? next.hidden : null;
+}
+
+/** Keep a new layer order. Unknown ids are dropped; returns the order kept. */
+export function setLayerOrder(ids, storage) {
+  const clean = (ids || []).filter((id, i, a) => KNOWN.has(id) && a.indexOf(id) === i);
+  if (!clean.length) return null;
+  const next = writePrefs((base) => ({ ...base, order: clean }), storage);
+  return next ? readLayerOrder(storage) : null;
 }

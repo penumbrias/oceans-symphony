@@ -135,6 +135,18 @@ test("layer prefs: defaults, one layer changed, unreadable value kept, backed up
   P.setLayerShown("sleep", false, bad);
   assert.equal(bad.getItem(P.HOUSE_HOME_LAYERS_KEPT_KEY), "{oops", "the unreadable value is kept, not overwritten blind");
   assert.ok(BACKUP_LS_KEYS.includes(P.HOUSE_HOME_LAYERS_KEY));
+  assert.equal(P.readLayerOrder(s)[0], "fronting");
+  const ord = P.setLayerOrder(["sleep", "nope", "planned", "sleep"], s);
+  assert.deepEqual(ord.slice(0, 3), ["sleep", "planned", "fronting"]);
+  assert.deepEqual(P.readHiddenLayers(s).sort(), ["journals", "sleep"], "the order write keeps the hidden list");
+});
+
+test("layer order moves rows and groups", () => {
+  const lanes = L.buildDayLanes({ sessions: [], activities: [], emotions: [{ id: "e", timestamp: iso(9), emotions: ["calm"] }], sleeps: [], statusNotes: [] }, { now: now.getTime() });
+  const order = ["sleep", "feelings", "planned", "logged", "events", "fronting", "symptoms", "statuses", "locations", "journals"];
+  const g = L.visibleGroups(lanes, [], order);
+  assert.equal(g[0].id, "checkins");
+  assert.deepEqual(g[0].rows.slice(0, 2).map((r) => r.id), ["sleep", "feelings"]);
 });
 
 test("the Home room's pages: ?page= picks Today · Me · Plans · board", () => {
