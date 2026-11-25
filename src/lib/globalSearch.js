@@ -970,7 +970,7 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     ["bug-report", "Found a bug?", "Bug report, issue, feedback, support"],
     ["disclaimer", "Medical disclaimer", "Disclaimer, not medical advice"],
   ];
-  return SECTIONS.map(([id, title, blurb]) => ({
+  const records = SECTIONS.map(([id, title, blurb]) => ({
     type: "setting",
     id: `setting_${id}`,
     title,
@@ -979,6 +979,23 @@ export function buildSettingsRecords({ terms = {} } = {}) {
     searchableText: joinNonEmpty([title, "settings", blurb]).toLowerCase(),
     sortDate: null,
   }));
+  // Who a check-in is saved for when nobody is picked. It lives in Manage
+  // check-ins → Feelings, two levels deep, and the new house's signing
+  // swatch names it, so it is findable by the words people use for it.
+  records.push({
+    type: "setting",
+    id: "setting_entries_belong_to",
+    title: "Entries belong to",
+    subtitle: "Settings · Check-in manager · Feelings",
+    path: "/manage-checkin?tab=feelings",
+    searchableText: joinNonEmpty([
+      "Entries belong to", "settings", `${fronting} tracking`, `track ${terms.front || "front"}`,
+      `${terms.front || "front"} tracking`, "attribution", "who entries belong to", "signing", "signed by",
+      "check-ins saved for", "feelings symptoms locations diary cards", "nobody",
+    ]).toLowerCase(),
+    sortDate: null,
+  });
+  return records;
 }
 
 // Installed mods (src/pages/Mods.jsx), and each page of a switched-on mod.

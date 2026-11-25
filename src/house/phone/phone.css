@@ -86,3 +86,19 @@
 [data-house] .hp-lead { color: var(--house-muted); }
 [data-house] .hp-muted { color: var(--house-muted); }
 [data-house] .hp-old-room { margin-top: var(--house-space-2); }
+
+/* ── Old dialogs stop above the bottom zone (§14) ────────────────────
+   The old rooms' Radix dialogs, sheets, confirms and drawers carry
+   data-os-overlay / data-os-dialog / data-os-sheet. Inside the phone frame
+   their scrim ends at the top of the bottom zone and their content keeps
+   clear of it (--house-dialog-sab stands in for the bottom safe area they
+   already respect), so the bar, and Support on it, stay live with one
+   open. Radix sets pointer-events:none on <body> while a modal is open;
+   the bottom zone takes taps back. Scoped by :has() so nothing changes
+   once the frame is gone (this sheet stays loaded until a reload). */
+:root:has([data-house-phone]) [data-os-overlay] { bottom: var(--house-sheet-bottom, 0px); }
+:root:has([data-house-phone]) [data-os-dialog] { --os-sab: var(--house-dialog-sab); }
+:root:has([data-house-phone]) [data-os-sheet][data-side="bottom"] { bottom: var(--house-sheet-bottom, 0px); --os-sab: 0px; }
+:root:has([data-house-phone]) [data-os-sheet][data-side="left"],
+:root:has([data-house-phone]) [data-os-sheet][data-side="right"] { bottom: var(--house-sheet-bottom, 0px); height: auto; }
+[data-house].hp-bottom { pointer-events: auto; }

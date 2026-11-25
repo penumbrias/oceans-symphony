@@ -220,4 +220,25 @@ await test("kit: a held toast still speaks; sheets skip the grab bar; confirm ha
   assert.match(sheet, /Tap again to leave\./);
 });
 
+// ── Phase 2 check: one-shot links never become "Open recently" rows ──
+await test("recent: one-shot parameters are dropped and pages de-duplicate", () => {
+  assert.equal(L.placePath("/?action=quick-checkin"), "/");
+  assert.equal(L.placePath("/journals?compose=1&folder=f1"), "/journals?folder=f1");
+  assert.equal(L.placePath("/todo?highlight=t1"), "/todo");
+  assert.equal(L.placePath("/alter/a1?tab=notes"), "/alter/a1?tab=notes", "a tab names a place");
+  assert.equal(L.placePath("//evil"), null);
+  let s = L.readRecent(null);
+  for (const p of ["/?action=quick-thing", "/journals?compose=1", "/", "/?action=quick-checkin", "/journals"]) s = L.recordVisit(s, p, 1);
+  assert.deepEqual(s.recent.map((r) => r.path), ["/journals", "/"]);
+  // An older stored list is read as places, once each.
+  const old = JSON.stringify({ v: 1, at: 5, recent: [{ path: "/?action=quick-thing", at: 5 }, { path: "/", at: 4 }, { path: "/journals?compose=1", at: 3 }] });
+  assert.deepEqual(L.readRecent(old).recent.map((r) => r.path), ["/", "/journals"]);
+});
+
+await test("phone frame: the keyboard watcher removes every listener it adds", () => {
+  const f = fs.readFileSync(new URL("../src/house/phone/HousePhoneFrame.jsx", import.meta.url), "utf8");
+  assert.ok(!/addEventListener\("focusout", \(\)/.test(f), "no anonymous focusout listener");
+  assert.match(f, /removeEventListener\("focusout", later\)/);
+});
+
 console.log(`\n${passed} passed`);

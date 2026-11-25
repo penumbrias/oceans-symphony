@@ -44,10 +44,20 @@ import { onColorVars } from "@/lib/contrast";
 const FeatureTour = React.lazy(() => import("@/components/onboarding/FeatureTour"));
 // The new house's desktop/tablet frame (step 2.1). Lazy: with "Try the new
 // house" off, nothing under src/house is downloaded.
-const HouseFrame = React.lazy(() => import("@/house/frame/HouseFrame"));
+const loadHouseFrame = () => import("@/house/frame/HouseFrame");
+const HouseFrame = React.lazy(loadHouseFrame);
 // The phone frame (step 2.2): its own lazy chunk, loaded only at phone size.
-const HousePhoneFrame = React.lazy(() => import("@/house/phone/HousePhoneFrame"));
-import { useHouseSwitch, useHouseSizeClass } from "@/lib/houseSwitch";
+const loadHousePhoneFrame = () => import("@/house/phone/HousePhoneFrame");
+const HousePhoneFrame = React.lazy(loadHousePhoneFrame);
+import { useHouseSwitch, useHouseSizeClass, readHouseSwitch, readHouseSize } from "@/lib/houseSwitch";
+// With the switch on, start fetching the frame while the app boots (unlock,
+// the database), instead of after it: on a slow link the frame's chunks
+// were a waterfall behind the first render. Same import sites as the lazy
+// frames above, so the old house's entry doesn't grow; switch off, nothing
+// is fetched.
+if (readHouseSwitch()) {
+  (readHouseSize() === "phone" ? loadHousePhoneFrame : loadHouseFrame)().catch(() => { /* the lazy frame retries on render */ });
+}
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, normalizeNavConfig, applySidebarConfig, pageLabel } from "@/utils/navigationConfig";
 import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";

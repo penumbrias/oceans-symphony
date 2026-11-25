@@ -19,7 +19,7 @@
 // Writes "1" or "0", never removes the key, so the mirror can't resurrect an
 // old value over a deliberate "off".
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export const HOUSE_SWITCH_KEY = "symphony_new_house_v1";
 export const HOUSE_SWITCH_EVENT = "symphony-house-switch";
@@ -76,7 +76,7 @@ export function houseSizeClass({ width, height = 800, textScale = 1, coarse = fa
   return "full";
 }
 
-function readSize() {
+export function readHouseSize() {
   if (typeof window === "undefined") return "full";
   let textScale = 1;
   let coarse = false;
@@ -89,10 +89,10 @@ function readSize() {
 // `enabled` false (the switch is off): no listeners at all, so the old
 // house pays nothing for the new one.
 export function useHouseSizeClass(enabled = true) {
-  const [size, setSize] = useState(readSize);
+  const [size, setSize] = useState(readHouseSize);
   useEffect(() => {
     if (!enabled) return undefined;
-    const on = () => setSize(readSize());
+    const on = () => setSize(readHouseSize());
     on();
     window.addEventListener("resize", on);
     let mo;
@@ -104,4 +104,27 @@ export function useHouseSizeClass(enabled = true) {
     return () => { window.removeEventListener("resize", on); mo?.disconnect(); };
   }, [enabled]);
   return size;
+}
+
+// ── Support over old dialogs (building code §14) ───────────────────────
+// When the new house arrives at a Support page, the frame announces it, and
+// every old dialog, sheet or confirm still open closes the way its own
+// close button would (so a draft it keeps is kept). Only the frame sends
+// this, so the old house never closes a dialog because of it.
+export const HOUSE_SUPPORT_EVENT = "symphony-house-support";
+
+export function announceSupportJump() {
+  try { window.dispatchEvent(new CustomEvent(HOUSE_SUPPORT_EVENT)); } catch { /* no window */ }
+}
+
+/** An old dialog root: close (as its own close would) when the house goes to Support. */
+export function useCloseOnSupportJump(open, onOpenChange) {
+  const ref = useRef(onOpenChange);
+  ref.current = onOpenChange;
+  useEffect(() => {
+    if (!open) return undefined;
+    const on = () => { try { ref.current?.(false); } catch { /* the dialog's own close failed: leave it open */ } };
+    window.addEventListener(HOUSE_SUPPORT_EVENT, on);
+    return () => window.removeEventListener(HOUSE_SUPPORT_EVENT, on);
+  }, [open]);
 }

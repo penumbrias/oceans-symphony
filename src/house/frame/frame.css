@@ -108,3 +108,10 @@ body:has([data-house-frame]) .os-float-right { bottom: calc(var(--house-h-contro
 [data-house].hf-sheet-host { --house-sheet-bottom: var(--house-h-status); }
 [data-house].hf-sheet-host[data-house-size="compact"] { --house-sheet-bottom: var(--house-h-control); }
 @media (pointer: coarse) { [data-house].hf-sheet-host { --house-sheet-bottom: var(--house-h-control); } }
+
+/* Support one tap away over the old dialogs (§14). The old rooms' dialogs
+   (data-os-overlay) dim the whole window, so the rail's Support button is
+   lifted over their scrim and takes taps back from Radix's
+   pointer-events:none on <body>. Tapping it goes to Support, and the frame
+   closes what's still open the way its own close would. */
+[data-house] .hf-rail-support { position: relative; z-index: 51; pointer-events: auto; }

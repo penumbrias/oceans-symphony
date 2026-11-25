@@ -140,7 +140,7 @@ function Trees({ groups }) {
   const parentOf = (g) => g.parent || g.parent_id || null;
   return (
     <Grid>
-      <Cell name={`Groups and sub${t.system}s (example system, ${groups.length})`}>
+      <Cell name={`Groups and sub${t.system}s (example ${t.system}, ${groups.length})`}>
         <Panel title="Groups" bodyClassName="ps-scroll">
           {groups.length
             ? <TreeView label="Groups" nodes={groups} getParentId={parentOf} value={sel} onSelect={setSel} renderRow={(g) => <RowText title={g.name || "Unnamed"} />} />

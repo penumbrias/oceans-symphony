@@ -181,7 +181,7 @@ export function buildSettingsGroups(ctx) {
       id: "tracking", label: "Tracking", tour: "settings-checkin",
       pages: [
         { id: "checkin-manager", label: "Check-in manager", hint: "The fields in the quick check-in", icon: Heart,
-          keywords: "check-in checkin fields symptoms diary card templates quick check in manage", action: () => navigate("/manage-checkin") },
+          keywords: `check-in checkin fields symptoms diary card templates quick check in manage entries belong to attribution ${t.front} tracking track ${t.front} signing`, action: () => navigate("/manage-checkin") },
         { id: "emotions", label: "Custom emotions", hint: "Your own entries on the emotion wheel", icon: Smile,
           keywords: "custom emotions feelings wheel", render: () => <CustomEmotionsManager /> },
         { id: "activity-packs", label: "Activity packs", hint: "Ready-made activity categories for the planner", icon: Package, tour: "settings-activity-packs",

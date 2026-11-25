@@ -5,8 +5,14 @@ import { cva } from "class-variance-authority";
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useCloseOnSupportJump } from "@/lib/houseSwitch"
 
-const Sheet = SheetPrimitive.Root
+// In the new house, arriving at Support closes it the way its own close
+// button would (useCloseOnSupportJump; the old house never sends that).
+const Sheet = (props) => {
+  useCloseOnSupportJump(props.open, props.onOpenChange)
+  return <SheetPrimitive.Root {...props} />
+}
 
 const SheetTrigger = SheetPrimitive.Trigger
 
@@ -16,6 +22,7 @@ const SheetPortal = SheetPrimitive.Portal
 
 const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
+    data-os-overlay=""
     className={cn(
       "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
@@ -47,7 +54,7 @@ const sheetVariants = cva(
 const SheetContent = React.forwardRef(({ side = "right", className, children, ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+    <SheetPrimitive.Content ref={ref} data-os-sheet="" data-side={side} className={cn(sheetVariants({ side }), className)} {...props}>
       <SheetPrimitive.Close
         className="absolute right-2 top-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg opacity-70 ring-offset-background transition-opacity hover:opacity-100 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />

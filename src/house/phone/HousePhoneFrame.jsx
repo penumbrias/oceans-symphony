@@ -36,7 +36,7 @@ import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { openPageTour, openFullTour } from "@/lib/pageTutorials";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
-import { setHouseSwitch } from "@/lib/houseSwitch";
+import { setHouseSwitch, announceSupportJump } from "@/lib/houseSwitch";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
@@ -54,7 +54,7 @@ import DockPanels, { useFreshPageHelp } from "@/house/frame/DockPanels";
 import { documentTitleFor, resolvePageTitle, APP_NAME } from "@/house/frame/pageTitle";
 import { usePreviewOn, usePageTitle } from "@/house/frame/useFrameData";
 import { resolvePlaces, isSupportRoute, pickAttention } from "@/house/phone/phonePlaces";
-import { HOUSE_RECENT_KEY, readRecent, recordVisit, touch, lastTimeFrom, awayWords } from "@/house/phone/lastTime";
+import { HOUSE_RECENT_KEY, readRecent, recordVisit, touch, lastTimeFrom, awayWords, placePath } from "@/house/phone/lastTime";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import { useRunQuickAction } from "@/components/dashboard/QuickActionsHost";
 import { QuickNoteSheet } from "@/components/v2/V2Frame";
@@ -116,28 +116,44 @@ function useKeyboardOpen() {
       const short = vv ? window.innerHeight - vv.height > 150 : false;
       setOpen(short && editable(document.activeElement));
     };
+    let timer = 0;
+    const later = () => { clearTimeout(timer); timer = setTimeout(check, 0); };
     vv?.addEventListener("resize", check);
     document.addEventListener("focusin", check);
-    document.addEventListener("focusout", () => setTimeout(check, 0));
-    return () => { vv?.removeEventListener("resize", check); document.removeEventListener("focusin", check); };
+    document.addEventListener("focusout", later);
+    return () => {
+      clearTimeout(timer);
+      vv?.removeEventListener("resize", check);
+      document.removeEventListener("focusin", check);
+      document.removeEventListener("focusout", later);
+    };
   }, []);
   return open;
 }
 
 // Sheets stop at the top of the bottom zone so Support stays one tap away
-// (§5): its height goes to --house-sheet-bottom on the document, which the
-// kit's portaled sheets and toast inherit.
+// (§5, §14): its height goes to --house-sheet-bottom on the document, which
+// the kit's portaled sheets and toast inherit, and so do the OLD dialogs
+// (phone.css: their scrim ends there, and --house-dialog-sab stands in for
+// the bottom safe area they already keep clear).
 function useBottomZoneHeight(ref, hidden) {
   useLayoutEffect(() => {
     const root = document.documentElement;
     const el = ref.current;
-    const set = () => root.style.setProperty("--house-sheet-bottom", `${hidden || !el ? 0 : el.offsetHeight}px`);
+    const set = () => {
+      const h = hidden || !el ? 0 : el.offsetHeight;
+      root.style.setProperty("--house-sheet-bottom", `${h}px`);
+      root.style.setProperty("--house-dialog-sab", `max(var(--os-sab, 0px), ${h}px)`);
+    };
     set();
     let ro;
     try { if (el) { ro = new ResizeObserver(set); ro.observe(el); } } catch { /* old engine */ }
     return () => { ro?.disconnect(); };
   }, [ref, hidden]);
-  useEffect(() => () => document.documentElement.style.removeProperty("--house-sheet-bottom"), []);
+  useEffect(() => () => {
+    document.documentElement.style.removeProperty("--house-sheet-bottom");
+    document.documentElement.style.removeProperty("--house-dialog-sab");
+  }, []);
 }
 
 // ── Do: the quick tools (the capture place) ────────────────────────────
@@ -192,7 +208,7 @@ function HouseIconLite({ icon, page }) {
 // ── Everything: every page by area, and what's open recently ───────────
 function EverythingSheet({ open, onClose, groups, recent, terms, formatAlter, here }) {
   const recentRows = useMemo(() => recent
-    .filter((r) => r.path !== here)
+    .filter((r) => r.path !== placePath(here))
     .slice(0, 5)
     .map((r) => {
       const at = r.path.indexOf("?");
@@ -276,6 +292,11 @@ export default function HousePhoneFrame({ children, mainRef }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const closeSheet = useCallback(() => setSheet(null), []);
   useEffect(() => { setSheet(null); }, [here]);
+  // Support one tap away over the OLD dialogs too (§14): their scrim ends
+  // above the bar (phone.css), and arriving at Support closes any still
+  // open the way their own close would, so a draft they keep is kept.
+  useEffect(() => { if (isSupportRoute(location.pathname)) announceSupportJump(); }, [location.pathname]);
+  useEffect(() => { setFrontOpen(false); }, [location.pathname]);
   const openPanels = (tab) => { setPanelTab(tab); setSheet("panels"); };
   const fresh = useFreshPageHelp(location.pathname);
 
@@ -306,7 +327,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
     { id: "settings", label: pageLabel("settings", terms), icon: SettingsIcon, onSelect: () => navigate("/settings") },
     { id: "systems", label: `Switch ${terms.system}`, icon: Boxes, onSelect: () => openSystemSwitcher() },
     { id: "cover", label: "Grocery list (privacy cover)", icon: ShoppingCart, onSelect: () => window.dispatchEvent(new CustomEvent("open-grocery-list")) },
-    ...(preview ? [{ id: "leave-example", label: "Leave the example system", icon: Eye, onSelect: () => exitPreview() }] : []),
+    ...(preview ? [{ id: "leave-example", label: `Leave the example ${terms.system}`, icon: Eye, onSelect: () => exitPreview() }] : []),
     { id: "old-house", label: "Use the old house", icon: LogOut, onSelect: () => setHouseSwitch(false) },
   ];
 
@@ -343,7 +364,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
           <span className="hp-sub">
             {page.area?.label ? <span className="hp-area">{page.area.label}</span> : null}
             {preview ? (
-              <span className="hp-example" data-house-example="" title="Preview Mode: example data, not yours. Leave it from the ⋯ menu.">Example system</span>
+              <span className="hp-example" data-house-example="" title="Preview Mode: example data, not yours. Leave it from the ⋯ menu.">{`Example ${terms.system}`}</span>
             ) : null}
           </span>
         </div>

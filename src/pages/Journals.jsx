@@ -205,7 +205,7 @@ export default function Journals() {
   const openEntry = (entry) => { setViewingEntry(entry); };
   const openEdit = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const pendingId = searchParams.get('id');
   const pendingFolder = searchParams.get('folder');
 
@@ -234,28 +234,31 @@ export default function Journals() {
   }, [pendingAuthor]);
 
   // ?compose=1 — open the editor for a new entry straight away (used by
-  // the UI-v2 quick-note key; optionally combined with ?folder=). Param is
-  // stripped so back/refresh doesn't reopen the editor.
+  // the UI-v2 quick-note key and the new house's Do → Write; optionally
+  // combined with ?folder=). ?import=1 — open "Import files" straight away
+  // (the UI-v2 Journal widget's Import action). Both are stripped through
+  // the router (replace), so back/refresh doesn't reopen them AND the next
+  // ?compose=1 is a real change the effect sees again (stripping with
+  // history.replaceState left the router holding ?compose=1, so a second
+  // Write from Journals did nothing).
+  const composeParam = searchParams.get("compose");
+  const importParam = searchParams.get("import");
   useEffect(() => {
-    if (searchParams.get("compose") === "1") {
+    if (composeParam !== "1" && importParam !== "1") return;
+    if (composeParam === "1") {
       // ?author= with ?compose=1 (a profile's Journal widget): the new
       // entry starts signed by that member.
       if (pendingAuthor) setComposeAuthorId(pendingAuthor);
       openNew(pendingFolder || null);
-      const params = new URLSearchParams(window.location.search);
-      params.delete("compose");
-      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
     }
-    // ?import=1 — open "Import files" straight away (the UI-v2 Journal
-    // widget's Import action). Stripped the same way.
-    if (searchParams.get("import") === "1") {
-      setShowImport(true);
-      const params = new URLSearchParams(window.location.search);
-      params.delete("import");
-      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
-    }
-     
-  }, []);
+    if (importParam === "1") setShowImport(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("compose");
+      next.delete("import");
+      return next;
+    }, { replace: true });
+  }, [composeParam, importParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useMentionHighlight("id", entries.length > 0);
 

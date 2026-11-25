@@ -254,4 +254,97 @@ await test("old house: only the tiny switch module is imported eagerly; the fram
   assert.ok(!/@\/house\//.test(sw), "the switch module reaches no house code");
 });
 
+// ── Phase 2 check fixes ───────────────────────────────────────────────
+const SG = await import("../src/house/frame/signing.js");
+const RL = await import("../src/house/frame/recordLabels.js");
+const GS = await import("../src/lib/globalSearch.js");
+const words = { front: "front", fronting: "fronting", Alter: "Part", System: "Collective", Fronting: "Out" };
+
+await test("signing swatch: speaks only for check-ins, and says what the setting does", () => {
+  const all = SG.signingWords({ names: ["River", "Ash"], policy: "all", terms: words }).label;
+  assert.match(all, /^In front: River, Ash\./);
+  assert.match(all, /feelings, symptoms, locations and diary cards are saved for all of them unless you pick/);
+  assert.match(all, /Set front$/);
+  const none = SG.signingWords({ names: ["River"], policy: "none", terms: words }).label;
+  assert.match(none, /saved without anyone unless you pick \(Entries belong to: Nobody\)/);
+  const nobody = SG.signingWords({ names: [], policy: "all", terms: words }).label;
+  assert.match(nobody, /^Nobody is in front\./);
+  const excl = SG.signingWords({ names: ["River"], policy: "exclude:fl_x", terms: words }).label;
+  assert.match(excl, /at the levels you keep \(Entries belong to\)/);
+  for (const l of [all, none, nobody, excl]) {
+    assert.ok(!/signed by the/i.test(l), "never claims entries are signed by the system");
+    assert.ok(!/journal/i.test(l), "never speaks for journals, which pick their own author");
+  }
+  // The person's own word for front.
+  assert.match(SG.signingWords({ names: [], terms: { front: "out" } }).label, /Nobody is in out\. .* Set out$/);
+});
+
+await test("search: 'Entries belong to' is findable by front tracking / attribution words", () => {
+  const recs = GS.buildSettingsRecords({ terms: { fronting: "fronting", front: "front" } });
+  const r = recs.find((x) => x.id === "setting_entries_belong_to");
+  assert.ok(r, "record exists");
+  assert.equal(r.path, "/manage-checkin?tab=feelings");
+  for (const q of ["front tracking", "track front", "entries belong", "attribution"]) assert.ok(r.searchableText.includes(q), q);
+  assert.match(read("src/pages/ManageCheckIn.jsx"), /get\("tab"\)/, "Manage check-ins honours ?tab=");
+});
+
+await test("History tab: friendly record names in the person's words", () => {
+  assert.equal(RL.recordKindLabel("FrontingSession", words), "Out record");
+  assert.equal(RL.recordKindLabel("Alter", words), "Part");
+  assert.equal(RL.recordKindLabel("EmotionCheckIn", words), "Feelings check-in");
+  assert.equal(RL.recordKindLabel("SystemChangeEvent", words), "Collective change");
+  assert.equal(RL.recordKindLabel("SomeNewThing", words), "Some new thing");
+  assert.equal(RL.recordKindLabel(undefined, words), "Record");
+  assert.ok(!/replace\(\/\(\[a-z\]\)/.test(read("src/house/frame/DockPanels.jsx")), "DockPanels no longer lower-cases raw entity names");
+});
+
+await test("terms: the frames never hardcode 'Example system' / 'Leave the example system'", () => {
+  for (const f of ["src/house/frame/HouseFrame.jsx", "src/house/phone/HousePhoneFrame.jsx"]) {
+    const code = read(f).split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+    assert.ok(!/["'>]Example system/.test(code), `${f}: Example system`);
+    assert.ok(!/Leave the example system/.test(code), `${f}: Leave the example system`);
+  }
+});
+
+await test("Support over old dialogs: primitives carry the hooks, the frames' CSS uses them", () => {
+  for (const f of ["src/components/ui/dialog.jsx", "src/components/ui/sheet.jsx", "src/components/ui/alert-dialog.jsx", "src/components/ui/drawer.jsx"]) {
+    const c = read(f);
+    assert.match(c, /data-os-overlay=""/, `${f}: overlay mark`);
+    assert.match(c, /useCloseOnSupportJump\(props\.open, props\.onOpenChange\)/, `${f}: closes on the Support jump`);
+  }
+  const phone = read("src/house/phone/phone.css");
+  assert.match(phone, /:root:has\(\[data-house-phone\]\) \[data-os-overlay\] \{ bottom: var\(--house-sheet-bottom/);
+  assert.match(phone, /\.hp-bottom \{ pointer-events: auto; \}/);
+  assert.match(read("src/house/frame/frame.css"), /\.hf-rail-support \{ position: relative; z-index: 51; pointer-events: auto; \}/);
+  for (const f of ["src/house/frame/HouseFrame.jsx", "src/house/phone/HousePhoneFrame.jsx"]) {
+    assert.match(read(f), /isSupportRoute\(location\.pathname\)\) announceSupportJump\(\)/, `${f}: announces arriving at Support`);
+  }
+  // Only the frame announces; the old house's dialogs never hear it.
+  const announcers = ["src/components", "src/pages", "src/lib"].flatMap((d) => fs.readdirSync(new URL(`../${d}/`, import.meta.url), { recursive: true })
+    .filter((f) => /\.(jsx?|mjs)$/.test(f)).map((f) => `${d}/${f}`))
+    .filter((f) => f !== "src/lib/houseSwitch.js" && /announceSupportJump\(|HOUSE_SUPPORT_EVENT/.test(read(f)) && !/useCloseOnSupportJump/.test(read(f)));
+  assert.deepEqual(announcers, []);
+});
+
+await test("Support jump: the event closes through the dialog's own onOpenChange(false)", async () => {
+  const sw = read("src/lib/houseSwitch.js");
+  assert.match(sw, /ref\.current\?\.\(false\)/);
+  assert.equal(S.HOUSE_SUPPORT_EVENT, "symphony-house-support");
+  assert.doesNotThrow(() => S.announceSupportJump(), "no window: quietly nothing");
+});
+
+await test("Journals: ?compose= / ?import= are stripped through the router, so Do → Write works twice", () => {
+  const j = read("src/pages/Journals.jsx");
+  assert.ok(!/history\.replaceState\([^)]*compose/.test(j) && !/params\.delete\("compose"\);\s*window\.history/.test(j), "no history.replaceState strip");
+  assert.match(j, /setSearchParams\([\s\S]{0,200}next\.delete\("compose"\)[\s\S]{0,120}\{ replace: true \}/);
+  assert.match(j, /\}, \[composeParam, importParam\]\)/);
+});
+
+await test("boot: with the switch on, the frame chunk starts loading from the same import site", () => {
+  const layout = read("src/components/layout/AppLayout.jsx");
+  assert.match(layout, /if \(readHouseSwitch\(\)\) \{\s*\(readHouseSize\(\) === "phone" \? loadHousePhoneFrame : loadHouseFrame\)\(\)/);
+  assert.equal((layout.match(/import\(["']@\/house\/frame\/HouseFrame["']\)/g) || []).length, 1, "one import site");
+  assert.equal((layout.match(/import\(["']@\/house\/phone\/HousePhoneFrame["']\)/g) || []).length, 1, "one import site");
+});
+
 console.log(`\n${passed} passed`);

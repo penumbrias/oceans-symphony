@@ -26,6 +26,7 @@ import Info from "@/house/kit/Info";
 import { Row } from "@/house/kit/Content";
 import { EmptyBlock, LoadingBlock, ErrorBlock } from "@/house/kit/States";
 import { useRecentChanges } from "@/house/frame/useFrameData";
+import { recordKindLabel } from "@/house/frame/recordLabels";
 
 export const DOCK_TAB_LIST = [
   { id: "info", label: "Info", icon: InfoIcon },
@@ -83,7 +84,7 @@ function HistoryTab({ active }) {
   }
   const verb = (e) => (e.action === "deleted" ? "Deleted" : e.action === "edited" ? "Edited" : e.action === "synced" ? "Replaced by sync" : e.action === "layout" ? "Layout changed" : "Changed");
   const what = (e) => {
-    const entity = e.entity === "Alter" ? t.Alter : String(e.entity || "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+    const entity = recordKindLabel(e.entity, t);
     return `${entity}${e.label ? `: ${e.label}` : ""}`;
   };
   const when = (e) => { try { return formatDistanceToNow(new Date(e.timestamp), { addSuffix: true }); } catch { return ""; } };

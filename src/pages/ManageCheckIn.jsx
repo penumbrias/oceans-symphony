@@ -437,9 +437,17 @@ function SymptomTab({ category, contextOnly = false }) {
   );
 }
 
+const MANAGE_TABS = ["sections", "feelings", "symptoms", "habits", "context", "diary"];
+
 export default function ManageCheckIn() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("symptoms");
+  // ?tab=feelings (a search result for "Entries belong to") opens that tab.
+  const [tab, setTab] = useState(() => {
+    try {
+      const want = new URLSearchParams(window.location.search).get("tab");
+      return MANAGE_TABS.includes(want) ? want : "symptoms";
+    } catch { return "symptoms"; }
+  });
 
   const TABS = [
     { id: "sections", label: "Sections" },

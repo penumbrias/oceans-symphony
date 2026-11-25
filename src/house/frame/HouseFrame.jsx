@@ -45,7 +45,8 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump } from "@/lib/houseSwitch";
+import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { useHouseTokens } from "@/house/tokens/useHouseTokens";
 import { HouseScope } from "@/house/tokens/HouseRoot";
@@ -59,10 +60,11 @@ import DockResizer from "@/house/kit/frame/DockResizer";
 import SigningSwatch from "@/house/kit/frame/SigningSwatch";
 import { StatusBar, StatusItem, StatusLink, StatusButton, StatusSpacer } from "@/house/kit/frame/StatusBar";
 import DockPanels, { useFreshPageHelp } from "@/house/frame/DockPanels";
+import { signingWords } from "@/house/frame/signing";
 import { DOCK_LIMITS, HOUSE_LAYOUT_EVENT, dockFor, layoutPageKey, loadLayout, saveDock, clampDockSize } from "@/house/frame/dockPrefs";
 import { documentTitleFor, resolvePageTitle, APP_NAME } from "@/house/frame/pageTitle";
 import { HOUSE_TABS_KEY, readTabs, followTo, openTab, selectTab, closeTab } from "@/house/frame/openTabs";
-import { useSettingsRow, useSaveHealth, useLastSync, usePreviewOn, useNextReminder, useFrontTrackingOff, usePageTitle } from "@/house/frame/useFrameData";
+import { useSettingsRow, useSaveHealth, useLastSync, usePreviewOn, useNextReminder, useAttributionPolicy, usePageTitle } from "@/house/frame/useFrameData";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 import "@/house/kit/frame/frameKit.css";
@@ -80,7 +82,14 @@ function useViewportRem() {
   const read = () => (typeof window === "undefined" ? { w: 80, h: 50 } : { w: window.innerWidth / remPx(), h: window.innerHeight / remPx() });
   const [v, setV] = useState(read);
   useEffect(() => {
-    const on = () => setV(read());
+    // Only a real change re-renders the frame: <html> also changes class
+    // and style for things that have nothing to do with its size (the
+    // phone frame's bar height, themes), and a new object each time would
+    // redraw the whole frame for nothing.
+    const on = () => setV((prev) => {
+      const next = read();
+      return Math.abs(next.w - prev.w) < 0.01 && Math.abs(next.h - prev.h) < 0.01 ? prev : next;
+    });
     window.addEventListener("resize", on);
     const mo = new MutationObserver(on);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
@@ -197,6 +206,7 @@ function BrowsePanel({ groups, currentId }) {
 
 // ── Status bar ─────────────────────────────────────────────────────────
 function FrameStatus({ size, pageTitle, onEditPage, editReason }) {
+  const terms = useTerms();
   const health = useSaveHealth();
   const lastSync = useLastSync();
   const next = useNextReminder();
@@ -215,7 +225,7 @@ function FrameStatus({ size, pageTitle, onEditPage, editReason }) {
       {lastSync ? <StatusLink to="/settings#device-sync" title="Sync between devices">Synced {timeOf(new Date(lastSync))}</StatusLink> : null}
       {next ? <StatusLink to="/reminders" title="Your next reminder">Next: {next.title} {timeOf(new Date(next.at))}</StatusLink> : null}
       <StatusSpacer />
-      {preview ? <span data-house-example=""><StatusItem tone="label" title="Preview Mode: example data, not yours. Leave it from the More menu.">Example system</StatusItem></span> : null}
+      {preview ? <span data-house-example=""><StatusItem tone="label" title="Preview Mode: example data, not yours. Leave it from the More menu.">{`Example ${terms.system}`}</StatusItem></span> : null}
       <StatusItem>{size === "compact" ? "Compact studio" : "Studio"}</StatusItem>
     </StatusBar>
   );
@@ -291,6 +301,11 @@ export default function HouseFrame({ children, mainRef }) {
     return () => window.removeEventListener("keydown", key);
   }, []);
   useEffect(() => { setSearchOpen(false); }, [here]);
+  // Support one tap away over the OLD dialogs too (§14): the rail's Support
+  // button sits above their scrim (frame.css), and arriving at Support
+  // closes any still open the way their own close would, so a draft they
+  // keep is kept.
+  useEffect(() => { if (isSupportRoute(location.pathname)) announceSupportJump(); }, [location.pathname]);
 
   // ── Open-page tabs ──
   const [tabs, setTabs] = useOpenTabState(here);
@@ -302,19 +317,22 @@ export default function HouseFrame({ children, mainRef }) {
   const tabNames = useTabNames(tabs.tabs, { terms, formatAlter });
   const tabList = tabs.tabs.map((t) => ({ id: t.id, path: t.path, title: tabTitle(t.path) || tabNames[t.id] || "Page" }));
 
-  // ── The signing swatch ──
+  // ── The signing swatch: who is in front, and what the person's
+  // "Entries belong to" setting does with them (signing.js). It speaks only
+  // for check-ins; journals and posts pick their own author. ──
   const { fronters } = useFrontPresence();
-  const trackingOff = useFrontTrackingOff();
+  const policy = useAttributionPolicy();
   const [frontOpen, setFrontOpen] = useState(false);
+  useEffect(() => { setFrontOpen(false); }, [location.pathname]);
   const systemName = row?.system_name || terms.System;
   const swatch = (() => {
-    if (trackingOff || !fronters.length) {
-      const why = trackingOff ? `${terms.Front} isn't tracked, so entries are signed by the ${terms.system}` : `Nobody is set as ${terms.fronting}, so entries are signed by the ${terms.system}`;
-      return { label: `Signing as ${systemName}. ${why}. Set ${terms.front}`, colours: [], initials: String(systemName || "").trim().slice(0, 1).toUpperCase(), icon: systemName ? null : Users };
-    }
     const names = fronters.map(({ alter }) => formatAlter(alter));
+    const { label } = signingWords({ names, policy, terms });
+    if (!fronters.length) {
+      return { label, colours: [], initials: String(systemName || "").trim().slice(0, 1).toUpperCase(), icon: systemName ? null : Users };
+    }
     const colours = fronters.map(({ alter }) => (/^#[0-9a-f]{3,8}$/i.test(alter.color || "") ? alter.color : "var(--house-muted)"));
-    return { label: `Signing as ${names.join(", ")}. Set ${terms.front}`, colours, more: Math.max(0, fronters.length - 3) };
+    return { label, colours, more: Math.max(0, fronters.length - 3) };
   })();
 
   // ── The pencil: the existing Edit page where there is one (edit mode is Phase 4) ──
@@ -332,7 +350,7 @@ export default function HouseFrame({ children, mainRef }) {
     { id: "tour", label: "Take the tour", icon: MapIcon, onSelect: openFullTour },
     { id: "systems", label: `Switch ${terms.system}`, icon: Boxes, onSelect: () => openSystemSwitcher() },
     { id: "cover", label: "Grocery list (privacy cover)", icon: ShoppingCart, onSelect: () => window.dispatchEvent(new CustomEvent("open-grocery-list")) },
-    ...(preview ? [{ id: "leave-example", label: "Leave the example system", icon: Eye, onSelect: () => exitPreview() }] : []),
+    ...(preview ? [{ id: "leave-example", label: `Leave the example ${terms.system}`, icon: Eye, onSelect: () => exitPreview() }] : []),
     { id: "old-house", label: "Use the old house", icon: LogOut, onSelect: () => setHouseSwitch(false) },
   ];
 
@@ -365,7 +383,7 @@ export default function HouseFrame({ children, mainRef }) {
       <div className="hf-body">
         <HouseScope {...scope()} as="nav" className="hf-rail" aria-label="Tools">
           <SigningSwatch {...swatch} onClick={() => setFrontOpen(true)} />
-          <IconButton icon={LifeBuoy} rank="primary" label="Support" onClick={() => navigate("/grounding")} />
+          <IconButton icon={LifeBuoy} rank="primary" label="Support" className="hf-rail-support" data-house-support="" onClick={() => navigate("/grounding")} />
           <span className="hf-rail-gap" />
           <IconButton icon={PanelLeft} label={leftDocked ? "Hide the pages panel" : "Show the pages panel"} aria-pressed={leftDocked} onClick={toggleLeft} />
           <IconButton icon={PanelRight} label={(rightDocked || sheetOpen) ? "Hide the side panel" : "Show the side panel"} aria-pressed={rightDocked || sheetOpen} onClick={toggleRight} />

@@ -10,7 +10,8 @@ import { getSaveHealth } from "@/lib/localDb";
 import { getLastRun, getSyncFolder } from "@/lib/deviceSyncRunner";
 import { computePrescheduledFires } from "@/lib/nativeReminderScheduler";
 import { isPreviewActive, subscribe as subscribePreview } from "@/lib/previewMode";
-import { attributionPolicy, ATTRIBUTION_NONE } from "@/lib/emotionAttribution";
+import { attributionPolicy } from "@/lib/emotionAttribution";
+import { resolveFrontLevels } from "@/lib/frontLevels";
 import { resolvePageTitle } from "@/house/frame/pageTitle";
 
 export function useSettingsRow() {
@@ -32,11 +33,22 @@ export function useSaveHealth() {
   return health;
 }
 
+// A tick a minute while the page is in sight; none while it's hidden (a
+// background tab or the app in the background on a phone), and one at once
+// on coming back, so the times shown catch up.
 export function useMinuteTick() {
   const [n, tick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => tick((x) => x + 1), 60000);
-    return () => clearInterval(id);
+    let id = 0;
+    const start = () => { if (!id) id = setInterval(() => tick((x) => x + 1), 60000); };
+    const stop = () => { clearInterval(id); id = 0; };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") stop();
+      else { tick((x) => x + 1); start(); }
+    };
+    if (typeof document === "undefined" || document.visibilityState !== "hidden") start();
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
   }, []);
   return n;
 }
@@ -73,10 +85,12 @@ export function useNextReminder() {
   }, [reminders, row, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-/** Is front tracking off? (Settings → "Entries belong to: nobody".) */
-export function useFrontTrackingOff() {
+/** The person's "Entries belong to" rule (Manage check-ins → Feelings):
+ * "all", "none" or "exclude:<level ids>", read through attributionPolicy with
+ * the front levels, the same as the check-in save path. */
+export function useAttributionPolicy() {
   const row = useSettingsRow();
-  return attributionPolicy(row) === ATTRIBUTION_NONE;
+  return attributionPolicy(row, resolveFrontLevels(row));
 }
 
 /** The page's real name, area and kind, for the route on screen. */
