@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { hideRescueForSystem } from "@/components/dashboard/EmptyAppRescueNotice";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,7 @@ export default function SystemSwitcherPanel() {
     setBusy(true);
     try {
       const sys = await createSystem({ name: newName.trim() });
+      hideRescueForSystem(sys.id);
       await setActiveSystem(sys.id);
       // A brand-new system deserves the guided setup (its settings and
       // tracking catalogue start empty), but the onboarding gate keys are

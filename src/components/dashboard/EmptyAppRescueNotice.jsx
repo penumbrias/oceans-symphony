@@ -82,6 +82,15 @@ export function useEmptyApp() {
   return isFetched && (alters || []).length === 0 && !hidden && !isPreviewDbActive();
 }
 
+// A system the person just created empty on purpose has nothing to rescue,
+// so the row starts hidden there (v0.382.3). The same rule as a dismissal:
+// the moment alters appear the hide is cleared, so a later wipe brings it back.
+export function hideRescueForSystem(id) {
+  if (!id) return;
+  const ids = readHiddenIds();
+  if (!ids.includes(id)) writeHiddenIds([...ids, id]);
+}
+
 function hideRescue() {
   const ids = readHiddenIds();
   const me = systemKey();

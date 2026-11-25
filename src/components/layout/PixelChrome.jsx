@@ -32,7 +32,7 @@ import { getLastRun, getSyncFolder } from "@/lib/deviceSyncRunner";
 import { useMedications, useMedicationDoses, dosesOnDay, MEDICATIONS_PATH } from "@/lib/medications";
 import { clockOpts } from "@/lib/timeFormat";
 import { isScheduled } from "@/lib/activityStatus";
-import { Bell, ChevronLeft, X, Plus, HelpCircle, Search, Heart, LifeBuoy, Pencil, LayoutGrid, SlidersHorizontal, CalendarClock } from "lucide-react";
+import { Bell, ChevronLeft, ChevronDown, X, Plus, HelpCircle, Search, Heart, LifeBuoy, Pencil, LayoutGrid, SlidersHorizontal, CalendarClock } from "lucide-react";
 import { V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { CommandKeyButton, QuickNoteSheet, KEY_ICONS, KEY_LABEL_KEYS } from "@/components/v2/V2Frame";
 import { ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
@@ -246,16 +246,40 @@ function AreaMenus({ extraMore, pendingCount, todoAlertCount }) {
       {groups.map((g) => {
         const open = openId === g.id;
         return (
-          <div key={g.id} className="relative">
+          <div
+            key={g.id}
+            className={activeArea === g.id || open ? "px-area-wrap sel" : "px-area-wrap"}
+            // A mouse resting on an area shows its list; leaving closes it.
+            onMouseEnter={(e) => { if (e.nativeEvent?.pointerType !== "touch") setOpenId(g.id); }}
+            onMouseLeave={() => setOpenId((cur) => (cur === g.id ? null : cur))}
+          >
+            {/* The name opens the area's first page (v0.382.3); the ▾ opens
+                the list for touch and keyboard. Ctrl/middle click → new tab. */}
+            <button
+              type="button"
+              onClick={(e) => {
+                const first = g.items[0];
+                if (!first) { setOpenId(open ? null : g.id); return; }
+                setOpenId(null);
+                if (e.ctrlKey || e.metaKey) openInPixelTab(first.path);
+                else navigate(first.path);
+              }}
+              onAuxClick={(e) => { const first = g.items[0]; if (first && e.button === 1) { setOpenId(null); openInPixelTab(first.path); } }}
+              onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setOpenId(g.id); } }}
+              title={g.items[0] ? `Open ${g.items[0].label}` : undefined}
+              className="px-area"
+            >
+              {g.label}
+            </button>
             <button
               type="button"
               aria-haspopup="menu"
               aria-expanded={open}
+              aria-label={`${g.label} pages`}
               onClick={() => setOpenId(open ? null : g.id)}
-              onMouseEnter={() => { if (openId && openId !== g.id) setOpenId(g.id); }}
-              className={activeArea === g.id || open ? "px-area sel" : "px-area"}
+              className="px-area-caret"
             >
-              {g.label}
+              <ChevronDown className="w-3 h-3" aria-hidden="true" />
             </button>
             {open && (
               <div className="px-menu" role="menu" aria-label={g.label}>

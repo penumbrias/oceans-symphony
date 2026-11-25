@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "November 25, 2026",
+    changes: [
+      { type: "improve", text: "Pixel look: tapping an area name at the top opens its first page (Support opens Support & Learn); the arrow beside it shows the list." },
+      { type: "fix", text: "A new, empty system no longer warns that your data might be missing." },
+    ],
+  },
+  {
     date: "November 24, 2026",
+    version: "0.382.2",
     changes: [
       { type: "improve", text: "Edits to check-ins, symptoms, sleep, places and diary cards can now be undone from Recent changes." },
       { type: "fix", text: "Recent changes no longer shows the hidden text of a whisper." },

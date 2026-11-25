@@ -195,6 +195,12 @@ button.px-hitem:hover { background: var(--px-bar); }
 .px-area { padding: 4px 8px; color: var(--px-text); min-height: 30px; white-space: nowrap; }
 .px-area:hover { background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
 .px-area.sel { background: var(--px-panel); outline: 2px solid var(--px-line); }
+/* v0.382.3: the name opens the first page, the caret (or hovering) opens the list. */
+.px-area-wrap { position: relative; display: flex; align-items: center; }
+.px-area-wrap.sel { background: var(--px-panel); outline: 2px solid var(--px-line); }
+.px-area-caret { min-height: 30px; padding: 4px 4px 4px 0; color: var(--px-text); opacity: 0.7; display: flex; align-items: center; }
+.px-area-caret:hover { opacity: 1; background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
+.px-area-caret:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 0; }
 .px-area:focus-visible, .px-doctab button:focus-visible, .px-menu-item:focus-visible, .px-search:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 0; }
 
 .px-menu {
@@ -722,3 +728,5 @@ html[data-ui-look="pixel"] .os-tabs-tab[aria-pressed="true"] { background: var(-
   html[data-ui-look="pixel"] .px-chat-composer { flex-wrap: wrap; }
   html[data-ui-look="pixel"] .px-chat-composer > :first-child { flex-basis: 100%; max-width: 100%; }
 }
+/* Bridge the gap under an area so the mouse can travel into its list. */
+.px-area-wrap > .px-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
