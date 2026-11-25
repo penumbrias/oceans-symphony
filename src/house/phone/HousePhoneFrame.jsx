@@ -342,7 +342,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
       <main ref={mainRef} id="main-content" tabIndex={-1} role="main" aria-label={page.title}
         className={homeRoom
           ? "app-content-main hp-canvas hp-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
-          : "app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 px-4 py-0 overflow-y-auto overflow-x-hidden"}>
+          : `app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 ${supportRoom ? "px-0" : "px-4"} py-0 overflow-y-auto overflow-x-hidden`}>
         {location.pathname === "/" && lastTime && !homeRoom ? (
           <HouseScope {...scope()}>
             <LastTimeCard lastTime={lastTime} onDismiss={dismissLastTime} terms={terms} formatAlter={formatAlter} />

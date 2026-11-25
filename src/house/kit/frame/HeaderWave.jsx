@@ -4,6 +4,7 @@
 // slowly; still under reduced motion. Decorative only.
 
 import React from "react";
+import "./headerWave.css";
 
 function wavePath() {
   let d = "M0 0 H2560 ";
