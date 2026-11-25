@@ -334,3 +334,14 @@ The owner asked for the redesign the mockups draw (boards 01-Main, 08-Phone, 09-
 6. **The status bar** drops the pencil (now the rail's PAGE grid) and ends with "Look: Pixel" (opens Display options) and the version.
 7. **The Home room is the house's own** (`src/house/home/HouseHome.jsx`), on "/" in both frames; the old Dashboard stays mounted under it hosting only its dialogs and `?action=` links (`hostsOnly`), and "Boards" (`?page=board`) opens the person's widget board as before. It writes nothing itself: front through SetFrontSheet, status through `saveStatusNote`, plans through `resolvePlan.js`, routines through `toggleTemplateDone` / `addTaskCount`. The guide claims the attention slot (`ATTENTION.SETUP`) and asks about one open plan at a time. The timeline dock's layers, and their order, are a device preference (`symphony_house_home_layers_v1`, in `BACKUP_LS_KEYS`, one writer in `layerPrefs.js`). The studio's side docks stay away from the Home room, which draws its own Info and Layers.
 8. **The phone (board 08).** The header is the wave, the logo (on a place) or Back, the page name, and Search and ⋯ as bevelled buttons; Everything and Do moved into ⋯. The bar is Home · {Alters} · Timeline · Write · Support with the pixel icons; the current place sits on the title colour.
+
+## 16. The Support rooms (2026-11-25, branch house/support-room)
+
+Boards 15-SupportPhone, 38-UnblendPhone, 39-SafetyPlanPhone, 40-EmergencyPhone and 41-EmergencyCardPhone, built in `src/house/support/` and drawn by both frames on `/grounding`, `/unblend`, `/safety-plan` and `/emergency` (`houseSupportRoom`). With the house switch on, `HouseRoomGate` keeps the old page off those routes; with it off the old pages are untouched.
+
+1. **The room's views are addresses** (`?view=need|suggestions|all|breathing|guided|soundscape|nature|scratchpad`, `?tab=learn`), so the phone's back gesture steps back inside the room. `supportModel.js` holds every rule (tested by `scripts/test-house-support.mjs`).
+2. **Nothing new writes.** Grounding prefs through `groundingPreferenceHandlers`, front through `changeFront` (adds; nobody already there is taken out), emergency info through `saveEmergencyInfo` and its one door `EmergencyInfoSheet`, the safety plan's answers only in their Learn lessons. The unblend engine moved out of the page into `useUnblendSession.js`, so both houses ask the same questions.
+3. **Colour answers never use the browser's picker** (board 38's note): the kit's `Swatches` plus `ColourField`.
+4. **Ticks are ✓, never ×** (board 40 draws an ×): the kit `Checkbox`.
+5. **Not medical advice** is a folded panel on every Support room, with the compact `MedicalDisclaimer` inside.
+6. **The old flows (state check, guided runs, breathing, soundscape, Learn, crisis lines) are reused inside house panels**, not redrawn; their insides keep the old styling until their own rebuild.

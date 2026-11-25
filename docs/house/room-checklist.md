@@ -38,7 +38,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 | Switch context | Trigger categories, switch journal, flag-as-triggered later [2.1.4] | FrontingSession, TriggerType, JournalEntry | `triggerCategories.js` (`triggerPatch`); switch journal: MISSING (JournalEntry) → 0.6 | 3.2 | old |
 | Front history editing | Edit, split, end, remove, add past sessions; stale-open review; duplicate cleanup; front conflicts [2.2.1, 2.2.2] | FrontingSession | `frontSessionEdit.js`, `reconcileActiveFront`, `frontConflicts.js` | 3.3 (on the Day) | old |
 | Inferred presence (opt-in) | Derive presence from authored content [2.2.3] | MentionLog (authored trail) | read only | 3.3 (a Day layer) | old |
-| Help me unblend (`/unblend`) | Guided question flow, ranked candidates, skip/shuffle [2.3.1] | UnblendQuestion, HiddenUnblendQuestion | `getToKnowMeWriteback.js` | 3.1 (fire exit) | old |
+| Help me unblend (`/unblend`) | Guided question flow, ranked candidates, skip/shuffle [2.3.1] | UnblendQuestion, HiddenUnblendQuestion | `getToKnowMeWriteback.js` | 3.1 (fire exit) | rebuilt (3.1: board 38; same engine, `useUnblendSession.js`; front through `changeFront`; question delete to the trash with Undo) |
 | Get to know me (`/get-to-know-me`) | Answer while grounded, write answers back to fields [2.3.3, 1.1.8] | UnblendQuestion, Alter | `getToKnowMeWriteback.js` | 5.3 (shares the question engine with unblend) | old |
 | Question curation (`/unblend/questions`) | Write, hide, customize, restore questions [2.3.2] | UnblendQuestion, HiddenUnblendQuestion | MISSING: page writes directly (curation UI, 2 + 1 files) → 0.6 | 0.6, then 5.3 | old |
 | Front tracking off | Attribution falls back to authorship; swatch shows the system [2.4] | SystemSettings (`attribution_default`) | settings writer (0.4) | 2.1 frame, every room | old |
@@ -103,17 +103,17 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 
 | Room (routes) | Functions | Records | Write path | New home | Status |
 |---|---|---|---|---|---|
-| Support and grounding (`/grounding`) | One-tap access, technique catalogue, guided runs, ratings, favourites, per-member attribution [8.1, 8.2] | GroundingTechnique, GroundingPreference | `groundingPreferences.js`; techniques MISSING: page writes directly (2 files) → 0.6 | 3.1 | old |
-| Breathing | Paced exercises with visual guide [8.3] | — | — | 3.1 | old |
-| State check | "What do I need right now", suggestions, crisis resources [8.4] | — | — | 3.1 | old |
-| Safety plan (`/safety-plan`) | Warning signs, coping cards, tolerance window; written where it is read [8.6] | SupportJournalEntry | MISSING (see Learn reflections) → 0.6 | 3.1 | old |
-| Emergency info and card (`/emergency`) | Card for a helper, deliberate way back | EmergencyInfo | `emergencyInfo.js`, `medications.js` | 3.1 | old |
+| Support and grounding (`/grounding`) | One-tap access, technique catalogue, guided runs, ratings, favourites, per-member attribution [8.1, 8.2] | GroundingTechnique, GroundingPreference | `groundingPreferences.js`; techniques MISSING: page writes directly (2 files) → 0.6 | 3.1 | rebuilt (3.1: board 15; favourites, ratings, notes through `groundingPreferenceHandlers`; new techniques through `CustomTechniqueForm`) |
+| Breathing | Paced exercises with visual guide [8.3] | — | — | 3.1 | rebuilt (3.1: `?view=breathing`, the old exercise inside a house panel) |
+| State check | "What do I need right now", suggestions, crisis resources [8.4] | — | — | 3.1 | rebuilt (3.1: `?view=need`, suggestions and crisis lines) |
+| Safety plan (`/safety-plan`) | Warning signs, coping cards, tolerance window; written where it is read [8.6] | SupportJournalEntry | MISSING (see Learn reflections) → 0.6 | 3.1 | rebuilt (3.1: board 39; reads only, Edit opens the lesson that owns the answers) |
+| Emergency info and card (`/emergency`) | Card for a helper, deliberate way back | EmergencyInfo | `emergencyInfo.js`, `medications.js` | 3.1 | rebuilt (3.1: boards 40 and 41; `?show=1` is the card, Back/Escape the way out; writes through `saveEmergencyInfo` and `EmergencyInfoSheet`) |
 | Crisis resources, floating support button | Always current, not-medical disclaimer [8.9] | — | — | 3.1, button into the frame zones 2.2 | in new frame (2.2: Support is the phone bar's last place; the bubble is not drawn in the house) |
 | Support over a room's open dialogs | Support one tap away with any of the room's dialogs or sheets open; typing kept where the room keeps drafts [§14] | — | Radix primitives: done in the frame (Phase 2 fixes, `walk --dialogs`). Each room: replace hand-made `fixed inset-0` overlays with kit sheets or the primitives; give Support a keyboard and screen-reader path while a modal is open | every Phase 3 room | partly (Radix dialogs, sheets, confirms, drawers) |
 | Panic cover | Quick-taps open a working decoy, usable before unlock [8.8.1] | GroceryItem, GroceryFavorite | `noteLists.js` | 2.1 / 2.2 frame | old |
 | Lock screen | Unlock, panic cover before unlock [8.8.3] | — (storage mode) | — | 3.1 (look only; boot path untouched) | old |
-| Learn (psychoeducation) | Lessons, reflections, needs checks [8.7] | LearningProgress, SupportJournalEntry | MISSING → 0.6 | 3.1 (reached from Support), 5.2 for reflections | old |
-| Sounds | Nature sounds, soundscape, own sounds | ImageAsset + localStorage | `natureSounds/ownSounds.js`, `naturePrefs.js` | 3.1 | old |
+| Learn (psychoeducation) | Lessons, reflections, needs checks [8.7] | LearningProgress, SupportJournalEntry | MISSING → 0.6 | 3.1 (reached from Support), 5.2 for reflections | rebuilt (3.1: Learn panel on Support, `?tab=learn` opens the lessons inside the room) |
+| Sounds | Nature sounds, soundscape, own sounds | ImageAsset + localStorage | `natureSounds/ownSounds.js`, `naturePrefs.js` | 3.1 | rebuilt (3.1: Nature sounds tile, `?view=soundscape|nature|scratchpad`, now-playing bar) |
 
 ## I. Look back
 
