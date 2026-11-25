@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 25, 2026",
     changes: [
+      { type: "improve", text: "Penumblob is now the guide on the Tour, \"Show me around\" and each page's help, too." },
       { type: "improve", text: "New house: every panel's title bar is the same slim height, even with a button in it." },
       { type: "improve", text: "New house: Penumblob now has their real sprite, and only waves when there's something new to say or you tap them." },
       { type: "feature", text: "New house: the Home screen and the desktop and phone frames now follow the approved pixel mockups: who's fronting, status, plans, routines, the guide, and a layered timeline." },

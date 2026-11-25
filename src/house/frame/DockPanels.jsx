@@ -8,6 +8,7 @@
 // page", the whole Tour and the page-tips switch — so page tips live here
 // and nowhere else (R1). History is the newest Recent changes.
 
+import Penumblob from "@/components/shared/Penumblob";
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GraduationCap, History, Info as InfoIcon, Layers as LayersIcon, Map as MapIcon, PlayCircle } from "lucide-react";
@@ -124,6 +125,10 @@ function HelpTab({ active }) {
   );
   return (
     <div className="hf-help">
+      <div className="hf-help-guide">
+        <Penumblob size={32} cue={active ? pathname : null} />
+        <p className="hf-help-guide-line">{"Here's how this page works. Ask me to show you around, one part at a time."}</p>
+      </div>
       {!steps ? <LoadingBlock label="Loading this page's help" rows={3} /> : null}
       {steps && steps.length === 0 ? (
         <EmptyBlock compact icon={GraduationCap} title="No walk-through for this page yet"

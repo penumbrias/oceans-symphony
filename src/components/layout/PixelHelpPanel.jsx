@@ -6,13 +6,14 @@
 // It reads the steps through tourStepsFor (FeatureTour.jsx), the one copy
 // the tours play, so the panel never says something the tour doesn't. The
 // big tour module is only fetched once the panel opens.
+import Penumblob from "@/components/shared/Penumblob";
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { isOnboardingDone } from "@/lib/onboardingState";
-import { GraduationCap, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import {
@@ -112,7 +113,7 @@ export default function PixelHelpPanel({ open, onClose }) {
   return (
     <aside className="px-help" aria-label="How this page works">
       <div className="px-help-ttl">
-        <span className="flex items-center gap-2"><GraduationCap className="w-4 h-4" /> How this page works</span>
+        <span className="flex items-center gap-2"><Penumblob size={20} cue={open ? pathname : null} /> How this page works</span>
         <button type="button" className="px-help-x" onClick={onClose} aria-label="Close how this page works">
           <X className="w-3.5 h-3.5" />
         </button>

@@ -20,8 +20,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import penumblobStill from "./sprites/penumblob.png";
-import penumblobWave from "./sprites/penumblob-wave.png";
+import Penumblob from "@/components/shared/Penumblob";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -302,29 +301,6 @@ function RoutinesPanel({ templates, progress }) {
   );
 }
 
-// Penumblob, drawn by the owner. Still by default; the two-frame wave plays
-// for a moment only when there's something new to say or when tapped, and
-// never when the device asks for reduced motion.
-const WAVE_MS = 1400;
-function reducedMotion() {
-  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
-}
-function BlobSprite({ cue }) {
-  const [waving, setWaving] = useState(false);
-  const wave = () => { if (!reducedMotion()) setWaving(true); };
-  useEffect(() => { if (cue) wave(); }, [cue]);
-  useEffect(() => {
-    if (!waving) return undefined;
-    const t = setTimeout(() => setWaving(false), WAVE_MS);
-    return () => clearTimeout(t);
-  }, [waving]);
-  return (
-    // A tap is a small hello, not an action, so the sprite stays a picture.
-    <img className="hh-blob" src={waving ? penumblobWave : penumblobStill} alt="" width={32} height={32}
-      draggable={false} onPointerDown={wave} />
-  );
-}
-
 function GuidePanel({ guide, compact, fresh }) {
   const terms = useTerms();
   const run = useInvalidatePlans();
@@ -349,7 +325,7 @@ function GuidePanel({ guide, compact, fresh }) {
     <Panel title="Guide: Penumblob" className="hh-panel hh-guide">
       <div className="hh-guide-body" data-compact={compact || undefined}>
         <p className="hh-guide-line" role={ask ? "status" : undefined}>{line}</p>
-        <BlobSprite cue={ask ? (ask.activity?.id || ask.title || "ask") : null} />
+        <Penumblob className="hh-blob" cue={ask ? (ask.activity?.id || ask.title || "ask") : null} />
         {ask ? (
           <div className="hh-actions hh-guide-actions" role="group" aria-label={`Did ${name} happen?`}>
             <Button rank="primary" busy={busy === "done"} onClick={() => resolve("done")}>Done</Button>

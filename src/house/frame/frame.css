@@ -112,6 +112,8 @@
 [data-house] .hf-plain-list { list-style: none; margin: 0; padding: 0; }
 [data-house] .hf-help { display: flex; flex-direction: column; gap: var(--house-space-3); }
 [data-house] .hf-help-steps { margin: 0; padding-left: var(--house-space-5); display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hf-help-guide { display: flex; align-items: center; gap: var(--house-space-2); }
+[data-house] .hf-help-guide-line { margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
 [data-house] .hf-help-step-title { margin: 0; font-size: var(--house-text-md); }
 [data-house] .hf-help-step-body { margin: var(--house-space-1) 0 0; color: var(--house-muted); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
 [data-house] .hf-muted { color: var(--house-muted); }
