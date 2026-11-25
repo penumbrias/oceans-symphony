@@ -15,12 +15,12 @@ import { format } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { editDiaryCard, deleteDiaryCardRecord } from "@/lib/checkinEntry";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { deleteWithUndo } from "@/lib/undoDelete";
 import DiarySection from "@/components/diary/DiarySection";
-import { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
+import { diaryCardToData } from "@/lib/diaryData";
 
 export { diaryCardToData, diaryDataToPatch } from "@/lib/diaryData";
 import { clockPattern } from "@/lib/timeFormat";
@@ -30,7 +30,7 @@ export async function deleteDiaryCard(card, queryClient) {
   if (!card?.id) return false;
   return deleteWithUndo({
     label: "Diary card deleted",
-    run: () => base44.entities.DiaryCard.delete(card.id),
+    run: () => deleteDiaryCardRecord(card.id),
     refresh: () => queryClient?.invalidateQueries({ queryKey: ["diaryCards"] }),
   });
 }
@@ -47,7 +47,8 @@ export default function DiaryCardEditDialog({ card, onClose }) {
     if (!card?.id || saving) return;
     setSaving(true);
     try {
-      await base44.entities.DiaryCard.update(card.id, diaryDataToPatch(data));
+      // Only the diary fields, and only what changed since the dialog opened.
+      await editDiaryCard(card.id, data, { baseline: card });
       queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
       toast.success("Diary card updated");
       onClose?.();

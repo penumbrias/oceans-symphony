@@ -35,8 +35,8 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { defaultEmotionAlterIds, checkInEmotionDefault, applyAttributionPolicy } from "@/lib/emotionAttribution";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
-import { loadSystemDistressSet, mapEmotionsToGroundingStates, emotionsAreDistressing } from "@/lib/emotionDistress";
-import { logEmotionCheckIn, logSymptomCheckIns, logLocation, logDiaryCard } from "@/lib/checkinEntry";
+import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
+import { logEmotionCheckIn, logSymptomCheckIns, logLocation, logDiaryCard, editEmotionCheckIn, checkInNoteFields, syncCheckInSymptoms } from "@/lib/checkinEntry";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, useGroupLevelRail, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
@@ -1021,69 +1021,37 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // a new one if the noteOut crossed the threshold mid-edit, or
         // detach the link if the noteOut shrank below the threshold.
         const trimmedNote = noteOut.trim();
-        const wc = trimmedNote ? trimmedNote.split(/\s+/).filter(Boolean).length : 0;
-        let journalEntryId = editingEntry.journal_entry_id || null;
-        if (trimmedNote && wc > 50) {
-          journalEntryId = await saveCheckInJournal({
-            journalEntryId,
-            content: trimmedNote,
-            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
-            at: now,
-          });
-        }
-        const noteForCheckIn = trimmedNote
-          ? (wc <= 50 ? trimmedNote : trimmedNote.substring(0, 300) + "...")
-          : null;
-        await base44.entities.EmotionCheckIn.update(editingEntry.id, {
+        const noteFields = await checkInNoteFields(trimmedNote, {
+          journalEntryId: editingEntry.journal_entry_id || null,
+          title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+          at: now,
+        });
+        // editEmotionCheckIn reads the row fresh and writes only what the
+        // person changed since the modal opened (baseline), restamping
+        // is_distress from the feelings. The emotion_alters map and the
+        // company list are restated in full (empty clears them).
+        await editEmotionCheckIn(editingEntry.id, {
+          baseline: editingEntry,
           timestamp: now,
           emotions: selectedEmotions,
-          is_distress: emotionsAreDistressing(selectedEmotions, customEmotions),
-          fronting_alter_ids: selectedAlters,
-          // Always write the map on edit (empty object clears removed
-          // overrides — an edit is an explicit re-statement of the record).
+          customEmotions,
+          frontingAlterIds: selectedAlters,
           emotion_alters: resolvedEmotionAlters(),
-          note: noteForCheckIn,
-          journal_entry_id: journalEntryId,
-          // Like emotion_alters above: an edit is an explicit re-statement,
-          // so the company list is always written (empty clears it).
+          ...noteFields,
           contact_ids: selectedContactIds,
         });
         await recordAuthoredText({ ...preparedNote, alters, sourceType: "checkin", sourceId: editingEntry.id, sourceLabel: "Check-in note", navigatePath: `/checkin-log?id=${editingEntry.id}` });
         queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
-        // Propagate symptom changes attached to this check-in so
-        // edits actually reflect on the Timeline / Current symptoms
-        // panel. Compare draft against the originals we loaded; for
-        // each row in the draft, update an existing record or
-        // create a fresh one. Delete any originals the user removed.
+        // The symptoms attached to this check-in are restated: edited in
+        // place, removed ones to the trash, new ones logged with the link.
         try {
-          const existing = await base44.entities.SymptomCheckIn.filter({ check_in_id: editingEntry.id });
-          const existingBySymptomId = new Map((existing || []).map((r) => [r.symptom_id, r]));
-          const draftBySymptomId = new Map(symptomCheckIns.map((sc) => [sc.symptom_id, sc]));
-          for (const row of existing || []) {
-            if (!draftBySymptomId.has(row.symptom_id)) {
-              await base44.entities.SymptomCheckIn.delete(row.id);
-            } else {
-              const sc = draftBySymptomId.get(row.symptom_id);
-              await base44.entities.SymptomCheckIn.update(row.id, {
-                severity: sc.severity,
-                timestamp: now,
-                fronting_alter_ids: sc.alter_ids ?? selectedAlters,
-              });
-            }
-          }
-          for (const sc of symptomCheckIns) {
-            if (existingBySymptomId.has(sc.symptom_id)) continue;
-            await base44.entities.SymptomCheckIn.create({
-              symptom_id: sc.symptom_id,
-              severity: sc.severity,
-              timestamp: now,
-              fronting_alter_ids: sc.alter_ids ?? selectedAlters,
-              check_in_id: editingEntry.id,
-            });
-          }
+          await syncCheckInSymptoms(
+            editingEntry.id,
+            symptomCheckIns.map((sc) => ({ symptomId: sc.symptom_id, severity: sc.severity, frontingAlterIds: sc.alter_ids ?? selectedAlters })),
+            { timestamp: now, frontingAlterIds: selectedAlters },
+          );
         } catch (e) {
           // Non-fatal — the emotion edit still saved.
-           
           console.warn("Symptom edit propagation failed", e);
         }
         // Activities/diary/location added during edit are new records —

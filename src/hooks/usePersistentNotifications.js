@@ -31,6 +31,7 @@ import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT, frontNotifLabel } from "@
 import { useFrontLevels, getSessionLevel } from "@/lib/frontLevels";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
+import { endSymptomSession } from "@/lib/symptomSessions";
 import { setAppNotificationActionHandler } from "@/lib/nativeBootstrap";
 import { sharedList } from "@/lib/sharedLists";
 
@@ -90,7 +91,7 @@ export default function usePersistentNotifications() {
         await endAndLogActiveActivity(extra.id);
         qc.invalidateQueries({ queryKey: ["activities"] });
       } else if (actionId === "end_symptom" && extra.sessionId) {
-        await base44.entities.SymptomSession.update(extra.sessionId, { is_active: false, end_time: new Date().toISOString() });
+        await endSymptomSession(extra.sessionId);
         qc.invalidateQueries({ queryKey: ["symptomSessions"] });
       } else if (actionId === "tap" && extra.kind === "symptom" && extra.sessionId) {
         // Body tap on the symptom notification → open its severity/end

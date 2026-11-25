@@ -82,7 +82,7 @@ import { TIMELINE_LAYERS } from "@/lib/timelineLayers";
 import { useScopeAlterIds } from "@/v2/subjectScope";
 import { journalAuthorIds } from "@/lib/journalAuthors";
 import { endSymptomSessions } from "@/lib/symptomSessions";
-import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard, defaultAttributionIds } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard, defaultAttributionIds, deleteSymptomCheckIns } from "@/lib/checkinEntry";
 import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
@@ -2763,7 +2763,7 @@ function LogSymptomFullWidget({ api }) {
   const undo = async () => {
     if (!lastSaved) return;
     try {
-      for (const id of lastSaved.ids) await base44.entities.SymptomCheckIn.delete(id);
+      await deleteSymptomCheckIns(lastSaved.ids);
       qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       setLastSaved(null);
       toast.success(tr("widget.logSymptom.undone"));
@@ -2842,7 +2842,7 @@ function LogSymptomWidget({ settings }) {
     const entry = recent[symptom.id];
     if (!entry) return;
     try {
-      await base44.entities.SymptomCheckIn.delete(entry.id);
+      await deleteSymptomCheckIns([entry.id]);
       setRecent((prev) => { const n = { ...prev }; delete n[symptom.id]; return n; });
       qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success(tr("widget.logSymptom.undone"));

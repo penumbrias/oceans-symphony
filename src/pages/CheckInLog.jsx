@@ -1,5 +1,4 @@
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
-import { saveCheckInJournal } from "@/lib/journalEntry";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -27,9 +26,8 @@ import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { formatSeverityForSymptom } from "@/lib/trackingModel";
 import { useTerms } from "@/lib/useTerms";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { isLogCommandError } from "@/lib/authoredText";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
-import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import RichText from "@/components/shared/RichText";
 import { plainNoteText } from "@/lib/plainNote";
 import { useUiLook, usePixelDesk } from "@/lib/uiLook";
@@ -76,7 +74,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { saveStatusNote, updateStatusNote } from "@/lib/checkinEntry";
+import { saveStatusNote, updateStatusNote, editEmotionCheckInNote, deleteEmotionCheckIn, editSymptomCheckIn, deleteSymptomCheckIns, deleteLocation } from "@/lib/checkinEntry";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { clockPattern } from "@/lib/timeFormat";
 import { onColor } from "@/lib/contrast";
@@ -281,45 +279,22 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   const noteTerms = useTerms();
   const noteAlters = useMemo(() => Object.values(altersById || {}), [altersById]);
   const handleSaveNote = async () => {
-    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions.
-    let prepared;
-    try { prepared = await prepareAuthoredText(noteDraft || "", { alters: noteAlters, terms: noteTerms, surfaceLabel: "check-in note", baseAuthorIds: checkIn.fronting_alter_ids || [] }); }
-    catch (e) { if (isLogCommandError(e)) { toast.error(e.message); return; } throw e; }
-    if (prepared === null) return;
-    const signposted = parseSignpostAuthors(noteDraft || "", noteAlters, noteTerms?.system ? [noteTerms.system] : undefined).length > 0;
-    const next = prepared.content.trim();
+    // ONE pipeline for the note: ~commands, whispers, signposts, @mentions
+    // (editEmotionCheckInNote). Long notes keep living in a JournalEntry
+    // with a preview on the check-in, as the check-in's create path does.
     setSavingNote(true);
     try {
-      // Mirror the QuickCheckInModal create-path: long notes go in a
-      // JournalEntry, the EmotionCheckIn holds a 300-char preview +
-      // journal_entry_id. Keeps the two in sync when edited inline.
-      const wc = next ? next.split(/\s+/).filter(Boolean).length : 0;
-      let journalEntryId = checkIn.journal_entry_id || null;
-      if (next && wc > 50) {
-        journalEntryId = await saveCheckInJournal({
-          journalEntryId,
-          content: next,
-          title: `Check-in - ${format(ts, "P")}`,
-          at: checkIn.timestamp, // keeps the check-in's time
-        });
-      }
-      const noteForCheckIn = next
-        ? (wc <= 50 ? next : next.substring(0, 300) + "...")
-        : null;
-      await base44.entities.EmotionCheckIn.update(checkIn.id, {
-        note: noteForCheckIn,
-        journal_entry_id: journalEntryId,
-        author_alter_ids: prepared.authorIds,
-        ...(signposted ? { fronting_alter_ids: prepared.authorIds } : {}),
+      const saved = await editEmotionCheckInNote(checkIn, noteDraft || "", {
+        alters: noteAlters, terms: noteTerms,
+        title: `Check-in - ${format(ts, "P")}`,
+        navigatePath: `/checkin-log?date=${format(ts, "yyyy-MM-dd")}`,
       });
-      if (next) {
-        await recordAuthoredText({ ...prepared, alters: noteAlters, sourceType: "checkin", sourceId: checkIn.id, sourceLabel: "Check-in note", navigatePath: `/checkin-log?date=${format(ts, "yyyy-MM-dd")}` });
-      }
+      if (saved === null) return; // backed out of the whisper warning
       queryClientForNote.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-      queryClientForNote.invalidateQueries({ queryKey: ["journalEntry", journalEntryId] });
+      queryClientForNote.invalidateQueries({ queryKey: ["journalEntry", saved?.journal_entry_id || null] });
       queryClientForNote.invalidateQueries({ queryKey: ["journalEntries"] });
       setEditingNote(false);
-    } catch (e) { toast.error(e.message || "Failed to save"); }
+    } catch (e) { toast.error(isLogCommandError(e) ? e.message : (e.message || "Failed to save")); }
     finally { setSavingNote(false); }
   };
 
@@ -958,14 +933,14 @@ function SymptomUpdateEntry({ sc, symptomsById }) {
 
   const handleDelete = () => deleteWithUndo({
     label: "Symptom entry deleted",
-    run: () => base44.entities.SymptomCheckIn.delete(sc.id),
+    run: () => deleteSymptomCheckIns([sc.id]),
     refresh: invalidateAll,
   });
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await base44.entities.SymptomCheckIn.update(sc.id, { severity });
+      await editSymptomCheckIn(sc.id, { severity });
       invalidateAll();
       setEditing(false);
     } catch (e) { toast.error(e.message || "Failed to save"); }
@@ -1038,7 +1013,7 @@ function LocationEntry({ loc }) {
   const meta = getCategoryMeta(loc.category);
   const handleDelete = () => deleteWithUndo({
     label: "Location deleted",
-    run: () => localEntities.Location.delete(loc.id),
+    run: () => deleteLocation(loc.id),
     refresh: () => {
       qc.invalidateQueries({ queryKey: ["locations"] });
       qc.invalidateQueries({ queryKey: ["timeline"] });
@@ -2132,19 +2107,9 @@ export default function CheckInLog() {
       queryClient.invalidateQueries({ queryKey: ["timeline"] });
       queryClient.invalidateQueries({ queryKey: ["currentSymptoms"] });
     },
-    run: async () => {
-    // Cascade: also remove any SymptomCheckIns logged alongside this
-    // check-in so the symptom doesn't outlive the parent on the
-    // timeline. (Bug report: deleting a check-in left "emotional
-    // hangover" / "rapid switching" symptoms stuck on the timeline.)
-    try {
-      const linkedSymptoms = await base44.entities.SymptomCheckIn.filter({ check_in_id: checkInId });
-      for (const row of linkedSymptoms || []) {
-        await base44.entities.SymptomCheckIn.delete(row.id);
-      }
-    } catch { /* non-fatal */ }
-    await base44.entities.EmotionCheckIn.delete(checkInId);
-    },
+    // The check-in and the symptoms logged with it share one trash batch,
+    // so Undo brings both back (deleteEmotionCheckIn).
+    run: () => deleteEmotionCheckIn(checkInId),
   });
 
   const handleEdit = (ci) => setEditingCheckIn(ci);
