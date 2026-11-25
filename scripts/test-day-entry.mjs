@@ -338,6 +338,9 @@ test("reassign validates times and refuses to double-count someone", async () =>
   await assert.rejects(F.reassignFrontSession({ session: s, toAlterId: "B", start: T(10), end: T(9) }), /after the start/);
   await assert.rejects(F.reassignFrontSession({ session: s, toAlterId: "A" }), /already is/);
   await assert.rejects(F.reassignFrontSession({ session: s }), /Pick who/);
+  const live = await h.E.FrontingSession.create({ alter_id: "C", start_time: new Date(Date.now() - 3600e3).toISOString(), end_time: null, is_active: true });
+  await assert.rejects(F.reassignFrontSession({ session: live, toAlterId: "D", start: new Date(Date.now() + 3600e3).toISOString() }), /in the future/);
+  assert.equal((await h.E.FrontingSession.get(live.id)).is_active, true, "a refused change leaves the live front alone");
   await h.E.FrontingSession.create({ alter_id: "B", start_time: T(11), end_time: T(13), is_active: false });
   await assert.rejects(F.reassignFrontSession({ session: s, toAlterId: "B", start: T(10) }), /already have fronting/);
   assert.equal((await h.E.FrontingSession.get(s.id)).end_time, T(12), "a refused change writes nothing");

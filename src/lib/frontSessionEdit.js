@@ -279,6 +279,7 @@ export async function reassignFrontSession({
   let bMs = end ? ms(end) : endMs;
   if (Number.isNaN(aMs) || (bMs != null && Number.isNaN(bMs))) throw new SessionEditError("Pick a time.");
   if (aMs < startMs) throw new SessionEditError("Pick a start inside the session.");
+  if (aMs > Date.now() + 60000) throw new SessionEditError("Pick a start that isn't in the future.");
   if (endMs != null && bMs > endMs) throw new SessionEditError("Pick an end inside the session.");
   if (bMs != null && bMs <= aMs) throw new SessionEditError("The end has to be after the start.");
   if (endMs == null && !fresh.is_active && bMs == null) throw new SessionEditError("Pick an end.");
