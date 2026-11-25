@@ -78,9 +78,15 @@
 [data-house] .hk-lane-item[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--house-text); z-index: 3; }
 [data-house] .hk-lane-item-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-[data-house] .hk-lanes-allday .hk-lanes-track { border-bottom: 2px dotted var(--house-accent); }
+/* All-day items sit side by side in the track (two events on one day
+   used to land on top of each other at the left edge). */
+[data-house] .hk-lanes-allday .hk-lanes-track {
+  border-bottom: 2px dotted var(--house-accent);
+  display: flex; align-items: stretch; gap: var(--house-space-2); overflow: hidden;
+}
 [data-house] .hk-lanes-alldayitem {
-  position: absolute; left: 0; top: 0; bottom: 0; border: 0; background: transparent; padding: 0 var(--house-space-1);
+  position: relative; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 0; background: transparent; padding: 0 var(--house-space-1);
   color: var(--house-accent-text); font-size: var(--house-text-xs); cursor: pointer;
 }
 [data-house] .hk-lanes-empty { margin: var(--house-space-3); color: var(--house-muted); }

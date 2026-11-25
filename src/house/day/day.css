@@ -1,0 +1,67 @@
+/* The layered timeline's shared parts (DayParts.jsx, DaySheets.jsx):
+   boards 01-Main, 08-Phone, 09-TimelineOptions and 10-Inspector.
+   Drawn by the Home room's timeline dock and by the Timeline room.
+   House tokens only; every class is hd-. */
+
+[data-house] .hd-panel { min-width: 0; }
+[data-house] .hd-timeline { margin: 0; }
+[data-house] .hd-timeline-body { padding: 0; overflow-y: auto; }
+
+/* The title bar stays slim: its tools share the title's one line. */
+[data-house] .hd-timeline .hk-panel-head { min-height: var(--house-px-title-h, var(--house-h-control)); }
+[data-house] .hd-tl-tools { display: inline-flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; justify-content: flex-end; }
+[data-house] .hd-tl-tools .hk-field { margin: 0; }
+[data-house] .hd-tl-tools .hk-btn,
+[data-house] .hd-tl-tools .hk-seg-opt { min-height: 1.375rem; height: 1.375rem; padding: 0 var(--house-space-2); }
+[data-house] .hd-tl-tools .hk-iconbtn { width: 1.375rem; min-width: 1.375rem; height: 1.375rem; min-height: 1.375rem; }
+@media (pointer: coarse) {
+  [data-house] .hd-tl-tools .hk-iconbtn { width: 2rem; min-width: 2rem; height: 2rem; min-height: 2rem; }
+  [data-house] .hd-tl-tools .hk-btn,
+  [data-house] .hd-tl-tools .hk-seg-opt { height: 2rem; min-height: 2rem; }
+}
+[data-house] .hd-tl-date { font-family: var(--house-font-value); white-space: nowrap; }
+[data-house] .hd-tl-empty { margin: var(--house-space-2) var(--house-space-3); }
+
+[data-house] .hd-hint { margin: var(--house-space-2) 0 0; color: var(--house-muted); font-size: var(--house-text-xs); line-height: var(--house-lh-sm); }
+[data-house] .hd-muted { color: var(--house-muted); }
+[data-house] .hd-p { margin: 0 0 var(--house-space-2); line-height: var(--house-lh-md); }
+[data-house] .hd-label { margin: var(--house-space-2) 0 var(--house-space-1); font-size: var(--house-px-label, var(--house-text-sm)); }
+[data-house] .hd-swatch { display: inline-block; flex: 0 0 auto; width: 0.75rem; height: 0.75rem; background: var(--hd-c); border: 1px solid var(--house-outline); }
+
+[data-house] .hd-actions { display: flex; gap: var(--house-space-2); margin-top: var(--house-space-2); }
+[data-house] .hd-wrap { flex-wrap: wrap; }
+[data-house] .hd-stack { display: flex; flex-direction: column; gap: var(--house-space-2); }
+[data-house] .hd-form { display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hd-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--house-space-2); }
+[data-house] .hd-who { display: flex; flex-direction: column; gap: var(--house-space-1); }
+[data-house] .hd-chips { display: flex; flex-wrap: wrap; gap: var(--house-space-1); }
+
+/* Info, as board 01 draws it: the label on the left, the value on the
+   right, one line each while they fit. The panel's title names the thing. */
+[data-house] .hd-info .hk-info-head,
+[data-house] .hd-info .hk-info-section-title { display: none; }
+[data-house] .hd-info .hk-formrow {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--house-space-3);
+  min-height: var(--house-h-row); padding: 2px 0; border: 0;
+}
+[data-house] .hd-info .hk-formrow-label { color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; font-size: var(--house-text-sm); }
+[data-house] .hd-info .hk-formrow-value { text-align: right; font-size: var(--house-text-sm); overflow-wrap: anywhere; }
+[data-house] .hd-info .hk-formrow > span:empty { display: none; }
+[data-house] .hd-info-more { display: flex; justify-content: flex-end; margin-top: var(--house-space-1); }
+
+/* Layers in a narrow side column: one line per layer. */
+[data-house] .hd-layers .hk-layer,
+[data-house] .hd-opt-layers .hk-layer { flex-wrap: nowrap; min-height: var(--house-h-row); }
+[data-house] .hd-layers .hk-layer-name,
+[data-house] .hd-opt-layers .hk-layer-name { flex: 1 1 auto; min-width: 0; }
+[data-house] .hd-layers .hk-layer .hk-iconbtn { width: 1.75rem; min-width: 1.75rem; height: 1.75rem; min-height: 1.75rem; }
+@media (pointer: coarse) { [data-house] .hd-layers .hk-layer .hk-iconbtn { width: var(--house-target); height: var(--house-target); } }
+
+/* Options (board 09): Show and Whose, then the layers, then Reset. */
+[data-house] .hd-opt-tab { display: flex; flex-direction: column; gap: var(--house-space-3); padding-top: var(--house-space-3); }
+[data-house] .hd-opt-row { display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-3); flex-wrap: wrap; }
+[data-house] .hd-opt-row > :last-child { flex: 0 1 auto; min-width: 0; }
+[data-house] .hd-opt-label { flex: 0 0 auto; }
+[data-house] .hd-opt-head { display: flex; justify-content: space-between; gap: var(--house-space-2); border-bottom: 1px solid var(--house-outline); padding-bottom: var(--house-space-1); }
+[data-house] .hd-opt-foot { display: flex; justify-content: flex-end; border-top: 1px solid var(--house-outline); padding-top: var(--house-space-2); }
+[data-house] .hd-split-level { margin-top: var(--house-space-2); }
