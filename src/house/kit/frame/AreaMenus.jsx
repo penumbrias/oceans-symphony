@@ -15,7 +15,7 @@
 //   <AreaMenus groups={navAreaGroups(terms)} currentPath={pathname}
 //     onGo={(path) => navigate(path)} onNewTab={(path) => openInTab(path)} />
 
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import HouseIcon from "@/house/tokens/HouseIcon";
 import "@/house/kit/frame/frameKit.css";
@@ -36,6 +36,22 @@ function AreaMenu({ group, open, onOpen, onClose, currentPath, onGo, onNewTab, a
   const menuId = useId();
   const popRef = useRef(null);
   const nameRef = useRef(null);
+  const areaRef = useRef(null);
+  // The list hangs from the area in the window's own layer (fixed), so a
+  // bar that clips its overflow (the header wave) never cuts it off.
+  const [at, setAt] = useState(null);
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const place = () => {
+      const r = areaRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const w = popRef.current?.offsetWidth || 0;
+      setAt({ top: r.bottom, left: Math.max(4, Math.min(r.left, window.innerWidth - w - 4)) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open]);
   const [newTabMode, setNewTabMode] = useState(false);
   const keys = useMemo(() => menuKeys(group.items), [group.items]);
   const first = group.items.find((it) => it.path);
@@ -65,7 +81,7 @@ function AreaMenu({ group, open, onOpen, onClose, currentPath, onGo, onNewTab, a
   };
 
   return (
-    <div className="hk-area" data-active={active || undefined} data-open={open || undefined}
+    <div ref={areaRef} className="hk-area" data-active={active || undefined} data-open={open || undefined}
       onMouseEnter={(e) => { if (e.nativeEvent?.pointerType !== "touch") onOpen(false); }}
       onMouseLeave={() => onClose(true)}>
       <button ref={nameRef} type="button" className="hk-area-name"
@@ -86,7 +102,8 @@ function AreaMenu({ group, open, onOpen, onClose, currentPath, onGo, onNewTab, a
         <ChevronDown aria-hidden="true" />
       </button>
       {open ? (
-        <div ref={popRef} id={menuId} className="hk-area-menu" role="menu" aria-label={group.label} onKeyDown={onMenuKey}>
+        <div ref={popRef} id={menuId} className="hk-area-menu" role="menu" aria-label={group.label} onKeyDown={onMenuKey}
+          style={at ? { position: "fixed", top: at.top, left: at.left } : undefined}>
           {group.items.map((it) => (
             <div key={it.id} className="hk-area-row" data-current={isActive(it.path, currentPath) || undefined}>
               <button type="button" role="menuitem" tabIndex={-1} className="hk-area-item"

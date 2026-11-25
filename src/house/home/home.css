@@ -104,3 +104,28 @@
 [data-house].hh--phone { overflow-y: auto; overscroll-behavior: contain; padding-bottom: var(--house-space-4); }
 [data-house] .hh-phone-tabs { padding: var(--house-space-2) var(--house-space-3) 0; }
 [data-house] .hh-stack { display: flex; flex-direction: column; gap: var(--house-space-3); padding: var(--house-space-3); }
+
+/* Layers in the narrow side column: one line per layer. */
+[data-house] .hh-layers .hk-layer { flex-wrap: nowrap; min-height: var(--house-h-row); }
+[data-house] .hh-layers .hk-layer-name { flex: 1 1 auto; }
+[data-house] .hh-layers .hk-layer .hk-iconbtn { width: 1.75rem; min-width: 1.75rem; height: 1.75rem; min-height: 1.75rem; }
+@media (pointer: coarse) { [data-house] .hh-layers .hk-layer .hk-iconbtn { width: var(--house-target); height: var(--house-target); } }
+/* The timeline's tools stay on the title bar's one line. */
+[data-house] .hh-timeline .hk-panel-head { min-height: var(--house-px-title-h, var(--house-h-control)); }
+[data-house] .hh-tl-tools .hk-btn,
+[data-house] .hh-tl-tools .hk-seg-opt { min-height: 1.375rem; height: 1.375rem; padding: 0 var(--house-space-2); }
+/* Info, as board 01 draws it: the label on the left, the value on the
+   right, one line each while they fit. */
+[data-house] .hh-info .hk-info-section-title { display: none; }
+[data-house] .hh-info .hk-formrow {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--house-space-3);
+  min-height: var(--house-h-row); padding: 2px 0; border: 0;
+}
+[data-house] .hh-info .hk-formrow-label { color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; font-size: var(--house-text-sm); }
+[data-house] .hh-info .hk-formrow-value { text-align: right; font-size: var(--house-text-sm); }
+[data-house] .hh-info .hk-formrow > span:empty { display: none; }
+/* Who's in front: the name and since-when on one line, as on the boards. */
+[data-house] .hh-front .hk-row-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); }
+[data-house] .hh-front .hk-row-title { font-weight: 700; }
+[data-house].hh--phone .hh-front .hh-list { flex-direction: row; flex-wrap: wrap; gap: var(--house-space-3); }
+[data-house].hh--phone .hh-front .hk-row-text { flex-direction: column; gap: 0; }

@@ -7,7 +7,8 @@
   position: relative; display: flex; flex-direction: column; min-width: 0;
   font-size: var(--house-text-sm);
 }
-[data-house] .hk-lanes[data-compact] { --hk-lanes-gutter: 3.25rem; --hk-lanes-row: max(20px, 1.25rem); }
+[data-house] .hk-lanes[data-compact] { --hk-lanes-gutter: 3.75rem; --hk-lanes-row: max(22px, 1.375rem); }
+[data-house] .hk-lanes[data-compact] .hk-lanes-swatch { display: none; }
 
 [data-house] .hk-lanes-ruler,
 [data-house] .hk-lanes-row { display: flex; align-items: stretch; min-height: var(--hk-lanes-row); }

@@ -236,7 +236,7 @@ function PlannerPanel({ items, onSelect, selected, categories, title = "From Pla
         </ul>
       ) : (
         <EmptyBlock compact title="Nothing planned for today" body="Plans and dates for today show here, with Start and Resolve."
-          action={<Button rank="secondary" onClick={() => navigate("/?action=quick-thing")}>Plan something</Button>} />
+          action={{ label: "Plan something", rank: "secondary", onClick: () => navigate("/?action=quick-thing") }} />
       )}
     </Panel>
   );
@@ -294,7 +294,7 @@ function RoutinesPanel({ templates, progress }) {
         </ul>
       ) : (
         <EmptyBlock compact title="No routines yet" body="Small things to do each day, ticked by hand or by themselves."
-          action={<Button rank="secondary" onClick={() => navigate("/tasks")}>Set up routines</Button>} />
+          action={{ label: "Set up routines", rank: "secondary", onClick: () => navigate("/tasks") }} />
       )}
     </Panel>
   );
@@ -312,7 +312,7 @@ function BlobSprite() {
   );
 }
 
-function GuidePanel({ guide, compact }) {
+function GuidePanel({ guide, compact, fresh }) {
   const terms = useTerms();
   const run = useInvalidatePlans();
   const [busy, setBusy] = useState(null);
@@ -329,7 +329,9 @@ function GuidePanel({ guide, compact }) {
   const name = ask?.activity?.activity_name || ask?.title;
   const line = ask
     ? `${name} didn't get ticked off. Did it happen?`
-    : `Hi again! How's everyone doing? When something wants your attention, I'll ask about it here, one thing at a time.`;
+    : fresh
+      ? `Hi, I'm Penumblob. When something wants your attention, I'll ask about it here, one thing at a time. Start by saying who's ${terms.fronting}.`
+      : `Hi again! How's everyone doing? When something wants your attention, I'll ask about it here, one thing at a time.`;
   return (
     <Panel title="Guide: Penumblob" className="hh-panel hh-guide">
       <div className="hh-guide-body" data-compact={compact || undefined}>
@@ -471,7 +473,7 @@ function TimelineDock({ data, prefs, dayOffset, setDayOffset, selected, onSelect
             onChange={(v) => { if (v === "week") navigate("/planner"); }} />
           <span className="hh-value">{dayWords(data.day)}</span>
           <Button rank="quiet" onClick={() => setDayOffset((d) => d - 1)} aria-label="The day before">‹</Button>
-          <Button rank="quiet" onClick={() => setDayOffset(0)} disabledReason={isToday ? "Already showing today" : undefined}>Now</Button>
+          <Button rank="quiet" aria-pressed={isToday} onClick={() => setDayOffset(0)}>Now</Button>
           <Button rank="quiet" onClick={() => setDayOffset((d) => d + 1)} aria-label="The day after">›</Button>
         </span>
       )}>
@@ -524,7 +526,10 @@ export default function HouseHome({ size = "full", tokens, onSetFront, lead = nu
 
   // Info shows the next thing to start when nothing is picked (board 01).
   const next = data.planItems.find((p) => p.kind === "next") || data.planItems.find((p) => p.activity);
-  const shown = pick || (next?.activity ? { key: next.activity.id, label: next.title, ref: { type: "activity", id: next.activity.id, record: next.activity } } : null);
+  const firstFront = data.lanes.groups.find((g) => g.id === "fronting")?.rows.flatMap((r) => r.items).find((it) => !it.end);
+  const shown = pick
+    || (next?.activity ? { key: next.activity.id, label: next.title, ref: { type: "activity", id: next.activity.id, record: next.activity } } : null)
+    || (firstFront ? { key: firstFront.key, label: firstFront.label, ref: firstFront.ref } : null);
   const select = (p) => setPick(p);
   const guide = guideItem(data.planItems);
   const categories = data.src.categories || [];
@@ -540,11 +545,11 @@ export default function HouseHome({ size = "full", tokens, onSetFront, lead = nu
   };
   const pageTabs = <PageTabs label="Pages of Home" tabs={tabs} value={page} onChange={setPage} idPrefix="hh-pages" />;
   const panels = {
-    front: <FrontPanel key="front" onSetFront={onSetFront} onSelect={select} selected={shown?.key} compact={phone} />,
+    front: <FrontPanel key="front" onSetFront={onSetFront} onSelect={phone ? null : select} selected={shown?.key} compact={phone} />,
     status: <StatusPanel key="status" notes={data.src.statusNotes} compact={phone} />,
     planner: <PlannerPanel key="planner" items={data.planItems} onSelect={select} selected={shown?.key} categories={categories} title={phone ? "Coming up" : "From Planner"} />,
     routines: <RoutinesPanel key="routines" templates={templates} progress={progress} />,
-    guide: <GuidePanel key="guide" guide={guide} compact={phone} />,
+    guide: <GuidePanel key="guide" guide={guide} compact={phone} fresh={!(data.src.sessions || []).length && !(data.src.statusNotes || []).length} />,
   };
 
   if (phone) {
