@@ -91,10 +91,10 @@
   align-self: stretch; margin: 0; padding: var(--house-space-2) var(--house-space-3); text-align: left;
   background: var(--house-page); box-shadow: var(--house-px-sink, none); line-height: var(--house-lh-md);
 }
-[data-house] .hh-blob { width: 4rem; height: 4rem; flex: 0 0 auto; image-rendering: pixelated; cursor: pointer; }
+[data-house] .hh-blob { width: 6.5rem; height: 6.5rem; flex: 0 0 auto; padding: 0.375rem; }
 [data-house] .hh-guide-body[data-compact] { flex-direction: row-reverse; flex-wrap: wrap; align-items: center; text-align: left; }
 [data-house] .hh-guide-body[data-compact] .hh-guide-line { flex: 1 1 10rem; align-self: auto; }
-[data-house] .hh-guide-body[data-compact] .hh-blob { width: 3rem; height: 3rem; }
+[data-house] .hh-guide-body[data-compact] .hh-blob { width: 4.5rem; height: 4.5rem; }
 [data-house] .hh-guide-body[data-compact] .hh-guide-actions { flex-basis: 100%; }
 [data-house] .hh-guide-actions { justify-content: center; flex-wrap: wrap; }
 

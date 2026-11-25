@@ -113,7 +113,7 @@ export default function PixelHelpPanel({ open, onClose }) {
   return (
     <aside className="px-help" aria-label="How this page works">
       <div className="px-help-ttl">
-        <span className="flex items-center gap-2"><Penumblob size={20} cue={open ? pathname : null} /> How this page works</span>
+        <span className="flex items-center gap-2"><Penumblob size={28} cue={open ? pathname : null} /> How this page works</span>
         <button type="button" className="px-help-x" onClick={onClose} aria-label="Close how this page works">
           <X className="w-3.5 h-3.5" />
         </button>

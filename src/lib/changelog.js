@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 25, 2026",
     changes: [
+      { type: "improve", text: "Choosing Unsure for front now goes straight to noting a colour, vibe or note for how it feels, with a \"Just clear front\" button for when you'd rather not." },
+      { type: "improve", text: "Penumblob is bigger and sits on a small light tile so they show up on dark themes." },
+      { type: "improve", text: "The pixel look's default colours now follow Penumblob's deep-sea blues, with an ocean teal for buttons." },
       { type: "improve", text: "Penumblob is now the guide on the Tour, \"Show me around\" and each page's help, too." },
       { type: "improve", text: "New house: every panel's title bar is the same slim height, even with a button in it." },
       { type: "improve", text: "New house: Penumblob now has their real sprite, and only waves when there's something new to say or you tap them." },

@@ -1994,7 +1994,7 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
             {/* Header */}
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <div className="flex items-center gap-2">
-                <Penumblob size={36} cue={step === 0 ? "start" : null} />
+                <Penumblob size={48} cue={step === 0 ? "start" : null} />
                 <div>
                   <p className="font-semibold text-sm text-foreground leading-tight">{current.title}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">

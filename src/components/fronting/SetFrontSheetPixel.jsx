@@ -87,7 +87,7 @@ export default function SetFrontSheetPixel(p) {
   const {
     terms, formatAlter, levelCfg, sorter,
     tab, setTab, viewMode, setViewMode, search, setSearch,
-    draft, altersById, isUnsure, setIsUnsure, primaryId,
+    draft, altersById, isUnsure, setIsUnsure, presenceBody, primaryId,
     addList, activeAlters, groups, draftIds,
     onClose, onSave, saving,
     togglePrimary, setLevel, removeAlter, guardedAdd, guardedToggleFromView, setMany,
@@ -132,7 +132,7 @@ export default function SetFrontSheetPixel(p) {
 
       <div className="psh-body">
         {tab === "presence" ? (
-          <PresencePicker onClose={onClose} />
+          presenceBody || <PresencePicker onClose={onClose} />
         ) : (
           <>
             {viewMode !== "tree" && (

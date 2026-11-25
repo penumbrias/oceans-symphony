@@ -377,6 +377,33 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
 
   const primaryId = draft.find((d) => d.isPrimary)?.alterId || "";
 
+  // Unsure goes straight to "how does it feel?" (owner, 2026-11-25): a
+  // colour, vibe or note saved as a presence, and the front is cleared with
+  // it. "Just clear" keeps the plain clear with none of the extras.
+  const chooseUnsure = (on) => {
+    const next = typeof on === "function" ? on(isUnsure) : on;
+    setIsUnsure(next);
+    setTab(next ? "presence" : "fronters");
+  };
+  const unsureIntro = isUnsure ? (
+    <div className="mb-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5 space-y-2" data-unsure-intro>
+      <p className="text-sm">
+        Not sure who's in {terms.front}? Note a colour, vibe or a few words for how it feels. Saving it also clears the {terms.front}.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : `Just clear ${terms.front}`}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => chooseUnsure(false)}>
+          {`Back to ${terms.fronters}`}
+        </Button>
+      </div>
+    </div>
+  ) : null;
+  const presenceBody = isUnsure
+    ? <PresencePicker onClose={onClose} onSaved={handleSave} intro={unsureIntro} />
+    : <PresencePicker onClose={onClose} />;
+
   // The pixel look draws the "Set front" board around the same state and
   // handlers (SetFrontSheetPixel) — the save still goes through handleSave.
   const pixelBody = pixel ? (
@@ -384,7 +411,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
       terms={terms} formatAlter={formatAlter} levelCfg={levelCfg} sorter={sorter}
       tab={tab} setTab={setTab} viewMode={viewMode} setViewMode={setViewMode}
       search={search} setSearch={setSearch}
-      draft={draft} altersById={altersById} isUnsure={isUnsure} setIsUnsure={setIsUnsure} primaryId={primaryId}
+      draft={draft} altersById={altersById} isUnsure={isUnsure} setIsUnsure={chooseUnsure} presenceBody={presenceBody} primaryId={primaryId}
       addList={addList} activeAlters={activeAlters} groups={groups} draftIds={draftIds}
       onClose={onClose} onSave={handleSave} saving={saving}
       togglePrimary={togglePrimary} setLevel={setLevel} removeAlter={removeAlter}
@@ -443,7 +470,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
           </div>
 
           {tab === "presence" ? (
-            <PresencePicker onClose={onClose} />
+            presenceBody
           ) : (
             <>
               {/* The draft — who this save will make the front */}
@@ -572,7 +599,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="gap-1.5"
                     aria-pressed={isUnsure}
-                    onClick={() => setIsUnsure((v) => !v)}>
+                    onClick={() => chooseUnsure((v) => !v)}>
                     <HelpCircle className="w-3.5 h-3.5" /> {isUnsure ? "Not unsure" : "Unsure"}
                   </Button>
                   <Button className="flex-1" onClick={handleSave} disabled={saving}>

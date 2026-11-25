@@ -18,8 +18,9 @@ export function sightingsOf(p) {
 // Used inside SetFrontModal's "New presence" tab. Lets the user PICK an
 // already-recorded presence (logs another sighting — that's how reoccurrence
 // is sourced) OR record a brand-new one. Falls straight to the form when none
-// exist yet.
-export default function PresencePicker({ onClose }) {
+// exist yet. `onSaved` (defaults to onClose) runs after a sighting or a new
+// presence is saved; Cancel only ever calls onClose. `intro` sits on top.
+export default function PresencePicker({ onClose, onSaved = onClose, intro = null }) {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const { data: presences = [] } = useQuery({
@@ -33,7 +34,7 @@ export default function PresencePicker({ onClose }) {
       await base44.entities.Presence.update(p.id, { sightings, timestamp: now });
       qc.invalidateQueries({ queryKey: ["presences"] });
       toast.success(`Noted — ${p.label || p.vibe || "presence"} sensed again`);
-      onClose?.();
+      onSaved?.();
     } catch (e) {
       toast.error(e.message || "Couldn't log that");
     }
@@ -42,18 +43,20 @@ export default function PresencePicker({ onClose }) {
   if (creating || presences.length === 0) {
     return (
       <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+        {intro}
         {presences.length > 0 && (
           <button onClick={() => setCreating(false)} className="text-xs text-primary hover:text-primary/80 mb-2">
             ← Back to recorded presences
           </button>
         )}
-        <PresenceForm onSaved={onClose} onCancel={presences.length ? () => setCreating(false) : onClose} />
+        <PresenceForm onSaved={onSaved} onCancel={presences.length ? () => setCreating(false) : onClose} />
       </div>
     );
   }
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-2">
+      {intro}
       <p className="text-xs text-muted-foreground">
         Sensing one you've recorded before? Tap it to note it's here again. Otherwise record a new one.
       </p>

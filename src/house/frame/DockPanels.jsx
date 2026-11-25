@@ -126,7 +126,7 @@ function HelpTab({ active }) {
   return (
     <div className="hf-help">
       <div className="hf-help-guide">
-        <Penumblob size={32} cue={active ? pathname : null} />
+        <Penumblob size={48} cue={active ? pathname : null} />
         <p className="hf-help-guide-line">{"Here's how this page works. Ask me to show you around, one part at a time."}</p>
       </div>
       {!steps ? <LoadingBlock label="Loading this page's help" rows={3} /> : null}

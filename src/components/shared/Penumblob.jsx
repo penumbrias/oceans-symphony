@@ -15,7 +15,7 @@ function reducedMotion() {
 
 // `size` (px or any CSS length) sets the drawn size; leave it off to size it
 // from a class instead.
-export default function Penumblob({ cue = null, size, className = "", style }) {
+export default function Penumblob({ cue = null, size, backdrop = true, className = "", style }) {
   const [waving, setWaving] = useState(false);
   const wave = () => { if (!reducedMotion()) setWaving(true); };
   useEffect(() => { if (cue != null) wave(); }, [cue]);
@@ -25,7 +25,7 @@ export default function Penumblob({ cue = null, size, className = "", style }) {
     return () => clearTimeout(t);
   }, [waving]);
   // A tap is a small hello, not an action, so the sprite stays a picture.
-  return (
+  const img = (
     <img
       src={waving ? penumblobWave : penumblobStill}
       alt=""
@@ -33,8 +33,26 @@ export default function Penumblob({ cue = null, size, className = "", style }) {
       height={32}
       draggable={false}
       onPointerDown={wave}
-      className={className}
-      style={{ imageRendering: "pixelated", flexShrink: 0, cursor: "pointer", ...(size != null ? { width: size, height: size } : null), ...style }}
+      className={backdrop ? "" : className}
+      style={{ imageRendering: "pixelated", flexShrink: 0, cursor: "pointer", display: "block", ...(size != null ? { width: size, height: size } : { width: "100%", height: "100%" }), ...(backdrop ? null : style) }}
     />
+  );
+  if (!backdrop) return img;
+  // The backdrop: a small light, bevelled pixel tile, so the navy blob reads
+  // on dark themes as well as light ones.
+  return (
+    <span
+      className={`penumblob-tile ${className}`}
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        padding: "0.25em", lineHeight: 0,
+        background: "radial-gradient(circle at 50% 45%, #eef1ff 0%, #c9d0f2 62%, #aab3e0 100%)",
+        border: "2px solid #1b1d33",
+        boxShadow: "inset 2px 2px 0 #ffffff, inset -2px -2px 0 #8f98c8",
+        ...style,
+      }}
+    >
+      {img}
+    </span>
   );
 }
