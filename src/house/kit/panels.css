@@ -120,6 +120,7 @@
 [data-house] .hk-layer[data-hidden="true"] .hk-layer-name > span:first-child { text-decoration: line-through; text-decoration-style: dashed; }
 [data-house] .hk-layer-name { flex: 1 1 8rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); overflow-wrap: break-word; }
 [data-house] .hk-layer-state { font-size: var(--house-text-sm); font-style: italic; }
+[data-house] .hk-layer-meta { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--house-muted); font-size: var(--house-text-xs); }
 /* At 200% text on a phone the move buttons drop under the name rather than run off the side. */
 [data-house] .hk-layer-moves { display: inline-flex; flex-shrink: 0; margin-left: auto; }
 [data-house] .hk-layer-lead { display: inline-flex; flex-shrink: 0; }

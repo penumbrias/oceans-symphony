@@ -182,21 +182,34 @@ export function DayTimelinePanel({ tl, selected, onSelect, onOptions, onAdd, ran
     ? `Nothing of ${tl.nameOf(tl.whose)}'s here yet. Pick "Everyone" in Options to see the whole ${tl.terms.system}.`
     : `Nothing here yet. Check-ins, plans and who's ${tl.terms.fronting} show up as they happen.`;
   const label = `${tl.words}, layer by layer${tl.whose ? `, ${tl.nameOf(tl.whose)} only` : ""}`;
+  const show = <Segmented label="Show" options={ranges.map((r) => ({ value: r, label: labels[r] }))} value={ranges.includes(tl.range) ? tl.range : ranges[0]}
+    onChange={(v) => tl.setRange(v)} />;
+  const stepper = (
+    <>
+      <Button rank="quiet" className="hd-tl-date" onClick={() => setGoOpen(true)} aria-label={`${tl.words}: go to a day`}>{tl.words}</Button>
+      <IconButton icon={ChevronLeft} label={tl.range === "week" ? "The week before" : tl.range === "hours6" ? "Six hours before" : "The day before"} onClick={() => tl.step(-1)} />
+      <Button rank="quiet" aria-pressed={tl.isNow} onClick={tl.goNow}>Now</Button>
+      <IconButton icon={ChevronRight} label={tl.range === "week" ? "The week after" : tl.range === "hours6" ? "Six hours after" : "The day after"} onClick={() => tl.step(1)} />
+    </>
+  );
+  const acts = (
+    <>
+      {onAdd ? <IconButton icon={Plus} label="Add something you missed" onClick={onAdd} data-tour="timeline-add" /> : null}
+      {onOptions ? <IconButton icon={SlidersHorizontal} label="Options for the timeline" onClick={onOptions} data-tour="timeline-options" /> : null}
+    </>
+  );
+  // A phone keeps the title bar slim: Add and Options there, the range and
+  // the date on one line under it.
+  const ticks = compact && tl.range !== "week"
+    ? tl.ticks.filter((t) => t.at.getHours() % (tl.range === "day" ? 6 : 2) === 0)
+    : tl.ticks;
   return (
     <Panel title={title} className={`hd-panel hd-timeline ${className}`} bodyClassName={`hd-timeline-body ${bodyClassName}`}
-      tools={(
-        <span className="hd-tl-tools" data-tour="timeline-jump">
-          <Segmented label="Show" options={ranges.map((r) => ({ value: r, label: labels[r] }))} value={ranges.includes(tl.range) ? tl.range : ranges[0]}
-            onChange={(v) => tl.setRange(v)} />
-          <Button rank="quiet" className="hd-tl-date" onClick={() => setGoOpen(true)} aria-label={`${tl.words}: go to a day`}>{tl.words}</Button>
-          <IconButton icon={ChevronLeft} label={tl.range === "week" ? "The week before" : tl.range === "hours6" ? "Six hours before" : "The day before"} onClick={() => tl.step(-1)} />
-          <Button rank="quiet" aria-pressed={tl.isNow} onClick={tl.goNow}>Now</Button>
-          <IconButton icon={ChevronRight} label={tl.range === "week" ? "The week after" : tl.range === "hours6" ? "Six hours after" : "The day after"} onClick={() => tl.step(1)} />
-          {onAdd ? <IconButton icon={Plus} label="Add something you missed" onClick={onAdd} data-tour="timeline-add" /> : null}
-          {onOptions ? <IconButton icon={SlidersHorizontal} label="Options for the timeline" onClick={onOptions} data-tour="timeline-options" /> : null}
-        </span>
-      )}>
-      <TimeLanes label={label} ticks={tl.ticks} now={tl.nowLeft} nowLabel={tl.nowLeft != null ? timeOf(tl.now) : null}
+      tools={compact
+        ? <span className="hd-tl-tools">{acts}</span>
+        : <span className="hd-tl-tools" data-tour="timeline-jump">{show}{stepper}{acts}</span>}>
+      {compact ? <div className="hd-tl-bar" data-tour="timeline-jump">{show}<span className="hd-tl-step">{stepper}</span></div> : null}
+      <TimeLanes label={label} ticks={ticks} now={tl.nowLeft} nowLabel={tl.nowLeft != null ? timeOf(tl.now) : null}
         groups={tl.groups} allDay={tl.prefs.hidden.includes("events") ? [] : tl.lanes.allDay} selected={selected}
         onSelect={(it) => onSelect?.({ key: it.key, label: it.label, ref: it.ref })}
         folded={folded} onFold={(id) => setFolded((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]))}
@@ -216,7 +229,7 @@ export function hiddenLayerMenu(prefs) {
 export function DayLayersPanel({ prefs, title = "Layers" }) {
   const add = hiddenLayerMenu(prefs);
   const layers = prefs.order.map((id) => DAY_LAYERS.find((l) => l.id === id)).filter(Boolean)
-    .map((l) => ({ ...l, name: l.label, visible: !prefs.hidden.includes(l.id), color: prefs.colours[l.id] || l.color }));
+    .map((l) => ({ ...l, name: l.label, meta: prefs.hidden.includes(l.id) ? "hidden" : l.source === "many" ? "everything" : l.source, visible: !prefs.hidden.includes(l.id), color: prefs.colours[l.id] || l.color }));
   return (
     <Panel title={title} className="hd-panel hd-layers"
       tools={add.length ? <Menu label="Add a layer" items={add} icon={Plus} rank="quiet">add</Menu> : null}>
@@ -239,7 +252,7 @@ export function TimelineOptionsSheet({ open, onClose, page = "timeline" }) {
   const labels = rangeLabels(page);
   const add = hiddenLayerMenu(prefs);
   const layers = prefs.order.map((id) => DAY_LAYERS.find((l) => l.id === id)).filter(Boolean)
-    .map((l) => ({ ...l, name: l.label, visible: !prefs.hidden.includes(l.id), color: prefs.colours[l.id] || l.color }));
+    .map((l) => ({ ...l, name: l.label, meta: prefs.hidden.includes(l.id) ? "hidden" : l.source === "many" ? "everything" : l.source, visible: !prefs.hidden.includes(l.id), color: prefs.colours[l.id] || l.color }));
   const reset = () => {
     const { ok, before } = resetTimelinePrefs(page);
     if (!ok) { showToast({ tone: "failed", message: "Couldn't reset the timeline here.", detail: "Your records are safe; only how it looks didn't change." }); return; }
@@ -257,11 +270,10 @@ export function TimelineOptionsSheet({ open, onClose, page = "timeline" }) {
             <Segmented label="Show" options={["day", "hours6", "week"].map((r) => ({ value: r, label: labels[r] }))} value={prefs.view.range}
               onChange={(v) => setTimelineView(page, { range: v })} />
           </div>
-          <div className="hd-opt-row">
-            <span className="hd-opt-label house-label" aria-hidden="true">Whose</span>
+          <div className="hd-opt-row hd-opt-whose">
             <AlterPicker label="Whose" value={prefs.view.whose} onChange={(id) => setTimelineView(page, { whose: id || null })} showNone noneLabel="Everyone" placeholder="Everyone" />
           </div>
-          <div className="hd-opt-head house-label"><span>Layers</span><span className="hd-muted">move with the arrows</span></div>
+          <div className="hd-opt-head house-label"><span>Layers</span><span className="hd-muted">move with the arrows or Alt + ↑ ↓</span></div>
           <div className="hd-opt-layers">
             <Layers label="Timeline layers" layers={layers}
               renderLead={(l) => <span className="hd-swatch" style={{ "--hd-c": l.color }} aria-hidden="true" />}

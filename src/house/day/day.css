@@ -19,6 +19,14 @@
   [data-house] .hd-tl-tools .hk-btn,
   [data-house] .hd-tl-tools .hk-seg-opt { height: 2rem; min-height: 2rem; }
 }
+[data-house] .hd-tl-bar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--house-space-1) var(--house-space-2);
+  padding: var(--house-space-1) var(--house-space-2); border-bottom: 1px solid var(--house-outline);
+}
+[data-house] .hd-tl-step { display: inline-flex; align-items: center; gap: var(--house-space-1); }
+[data-house] .hd-tl-bar .hk-seg-opt,
+[data-house] .hd-tl-bar .hk-btn { min-height: 2rem; height: 2rem; padding: 0 var(--house-space-2); }
+[data-house] .hd-tl-bar .hk-iconbtn { width: 2rem; min-width: 2rem; height: 2rem; min-height: 2rem; }
 [data-house] .hd-tl-date { font-family: var(--house-font-value); white-space: nowrap; }
 [data-house] .hd-tl-empty { margin: var(--house-space-2) var(--house-space-3); }
 
@@ -65,3 +73,15 @@
 [data-house] .hd-opt-head { display: flex; justify-content: space-between; gap: var(--house-space-2); border-bottom: 1px solid var(--house-outline); padding-bottom: var(--house-space-1); }
 [data-house] .hd-opt-foot { display: flex; justify-content: flex-end; border-top: 1px solid var(--house-outline); padding-top: var(--house-space-2); }
 [data-house] .hd-split-level { margin-top: var(--house-space-2); }
+[data-house] .hd-opt-whose { display: block; }
+[data-house] .hd-opt-whose .hk-field { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: var(--house-space-3); flex-wrap: wrap; margin: 0; }
+[data-house] .hd-opt-whose .hk-field-head { margin: 0; flex: 0 0 auto; }
+[data-house] .hd-opt-whose .hk-field > :last-child { flex: 1 1 10rem; max-width: 18rem; min-width: 0; }
+[data-house] .hd-opt-whose .hk-field > :last-child button { width: 100%; }
+/* The source word on the right says "hidden" for a hidden layer (boards 01
+   and 09), so the kit's own "Hidden" under the name doesn't wrap the row. */
+[data-house] .hd-layers .hk-layer-state,
+[data-house] .hd-opt-layers .hk-layer-state { display: none; }
+/* In the narrow side column the name gets the room; the source word gives way. */
+[data-house] .hd-layers .hk-layer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-house] .hd-layers .hk-layer-meta { flex: 0 0 auto; max-width: 4.5rem; }

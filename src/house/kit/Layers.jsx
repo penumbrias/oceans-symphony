@@ -14,6 +14,8 @@
 // "Hide…", which together with "pressed" would say two things at once. Hidden rows stay in the list,
 // greyed with dashed edges and the word "Hidden". Layers only reports the
 // new order or visibility; the host writes it through its one writer.
+// A layer may carry `meta`: a word on the right saying where it reads from
+// (boards 01 and 09: "sessions", "Planner").
 
 import React, { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Lock } from "lucide-react";
@@ -69,6 +71,7 @@ export default function Layers({ label, layers = [], getId = (l) => l.id, getNam
                 <span>{name}</span>
                 {!visible ? <span className="hk-layer-state">Hidden</span> : null}
               </span>
+              {layer.meta ? <span className="hk-layer-meta">{layer.meta}</span> : null}
               {layer.lockedReason ? <HouseIcon icon={Lock} label={`${name}: ${layer.lockedReason}`} /> : null}
               <span className="hk-layer-moves">
                 <IconButton icon={ArrowUp} data-move="up" label={`Move ${name} up`}
