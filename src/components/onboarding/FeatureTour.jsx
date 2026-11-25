@@ -613,28 +613,38 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── TIMELINE ───────────────────────────────────────────────────────────
     s("timeline", {
       emoji: "📅", title: "The timeline",
-      body: `The timeline shows your ${t.system}'s history day by day: ${t.fronting}, check-ins, feelings, activities, symptoms, places, journals and statuses. Scroll down for earlier days; it never runs out.`,
-      route: "/timeline", target: "timeline-container", look: `the highlighted day-by-day timeline`,
+      body: `The timeline shows your ${t.system}'s history: ${t.fronting}, check-ins, feelings, plans, symptoms, sleep, places and statuses. In the new house each kind has its own lane; tap anything to see it in Info.`,
+      route: "/timeline", target: "timeline-container", look: `the highlighted timeline`,
     }),
     s("timeline", {
-      emoji: "🔦", title: "Filters",
-      body: `These buttons show or hide each kind of entry: activities, journals, feelings, ${t.fronting}, symptoms and places. Turn the others off to see just one.`,
-      route: "/timeline", target: "timeline-filters", look: `the highlighted row of filter buttons under the heading`,
+      emoji: "🔦", title: "Layers",
+      body: `Show or hide each kind of entry. In the new house, Layers lists them all: hide one, move it up or down, or "+ add" one that's hidden, like meds taken.`,
+      route: "/timeline", target: "timeline-filters", look: `the highlighted layers (or filter buttons)`,
     }),
     s("timeline", {
-      emoji: "📆", title: "Jump to a date",
-      body: `Pick a date and tap Jump to go straight to that day. "Back to today" brings you home again.`,
-      route: "/timeline", target: "timeline-jump", look: `the highlighted date picker and Jump button`,
+      emoji: "📆", title: "Go to a day",
+      body: `Pick a date to go straight to that day; Now brings you back. In the new house, Day, 6 hours and Week change how much shows, and the arrows step through it.`,
+      route: "/timeline", target: "timeline-jump", look: `the highlighted date and Now`,
+    }),
+    s("timeline", {
+      emoji: "🎛️", title: "Timeline options",
+      body: `Options sets what the timeline shows: the range, Whose (one ${t.alter}'s records or everyone's), the layers and their colours. Reset puts it back.`,
+      route: "/timeline", target: ["timeline-options", "timeline-container"], look: `the highlighted Options button`,
     }),
     s("timeline", {
       emoji: "📊", title: "A day's tally",
-      body: `Each day's header has a "Tally" link. It opens a summary of that day: tasks, feelings, symptoms, activity time and more.`,
-      route: "/timeline", target: "timeline-container", look: `the "Tally" link on the right of any day header`,
+      body: `A summary of one day: tasks, feelings, symptoms, activity time and more. In the new house it's the Tally panel beside the timeline; on the old page, each day's "Tally" link.`,
+      route: "/timeline", target: ["timeline-tally", "timeline-container"], look: `the Tally panel or a day's "Tally" link`,
     }),
     s("timeline", {
       emoji: "⏮️", title: "Add something you missed",
-      body: `Press and hold any day to add what you didn't log then: ${an(t.fronting)} session (several ${t.alters}, each with a level), a check-in, a symptom or an activity.`,
-      route: "/timeline", target: "timeline-container", look: `press and hold on any day`,
+      body: `Add what you didn't log then: ${an(t.fronting)} session or a check-in. In the new house, tap + on the timeline; on the old page, press and hold any day.`,
+      route: "/timeline", target: ["timeline-add", "timeline-container"], look: `the + button, or press and hold a day`,
+    }),
+    s("timeline", {
+      emoji: "✂️", title: `Fix a ${t.fronting} record`,
+      body: `Tap ${an(t.fronting)} bar to see it in Info. Edit changes its times, Split cuts it in two, and the More menu fixes who it was or removes it (it goes to the trash).`,
+      route: "/timeline", target: "timeline-container", look: `tap any ${t.fronting} bar`,
     }),
 
     // ─── SYSTEM MEETINGS ────────────────────────────────────────────────────

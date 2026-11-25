@@ -129,7 +129,7 @@ export default function HouseTimeline({ size = "full", tokens, onSetFront }) {
         <div className="ht-stack">
           {timeline}
           <DayLayersPanel prefs={tl.prefs} />
-          <TallyPanel tl={tl} compact />
+          <div data-tour="timeline-tally"><TallyPanel tl={tl} compact /></div>
         </div>
         <Sheet open={!!pick} onClose={() => setPick(null)} title={pick ? `Info: ${pick.label}` : "Info"} size="half" className="ht-info-sheet">
           {pick ? <DayInfoPanel bare pick={pick} tl={tl} editors={editors} onSetFront={onSetFront} inRoom onClose={() => setPick(null)} /> : null}
@@ -145,7 +145,7 @@ export default function HouseTimeline({ size = "full", tokens, onSetFront }) {
       <aside className="ht-side" aria-label="Info, layers and the tally">
         <DayInfoPanel pick={shown} tl={tl} editors={editors} onSetFront={onSetFront} inRoom onClose={pick ? () => setPick(null) : undefined} />
         <DayLayersPanel prefs={tl.prefs} />
-        <TallyPanel tl={tl} compact={size === "compact"} />
+        <div data-tour="timeline-tally"><TallyPanel tl={tl} compact={size === "compact"} /></div>
       </aside>
       {common}
     </HouseScope>

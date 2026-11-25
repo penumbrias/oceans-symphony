@@ -38,9 +38,6 @@
 [data-house] .hh-timeline { flex: 0 0 auto; margin: 0; }
 [data-house] .hh-timeline-body { max-height: min(17rem, 42vh); overflow-y: auto; padding: 0; }
 [data-house][data-house-size="compact"] .hh-timeline-body { max-height: none; }
-[data-house] .hh-tl-tools { display: inline-flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; }
-[data-house] .hh-tl-tools .hk-field { margin: 0; }
-[data-house] .hh-tl-empty { margin: var(--house-space-2) var(--house-space-3); }
 
 [data-house] .hh-side {
   display: flex; flex-direction: column; gap: 0; min-height: 0; overflow-y: auto;
@@ -60,7 +57,6 @@
 [data-house] .hh-value { font-family: var(--house-font-value); font-size: var(--house-text-sm); color: var(--house-muted); }
 [data-house] .hh-xp { color: var(--house-accent-text); }
 [data-house] .hh-meta { flex: 0 0 auto; color: var(--house-muted); font-size: var(--house-text-xs); }
-[data-house] .hh-swatch { display: inline-block; width: 0.75rem; height: 0.75rem; background: var(--hh-c); border: 1px solid var(--house-outline); }
 
 [data-house] .hh-status-now { margin: 0 0 var(--house-space-1); overflow-wrap: anywhere; }
 [data-house] .hh-status-field { display: flex; gap: var(--house-space-2); align-items: flex-start; }
@@ -98,34 +94,16 @@
 [data-house] .hh-guide-body[data-compact] .hh-guide-actions { flex-basis: 100%; }
 [data-house] .hh-guide-actions { justify-content: center; flex-wrap: wrap; }
 
-[data-house] .hh-info .hk-info-head { display: none; }
-
 /* Phone (board 08-Phone): stacked panels under the page tabs. */
 [data-house].hh--phone { overflow-y: auto; overscroll-behavior: contain; padding-bottom: var(--house-space-4); }
 [data-house] .hh-phone-tabs { padding: var(--house-space-2) var(--house-space-3) 0; }
 [data-house] .hh-stack { display: flex; flex-direction: column; gap: var(--house-space-3); padding: var(--house-space-3); }
 
-/* Layers in the narrow side column: one line per layer. */
-[data-house] .hh-layers .hk-layer { flex-wrap: nowrap; min-height: var(--house-h-row); }
-[data-house] .hh-layers .hk-layer-name { flex: 1 1 auto; }
-[data-house] .hh-layers .hk-layer .hk-iconbtn { width: 1.75rem; min-width: 1.75rem; height: 1.75rem; min-height: 1.75rem; }
-@media (pointer: coarse) { [data-house] .hh-layers .hk-layer .hk-iconbtn { width: var(--house-target); height: var(--house-target); } }
-/* The timeline's tools stay on the title bar's one line. */
-[data-house] .hh-timeline .hk-panel-head { min-height: var(--house-px-title-h, var(--house-h-control)); }
-[data-house] .hh-tl-tools .hk-btn,
-[data-house] .hh-tl-tools .hk-seg-opt { min-height: 1.375rem; height: 1.375rem; padding: 0 var(--house-space-2); }
-/* Info, as board 01 draws it: the label on the left, the value on the
-   right, one line each while they fit. */
-[data-house] .hh-info .hk-info-section-title { display: none; }
-[data-house] .hh-info .hk-formrow {
-  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--house-space-3);
-  min-height: var(--house-h-row); padding: 2px 0; border: 0;
-}
-[data-house] .hh-info .hk-formrow-label { color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; font-size: var(--house-text-sm); }
-[data-house] .hh-info .hk-formrow-value { text-align: right; font-size: var(--house-text-sm); }
-[data-house] .hh-info .hk-formrow > span:empty { display: none; }
+/* The timeline dock, Info and Layers look as the shared parts draw them
+   (src/house/day/day.css). */
 /* Who's in front: the name and since-when on one line, as on the boards. */
 [data-house] .hh-front .hk-row-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); }
 [data-house] .hh-front .hk-row-title { font-weight: 700; }
 [data-house].hh--phone .hh-front .hh-list { flex-direction: row; flex-wrap: wrap; gap: var(--house-space-3); }
 [data-house].hh--phone .hh-front .hk-row-text { flex-direction: column; gap: 0; }
+
