@@ -366,7 +366,10 @@ export async function reassignFrontSession({
   }
   if (mode === "move") patches.mid.alter_id = toAlterId;
 
-  for (const key of ["before", "mid", "after"]) {
+  // The new pieces take their notes and feelings BEFORE the original row
+  // gives them up, so a crash between two writes can only leave a copy
+  // twice, never nowhere.
+  for (const key of ["before", "mid", "after"].sort((x, y) => (x === ownKey) - (y === ownKey))) {
     const p = pieces[key];
     if (p && Object.keys(patches[key]).length) pieces[key] = await base44.entities.FrontingSession.update(p.id, patches[key]);
   }
