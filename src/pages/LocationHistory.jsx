@@ -15,7 +15,7 @@ import { Loader2, MapPin, Plus, Trash2, Pencil } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
-import { logLocation } from "@/lib/checkinEntry";
+import { logLocation, editLocation, deleteLocation } from "@/lib/checkinEntry";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
@@ -95,7 +95,9 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose, pixel =
       };
       let rowId;
       if (location?.id) {
-        await localEntities.Location.update(location.id, data);
+        // Fresh read, only what changed since the form opened (editLocation).
+        const { name: _n, category: _c, latitude, longitude, source: _s, ...fields } = data;
+        await editLocation(location.id, { ...fields, baseline: location, name, category, lat: latitude, lng: longitude });
         rowId = location.id;
         toast.success("Location updated");
       } else {
@@ -268,7 +270,7 @@ export default function LocationHistory() {
   const handleDelete = async (id) => {
     if (!(await confirm({ title: "Delete this location record?", body: "It can be restored from Recent Changes.", confirmLabel: "Delete", destructive: true }))) return;
     try {
-      await localEntities.Location.delete(id);
+      await deleteLocation(id);
       queryClient.invalidateQueries({ queryKey: ["locations"] });
       toast.success("Location deleted");
     } catch (err) {

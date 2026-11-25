@@ -10,7 +10,7 @@ import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, formatDi
 import SleepLogModal from "@/components/sleep/SleepLogModal";
 import SleepEditModal from "@/components/sleep/SleepEditModal";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
-import { startSleep } from "@/lib/sleepEntry";
+import { startSleep, deleteSleep } from "@/lib/sleepEntry";
 import { clockPattern } from "@/lib/timeFormat";
 import RichText from "@/components/shared/RichText";
 import { useUiLook } from "@/lib/uiLook";
@@ -119,7 +119,7 @@ export default function SleepTracker() {
     if (!inProgressSleep) return;
     if (!(await confirm("Discard this in-progress sleep log? Bedtime will be removed; no record will be saved."))) return;
     try {
-      await base44.entities.Sleep.delete(inProgressSleep.id);
+      await deleteSleep(inProgressSleep.id);
       queryClient.invalidateQueries({ queryKey: ["sleep"] });
       toast.success("Sleep log discarded");
     } catch (err) {
@@ -130,20 +130,13 @@ export default function SleepTracker() {
   const handleDelete = async (sleepId) => {
     if (!(await confirm({ title: "Delete this sleep record?", body: "Its mirrored Sleep activity is removed too. A linked dream journal entry stays in Journals.", confirmLabel: "Delete", destructive: true }))) return;
     try {
-      // Cascade-delete the linked "Sleep" Activity so the tracker's week
-      // grid doesn't keep an orphaned bar after the underlying record is gone.
-      // Per user-data-preservation rules, the linked dream JournalEntry is
-      // NOT auto-deleted — journal content is user-edited and outlives the
-      // originating sleep record. We surface a notice so the user knows
-      // where to find it.
-      const sleep = sleepRecords.find(s => s.id === sleepId);
-      await base44.entities.Sleep.delete(sleepId);
-      if (sleep?.linked_activity_id) {
-        try { await base44.entities.Activity.delete(sleep.linked_activity_id); } catch {}
-        queryClient.invalidateQueries({ queryKey: ["activities"] });
-      }
+      // The night and its planner "Sleep" activity go to the trash in one
+      // batch (deleteSleep). The linked dream JournalEntry is NOT deleted —
+      // journal content outlives the night — and the toast says where it is.
+      const { journalKept } = await deleteSleep(sleepId);
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
       queryClient.invalidateQueries({ queryKey: ["sleep"] });
-      if (sleep?.journal_entry_id) {
+      if (journalKept) {
         toast.success("🗑 Sleep record deleted. The linked dream journal entry remains in your Journals — delete it there if you also want to remove it.");
       } else {
         toast.success("🗑 Sleep record deleted");
