@@ -388,27 +388,95 @@ export async function reassignFrontSession({
 
 // Put a reassignment back: the pieces it made go to the trash, anything it
 // trashed comes back, and the original row gets its earlier fields again.
+//
+// Safe to run twice, and safe after a sync:
+//   - Notes written onto any piece AFTER the reassignment are kept: they
+//     join the original row's notes instead of being overwritten or going
+//     to the trash with their piece.
+//   - A row that has ENDED is never reopened. When the session was still
+//     going, the split ended the original row and the live part carries on
+//     in a new piece; reopening the original would be undone by the next
+//     sync ("an end is a fact") and the live piece would already be in the
+//     trash, leaving nobody in front. So for a live session the pieces stay
+//     and are handed back to the original member instead.
+//   - The row as it was before the undo is kept in Recent changes.
+const UNDO_KEEP = new Set(["id", "created_date", "updated_date", "created_by", "_ft", "trashed_at", "trash_batch", "removed_at", "origin_device"]);
+const STATE_FIELDS = ["is_active", "end_time", "front_level", "level_changes", "levels_reset_at", "is_primary"];
+const noteKey = (n) => JSON.stringify(n ?? null);
+
 export async function undoFrontReassign(result) {
   if (!result) return;
   const { restoreFromTrash } = await import("@/lib/trash");
+  const { parseSessionNote } = await import("@/lib/perAlterSessionEntries");
+  const { keepEditRestorePoint } = await import("@/lib/editRestorePoint");
+  const FS = base44.entities.FrontingSession;
+  const snap = result.snapshot;
+  const snapNotes = snap ? parseSessionNote(snap.note) : [];
+  const snapKeys = new Set(snapNotes.map(noteKey));
+  const laterNotes = (row) => parseSessionNote(row?.note).filter((n) => !snapKeys.has(noteKey(n)));
+
   if (result.trashedIds?.length) {
     await restoreFromTrash(result.trashedIds.map((id) => ({ entity: "FrontingSession", id })));
   }
-  if (result.createdIds?.length) {
-    await withTrashBatch(async () => {
-      for (const id of result.createdIds) await base44.entities.FrontingSession.delete(id);
-    });
-  }
-  const snap = result.snapshot;
-  if (snap?.id) {
-    const current = await base44.entities.FrontingSession.get(snap.id);
-    if (current) {
-      const KEEP = new Set(["id", "created_date", "updated_date", "created_by", "_ft"]);
+  const current = snap?.id ? await FS.get(snap.id) : null;
+  const pieceIds = [...new Set([...(result.createdIds || []), ...(result.trashedIds || [])])].filter((id) => id !== snap?.id);
+  const pieces = (await Promise.all(pieceIds.map((id) => FS.get(id)))).filter(Boolean);
+  const wasLive = !!snap?.is_active && !snap?.end_time;
+  const keepPieces = !!current && wasLive && !!current.end_time && result.mode !== "add";
+  const extra = [];
+
+  if (keepPieces) {
+    // Hand every piece back; the original's notes and feelings go home to
+    // the original row, anything written on a piece since stays on it.
+    const from = snap.alter_id;
+    for (const p of pieces) {
       const patch = {};
-      for (const [k, v] of Object.entries(snap)) if (!KEEP.has(k) && !sameJson(v, current[k])) patch[k] = v;
-      for (const k of Object.keys(current)) if (!(k in snap) && !KEEP.has(k) && current[k] != null) patch[k] = null;
-      if (Object.keys(patch).length) await base44.entities.FrontingSession.update(snap.id, patch);
+      if (from && p.alter_id !== from) patch.alter_id = from;
+      const own = parseSessionNote(p.note);
+      const kept = laterNotes(p);
+      if (kept.length !== own.length) patch.note = JSON.stringify(kept);
+      for (const k of SESSION_LEVEL_FIELDS) {
+        if (snap[k] != null && sameJson(p[k], snap[k]) && !sameJson(p[k], CLEARED_SESSION_LEVEL[k])) patch[k] = CLEARED_SESSION_LEVEL[k];
+      }
+      if (Object.keys(patch).length) {
+        keepEditRestorePoint("FrontingSession", p);
+        await FS.update(p.id, patch);
+      }
     }
-    if (snap.is_active && !snap.end_time) await recomputePrimaryFromLevels({ cfg: await readLevelCfg(null), queryClient: null });
+  } else if (pieces.length) {
+    for (const p of pieces) extra.push(...laterNotes(p));
+    if (result.mode === "add" && extra.length) {
+      // Nothing to fold them into: the added session keeps its notes.
+      extra.length = 0;
+    } else {
+      await withTrashBatch(async () => {
+        for (const p of pieces) await FS.delete(p.id);
+      });
+    }
   }
+
+  if (current) {
+    const patch = {};
+    for (const [k, v] of Object.entries(snap)) {
+      if (UNDO_KEEP.has(k) || (keepPieces && STATE_FIELDS.includes(k))) continue;
+      if (!sameJson(v, current[k])) patch[k] = v;
+    }
+    for (const k of Object.keys(current)) {
+      if (k in snap || UNDO_KEEP.has(k) || (keepPieces && STATE_FIELDS.includes(k))) continue;
+      if (current[k] != null) patch[k] = null;
+    }
+    // A legacy plain-text note (not a JSON array) is kept as the first entry
+    // when later notes have to join it, never dropped.
+    const legacy = !snapNotes.length && typeof snap.note === "string" && snap.note.trim()
+      ? [{ text: snap.note, timestamp: snap.start_time }] : [];
+    const merged = [...legacy, ...snapNotes, ...laterNotes(current).filter((n) => !legacy.length || noteKey(n) !== noteKey(legacy[0])), ...extra];
+    const seen = new Set();
+    const notes = merged.filter((n) => { const key = noteKey(n); if (seen.has(key)) return false; seen.add(key); return true; });
+    if (notes.length > snapNotes.length + legacy.length) patch.note = JSON.stringify(notes);
+    if (Object.keys(patch).length) {
+      keepEditRestorePoint("FrontingSession", current);
+      await FS.update(snap.id, patch);
+    }
+  }
+  if (wasLive) await recomputePrimaryFromLevels({ cfg: await readLevelCfg(null), queryClient: null });
 }

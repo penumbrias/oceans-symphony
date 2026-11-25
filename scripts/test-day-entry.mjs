@@ -359,4 +359,45 @@ test("reassign a session still going from a past time: the new member is in fron
   assert.equal(b.end_time, null);
 });
 
+test("undo keeps notes written after the reassignment and is safe to run twice", async () => {
+  fresh();
+  const s = await pastSession();
+  const r = await F.reassignFrontSession({ session: s, fromAlterId: "A", toAlterId: "B", start: T(9), end: T(11) });
+  const [b] = await byAlter("B");
+  const added = { text: "written later", timestamp: T(10, 15) };
+  await h.E.FrontingSession.update(b.id, { note: JSON.stringify([...parseSessionNote(b.note), added]) });
+  await F.undoFrontReassign(r);
+  await F.undoFrontReassign(r);
+  const live = await h.E.FrontingSession.list();
+  assert.equal(live.length, 1);
+  assert.equal(live[0].alter_id, "A");
+  assert.deepEqual(parseSessionNote(live[0].note).map((n) => n.text), ["early", "middle", "late", "written later"]);
+  assert.ok(kept().some((k) => k.entity === "FrontingSession" && k.snapshot.end_time === T(9)), "the row before the undo is kept in Recent changes");
+});
+
+test("undo of a reassign on a live session never reopens an ended row (sync-safe)", async () => {
+  fresh();
+  const start = new Date(Date.now() - 3 * 3600e3).toISOString();
+  const mid = new Date(Date.now() - 3600e3).toISOString();
+  const s = await h.E.FrontingSession.create({
+    alter_id: "A", is_primary: true, front_level: "front", start_time: start, end_time: null, is_active: true,
+    note: JSON.stringify([{ text: "before", timestamp: start }, { text: "after", timestamp: mid }]),
+  });
+  const r = await F.reassignFrontSession({ session: s, toAlterId: "B", start: mid });
+  await F.undoFrontReassign(r);
+  await F.undoFrontReassign(r);
+  const a = await byAlter("A");
+  assert.equal((await byAlter("B")).length, 0, "nobody else is left holding the stretch");
+  assert.deepEqual(a.map((x) => [x.start_time, x.end_time, x.is_active]), [[start, mid, false], [mid, null, true]]);
+  assert.equal(a[0].id, s.id);
+  assert.deepEqual(parseSessionNote(a[0].note).map((n) => n.text), ["before", "after"], "the notes go home to the original row");
+  assert.deepEqual(parseSessionNote(a[1].note), []);
+  // Merging the undone copy with a device that only saw the reassignment
+  // keeps someone in front: the live piece was never trashed.
+  const { mergeFrontingSession } = await import("../src/lib/syncMerge.js");
+  const other = { ...a[0], end_time: mid, is_active: false };
+  assert.equal(mergeFrontingSession(a[0], other).end_time, mid);
+  assert.equal(h.raw("FrontingSession", a[1].id).trashed_at ?? null, null);
+});
+
 await run();
