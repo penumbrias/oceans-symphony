@@ -1150,7 +1150,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("grounding", {
       emoji: "🫧", title: "Support",
       body: `This page has two tabs, Support and Learn. The ring at the top breathes with you; tap its pattern's name to change it. Settings → Accessibility can add a 🫧 bubble that brings you back here from any screen.`,
-      route: "/grounding", target: ["grounding-tabs", "px-subtabs"], look: `the highlighted Support / Learn tabs`,
+      route: "/grounding", target: ["grounding-tabs", "px-subtabs", "grounding-content"], look: `the highlighted Support / Learn tabs`,
+    }),
+    s("grounding", {
+      emoji: "🆘", title: "Need help now?",
+      body: `In the new house, the box at the top of Support opens your safety plan, or Call someone: your emergency contacts and the crisis lines for your country.`,
+      route: "/grounding", target: ["support-need-help", "grounding-content"], look: `the "Need help now?" box`,
     }),
     s("grounding", {
       emoji: "🌳", title: "Browse all techniques",
@@ -1225,7 +1230,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("grounding", {
       emoji: "📚", title: "Learn",
       body: `13 modules of short lessons, from Grounding to Building on Progress, each with reflection prompts. "Try Now" opens a technique right from the reading.`,
-      route: "/grounding", target: ["grounding-tabs", "px-subtabs"], look: `tap the "Learn" tab`,
+      route: "/grounding", target: ["support-learn", "grounding-tabs", "px-subtabs"], look: `tap the "Learn" tab, or the topics count`,
     }),
     s("grounding", {
       emoji: "📖", title: "Resources",
@@ -1235,7 +1240,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("grounding", {
       emoji: "🛡️", title: "Safety plan",
       body: `Your safety plan keeps warning signs, coping cards and your window of tolerance in one place. Fill it in a little at a time, in a calmer moment.`,
-      route: "/safety-plan", look: `the Safety Plan page`,
+      route: "/safety-plan", target: ["safety-plan-page"], look: `the Safety Plan page`,
+    }),
+    s("grounding", {
+      emoji: "🌡️", title: "Window of tolerance",
+      body: `Five zones, from shut down to overwhelmed. Tap where you are to see what you notice there and what helps. Nothing is saved when you tap.`,
+      route: "/safety-plan", target: ["safety-window", "safety-plan-page"],
     }),
 
     s("grounding", {
@@ -1249,9 +1259,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/emergency", target: ["emergency-show-btn", "emergency-page"],
     }),
     s("grounding", {
+      emoji: "🔠", title: "Bigger text",
+      body: `On the card, A+ and A- change the text size. Back or Escape closes it.`,
+      route: "/emergency?show=1", target: ["emergency-card", "emergency-page"],
+    }),
+    s("grounding", {
       emoji: "🔓", title: "Without your password, if you choose",
       body: `With a password set, Info → Lock screen can show parts you pick on the unlock screen. It's off until you turn it on, and the rest stays locked.`,
-      route: "/emergency", target: ["emergency-info-btn", "emergency-page"],
+      route: "/emergency", target: ["emergency-lock", "emergency-info-btn", "emergency-page"],
     }),
 
     // ─── CONTACTS ───────────────────────────────────────────────────────────
@@ -1636,8 +1651,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/unblend", target: "unblend-page",
     }),
     s("unblend", {
+      emoji: "📊", title: "Likely here",
+      body: `The bars show who is most likely here, and move with each answer. The big button puts the top one in ${t.front}; nobody already there is taken out.`,
+      route: "/unblend", target: ["unblend-likely", "unblend-page"],
+    }),
+    s("unblend", {
+      emoji: "❓", title: "One question at a time",
+      body: `Answer, Skip, or ask for a different question. Colour questions offer colours from your ${t.alters} and the app's colour picker.`,
+      route: "/unblend", target: ["unblend-question", "unblend-page"],
+    }),
+    s("unblend", {
       emoji: "⚙️", title: "Your own questions",
-      body: `The cog opens the question list, where you can add your own. The sparkle opens Get to know me.`,
+      body: `Manage questions (the cog on the older page) opens the question list, where you can add your own. Get to know me sits beside it.`,
       route: "/unblend", target: ["unblend-manage-btn", "unblend-page"],
     }),
     s("unblend", {
