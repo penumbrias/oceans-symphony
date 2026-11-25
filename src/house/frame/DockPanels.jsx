@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GraduationCap, History, Info as InfoIcon, Layers as LayersIcon, Map as MapIcon, PlayCircle } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { houseSupportRoom } from "@/lib/houseSwitch";
 import { useExperimentalOn } from "@/lib/experimentalFeatures";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -53,9 +54,12 @@ export function useFreshPageHelp(pathname) {
 
 function InfoTab({ page }) {
   const t = useTerms();
+  const rebuilt = !!houseSupportRoom(useLocation().pathname);
   const rows = [
     { id: "area", label: "Area", value: page.area?.label || "", empty: "Not in a menu" },
-    { id: "room", label: "Room", value: "The page you know, inside the new frame", lockedReason: "This room is rebuilt in a later step" },
+    rebuilt
+      ? { id: "room", label: "Room", value: "Rebuilt for the new house" }
+      : { id: "room", label: "Room", value: "The page you know, inside the new frame", lockedReason: "This room is rebuilt in a later step" },
   ];
   return (
     <Info
