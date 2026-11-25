@@ -400,4 +400,11 @@ test("undo of a reassign on a live session never reopens an ended row (sync-safe
   assert.equal(h.raw("FrontingSession", a[1].id).trashed_at ?? null, null);
 });
 
+test("a whisper's secret never becomes a Recent changes label", async () => {
+  const { historyLabelFor } = await import("../src/lib/localDb.js");
+  const label = historyLabelFor("EmotionCheckIn", { id: "x", note: 'ok <span class="whisper" data-whisper-for="B">the secret</span> done' });
+  assert.ok(!label.includes("secret"), label);
+  assert.ok(label.includes("private whisper"));
+});
+
 await run();

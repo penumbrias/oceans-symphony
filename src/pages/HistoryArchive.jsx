@@ -25,6 +25,7 @@ import { getTrashSettings } from "@/lib/trash";
 import { useUiLook } from "@/lib/uiLook";
 import RowMenu from "@/components/shared/RowMenu";
 import PageStrip from "@/components/shared/PageStrip";
+import { redactWhispers } from "@/lib/whisperRedact";
 import "@/styles/pixel/logs.css";
 
 const FIELD_LABELS = {
@@ -184,7 +185,7 @@ export default function HistoryArchive() {
                 ]} />
               </div>
               {detailsId === e.id && (
-                <pre className="pxg-details">{JSON.stringify(e.snapshot, null, 1)}</pre>
+                <pre className="pxg-details">{redactWhispers(JSON.stringify(e.snapshot, null, 1))}</pre>
               )}
             </div>
           ))}
@@ -264,7 +265,7 @@ export default function HistoryArchive() {
                     </div>
                     {detailsId === e.id && (
                       <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-muted/30 p-2 text-[0.625rem] leading-snug whitespace-pre-wrap break-all">
-                        {JSON.stringify(e.snapshot, null, 1)}
+                        {redactWhispers(JSON.stringify(e.snapshot, null, 1))}
                       </pre>
                     )}
                   </div>
