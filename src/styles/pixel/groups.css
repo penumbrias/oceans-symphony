@@ -201,7 +201,7 @@ html[data-ui-look="pixel"] .pg-tile-img img, html[data-ui-look="pixel"] .pg-tile
 html[data-ui-look="pixel"] .pg-tile.sel .pg-tile-img { outline: 3px solid var(--color-primary); }
 html[data-ui-look="pixel"] .pg-tile-name { font-size: 12.5px; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html[data-ui-look="pixel"] .pg-tile-sub { font-size: 11px; color: var(--px-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html[data-ui-look="pixel"] .pg-tile-tick { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; outline: 2px solid var(--px-line); background: var(--px-sunk); display: flex; align-items: center; justify-content: center; color: var(--color-bg); }
+html[data-ui-look="pixel"] .pg-tile-tick { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; outline: 1px solid var(--px-line); background: var(--px-sunk); display: flex; align-items: center; justify-content: center; color: var(--color-bg); }
 html[data-ui-look="pixel"] .pg-tile-tick.y { background: var(--color-primary); }
 html[data-ui-look="pixel"] .pg-tile-badge { position: absolute; bottom: 3px; left: 3px; font-family: var(--px-font); font-size: 10px; padding: 0 4px; background: rgb(0 0 0 / .6); color: #fff; }
 html[data-ui-look="pixel"] .pg-status {

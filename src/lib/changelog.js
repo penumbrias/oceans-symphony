@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "improve", text: "Pixel look: tick boxes have thinner, flatter edges." },
       { type: "feature", text: "New house: Quick check-in, \"Who feels it?\" and Set front open as the approved design's sheets on phones and computers." },
       { type: "feature", text: "New house: Journals and System chat are redrawn as the approved design, with folders, the entry and its info side by side, and chat tabs above a tidy message box on phones." },
       { type: "feature", text: "New house: the Alters page and profiles are redrawn as the approved design, with groups, cards and Info side by side, and your own profile layout still one tap away." },

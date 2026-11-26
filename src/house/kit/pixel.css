@@ -20,6 +20,9 @@
   --house-px-btn: inset 2px 2px 0 var(--house-bevel-raised), inset -2px -2px 0 var(--house-page);
   --house-px-on: inset 2px 2px 0 color-mix(in srgb, var(--house-accent) 62%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--house-accent) 62%, #000);
   --house-px-sink: inset 2px 2px 0 var(--house-outline), inset -2px -2px 0 var(--house-bevel-light);
+  /* Small tick boxes and swatches: one pixel, flat like the boards (Penumbra 2026-11-25: "thinner"). */
+  --house-px-sink-thin: inset 1px 1px 0 color-mix(in srgb, var(--house-outline) 70%, transparent);
+  --house-px-on-thin: none;
   --house-px-title-h: max(22px, 1.375rem);
   --house-px-label: 0.8125rem;
 }
@@ -133,7 +136,7 @@
 [data-house][data-house-look="pixel"] .hk-tab { font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-px-label); }
 [data-house][data-house-look="pixel"] .hk-tab[aria-selected="true"] { background: var(--house-title); box-shadow: inset 2px 2px 0 var(--house-bevel-raised); }
 /* Tick boxes: square and sunken. */
-[data-house][data-house-look="pixel"] .hk-check-box { border-radius: 0; box-shadow: var(--house-px-sink); }
+[data-house][data-house-look="pixel"] .hk-check-box { border-radius: 0; border-width: 1px; box-shadow: var(--house-px-sink-thin); }
 /* The phone bar (board 08-Phone): the current place on the title colour. */
 [data-house][data-house-look="pixel"] .hk-pbar { border-top: 2px solid var(--house-outline); }
 [data-house][data-house-look="pixel"] .hk-pbar-label { font-family: var(--house-font-label); font-size: var(--house-px-label); font-weight: 400; }

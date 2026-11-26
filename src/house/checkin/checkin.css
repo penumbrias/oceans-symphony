@@ -14,6 +14,8 @@
   --hcs-btn: var(--house-px-btn, 0 0 0 0 transparent);
   --hcs-on: var(--house-px-on, 0 0 0 0 transparent);
   --hcs-sink: var(--house-px-sink, inset 0 0 0 var(--house-border-w, 1px) var(--house-outline));
+  --hcs-sink-thin: var(--house-px-sink-thin, none);
+  --hcs-on-thin: var(--house-px-on-thin, none);
   --hcs-label: var(--house-px-label, var(--house-text-sm));
   --hcs-line: 2px;
   color: var(--house-text); font-family: var(--house-font-body);
@@ -229,10 +231,10 @@
 [data-house].hcs-who .px-who-row.sel { background: color-mix(in srgb, var(--house-title) 75%, var(--house-accent) 10%); }
 [data-house].hcs-who .px-who-box {
   width: 1.625rem; height: 1.625rem; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
-  font-size: var(--house-text-sm); background: var(--house-page); box-shadow: var(--hcs-sink); border: var(--hcs-line) solid var(--house-outline);
+  font-size: var(--house-text-sm); background: var(--house-page); box-shadow: var(--hcs-sink-thin); border: 1px solid var(--house-outline);
 }
-[data-house].hcs-who .px-who-row.sel .px-who-box { background: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on); }
-[data-house].hcs-who .px-who-sw { width: 1.75rem; height: 1.75rem; flex: 0 0 auto; border: var(--hcs-line) solid var(--house-outline); box-shadow: var(--hcs-btn); }
+[data-house].hcs-who .px-who-row.sel .px-who-box { background: var(--house-accent); border-color: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on-thin); }
+[data-house].hcs-who .px-who-sw { width: 1.75rem; height: 1.75rem; flex: 0 0 auto; border: 1px solid var(--house-outline); box-shadow: none; }
 [data-house].hcs-who .px-who-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--house-text-md); }
 [data-house].hcs-who .px-who-note { flex: 0 0 auto; font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); }
 [data-house].hcs-who .px-who-empty { padding: var(--house-space-4); text-align: center; font-size: var(--house-text-sm); color: var(--house-muted); }
@@ -301,7 +303,7 @@
 [data-house].hcs-sf .psh-av {
   width: 1.75rem; height: 1.75rem; flex: 0 0 auto; overflow: hidden;
   display: inline-flex; align-items: center; justify-content: center; color: var(--house-text);
-  border: var(--hcs-line) solid var(--house-outline); box-shadow: var(--hcs-btn);
+  border: 1px solid var(--house-outline); box-shadow: none;
 }
 [data-house].hcs-sf .psh-av > img { width: 100%; height: 100%; object-fit: cover; }
 [data-house].hcs-sf .psh-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
@@ -332,9 +334,9 @@
 [data-house].hcs-sf .psh-tick {
   width: 1.375rem; height: 1.375rem; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
   font-size: var(--house-text-sm); color: var(--house-text);
-  background: var(--house-page); border: var(--hcs-line) solid var(--house-outline); border-radius: 0; box-shadow: var(--hcs-sink);
+  background: var(--house-page); border: 1px solid var(--house-outline); outline: 0; border-radius: 0; box-shadow: var(--hcs-sink-thin);
 }
-[data-house].hcs-sf .psh-tick.y { background: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on); }
+[data-house].hcs-sf .psh-tick.y { background: var(--house-accent); border-color: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on-thin); }
 [data-house].hcs-sf .psh-now .psh-tick { width: 1.75rem; height: 1.75rem; cursor: pointer; }
 [data-house].hcs-sf .psh-tickrow {
   display: flex; align-items: center; gap: var(--house-space-3); min-height: max(2rem, var(--house-target)); padding: 0 0.125rem;

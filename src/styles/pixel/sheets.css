@@ -54,7 +54,7 @@ html[data-ui-look="pixel"] .psh-chips { display: flex; flex-wrap: wrap; gap: 6px
 html[data-ui-look="pixel"] .psh-tick {
   width: 22px; height: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center;
   font-family: var(--px-font); font-size: 13px; color: var(--px-text);
-  background: var(--px-sunk); outline: 2px solid var(--px-line); border: 0; border-radius: 0;
+  background: var(--px-sunk); outline: 1px solid var(--px-line); border: 0; border-radius: 0;
 }
 html[data-ui-look="pixel"] .psh-tick.y { background: var(--color-primary); color: var(--color-bg); }
 html[data-ui-look="pixel"] .psh-tickrow {

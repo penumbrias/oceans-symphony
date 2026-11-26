@@ -313,10 +313,11 @@ html[data-ui-look="pixel"] .os-chip {
 /* Tick boxes: a square well. */
 html[data-ui-look="pixel"] .os-tick {
   border-radius: 0 !important;
+  border-width: 1px;
   border-color: var(--px-line);
-  box-shadow: var(--px-sunken);
+  box-shadow: inset 1px 1px 0 rgb(0 0 0 / 0.25);
 }
-html[data-ui-look="pixel"] .os-tick[data-state="checked"] { box-shadow: inset 2px 2px 0 rgb(255 255 255 / 0.28), inset -2px -2px 0 rgb(0 0 0 / 0.3); }
+html[data-ui-look="pixel"] .os-tick[data-state="checked"] { box-shadow: none; }
 
 /* Page tabs (Tabs): file-folder tabs on a sunken strip. */
 html[data-ui-look="pixel"] .os-tabs {
