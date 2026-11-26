@@ -1,111 +1,32 @@
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
-import { confirm } from "@/components/shared/ConfirmDialog";
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   Users, Copy, UserPlus, Check, X, Bell, BellOff, UserMinus,
   ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw, Eye, EyeOff, ShieldCheck,
-  Database, Lock, Trash2
+  Lock,
 } from "lucide-react";
-import { useTerms } from "@/lib/useTerms";
 import { an } from "@/lib/articles";
-import { base44 } from "@/api/base44Client";
-import { getPrivacyLevels, sortedLevels, levelIdsUpToThreshold, resolveVisibleAlters } from "@/lib/privacyLevels";
-import {
-  getLocalIdentity,
-  registerIdentity,
-  fetchFriendsList,
-  sendFriendRequest,
-  respondToRequest,
-  removeFriend,
-  toggleNotify,
-  saveFriendVisibility,
-  setFriendVerified,
-  deleteIdentity,
-  saveFronterShareMode,
-  FRIENDS_API_BASE,
-} from "@/lib/friendsApi";
+import { levelIdsUpToThreshold, resolveVisibleAlters } from "@/lib/privacyLevels";
 import { PREF_LEVELS } from "@/lib/alterPreferences";
 import { PrefLevelIcon } from "@/components/alters/AlterPreferencesEditor";
-import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
-import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
-import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
+import { isCryptoAvailable } from "@/lib/friendsCrypto";
 import E2EInfoCard from "@/components/friends/E2EInfoCard";
 import MemberSharingPanel from "@/components/friends/MemberSharingPanel";
 import FrontShareNotice from "@/components/friends/FrontShareNotice";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
-import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { pushCurrentFront } from "@/lib/friendsApi";
 import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import { sharedGroupLabels, sharedCustomFieldPairs, friendFrontSummary } from "@/lib/friendsView";
+import { useFriendView } from "@/components/friends/useFriendView";
+import { useFriendsPage } from "@/components/friends/useFriendsPage";
+import { PrivacyDisclaimer, ProfileSetupModal, AddFriendModal } from "@/components/friends/FriendsDialogs";
 import "@/styles/pixel/social.css";
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-function buildTermsFromFriend(friendTerms = {}) {
-  const t = { ...friendTerms };
-  const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  const ger = (s) => {
-    if (!s) return s;
-    if (s.endsWith('e') && !s.endsWith('ee')) return s.slice(0, -1) + 'ing';
-    return s + 'ing';
-  };
-  const plu = (s) => {
-    if (!s) return s;
-    if (s.endsWith('s')) return s;
-    if (s.endsWith('y')) return s.slice(0, -1) + 'ies';
-    return s + 's';
-  };
-  const fr = t.front || 'front';
-  return {
-    system: t.system || 'system',
-    System: cap(t.system || 'system'),
-    alter: t.alter || 'alter',
-    Alter: cap(t.alter || 'alter'),
-    alters: t.alters || plu(t.alter || 'alter'),
-    fronting: t.fronting || ger(fr),
-    Fronting: cap(t.fronting || ger(fr)),
-    fronter: fr + 'er',
-    Fronter: cap(fr + 'er'),
-    fronters: plu(fr + 'er'),
-  };
-}
-
-// A friend's shared member payload is untrusted-shape data (their app
-// version may differ from ours). These normalise the two list-ish fields
-// into what the renderer iterates, whatever arrived:
-//   groups:       ["Name"] | [{ name }] | "Name" | null
-//   customFields: [["k","v"]] | [{ k, v }] | { k: v } | null
-function sharedGroupLabels(m) {
-  const g = m?.groups;
-  const list = Array.isArray(g) ? g : (g ? [g] : []);
-  return list.map((x) => (typeof x === "string" ? x : x?.name || x?.label || "")).filter(Boolean);
-}
-function sharedCustomFieldPairs(m) {
-  const cf = m?.customFields;
-  if (!cf) return [];
-  const toStr = (v) => (v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
-  if (Array.isArray(cf)) {
-    return cf.map((row) => {
-      if (Array.isArray(row)) return [toStr(row[0]), toStr(row[1])];
-      if (row && typeof row === "object") {
-        const k = row.k ?? row.key ?? row.name ?? row.label ?? "";
-        const v = row.v ?? row.value ?? "";
-        return [toStr(k), toStr(v)];
-      }
-      return [toStr(row), ""];
-    }).filter(([k]) => k);
-  }
-  if (typeof cf === "object") return Object.entries(cf).map(([k, v]) => [toStr(k), toStr(v)]).filter(([k]) => k);
-  return [];
-}
+// ── helpers ── (the words and payload readers live in @/lib/friendsView)
 
 function FronterBubble({ fronter }) {
   const bg = fronter.color || '#6b7280';
@@ -121,17 +42,6 @@ function FronterBubble({ fronter }) {
   );
 }
 
-// One line on who's in front for a friend, in the friend's own words.
-function friendFrontSummary(friend) {
-  const ft = buildTermsFromFriend(friend.front?.terms);
-  const fronters = friend.front?.fronters || [];
-  const privacyLevel = friend.front?.privacyLevel || 'names';
-  if (privacyLevel === 'hidden') return `${ft.Fronting} hidden`;
-  if (fronters.length === 0) return `No one ${ft.fronting}`;
-  if (privacyLevel === 'count_only') return `${fronters.length} ${fronters.length === 1 ? ft.fronter : ft.fronters}`;
-  return fronters.map(f => f.name).join(', ');
-}
-
 // ── Friend card ───────────────────────────────────────────────────────────────
 
 // variant "desk": the pixel look's friend view (the Friends mockup's middle
@@ -140,123 +50,19 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   const desk = variant === "desk";
   const [expanded, setExpanded] = useState(desk);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [removing, setRemoving] = useState(false);
-  const [togglingNotify, setTogglingNotify] = useState(false);
-  const [pushReady, setPushReady] = useState(null); // null = not yet checked
   const [showVisibility, setShowVisibility] = useState(false);
-  const [savingVis, setSavingVis] = useState(false);
-  const [savedVis, setSavedVis] = useState(false);
-
-  // Local copies of visibility settings so toggles feel instant
-  const [hiddenAlterIds, setHiddenAlterIds] = useState(() => visibilitySettings.hiddenAlterIds || []);
-  const [privacyOverride, setPrivacyOverride] = useState(() => visibilitySettings.privacyOverride || null);
-  // Member-list share: which privacy levels this friend may see.
-  const [allowedLevelIds, setAllowedLevelIds] = useState(() => visibilitySettings.allowedLevelIds || []);
   const [advancedLevels, setAdvancedLevels] = useState(false);
-
-  // Keep in sync if parent reloads identity
-  useEffect(() => {
-    setHiddenAlterIds(visibilitySettings.hiddenAlterIds || []);
-    setPrivacyOverride(visibilitySettings.privacyOverride || null);
-    setAllowedLevelIds(visibilitySettings.allowedLevelIds || []);
-  }, [visibilitySettings.hiddenAlterIds, visibilitySettings.privacyOverride, visibilitySettings.allowedLevelIds]);
-
-  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
-  const levels = sortedLevels(getPrivacyLevels(pickPrimarySystemSettings(settingsList)));
-  const maxLevelNumber = levels.length ? Math.max(...levels.map((l) => l.number)) : 0;
-  const allowedSet = new Set(allowedLevelIds);
-  const thresholdValue = (() => {
-    const nums = levels.filter((l) => allowedSet.has(l.id)).map((l) => l.number);
-    return nums.length ? Math.max(...nums) : -1;
-  })();
-  const sharedCount = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } }).length;
-  const saveLevels = useCallback((next) => {
-    setAllowedLevelIds(next);
-    onVisibilityChange(friend.userId, { allowedLevelIds: next });
-  }, [friend.userId, onVisibilityChange]);
-
-  // Members this friend shares with me — fetched + decrypted on card expand.
   const [showVisibleList, setShowVisibleList] = useState(false);
   const [visShown, setVisShown] = useState(60);
-  const [sharedMembers, setSharedMembers] = useState(null); // null = not loaded
-  const [loadingShare, setLoadingShare] = useState(false);
-  useEffect(() => {
-    if (!expanded || sharedMembers !== null) return;
-    setLoadingShare(true);
-    fetchFriendShare(friend.userId)
-      .then((m) => setSharedMembers(Array.isArray(m) ? m : []))
-      .catch(() => setSharedMembers([]))
-      .finally(() => setLoadingShare(false));
-  }, [expanded]);
-
-  // Safety number for this friend — computed whenever the card is expanded.
-  const [safetyNum, setSafetyNum] = useState(null);
   const [revealSafety, setRevealSafety] = useState(false); // hidden until tapped (it's a long sensitive value)
-  useEffect(() => {
-    if (!expanded || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
-    let cancelled = false;
-    try {
-      const theirs = JSON.parse(friend.publicKey);
-      safetyNumber(myPublicKeyJwk, theirs).then((n) => { if (!cancelled) setSafetyNum(n); }).catch(() => {});
-    } catch { setSafetyNum(null); }
-    return () => { cancelled = true; };
-  }, [expanded, myPublicKeyJwk, friend.publicKey]);
-
-  const saveVisibility = useCallback(async (newHiddenIds, newPrivacyOverride) => {
-    setSavingVis(true);
-    setSavedVis(false);
-    try {
-      await onVisibilityChange(friend.userId, { hiddenAlterIds: newHiddenIds, privacyOverride: newPrivacyOverride });
-      setSavedVis(true);
-      setTimeout(() => setSavedVis(false), 2000);
-    } finally {
-      setSavingVis(false);
-    }
-  }, [friend.userId, onVisibilityChange]);
-
-  const toggleAlterHidden = useCallback((alterId) => {
-    setHiddenAlterIds(prev => {
-      const next = prev.includes(alterId) ? prev.filter(id => id !== alterId) : [...prev, alterId];
-      saveVisibility(next, privacyOverride);
-      return next;
-    });
-  }, [privacyOverride, saveVisibility]);
-
-  const handlePrivacyOverride = useCallback((val) => {
-    const next = val === 'global' ? null : val;
-    setPrivacyOverride(next);
-    saveVisibility(hiddenAlterIds, next);
-  }, [hiddenAlterIds, saveVisibility]);
-
-  useEffect(() => {
-    if (expanded && pushReady === null) {
-      isPushEnabled().then(setPushReady).catch(() => setPushReady(false));
-    }
-  }, [expanded, pushReady]);
-
-  const ft = buildTermsFromFriend(friend.front?.terms);
-  const fronters = friend.front?.fronters || [];
-  const updatedAt = friend.front?.updatedAt;
-  const privacyLevel = friend.front?.privacyLevel || 'names';
-
-  const handleRemove = async () => {
-    if (!(await confirm({ title: `Remove ${friend.displayName || "this friend"}?`, body: "You are removed from each other's lists and everything shared between you is deleted on the relay. Adding each other again needs a new code exchange.", confirmLabel: "Remove", destructive: true }))) return;
-    setRemoving(true);
-    try {
-      await onRemove(friend.userId);
-    } finally {
-      setRemoving(false);
-    }
-  };
-
-  const handleNotify = async (val) => {
-    setTogglingNotify(true);
-    try {
-      await onToggleNotify(friend.userId, val);
-    } finally {
-      setTogglingNotify(false);
-    }
-  };
+  // The friend's state and writes are shared with the house's Friends room.
+  const {
+    ft, fronters, updatedAt, privacyLevel,
+    removing, handleRemove, togglingNotify, handleNotify, pushReady,
+    savingVis, savedVis, hiddenAlterIds, toggleAlterHidden, privacyOverride, handlePrivacyOverride,
+    allowedLevelIds, allowedSet, saveLevels, levels, maxLevelNumber, thresholdValue, sharedCount,
+    sharedMembers, loadingShare, safetyNum,
+  } = useFriendView({ friend, open: expanded, alters, visibilitySettings, onVisibilityChange, onRemove, onToggleNotify, myPublicKeyJwk, verifiedNumber, onVerify });
 
   const frontSummary = () => friendFrontSummary(friend);
 
@@ -769,506 +575,23 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   );
 }
 
-// ── Setup / profile modal ─────────────────────────────────────────────────────
-
-function PrivacyDisclaimer() {
-  const t = useTerms();
-  return (
-    <div className="space-y-3">
-      <div className="flex items-start gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-        <Database className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-        <div className="text-sm">
-          <p className="font-semibold text-foreground">Your personal data stays on-device</p>
-          <p className="text-muted-foreground leading-relaxed mt-0.5">
-            All your personal data — {t.alters}, journals, check-ins, symptoms, {t.fronting} sessions, etc. — lives in IndexedDB on your device. None of it is synced or uploaded — the relay described below only ever receives what you explicitly choose to share. The optional AES-256 encryption setting protects it at rest on the device itself.
-          </p>
-        </div>
-      </div>
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-        <div className="flex items-start gap-3 mb-2">
-          <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="font-semibold text-foreground">Friends uses a minimal cloud relay</p>
-        </div>
-        <div className="text-muted-foreground leading-relaxed space-y-2 pl-8">
-          <p>
-            The Friends feature uses a separate, minimal cloud relay (a small serverless function with a key-value store). It only holds:
-          </p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Your chosen display name, {t.system} name, friend code, chosen terms and privacy level</strong> — public-ish info you explicitly choose to share.</li>
-            <li><strong>Your public encryption key</strong> — so friends can send you encrypted shares. (Your private key stays on this device, sealed with your app password when encryption is on.)</li>
-            <li><strong>A snapshot of who is currently {t.fronting}</strong>, filtered by your privacy setting — <em>this one is readable by the relay</em> (so a notification can name who's {t.fronting}); the shared member list below is not:
-              <ul className="list-[circle] pl-5 mt-0.5">
-                <li><em>Names &amp; colours</em> — each {t.fronting} {t.alter}'s name, accent colour, and primary/co-{t.front} status.</li>
-                <li><em>Count only</em> — just how many {t.alters} are out (e.g. "2 {t.fronters}").</li>
-                <li><em>Hidden</em> — nothing about who's {t.fronting} at all.</li>
-              </ul>
-            </li>
-            <li><strong>A member list you choose to share</strong> — <strong>end-to-end encrypted</strong>, so the relay only holds scrambled data it can't read. You control which {t.alters} (via privacy levels) and which details each friend sees; members are private until you add them to a level.</li>
-            <li><strong>Friend relationships</strong> — who approved who.</li>
-            <li><strong>Push tokens</strong> — a web-push subscription, or a Firebase/FCM token on the installed app — only if you opt in to notifications.</li>
-            <li><strong>Reminder schedules</strong>, only if you turn on push notifications for reminders: the fire times, plus each reminder's text <em>unless</em> you switch off "Show reminder text in notifications" (then only a generic "you have a reminder" is sent and the wording stays on your device).</li>
-          </ul>
-          <p>
-            Your {t.alter} profiles, journal text, check-in data, symptoms, and timeline history — <strong>none of that touches the friends server</strong>. What it holds is only the list above, and nothing gets added to that list without you turning something on. Everything above is deleted from the relay when you delete your Friends profile; removing a single friend removes their access and their copy of your shares.
-          </p>
-          <p>
-            Friends is <strong>opt-in from the start</strong>: you have to create a Friends profile to use it. If you never do, nothing about your {t.system} goes to the relay. (Cloud-backed reminders, under Settings → Notifications, are a separate opt-in.) The core app works entirely locally; Friends is a separately-consented, explicitly-minimal cloud feature for sharing the specific thing you choose to share.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProfileSetupModal({ open, onClose, onSaved, existing, onDeleted }) {
-  const terms = useTerms();
-  const [displayName, setDisplayName] = useState(existing?.displayName || '');
-  const [systemName, setSystemName] = useState(existing?.systemName || '');
-  const [privacyLevel, setPrivacyLevel] = useState(existing?.privacyLevel || 'names');
-  // What rides along with each shared fronter ("name" keeps pre-feature
-  // behaviour; nothing new leaves the device without an explicit change).
-  const [fronterShareMode, setFronterShareMode] = useState(existing?.fronterShareMode || 'name');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const handleDelete = async () => {
-    if (!confirmDelete) { setConfirmDelete(true); return; }
-    setDeleting(true);
-    try {
-      await deleteIdentity();
-      toast.success('Friends profile deleted');
-      onDeleted?.();
-      onClose();
-    } catch (e) {
-      console.error('[Friends] deleteIdentity failed:', e);
-      setError(e.message || 'Failed to delete profile.');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleSave = async () => {
-    setError('');
-    if (!displayName.trim()) {
-      setError('Display name is required.');
-      return;
-    }
-    setSaving(true);
-    try {
-      await registerIdentity({
-        displayName: displayName.trim(),
-        systemName: systemName.trim(),
-        terms: {
-          system: terms.system,
-          alter: terms.alter,
-          alters: terms.alters,
-          front: terms.front,
-          fronting: terms.fronting,
-        },
-        privacyLevel,
-      });
-      await saveFronterShareMode(fronterShareMode);
-      toast.success('Profile saved!');
-      onSaved();
-      onClose();
-    } catch (e) {
-      console.error('[Friends] registerIdentity failed:', e);
-      setError(e.message || 'Failed to save profile. Check your connection and try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{existing ? 'Edit Friends Profile' : 'Set Up Friends Profile'}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
-              Display Name *
-            </label>
-            <Input
-              value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              placeholder="How friends see you"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
-              {terms.System} Name (optional)
-            </label>
-            <Input
-              value={systemName}
-              onChange={e => setSystemName(e.target.value)}
-              placeholder={`Your ${terms.system}'s name`}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
-              Front Visibility
-            </label>
-            <Select value={privacyLevel} onValueChange={setPrivacyLevel}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="names">Show names & colours</SelectItem>
-                <SelectItem value="count_only">Count only (e.g. "2 fronters")</SelectItem>
-                <SelectItem value="hidden">Hidden (friends see no front info)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Controls what friends can see when you update your front.
-            </p>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
-              What each {terms.fronter} shares
-            </label>
-            <Select value={fronterShareMode} onValueChange={setFronterShareMode}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name only</SelectItem>
-                <SelectItem value="name_prefs">Name + pronouns &amp; preferences</SelectItem>
-                <SelectItem value="prefs_only">Pronouns &amp; preferences only (no name)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Preferences are the comfort-rated pronouns / names / terms set on each {terms.alter}'s profile (Edit → Pronouns → Advanced). "No name" shows pronouns in place of the name.
-            </p>
-          </div>
-          {error && (
-            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
-          )}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || deleting}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {saving ? 'Saving…' : (existing ? 'Save Changes' : 'Create Profile')}
-          </button>
-          {existing && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving || deleting}
-              className={`w-full flex items-center justify-center gap-1.5 mt-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                confirmDelete
-                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : "text-destructive/80 hover:text-destructive hover:bg-destructive/10"
-              }`}
-            >
-              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-              {confirmDelete ? "Tap again to delete profile + remove from all friends" : "Delete profile"}
-            </button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Add friend modal ──────────────────────────────────────────────────────────
-
-// Sending a friend request by code — the Add Friend popup and the pixel
-// desk's "Add a friend" box both use this.
-function useFriendCodeSender(onDone) {
-  const [code, setCode] = useState('');
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
-  const handleSend = async () => {
-    setError('');
-    const trimmed = code.trim().toUpperCase();
-    if (!trimmed) return;
-    setSending(true);
-    try {
-      await sendFriendRequest(trimmed);
-      toast.success('Friend request sent!');
-      setCode('');
-      onDone();
-    } catch (e) {
-      console.error('[Friends] sendFriendRequest failed:', e);
-      setError(e.message || 'Failed to send request. Check your connection and try again.');
-    } finally {
-      setSending(false);
-    }
-  };
-  return { code, setCode, sending, error, handleSend };
-}
-
-function AddFriendModal({ open, onClose, onAdded }) {
-  const { code, setCode, sending, error, handleSend } = useFriendCodeSender(() => { onAdded(); onClose(); });
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Add Friend</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-muted-foreground">
-            Enter your friend's code to send them a friend request. They'll need to approve it before you can see each other's front status.
-          </p>
-          <Input
-            value={code}
-            onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="XXXX-XXXX"
-            maxLength={9}
-            className="font-mono text-center tracking-widest text-base"
-            onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
-          />
-          {error && (
-            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
-          )}
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={sending || !code.trim()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-            {sending ? 'Sending…' : 'Send Request'}
-          </button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function FriendsPage() {
-  const queryClient = useQueryClient();
   const [showSetup, setShowSetup] = useState(false);
   const [showAddFriend, setShowAddFriend] = useState(false);
-  const [copied, setCopied] = useState(false);
   // The pixel look: the Friends mockup's desk (friends · the open friend ·
   // sharing and how it works), stacked on a phone.
   const pixel = useUiLook() === "pixel";
   const pixelDesk = usePixelDesk();
   const [selectedFriendId, setSelectedFriendId] = useState(null);
-  const adder = useFriendCodeSender(() => refetchFriends());
-
-  const { data: rawIdentity, isLoading: identityLoading, refetch: refetchIdentity } = useQuery({
-    queryKey: ['friendIdentity'],
-    queryFn: getLocalIdentity,
-    staleTime: 0,
-    refetchOnMount: 'always',
-  });
-  // A push_only identity is one auto-provisioned solely for cloud reminder /
-  // FCM delivery — the user hasn't set up the social Friends feature. Treat it
-  // as "no profile" everywhere on this page so we still show setup and never run
-  // front-sharing / key publishing for it. Setting up Friends upgrades the same
-  // record (push_only → false) via registerIdentity.
-  const identity = rawIdentity && !rawIdentity.push_only ? rawIdentity : null;
-
-  const { data: altersRaw = [] } = useQuery({
-    queryKey: ['alters'],
-    queryFn: () => base44.entities.Alter.filter({}),
-    staleTime: 60_000,
-  });
-  const alters = altersRaw.filter(a => !a.is_archived);
-
-  const { data: activeFront = [] } = useQuery({
-    queryKey: ['activeFront'],
-    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
-    staleTime: 15_000,
-  });
-
-  const { data: friendsData, isLoading: friendsLoading, refetch: refetchFriends } = useQuery({
-    queryKey: ['friendsList'],
-    queryFn: fetchFriendsList,
-    enabled: !!identity,
-    // Push-instead-of-poll: front changes trigger an instant refetch via the
-    // push signal (see the effect below), so the timer can be slow and
-    // foreground-only — a big cut to relay traffic + battery vs the old 10s
-    // background poll. 30s still surfaces new friend requests promptly.
-    refetchInterval: 30_000,
-    refetchIntervalInBackground: false,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-    // Never blank the visible list during a refetch or a transient error —
-    // keep showing the last-known-good friends until fresh data lands. Pairs
-    // with fetchFriendsList now throwing (instead of returning empty) on a
-    // failed request, so a resume-time blip can't wipe the list.
-    placeholderData: keepPreviousData,
-  });
-
-  const friends = friendsData?.friends || [];
-  const pending = friendsData?.pending || [];
-  const pendingSent = friendsData?.pendingSent || [];
-
-  const terms = useTerms();
-  // E2E keys: ensure this device has a keypair + publish the public key so
-  // friends can fetch it. Also loads my public key for safety-number display.
-  const [myPublicKeyJwk, setMyPublicKeyJwk] = useState(null);
-  const keysPublishedRef = useRef(false);
-  useEffect(() => {
-    if (!identity || !isCryptoAvailable() || keysPublishedRef.current) return;
-    keysPublishedRef.current = true;
-    (async () => {
-      try {
-        const kp = await ensureKeyPair();
-        if (kp) setMyPublicKeyJwk(kp.publicKeyJwk);
-        await publishPublicKey();
-        // Push the current encrypted member-list share now that keys are live.
-        await pushAlterShares();
-      } catch { /* non-fatal — sharing just won't be available until keys publish */ }
-    })();
-  }, [identity]);
-
-  const handleVerifyFriend = useCallback(async (friendUserId, number) => {
-    await setFriendVerified(friendUserId, number);
-    refetchIdentity();
-  }, [refetchIdentity]);
-
-  // Sync current front status to the relay once when identity is available (catches cases where
-  // the user was already fronting before they set up the Friends profile).
-  const syncedRef = useRef(false);
-  useEffect(() => {
-    if (!identity || syncedRef.current) return;
-    syncedRef.current = true;
-    (async () => {
-      try {
-        await pushCurrentFront(terms);
-      } catch (_) {}
-    })();
-  }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
-
-  // Push-instead-of-poll: refetch the friends list the moment a front-change
-  // push arrives — on web via the service worker's "push-received" message,
-  // on native via the FCM foreground event dispatched by fcmPush.js. Keeps
-  // the list feeling live while the timer poll above stays lazy.
-  useEffect(() => {
-    if (!identity) return;
-    const refetch = () => refetchFriends();
-    let swHandler = null;
-    try {
-      if (navigator.serviceWorker) {
-        swHandler = (e) => { if (e.data?.type === "push-received") refetch(); };
-        navigator.serviceWorker.addEventListener("message", swHandler);
-      }
-    } catch { /* no SW here */ }
-    window.addEventListener("fcm-front-change", refetch);
-    return () => {
-      window.removeEventListener("fcm-front-change", refetch);
-      try { if (swHandler && navigator.serviceWorker) navigator.serviceWorker.removeEventListener("message", swHandler); } catch { /* ignore */ }
-    };
-  }, [identity, refetchFriends]);
-
-  // On mount, re-save push subscription to the relay if push is enabled.
-  // This handles the case where VAPID keys were added after notifyOnChange was set.
-  useEffect(() => {
-    if (!identity) return;
-    isPushEnabled().then(enabled => {
-      if (!enabled) return;
-      return getActivePushSubscription().then(sub => {
-        if (!sub) return;
-        fetch(`${FRIENDS_API_BASE}/save-push-sub`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: identity.userId, secret: identity.secret, subscription: sub }),
-        }).catch(() => {});
-      });
-    }).catch(() => {});
-  }, [identity]);
-
-  // When the Friends page is open and friendsData loads/refreshes, update the snapshot
-  // so changes already seen here don't re-trigger alerts on next app open.
-  useEffect(() => {
-    if (!friendsData?.friends?.length) return;
-    const snapshots = {};
-    for (const friend of friendsData.friends) {
-      snapshots[friend.userId] = {
-        updatedAt: friend.front?.updatedAt,
-        fronters: friend.front?.fronters || [],
-      };
-    }
-    localStorage.setItem("friends_front_snapshots", JSON.stringify(snapshots));
-  }, [friendsData]);
-
-  const copyCode = useCallback(() => {
-    if (!identity?.friendCode) return;
-    navigator.clipboard.writeText(identity.friendCode).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [identity]);
-
-  const handleRespond = async (fromUserId, action) => {
-    // Defensive: surface immediately if the request object is malformed
-    // (otherwise the button looks unresponsive to the user).
-    if (!fromUserId) {
-      toast.error("This request is missing sender info. Try refreshing the page.");
-      return;
-    }
-    // Immediate feedback so the user knows the tap registered, even if the
-    // server round-trip is slow. We'll replace this with a success/error
-    // toast below.
-    const pendingToastId = toast.loading(action === 'approve' ? "Accepting…" : "Declining…");
-    // Optimistically remove the request from `pending` so the UI updates
-    // before the network round-trip finishes. Refetch reconciles state.
-    queryClient.setQueryData(['friendsList'], (prev) => {
-      if (!prev) return prev;
-      const pending = (prev.pending || []).filter(p => p.fromUserId !== fromUserId);
-      return { ...prev, pending };
-    });
-    try {
-      await respondToRequest(fromUserId, action);
-      toast.success(action === 'approve' ? 'Friend request accepted!' : 'Request declined.', { id: pendingToastId });
-      refetchFriends();
-    } catch (e) {
-      toast.error(e?.message || 'Failed — check your connection and try again.', { id: pendingToastId });
-      refetchFriends(); // restore truth on failure
-    }
-  };
-
-  const handleRemove = async (friendUserId) => {
-    try {
-      await removeFriend(friendUserId);
-      toast.success('Friend removed.');
-      refetchFriends();
-    } catch (e) {
-      toast.error(e.message || 'Failed to remove friend.');
-    }
-  };
-
-  const handleToggleNotify = async (friendUserId, value) => {
-    try {
-      await toggleNotify(friendUserId, value);
-      queryClient.setQueryData(['friendsList'], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          friends: old.friends.map(f =>
-            f.userId === friendUserId ? { ...f, notifyOnChange: value } : f
-          ),
-        };
-      });
-    } catch (e) {
-      toast.error(e.message || 'Failed.');
-    }
-  };
-
-  const handleVisibilityChange = useCallback(async (friendUserId, settings) => {
-    await saveFriendVisibility(friendUserId, settings);
-    // Refresh identity so visibility changes are reflected in the UI
-    await refetchIdentity();
-    // Re-push front status so this friend immediately sees the change
-    pushCurrentFront(terms).catch(() => {});
-    // Re-push the encrypted member-list share so the level change takes effect.
-    pushAlterShares().catch(() => {});
-  }, [terms, refetchIdentity]);
+  // Reads, relay effects and handlers: shared with the house's Friends room.
+  const {
+    terms, identity, identityLoading, refetchIdentity, alters,
+    friends, pending, pendingSent, friendsLoading, refetchFriends,
+    myPublicKeyJwk, copied, copyCode, adder,
+    handleRespond, handleRemove, handleToggleNotify, handleVisibilityChange, handleVerifyFriend,
+  } = useFriendsPage();
 
   if (identityLoading) {
     return (
