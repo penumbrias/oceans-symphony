@@ -1314,7 +1314,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
       <DialogContent
-        className={`max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0${pixel ? " px-ci" : ""}${houseSheet ? " hcs-ci" : ""}`}
+        className={`max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0${houseSheet ? " hcs-ci" : pixel ? " px-ci" : ""}`}
         {...(houseSheet ? houseSheet.attrs : null)}
         style={houseSheet ? { ...houseSheet.style, ...houseSheet.place("checkin", keyboardInset) } : undefined}
         // Pixel look: Cancel sits top-left in place of the corner X.
@@ -1426,7 +1426,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         )}
 
         {/* Scrollable body */}
-        <div className={`flex-1 overflow-y-auto min-h-0 space-y-3 ${pixel ? "px-ci-body" : "px-6 py-4"}`}>
+        <div className={`flex-1 overflow-y-auto min-h-0 space-y-3 ${houseSheet ? "hcs-ci-body" : pixel ? "px-ci-body" : "px-6 py-4"}`}>
           {/* Feeling */}
           {sectionRow("feeling")}
           {openSections.has("feeling") &&

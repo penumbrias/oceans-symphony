@@ -12,7 +12,7 @@ import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { useFrontersFirst } from "@/lib/alterSort";
 import { an } from "@/lib/articles";
-import { createPresence } from "@/lib/presenceEntry";
+import { createPresence, updatePresence } from "@/lib/presenceEntry";
 
 // Self-contained create/edit form for a "presence" — a sensed-but-not-yet-
 // identified fragment/alter. Reuses the SAME colour picker (ColorPickerModal)
@@ -80,7 +80,7 @@ export default function PresenceForm({ presence = null, onSaved, onCancel }) {
       };
       let rowId;
       if (editing) {
-        await base44.entities.Presence.update(presence.id, fields);
+        await updatePresence(presence.id, fields);
         rowId = presence.id;
         toast.success("Presence updated");
       } else {

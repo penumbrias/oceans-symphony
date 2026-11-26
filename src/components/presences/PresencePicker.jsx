@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -7,6 +6,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import PresenceForm from "./PresenceForm";
 import { sharedList } from "@/lib/sharedLists";
+import { notePresenceSighting } from "@/lib/presenceEntry";
 
 // Helper: every timestamp a presence was sensed (back-compat for rows that
 // only have the single `timestamp`).
@@ -29,9 +29,7 @@ export default function PresencePicker({ onClose, onSaved = onClose, intro = nul
 
   const logAgain = async (p) => {
     try {
-      const now = new Date().toISOString();
-      const sightings = [...sightingsOf(p), now];
-      await base44.entities.Presence.update(p.id, { sightings, timestamp: now });
+      await notePresenceSighting(p.id);
       qc.invalidateQueries({ queryKey: ["presences"] });
       toast.success(`Noted — ${p.label || p.vibe || "presence"} sensed again`);
       onSaved?.();

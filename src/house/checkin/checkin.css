@@ -72,12 +72,12 @@
 [data-house].hcs-ci .px-ci-last { font-size: var(--house-text-xs); color: var(--house-muted); }
 
 /* The body: one list of sections, the only thing that scrolls. */
-[data-house].hcs-ci .px-ci-body {
+[data-house].hcs-ci .hcs-ci-body {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: var(--house-space-2); background: var(--house-page);
   display: flex; flex-direction: column; gap: var(--house-space-2);
 }
-[data-house].hcs-ci .px-ci-body > * { margin: 0; }
+[data-house].hcs-ci .hcs-ci-body > * { margin: 0; }
 /* A section head: a title bar with what's inside on the right. */
 [data-house].hcs-ci .px-ci-head {
   width: 100%; min-height: max(var(--house-target), 2.75rem); padding: 0 var(--house-space-3);
@@ -106,23 +106,23 @@
 }
 [data-house].hcs-ci .hcs-mode > button[aria-pressed="true"] { color: var(--house-text); text-decoration: underline; text-underline-offset: 0.2em; }
 /* The open section's body joins its head into one panel. */
-[data-house].hcs-ci .px-ci-body > :is(.px-ci-head[aria-expanded="true"], .hcs-headrow) + div {
+[data-house].hcs-ci .hcs-ci-body > :is(.px-ci-head[aria-expanded="true"], .hcs-headrow) + div {
   margin-top: calc(-1 * var(--house-space-2));
   padding: var(--house-space-3); background: var(--house-panel); color: var(--house-text);
   border: var(--hcs-line) solid var(--house-outline); border-radius: 0 0 var(--house-corner-sm, 0) var(--house-corner-sm, 0);
   box-shadow: var(--hcs-raise);
 }
 /* The section's own heading repeats the head; the head says it. */
-[data-house].hcs-ci .px-ci-body > :is(.px-ci-head[aria-expanded="true"], .hcs-headrow) + div > p.text-sm.font-medium:first-child,
+[data-house].hcs-ci .hcs-ci-body > :is(.px-ci-head[aria-expanded="true"], .hcs-headrow) + div > p.text-sm.font-medium:first-child,
 [data-house].hcs-ci .os-feeling-row > div > p.text-sm.font-medium:first-child { display: none; }
 [data-house].hcs-ci .px-ci-foot { margin: 0; padding: var(--house-space-1) 0 var(--house-space-2); text-align: center; font-size: var(--house-text-xs); color: var(--house-muted); }
 [data-house].hcs-ci .px-ci-accent { color: var(--house-accent); }
 /* Fields inside the sections are sunken, as board 16 draws them. */
-[data-house].hcs-ci .px-ci-body :is(input:is([type="text"], [type="search"], [type="number"], :not([type])), textarea, select) {
+[data-house].hcs-ci .hcs-ci-body :is(input:is([type="text"], [type="search"], [type="number"], :not([type])), textarea, select) {
   background: var(--house-page); color: var(--house-text); border-color: transparent; border-radius: var(--house-corner-sm, 0);
   box-shadow: var(--hcs-sink);
 }
-[data-house].hcs-ci .px-ci-body :is(input, textarea)::placeholder { color: var(--house-muted); }
+[data-house].hcs-ci .hcs-ci-body :is(input, textarea)::placeholder { color: var(--house-muted); }
 
 /* The side rating (board 16's Energy column): square steps, every number. */
 [data-house].hcs-ci .os-side-rating { border-left: 0; padding-left: var(--house-space-2); box-shadow: inset var(--hcs-line) 0 0 var(--house-outline); }

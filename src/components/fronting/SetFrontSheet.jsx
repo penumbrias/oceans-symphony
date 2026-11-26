@@ -443,7 +443,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
       <Dialog open={open} onOpenChange={onClose}>
         {pixel ? (
           <DialogContent showCloseButton={false} aria-describedby={undefined}
-            className={`psh-dlg psh-dlg-sf${houseSheet ? " hcs-sf" : ""}`}
+            className={houseSheet ? "hcs-sf" : "psh-dlg psh-dlg-sf"}
             {...(houseSheet ? houseSheet.attrs : null)}
             style={houseSheet
               ? { ...houseSheet.style, ...houseSheet.place("front", keyboardInset) }
