@@ -807,6 +807,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/planner", target: "planner",
     }),
     s("activities", {
+      emoji: "🖐️", title: "Drag to move",
+      body: `In the new house, drag an entry to another time or day, and drag its bottom edge to change its length. On a touch screen, hold it first. Undo is on the note that follows.`,
+      route: "/planner", target: ["planner-sections", "planner"],
+    }),
+    s("activities", {
+      emoji: "🎛️", title: "Planner options",
+      body: `The sliders button sets what shows on the calendar (${t.fronting}, check-ins, places), 12- or 24-hour time, the first day of the week and the hour height. These are kept on this device.`,
+      route: "/planner", target: ["planner-options", "planner"],
+    }),
+    s("activities", {
       emoji: "🗓️", title: "Go to a day", pixelDeskOnly: true,
       body: `In the pixel look on a computer, a month sits beside the planner. Click any day to jump the calendar there.`,
       route: "/planner", target: "planner-month-panel",
@@ -828,7 +838,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🧭", title: "Calendar",
-      body: `Calendar shows a Day, Week, Month or Year. Tap a day on the month or year to open it, or hold and drag across days to plan one entry over them all.`,
+      body: `Calendar shows a Day, Week, Month or Year. In the new house they share one row with Plans list, and the arrows beside them step through. Tap a day on the month or year to open it.`,
       route: "/planner", target: ["planner-sections", "px-subtabs"], look: `the Calendar / Plans / Insights switch`,
     }),
     s("activities", {
@@ -838,7 +848,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "📋", title: "Plans",
-      body: `Plans lists everything scheduled: Overdue, Today, This week, This month and Later. A repeating series is one row, and the Resolved filter keeps past plans.`,
+      body: `Plans lists everything scheduled, from what needs a decision to later. A repeating series is one row, and Resolved keeps past plans. "Select several…" changes many at once.`,
       route: "/planner", target: ["planner-sections", "px-subtabs"],
     }),
     s("activities", {
@@ -863,7 +873,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("activities", {
       emoji: "🗓️", title: "Plans and logs",
-      body: `Plans have a dashed outline; logged activities are solid. Tap a plan to mark it done, partly, skipped or cancelled, or to move it.`,
+      body: `Plans have a dashed outline; logged activities are solid. A plan whose time passed without an answer is dashed in the warning colour. Tap a plan to mark how it went, or to move it.`,
       route: "/planner", target: "planner", look: `any plan on the grid`,
     }),
     s("activities", {
