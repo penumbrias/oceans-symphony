@@ -28,10 +28,9 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { Check, Copy, Eye, EyeOff, PlayCircle, RefreshCw, Settings2, ShieldCheck, UserMinus, UserPlus } from "lucide-react";
+import { Check, Eye, EyeOff, PlayCircle, RefreshCw, Settings2, ShieldCheck, UserMinus, UserPlus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { HouseScope } from "@/house/tokens/HouseRoot";
-import { PixelBack } from "@/house/tokens/PixelGlyphs";
 import { Button, IconButton } from "@/house/kit/Button";
 import { Panel, PageTabs } from "@/house/kit/Panel";
 import { Segmented, SliderRow } from "@/house/kit/Choices";
@@ -160,6 +159,11 @@ export default function HouseFriends({ size = "full", tokens }) {
         </div>
       </Panel>
     );
+    const relayPanel = (
+      <Panel className="hfr-pn" title="What the relay holds" tools={<span className="hfr-note">only once you make a profile</span>}>
+        <div className="hfr-body hfr-old"><PrivacyDisclaimer /></div>
+      </Panel>
+    );
     if (phone) {
       return (
         <HouseScope tokens={tokens} className="hfr hfr--phone" data-house-size="phone" data-friends-room="">
@@ -170,9 +174,11 @@ export default function HouseFriends({ size = "full", tokens }) {
     }
     return (
       <HouseScope tokens={tokens} className="hfr hfr--studio" data-house-size={size} data-friends-room="">
-        <div className="hfr-cols hfr-cols--setup" data-house-size={size}>
-          <div className="hfr-col">{intro}</div>
-          <div className="hfr-col hfr-col--side">{sharing}</div>
+        <h1 className="sr-only">Friends</h1>
+        <div className="hfr-cols" data-house-size={size}>
+          <div className="hfr-col hfr-col--list">{intro}</div>
+          <div className="hfr-col hfr-col--main">{relayPanel}{size === "compact" ? sharing : null}</div>
+          {size === "compact" ? null : <div className="hfr-col hfr-col--side">{sharing}</div>}
         </div>
         {dialogs}
       </HouseScope>
@@ -182,7 +188,7 @@ export default function HouseFriends({ size = "full", tokens }) {
   // ── The Friends column (board 22, left) ──
   const list = (
     <Panel className="hfr-pn hfr-listpn" title="Friends"
-      tools={<Button rank="quiet" className="hfr-poll" icon={RefreshCw} aria-label="Refresh friends" onClick={() => refetchFriends()}>{pollWords({ fetching: friendsFetching })}</Button>}>
+      tools={<Button rank="quiet" className="hfr-poll" title="Refresh friends now" onClick={() => refetchFriends()}>{pollWords({ fetching: friendsFetching })}</Button>}>
       <div className="hfr-rows" data-tour="friends-list">
         {friendsLoading && friends.length === 0 ? <LoadingBlock label="Loading friends" rows={3} /> : null}
         {!friendsLoading && friends.length === 0 && pending.length === 0 && pendingSent.length === 0 ? (
@@ -233,14 +239,14 @@ export default function HouseFriends({ size = "full", tokens }) {
           onChange={(v) => page.adder.setCode(v.toUpperCase())} error={page.adder.error || undefined}
           onKeyDown={(e) => { if (e.key === "Enter") page.adder.handleSend(); }} />
         <Button rank="primary" className="hfr-add-btn" busy={page.adder.sending} busyLabel="Sending…"
-          disabledReason={page.adder.code.trim() ? undefined : "Type their code first"} onClick={page.adder.handleSend}>Add</Button>
+          onClick={() => (page.adder.code.trim() ? page.adder.handleSend() : focusAdd())}>Add</Button>
         <div className="hfr-code">
           <span>Your code: <b className="hfr-codeval">{identity.friendCode}</b></span>
-          <Button rank="quiet" icon={page.copied ? Check : Copy} onClick={page.copyCode}>{page.copied ? "Copied" : "Copy"}</Button>
+          <Button rank="quiet" className="hfr-mini-btn" aria-label="Copy your code" onClick={page.copyCode}>{page.copied ? "Copied" : "Copy"}</Button>
         </div>
         <div className="hfr-code">
           <span className="hfr-dim">{`Visible as ${identity.displayName || "—"}${identity.systemName ? ` · ${identity.systemName}` : ""}`}</span>
-          <Button rank="quiet" icon={Settings2} onClick={() => setShowSetup(true)}>Profile</Button>
+          <Button rank="quiet" className="hfr-mini-btn" onClick={() => setShowSetup(true)}>Profile</Button>
         </div>
       </div>
     </Panel>
@@ -249,7 +255,7 @@ export default function HouseFriends({ size = "full", tokens }) {
   const friendView = selected ? (
     <ErrorBoundary key={selected.userId} resetKeys={[selected.userId]}
       fallback={<Panel className="hfr-pn" title="This friend"><p className="hfr-empty">{`This friend's view couldn't be drawn (${selected.displayName || "friend"}). Their data is safe; this is a display problem, please report it.`}</p></Panel>}>
-      <FriendPanels {...page.friendProps(selected)} identity={identity} phone={phone} onBack={closeFriend}
+      <FriendPanels {...page.friendProps(selected)} identity={identity} phone={phone}
         onRemoved={() => { if (phone) closeFriend(); else navigate("/friends", { replace: true, state: null }); }} />
     </ErrorBoundary>
   ) : (
@@ -281,6 +287,7 @@ export default function HouseFriends({ size = "full", tokens }) {
 
   return (
     <HouseScope tokens={tokens} className="hfr hfr--studio" data-house-size={size} data-friends-room="">
+      <h1 className="sr-only">Friends</h1>
       <div className="hfr-cols" data-house-size={size}>
         <div className="hfr-col hfr-col--list">{list}</div>
         <div className="hfr-col hfr-col--main">{friendView}{size === "compact" ? sharing : null}</div>
@@ -292,13 +299,14 @@ export default function HouseFriends({ size = "full", tokens }) {
 }
 
 // ── The open friend (board 22, middle) ──────────────────────────────────
-function FriendPanels({ identity, phone, onBack, onRemoved, ...props }) {
+function FriendPanels({ identity, phone, onRemoved, ...props }) {
   const { friend, alters, terms, globalPrivacyLevel } = props;
   const v = useFriendView({ ...props, onRemove: async (id) => { await props.onRemove(id); onRemoved?.(); } });
   const formatAlter = useAlterLabel();
   const [revealSafety, setRevealSafety] = useState(false);
   const [pickLevels, setPickLevels] = useState(false);
   const [showVisible, setShowVisible] = useState(false);
+  const [showHide, setShowHide] = useState(false);
   const [visShown, setVisShown] = useState(60);
   const safetyRef = useRef(null);
 
@@ -317,7 +325,6 @@ function FriendPanels({ identity, phone, onBack, onRemoved, ...props }) {
 
   const head = (
     <Panel className="hfr-pn hfr-headpn" title={<span className="hfr-headrow">
-      {phone ? <IconButton icon={PixelBack} rank="secondary" label="Back to Friends" onClick={onBack} /> : null}
       <span className="hfr-bigsq" style={{ background: v.fronters[0]?.color || "var(--house-raised)" }} aria-hidden="true" />
       <span className="hfr-headtext">
         <span className="hfr-name">{friend.displayName || "Friend"}</span>
@@ -428,8 +435,14 @@ function FriendPanels({ identity, phone, onBack, onRemoved, ...props }) {
 
   const hidePart = showsNames && alters.length > 0 ? (
     <div className="hfr-sub">
-      <div className="hfr-subttl">{`Hide ${terms.alters} from this friend`}</div>
-      <div className="hfr-old">
+      <div className="hfr-line2">
+        <span className="hfr-subttl">{`Hide ${terms.alters} from this friend`}</span>
+        <span className="hfr-val">
+          {v.hiddenAlterIds.length ? <span className="hfr-note">{`${v.hiddenAlterIds.length} hidden`}</span> : null}
+          <Button rank="quiet" aria-expanded={showHide} onClick={() => setShowHide((o) => !o)}>{showHide ? "Fold" : "Choose"}</Button>
+        </span>
+      </div>
+      {showHide ? <div className="hfr-old">
         <AlterTreeSelect controlPosition="right" maxHeight="44vh"
           renderControl={(alter) => {
             // With levels granted, the levels decide: the profile switch only covers friends without levels.
@@ -442,7 +455,7 @@ function FriendPanels({ identity, phone, onBack, onRemoved, ...props }) {
                 onClick={() => v.toggleAlterHidden(alter.id)} />
             );
           }} />
-      </div>
+      </div> : null}
     </div>
   ) : null;
 
@@ -469,7 +482,7 @@ function FriendPanels({ identity, phone, onBack, onRemoved, ...props }) {
               onClick={() => v.handleNotify(!friend.notifyOnChange)}>
               {friend.notifyOnChange ? <Check aria-hidden="true" className="hfr-tick-glyph" /> : null}
             </Button>
-            {v.pushReady === false ? <span className="hfr-warn">Push notifications aren't on. Settings → Reminders turns them on.</span> : null}
+            {v.pushReady === false && friend.notifyOnChange ? <span className="hfr-dim hfr-small">Push notifications aren't on here. Settings → Reminders turns them on.</span> : null}
           </span>
         </div>
         <p className="hfr-sunk" data-tour="friends-preview">{`Right now they would see: ${seeWords(view, terms)}.`}</p>
