@@ -307,7 +307,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<Settings />} />
 
         <Route path="/analytics" element={<Analytics />} />
-        <Route path="/journals" element={<Journals />} />
+        <Route path="/journals" element={<HouseRoomGate><Journals /></HouseRoomGate>} />
         {/* /diary (Daily Log) is deprecated — redirect to the Check-In Log */}
         <Route path="/diary" element={<Navigate to="/checkin-log" replace />} />
         <Route path="/tasks" element={<DailyTasks />} />
@@ -328,7 +328,7 @@ const AuthenticatedApp = () => {
         <Route path="/bulletins" element={<BulletinsPage />} />
         <Route path="/unblend" element={<HouseRoomGate><HelpMeUnblend /></HouseRoomGate>} />
         <Route path="/get-to-know-me" element={<GetToKnowMe />} />
-        <Route path="/chat" element={<Chat />} />
+        <Route path="/chat" element={<HouseRoomGate><Chat /></HouseRoomGate>} />
         <Route path="/unblend/questions" element={<UnblendQuestionsManager />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
         <Route path="/grounding" element={<HouseRoomGate><Grounding /></HouseRoomGate>} />

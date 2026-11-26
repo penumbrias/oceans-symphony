@@ -39,7 +39,7 @@ import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { openPageTour, openFullTour } from "@/lib/pageTutorials";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
-import { setHouseSwitch, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom } from "@/lib/houseSwitch";
 import { useRoomToolsValue } from "@/house/frame/roomTools";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
@@ -75,6 +75,8 @@ const HouseTimeline = React.lazy(() => import("@/house/timeline/HouseTimeline"))
 const HousePlanner = React.lazy(() => import("@/house/planner/HousePlanner"));
 const HouseAlters = React.lazy(() => import("@/house/alters/HouseAlters"));
 const HouseAlterProfile = React.lazy(() => import("@/house/alters/HouseAlterProfile"));
+const HouseJournals = React.lazy(() => import("@/house/write/HouseJournals"));
+const HouseChat = React.lazy(() => import("@/house/write/HouseChat"));
 // The bar's pixel icons (board 08-Phone), by place.
 const PLACE_GLYPHS = { home: PixelHome, alters: PixelAlters, day: PixelTimeline, write: PixelPen, support: PixelSupport, do: PixelPlus };
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
@@ -247,9 +249,11 @@ export default function HousePhoneFrame({ children, mainRef }) {
   const timelineRoom = houseTimelineRoom(location.pathname);
   const plannerRoom = housePlannerRoom(location.pathname);
   const altersRoom = houseAltersRoom(location.pathname);
+  // The Write room (boards 05 and 14): Journals and System chat.
+  const writeRoom = houseWriteRoom(location.pathname);
   // A rebuilt room's own header tools (board 12: Back · name · Info · ⋯, Search moves into ⋯).
   const published = useRoomToolsValue();
-  const roomTools = altersRoom ? published : null;
+  const roomTools = altersRoom || writeRoom ? published : null;
 
   useEffect(() => activateHouseZones(), []);
   useEffect(() => { document.title = documentTitleFor(page.title); }, [page.title]);
@@ -349,7 +353,9 @@ export default function HousePhoneFrame({ children, mainRef }) {
           </span>
         </div>
         {roomTools?.info ? (
-          <Button rank={roomTools.info.pressed ? "primary" : "secondary"} aria-pressed={!!roomTools.info.pressed} data-tour="alter-profile-edit-btn" onClick={roomTools.info.onSelect}>{roomTools.info.label}</Button>
+          <Button rank={roomTools.info.pressed ? "primary" : "secondary"} aria-pressed={roomTools.info.pressed == null ? undefined : !!roomTools.info.pressed}
+            aria-label={roomTools.info.ariaLabel} title={roomTools.info.ariaLabel}
+            data-tour={roomTools.info.tour || "alter-profile-edit-btn"} onClick={roomTools.info.onSelect}>{roomTools.info.label}</Button>
         ) : (
           <IconButton icon={PixelSearch} label="Search everything" rank="secondary" onClick={() => setSheet("search")} aria-haspopup="dialog" aria-expanded={sheet === "search"} />
         )}
@@ -359,7 +365,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
       <main ref={mainRef} id="main-content" tabIndex={-1} role="main" aria-label={page.title}
         className={homeRoom
           ? "app-content-main hp-canvas hp-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
-          : `app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 ${supportRoom || timelineRoom || plannerRoom || altersRoom ? "px-0" : "px-4"} py-0 overflow-y-auto overflow-x-hidden`}>
+          : `app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 ${supportRoom || timelineRoom || plannerRoom || altersRoom || writeRoom ? "px-0" : "px-4"} py-0 overflow-y-auto overflow-x-hidden`}>
         {location.pathname === "/" && lastTime && !homeRoom ? (
           <HouseScope {...scope()}>
             <LastTimeCard lastTime={lastTime} onDismiss={dismissLastTime} terms={terms} formatAlter={formatAlter} />
@@ -389,6 +395,16 @@ export default function HousePhoneFrame({ children, mainRef }) {
         {altersRoom === "profile" ? (
           <Suspense fallback={null}>
             <HouseAlterProfile size="phone" tokens={tokens} />
+          </Suspense>
+        ) : null}
+        {writeRoom === "journals" ? (
+          <Suspense fallback={null}>
+            <HouseJournals size="phone" tokens={tokens} />
+          </Suspense>
+        ) : null}
+        {writeRoom === "chat" ? (
+          <Suspense fallback={null}>
+            <HouseChat size="phone" tokens={tokens} />
           </Suspense>
         ) : null}
         {homeRoom ? (

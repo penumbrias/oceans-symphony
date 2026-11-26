@@ -208,7 +208,18 @@ export function houseAltersRoom(pathname) {
   return null;
 }
 
+// ── The house's Write room (boards 05 and 14) ───────────────────────────
+// With the new house on, /journals and /chat are drawn by the house itself
+// (src/house/write/). The old pages are not mounted (HouseRoomGate); with
+// the switch off both run exactly as before.
+export function houseWriteRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (p === "/journals") return "journals";
+  if (p === "/chat") return "chat";
+  return null;
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname);
 }

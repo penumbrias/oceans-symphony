@@ -215,7 +215,7 @@ test("the Timeline room is drawn by the house only on /timeline", () => {
   assert.equal(S.houseTimelineRoom("/timelines"), false);
   assert.equal(S.houseRebuiltRoom("/timeline"), true);
   assert.equal(S.houseRebuiltRoom("/grounding"), true);
-  assert.equal(S.houseRebuiltRoom("/journals"), false);
+  assert.equal(S.houseRebuiltRoom("/settings"), false);
   assert.match(read("src/App.jsx"), /path="\/timeline" element=\{<HouseRoomGate><Timeline \/><\/HouseRoomGate>\}/);
 });
 

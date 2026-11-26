@@ -1,0 +1,249 @@
+/* The house's Write room (HouseJournals.jsx, HouseChat.jsx): boards
+   05-Journals and 14-ChatPhone. House tokens only; every class is hw-.
+   Imported by the room itself, so the phone (which does not load
+   frameKit.css) has it too. The chat's stream and composer are the shared
+   chat surface; its px-chat-* hooks are restyled here, only inside .hw-c. */
+
+[data-house].hw { color: var(--house-text); font-family: var(--house-font-body); background: var(--house-page); }
+[data-house] .hw-muted { color: var(--house-muted); }
+[data-house] .hw-small { font-size: var(--house-text-xs); }
+[data-house] .hw-flex { flex: 1 1 auto; }
+[data-house] .hw-p { margin: 0 0 var(--house-space-2); line-height: var(--house-lh-md, 1.5); }
+[data-house] .hw-p:last-child { margin-bottom: 0; }
+[data-house] .hw-ico { display: inline-block; width: 0.875rem; height: 0.875rem; flex: 0 0 auto; vertical-align: -0.125rem; margin-right: 0.25rem; }
+/* Old insides reused inside house panels keep their own look until rebuilt. */
+[data-house] .hw-old { min-width: 0; }
+[data-house] [data-hidden] { font-style: italic; color: var(--house-muted); }
+
+/* ── Studio (board 05: 245 · rest · 265, status line) ── */
+[data-house].hw--studio, [data-house].hw-c--studio {
+  position: absolute; inset: 0; z-index: 1;
+  display: grid; gap: 2px; min-height: 0; min-width: 0;
+  grid-template-columns: 15.3125rem minmax(0, 1fr) 16.5625rem;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+[data-house] .hw-left, [data-house] .hw-right { display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; }
+[data-house] .hw-left > .hk-panel { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; margin: 0; }
+[data-house] .hw-right > .hk-panel { flex: 0 0 auto; margin: 0; }
+[data-house] .hw-right > .hk-panel:last-child { flex: 1 1 auto; }
+[data-house] .hw-left .hk-panel-body { flex: 1 1 auto; display: flex; flex-direction: column; padding: 0.375rem; min-height: 0; }
+[data-house] .hw-side-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--house-space-2); min-height: 0; }
+[data-house] .hw-side-tree { flex: 0 1 auto; max-height: 45%; overflow-y: auto; }
+[data-house] .hw-side-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+[data-house] .hw-split { flex: 0 0 auto; height: 2px; background: var(--house-outline); margin: 0 -0.375rem; }
+[data-house] .hw-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 2px; }
+[data-house] .hw-foot { grid-column: 1 / -1; }
+[data-house].hw--studio[data-house-size="compact"], [data-house].hw-c--studio[data-house-size="compact"] {
+  grid-template-columns: 13.5rem minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto;
+}
+[data-house][data-house-size="compact"] .hw-right { grid-column: 1 / -1; grid-row: 2; max-height: 16rem; flex-direction: row; }
+[data-house][data-house-size="compact"] .hw-right > .hk-panel { flex: 1 1 0; min-width: 0; }
+[data-house][data-house-size="compact"] .hw-foot { grid-row: 3; }
+
+/* The page's toolbar (where board 05 has the writing toolbar while reading). */
+[data-house] .hw-bar {
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+  padding: 0.375rem 0.5rem;
+}
+[data-house] .hw-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.375rem; min-width: 0; }
+[data-house] .hw-toolbar .hk-btn { white-space: nowrap; }
+
+/* Find */
+[data-house] .hw-find { min-width: 0; }
+[data-house] .hw-find .hk-field { margin: 0; }
+[data-house] .hw-find .hk-input { width: 100%; min-width: 0; }
+[data-house] .hw-find .hk-label { font-family: var(--house-font-label); font-weight: 400; }
+
+/* The floor: the mockups' checked floor under the page. */
+[data-house] .hw-floor {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1.5rem;
+  display: flex; flex-direction: column; align-items: center;
+  background-color: var(--house-page);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--house-panel) 45%, var(--house-page)) 0 25%, var(--house-page) 0 50%);
+  background-size: 16px 16px;
+}
+[data-house] .hw-floor > .hk-empty { align-self: stretch; }
+[data-house] .hw-page {
+  width: 100%; max-width: 44rem; flex: 0 0 auto; min-height: 100%;
+  padding: 2rem 2.25rem; background: var(--house-panel); color: var(--house-text);
+  outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hw-page--edit { padding: 1rem 1.25rem; }
+[data-house] .hw-page-title { margin: 0 0 0.75rem; font-size: var(--house-text-xl, 1.25rem); font-weight: 400; overflow-wrap: anywhere; }
+[data-house] .hw-page-meta { margin: 0 0 1.25rem; color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hw-page-body { color: var(--house-text); line-height: 1.55; overflow-wrap: anywhere; }
+[data-house] .hw-page-body img { max-width: 100%; height: auto; }
+
+/* Folder tree (left) */
+[data-house] .hw-tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+[data-house] .hw-tree-row { display: flex; align-items: center; gap: 2px; min-height: max(28px, 1.75rem); }
+[data-house] .hw-tree-row[data-selected] { background: var(--house-bevel-light, var(--house-raised)); }
+[data-house] .hw-tree-arrow { flex: 0 0 auto; width: 1.25rem; min-width: 1.25rem; }
+[data-house] .hw-tree-arrow.hk-btn { padding: 0; min-height: 1.5rem; }
+[data-house] .hw-tree-pick.hk-btn {
+  flex: 1 1 auto; justify-content: flex-start; gap: 0.375rem; min-width: 0; min-height: max(28px, 1.75rem);
+  padding: 0 0.375rem; color: var(--house-text); font-family: var(--house-font-label); font-weight: 400;
+  font-size: var(--house-px-label, var(--house-text-sm)); text-decoration: none;
+}
+[data-house] .hw-tree-pick.hk-btn > span { display: contents; }
+[data-house] .hw-tree-name { flex: 1 1 auto; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hw-count { color: var(--house-muted); font-size: var(--house-text-xs); white-space: nowrap; flex: 0 0 auto; }
+[data-house] .hw-tree-row .hk-menu-trigger, [data-house] .hw-tree-row > .hk-btn:last-child { flex: 0 0 auto; }
+
+/* Entries (left, under the split) */
+[data-house] .hw-entries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-house] .hw-entry.hk-btn {
+  display: flex; flex-direction: column; align-items: stretch; gap: 0.125rem; width: 100%;
+  padding: 0.5rem 0.5rem; min-height: 0; border-radius: 0; text-align: left; text-decoration: none;
+  color: var(--house-text); font-family: var(--house-font-body); font-weight: 400;
+}
+[data-house] .hw-entry.hk-btn > span { display: contents; }
+[data-house] .hw-entry[data-selected] { outline: 2px solid var(--house-accent); outline-offset: -2px; background: var(--house-bevel-light, var(--house-raised)); }
+[data-house] .hw-entry-top { display: flex; align-items: baseline; gap: 0.5rem; }
+[data-house] .hw-entry-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hw-entry-date { flex: 0 0 auto; color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hw-entry-by { color: var(--house-muted); font-size: var(--house-text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Info (right) */
+[data-house] .hw-info-body { display: flex; flex-direction: column; gap: 0.5625rem; padding: 0.375rem 0.25rem; }
+[data-house] .hw-facts { margin: 0; display: flex; flex-direction: column; gap: 0.5625rem; }
+[data-house] .hw-fact { display: flex; justify-content: space-between; gap: 0.625rem; }
+[data-house] .hw-fact dt { color: var(--house-muted); flex: 0 0 auto; }
+[data-house] .hw-fact dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+[data-house] .hw-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.25rem; }
+[data-house] .hw-effects { list-style: none; margin: 0; padding: 0.375rem 0.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+[data-house] .hw-effects > li { display: flex; gap: 0.5rem; align-items: flex-start; }
+[data-house] .hw-sq { display: inline-block; flex: 0 0 auto; width: 0.75rem; height: 0.75rem; margin-top: 0.25rem; outline: 2px solid var(--house-outline); }
+[data-house] .hw-did .hk-panel-tools .hk-btn { color: var(--house-muted); font-family: var(--house-font-label); font-weight: 400; }
+
+/* Status line (board 05's foot). */
+[data-house] .hw-status {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 1.125rem; min-height: 1.5rem; padding: 0 0.625rem;
+  background: var(--house-title, var(--house-raised)); box-shadow: inset 0 2px 0 var(--house-outline);
+  font-family: var(--house-font-label); font-size: var(--house-text-xs);
+}
+
+/* Sheets */
+[data-house] .hw-sheet-body { display: flex; flex-direction: column; gap: 0.75rem; }
+[data-house] .hw-sheet-stack { display: flex; flex-direction: column; gap: 0.5rem; }
+[data-house] .hw-sheet-stack > .hk-panel { margin: 0; }
+
+/* ── Journals, phone: the boards' slim gutter, edge to edge ── */
+[data-house].hw--phone { min-height: 100%; padding: 0 var(--house-space-2); overflow-x: hidden; }
+[data-house] .hw-stack { display: flex; flex-direction: column; gap: var(--house-space-3, 0.75rem); padding: var(--house-space-3, 0.75rem) 0; }
+[data-house] .hw-panelish { display: flex; flex-direction: column; gap: 0.5rem; background: var(--house-panel); outline: 2px solid var(--house-outline); padding: 0.5rem; }
+[data-house] .hw-stack > .hk-panel { margin: 0; }
+[data-house].hw--phone .hw-page { padding: 1rem 0.875rem; min-height: 0; max-width: none; }
+[data-house].hw--phone .hw-entry.hk-btn { min-height: 44px; }
+[data-house].hw--phone .hw-status { padding: 0.25rem 0.5rem; }
+/* Docked by the phone frame in its bottom zone (roomTools.bar), above its own bar. */
+[data-house] .hw-roombar {
+  display: flex; gap: 0.5rem; padding: 0.5rem var(--house-space-2);
+  background: var(--house-panel); border-top: 2px solid var(--house-outline);
+}
+[data-house] .hw-roombar > * { flex: 1 1 0; min-width: 0; }
+[data-house] .hw-roombar .hk-btn { min-height: 44px; width: 100%; }
+
+/* ── Chat ── */
+[data-house] .hw-c-main {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hw-c-view { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+[data-house] .hw-c-gate { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; padding: 1rem; }
+[data-house] .hw-c-list { display: flex; flex-direction: column; gap: 0.25rem; min-height: 0; }
+[data-house] .hw-c-head { margin: 0.5rem 0 0.125rem; padding: 0 0.375rem; color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hw-c-cat .hw-tree-pick.hk-btn { color: var(--house-muted); }
+[data-house] .hw-c-help > li { flex-direction: column; gap: 0.125rem; }
+[data-house] .hw-c-help b { font-family: var(--house-font-label); font-weight: 400; }
+
+/* Phone (board 14): file tabs on the message panel, the stream, the composer
+   right above the frame's bottom bar. The room fills main exactly, so only
+   the stream scrolls and nothing floats over it. */
+[data-house].hw-c--phone {
+  height: 100%; min-height: 0; display: flex; flex-direction: column;
+  padding: 0 var(--house-space-2) var(--house-space-2); gap: 0;
+}
+[data-house].hw-c--phone .hw-c-main { flex: 1 1 auto; }
+[data-house] .hw-c-tabs { flex: 0 0 auto; padding-top: 0.5rem; }
+[data-house] .hw-c-tabs .hk-tabs-wrap { border-bottom: 0; }
+[data-house] .hw-c-tabs .hk-tabs { gap: 4px; padding: 0 2px; }
+[data-house] .hw-c-tabs .hk-tab {
+  background: var(--house-title, var(--house-raised)); color: var(--house-muted);
+  outline: 2px solid var(--house-outline); outline-offset: -2px; padding: 0 0.625rem; min-height: 2rem;
+  font-family: var(--house-font-label); font-weight: 400;
+}
+[data-house] .hw-c-tabs .hk-tab::after { display: none; }
+[data-house] .hw-c-tabs .hk-tab[aria-selected="true"] {
+  background: var(--house-panel); color: var(--house-text);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised));
+}
+[data-house] .hw-c-tabs .hk-tab:focus-visible { outline: 2px solid var(--house-accent); }
+
+/* The shared chat surface in the house's colours. */
+[data-house] .hw-c .px-chat-chhead {
+  min-height: 1.875rem; padding: 0.25rem 0.375rem 0.25rem 0.625rem; border: 0;
+  background: var(--house-title, var(--house-raised)); box-shadow: inset 0 -2px 0 var(--house-outline);
+  font-family: var(--house-font-label); color: var(--house-text);
+}
+[data-house] .hw-c .px-chat-chhead p { color: var(--house-text); font-weight: 400; }
+[data-house] .hw-c .px-chat-chhead p + span + p { color: var(--house-muted); }
+[data-house] .hw-c .px-chat-purge { border-radius: 0; border: 0; outline: 2px solid var(--house-outline); background: var(--house-panel); }
+[data-house].hw-c--phone .px-chat-chhead:not([data-purge="true"]) { display: none; }
+[data-house] .hw-c .px-chat-stream { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.625rem 0.75rem; }
+[data-house] .hw-c .px-chat-stream > section + section { margin-top: 0.75rem; }
+[data-house] .hw-c .px-chat-day { justify-content: center; margin: 0 0 0.5rem; }
+[data-house] .hw-c .px-chat-day > div { display: none; }
+[data-house] .hw-c .px-chat-day > span { font-family: var(--house-font-label); font-size: var(--house-text-xs); text-transform: none; letter-spacing: 0; color: var(--house-muted); }
+[data-house] .hw-c .px-chat-msg { gap: 0.625rem; padding: 0.25rem 0.125rem; border-radius: 0; color: var(--house-text); }
+[data-house] .hw-c .px-chat-msg + .px-chat-msg { margin-top: 0.25rem; }
+[data-house] .hw-c .px-chat-msg:hover { background: color-mix(in srgb, var(--house-accent) 8%, transparent); }
+[data-house] .hw-c .px-chat-name { font-weight: 700; }
+[data-house] .hw-c .px-chat-time > span { font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house] .hw-c .px-chat-mark { border-radius: 0; border: 0; outline: 2px solid var(--house-outline); box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.3), inset -2px -2px 0 rgba(0, 0, 0, 0.35); }
+[data-house] .hw-c .px-chat-mark > span { visibility: hidden; }
+[data-house] .hw-c .px-chat-msg.px-chat-msg-whisper { background: transparent; border-left: 0; padding-left: 0.125rem; }
+[data-house] .hw-c .px-chat-wbody {
+  display: block; margin-top: 0.125rem; padding: 0.25rem 0.5rem;
+  background: var(--house-page); outline: 1px dashed color-mix(in srgb, var(--house-muted) 55%, transparent);
+  color: var(--house-muted); font-style: italic;
+}
+[data-house] .hw-c .px-chat-acts button { border-radius: 0; }
+@media (hover: none) { [data-house] .hw-c .px-chat-acts { opacity: 0.6; } }
+
+[data-house] .hw-c .px-chat-comp {
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: 0.375rem;
+  padding: 0.5rem 0.625rem; border-top: 0;
+  background: var(--house-panel); color: var(--house-text);
+  box-shadow: inset 0 2px 0 var(--house-outline);
+}
+[data-house] .hw-c .px-chat-comp-top { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+[data-house] .hw-c .px-chat-speaker {
+  flex: none; display: inline-flex; align-items: center; gap: 0.5rem; max-width: 55%;
+  min-height: 1.75rem; padding: 0.125rem 0.5rem;
+  font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-text);
+  background: var(--house-title, var(--house-raised)); outline: 2px solid var(--house-outline);
+  border: 0; border-left: 8px solid; border-radius: 0;
+}
+[data-house] .hw-c .px-chat-speaker:focus-visible { outline: 3px solid var(--house-accent); }
+[data-house] .hw-c .px-chat-speaker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hw-c .px-chat-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house] .hw-c .px-chat-comp-row { display: flex; align-items: flex-end; gap: 0.5rem; }
+[data-house] .hw-c .px-chat-field {
+  background: var(--house-page); color: var(--house-text); border: 0; border-radius: 0;
+  box-shadow: inset 2px 2px 0 var(--house-outline), inset -2px -2px 0 var(--house-bevel-light, var(--house-raised));
+}
+[data-house] .hw-c .px-chat-send {
+  flex: none; min-height: 44px; padding: 0 0.875rem;
+  font-family: var(--house-font-label); background: var(--house-accent); color: var(--house-on-accent);
+  outline: 2px solid var(--house-outline); border: 0; border-radius: 0;
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--house-accent) 60%, #fff), inset -2px -2px 0 color-mix(in srgb, var(--house-accent) 60%, #000);
+}
+[data-house] .hw-c .px-chat-send:disabled { opacity: 0.55; }
+[data-house] .hw-c .px-chat-send:focus-visible { outline: 3px solid var(--house-text); }
+[data-house] .hw-c .px-chat-comp .px-chat-tools { margin-top: 0; border: 0; border-radius: 0; background: transparent; }
+[data-house] .hw-c .px-chat-comp .px-chat-tools > div:first-child { background: transparent; padding: 0; }
+[data-house] .hw-c .px-chat-comp .px-chat-tools button { border-radius: 0; }
