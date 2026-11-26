@@ -277,9 +277,22 @@ export function houseRemindersRoom(pathname) {
   return p === "/reminders";
 }
 
+// ── The house's Groups room (board 26-Groups) ─────────────────────────
+// With the new house on, /groups (the tree and the first group) and
+// /group/:id (one group's page) are drawn by the house itself
+// (src/house/groups/). The old pages are not mounted (HouseRoomGate); the
+// room mounts the old group page itself for Info and the person's own
+// layout. With the switch off both run exactly as before.
+export function houseGroupsRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (p === "/groups") return "list";
+  if (/^\/group\/[^/]+$/.test(p)) return "group";
+  return null;
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname) || houseRemindersRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname) || houseRemindersRoom(pathname) || !!houseGroupsRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────

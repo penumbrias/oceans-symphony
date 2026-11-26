@@ -156,7 +156,7 @@ test("both frames mount the room; the phone runs it edge to edge with its tools"
     assert.ok(/<HouseReminders /.test(t), `${f} mounts it`);
   }
   const phone = read("src/house/phone/HousePhoneFrame.jsx");
-  assert.ok(/\|\| remindersRoom \? "px-0"/.test(phone), "the phone runs it edge to edge");
+  assert.ok(/\|\| remindersRoom( \|\| \w+Room)* \? "px-0"/.test(phone), "the phone runs it edge to edge");
   assert.ok(/roomTools = [^;]*remindersRoom/.test(phone), "the phone frame reads the room's tools");
   assert.ok(/ownDocks[^;]*remindersRoom/.test(read("src/house/frame/HouseFrame.jsx")), "the room draws its own toolbar and status line");
   const room = read("src/house/reminders/HouseReminders.jsx");

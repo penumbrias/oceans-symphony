@@ -1,0 +1,185 @@
+/* The house's Groups room (HouseGroups.jsx): board 26-Groups on a computer
+   (the tree down the left, the group's page beside it) and the same panels
+   stacked on a phone. House tokens only; every class is hgr-. Imported by
+   the room itself, so the phone (which does not load frameKit.css) has it
+   too. Edges are the thin pixel line (--house-px-line). The board, journal
+   and fronting pages, Manage, Info and the person's own layout (.hgr-old)
+   keep their old insides until their own rebuild. */
+
+[data-house].hgr { color: var(--house-text); font-family: var(--house-font-body); background: var(--house-page); }
+[data-house] .hgr-note { color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); white-space: nowrap; }
+[data-house] .hgr-empty { margin: 0; padding: 0.5rem 0.625rem; color: var(--house-muted); font-size: var(--house-text-sm); list-style: none; }
+[data-house] .hgr-hint { margin: 0.5rem 0 0; color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hgr-old { min-width: 0; overflow-x: auto; padding: 0.625rem; }
+[data-house] .hgr-sq { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; overflow: hidden; outline: var(--house-px-line, 1px) solid var(--house-outline); }
+[data-house] .hgr-sq--sm { width: 0.875rem; height: 0.875rem; }
+[data-house] .hgr-sq--xl { width: 3.625rem; height: 3.625rem; }
+[data-house] .hgr-sq img { width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }
+[data-house] .hgr-sq-emoji { font-size: 1.75rem; line-height: 1; }
+
+/* ── Studio: the tree (270) · the group's page ── */
+[data-house].hgr--studio {
+  position: absolute; inset: 0; z-index: 1;
+  display: grid; gap: 2px; min-height: 0; min-width: 0;
+  grid-template-columns: 16.875rem minmax(0, 1fr);
+}
+[data-house].hgr--studio[data-house-size="compact"] { grid-template-columns: 13.5rem minmax(0, 1fr); }
+[data-house] .hgr-left { display: flex; flex-direction: column; min-height: 0; }
+[data-house] .hgr-side { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; margin: 0; }
+[data-house] .hgr-side > .hk-panel-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding: 0; }
+[data-house] .hgr-side .hk-panel-tools { gap: 2px; }
+[data-house] .hgr-side .hk-panel-tools .hk-btn { min-height: 1.5rem; padding: 0 0.5rem; font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-text-xs); }
+[data-house] .hgr-side .hk-panel-tools .hk-btn[aria-pressed="true"] { background: var(--house-title); }
+[data-house] .hgr-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+
+/* The tree. */
+[data-house] .hgr-tree-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+[data-house] .hgr-find { padding: 0.375rem; }
+[data-house] .hgr-find .hk-field { flex-direction: row; align-items: center; gap: 0.5rem; margin: 0; }
+[data-house] .hgr-find .hk-field-head { margin: 0; }
+[data-house] .hgr-find .hk-label { font-family: var(--house-font-label); font-weight: 400; color: var(--house-muted); }
+[data-house] .hgr-find .hk-input { width: 100%; min-width: 0; }
+[data-house] .hgr-tree { list-style: none; margin: 0; padding: 0.25rem 0; flex: 1 1 auto; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+[data-house] .hgr-tree[data-drop] { box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-accent); }
+[data-house] .hgr-row {
+  display: flex; align-items: center; gap: 2px; min-height: 2.625rem;
+  padding: 0 0.375rem 0 calc(0.25rem + var(--hgr-depth, 0) * 1rem);
+}
+[data-house] .hgr-row[data-selected] { background: var(--house-title); box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-outline); }
+[data-house] .hgr-row[data-drop] { box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-accent); background: color-mix(in srgb, var(--house-accent) 14%, transparent); }
+[data-house] .hgr-row[draggable="true"] { cursor: grab; }
+[data-house] .hgr-arrow { flex: 0 0 auto; width: 1.25rem; min-width: 1.25rem; }
+[data-house] .hgr-arrow.hk-btn { padding: 0; min-height: 1.5rem; }
+[data-house] .hgr-pick.hk-btn {
+  flex: 1 1 auto; justify-content: flex-start; gap: 0.5rem; min-width: 0; min-height: 2.5rem;
+  padding: 0 0.25rem; color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; font-size: var(--house-text-sm);
+  text-decoration: none; border: 0; box-shadow: none; background: transparent; border-radius: 0;
+}
+[data-house] .hgr-pick.hk-btn > span { display: contents; }
+[data-house] .hgr-name { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; text-align: left; }
+[data-house] .hgr-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hgr-path { color: var(--house-muted); font-size: var(--house-text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hgr-tag { flex: 0 0 auto; color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hgr-count { flex: 0 0 auto; min-width: 1rem; text-align: right; color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hgr-warn {
+  margin: 0.375rem; padding: 0.375rem 0.5rem; font-size: var(--house-text-xs);
+  background: color-mix(in srgb, var(--house-accent) 14%, var(--house-sunken));
+  box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-accent);
+}
+[data-house] .hgr-foot {
+  margin: 0; padding: 0.5rem 0.625rem; color: var(--house-muted); font-size: var(--house-text-xs);
+  box-shadow: inset 0 var(--house-px-line, 1px) 0 var(--house-outline);
+}
+
+/* ── The group's page ── */
+[data-house] .hgr-page { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+[data-house].hgr--studio .hgr-page { padding: 0 0 0.5rem; }
+[data-house] .hgr-head {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.625rem;
+  background: var(--house-panel); outline: var(--house-px-line, 1px) solid var(--house-outline); outline-offset: -1px;
+  box-shadow: inset 1px 1px 0 var(--house-bevel-light, var(--house-raised)), inset -1px -1px 0 var(--house-page);
+}
+[data-house] .hgr-who { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; flex: 1 1 auto; }
+[data-house] .hgr-title { margin: 0; font-weight: 400; font-size: var(--house-text-xl, 1.25rem); line-height: 1.2; overflow-wrap: anywhere; }
+[data-house] .hgr-line { color: var(--house-muted); font-size: var(--house-text-sm); }
+[data-house] .hgr-head-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.375rem; }
+[data-house] .hgr-head-tools .hk-btn { min-height: 2.5rem; }
+
+/* Board 26's boxed tabs: the kit's PageTabs (same roles and keys), drawn as bevelled boxes. */
+[data-house] .hgr-tabs { display: flex; min-width: 0; padding: 0.375rem 0.375rem 0; }
+[data-house] .hgr-tabs > .hk-tabs-wrap { flex: 1 1 auto; min-width: 0; border-bottom: 0; }
+[data-house] .hgr-tabs .hk-tabs { gap: 2px; padding: 2px; }
+[data-house] .hgr-tabs .hk-tab {
+  background: var(--house-panel); color: var(--house-text); outline: var(--house-px-line, 1px) solid var(--house-outline); outline-offset: -1px;
+  box-shadow: inset 1px 1px 0 var(--house-bevel-light, var(--house-raised)), inset -1px -1px 0 var(--house-page);
+  padding: 0 0.75rem; font-family: var(--house-font-label); font-weight: 400;
+}
+[data-house] .hgr-tabs .hk-tab::after { display: none; }
+[data-house] .hgr-tabs .hk-tab[aria-selected="true"] { background: var(--house-title); font-weight: 400; box-shadow: inset 1px 1px 0 var(--house-page), inset -1px -1px 0 var(--house-bevel-light, var(--house-raised)); }
+[data-house] .hgr-tabs .hk-tab:focus-visible { outline: 2px solid var(--house-accent); }
+
+[data-house] .hgr-body { min-width: 0; padding: 0.375rem; }
+[data-house] .hgr-cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 0.5rem; align-items: stretch; }
+[data-house].hgr--studio[data-house-size="compact"] .hgr-cols { grid-template-columns: minmax(0, 1fr); }
+[data-house] .hgr-col { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+[data-house] .hgr-pn { margin: 0; min-width: 0; }
+[data-house] .hgr-pn > .hk-panel-body { padding: 0; }
+[data-house] .hgr-pn .hk-panel-tools { gap: 0.375rem; align-items: center; }
+[data-house] .hgr-pn .hk-panel-tools .hk-btn { font-family: var(--house-font-label); font-weight: 400; }
+[data-house] .hgr-pn .hk-panel-tools .hk-btn[data-rank="quiet"], [data-house] .hgr-pn .hk-panel-tools .hk-btn.hk-btn--quiet { color: var(--house-muted); }
+[data-house].hgr--studio .hgr-grow { flex: 1 1 auto; }
+
+[data-house] .hgr-about { padding: 0.5rem 0.75rem; line-height: var(--house-lh-md); }
+[data-house] .hgr-about p { margin: 0 0 var(--house-space-2); }
+
+/* Members (board 26): two columns of sunken cards. */
+[data-house] .hgr-members { list-style: none; margin: 0; padding: 0.625rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.5rem; }
+[data-house] .hgr-member.hk-btn {
+  width: 100%; justify-content: flex-start; gap: 0.625rem; min-height: 2.875rem; padding: 0.375rem 0.5rem;
+  background: var(--house-sunken); color: var(--house-text); border: 0; border-radius: 0;
+  outline: var(--house-px-line, 1px) solid var(--house-outline); outline-offset: -1px;
+  box-shadow: inset 1px 1px 0 var(--house-page), inset -1px -1px 0 var(--house-bevel-light, var(--house-raised));
+  font-family: var(--house-font-body); font-weight: 400; text-decoration: none;
+}
+[data-house] .hgr-member.hk-btn > span { display: contents; }
+[data-house] .hgr-member .hal-av { width: 1.875rem; height: 1.875rem; }
+[data-house] .hgr-member-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; text-align: left; }
+[data-house] .hgr-member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hgr-member-sub { color: var(--house-muted); font-size: var(--house-text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hgr-root { flex: 0 0 auto; align-self: flex-start; color: var(--house-accent); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+
+/* Nested groups and the latest post. */
+[data-house] .hgr-lines { list-style: none; margin: 0; padding: 0; }
+[data-house] .hgr-line-btn.hk-btn {
+  width: 100%; justify-content: flex-start; gap: 0.625rem; min-height: 2.25rem; padding: 0 0.75rem;
+  color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; text-decoration: none; border: 0; border-radius: 0; box-shadow: none; background: transparent;
+}
+[data-house] .hgr-line-btn.hk-btn > span { display: contents; }
+[data-house] .hgr-line-name { flex: 1 1 auto; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hgr-post.hk-btn {
+  width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 0.25rem; padding: 0.5rem 0.75rem; min-height: 0;
+  color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; text-decoration: none; text-align: left; border: 0; border-radius: 0; box-shadow: none; background: transparent;
+}
+[data-house] .hgr-post.hk-btn > span { display: contents; }
+[data-house] .hgr-post-top { display: flex; align-items: center; gap: 0.5rem; }
+[data-house] .hgr-post-who { font-family: var(--house-font-label); font-weight: 400; }
+[data-house] .hgr-post-text { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Notes (board 26): a box to add one, then dated lines. */
+[data-house] .hgr-notes { display: flex; flex-direction: column; }
+[data-house] .hgr-note-add { display: flex; flex-direction: column; align-items: flex-end; gap: 0.375rem; padding: 0.625rem 0.625rem 0.375rem; }
+[data-house] .hgr-note-add .hk-field { width: 100%; margin: 0; }
+[data-house] .hgr-note-add .hk-field-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[data-house] .hgr-note-add .hk-textarea { min-height: 2.5rem; }
+[data-house] .hgr-notelist { list-style: none; margin: 0; padding: 0; }
+[data-house] .hgr-noterow { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.25rem 0.375rem 0.25rem 0.75rem; box-shadow: inset 0 calc(-1 * var(--house-px-line, 1px)) 0 var(--house-divider); }
+[data-house] .hgr-notedate { flex: 0 0 auto; color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hgr-notetext { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+[data-house] .hgr-notedel.hk-btn { flex: 0 0 auto; align-self: center; opacity: 0.6; }
+[data-house] .hgr-notedel.hk-btn:hover, [data-house] .hgr-notedel.hk-btn:focus-visible { opacity: 1; }
+
+/* Manage, Info and the person's own layout: the old screens inside the room. */
+[data-house] .hgr-manage { margin: 0; flex: 1 1 auto; min-height: 0; }
+[data-house] .hgr-oldpage { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.375rem; }
+[data-house] .hgr-oldbar { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; padding: 0.375rem 0.5rem; background: var(--house-title); outline: var(--house-px-line, 1px) solid var(--house-outline); font-size: var(--house-text-sm); }
+
+/* ── Phone: the tree, or one group's page, on the checked floor ── */
+[data-house].hgr--phone {
+  min-height: 100%; display: flex; flex-direction: column; padding: 0 var(--house-space-2);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--house-panel) 45%, var(--house-page)) 0 25%, var(--house-page) 0 50%);
+  background-size: 16px 16px;
+}
+[data-house] .hgr-stack { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem 0 1rem; }
+[data-house].hgr--phone .hgr-tree { overflow: visible; }
+[data-house].hgr--phone .hgr-body { padding: 0.375rem 0 0; }
+[data-house].hgr--phone .hgr-col { gap: 0.625rem; }
+[data-house].hgr--phone .hgr-members { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+[data-house].hgr--phone .hgr-head { padding: 0.625rem; }
+[data-house].hgr--phone .hgr-tabs { padding: 0; }
+
+/* Studio: the page fills the column, and Members and Notes run to the bottom (board 26). */
+[data-house].hgr--studio .hgr-page { min-height: 100%; }
+[data-house].hgr--studio .hgr-body { flex: 1 1 auto; display: flex; flex-direction: column; }
+[data-house].hgr--studio .hgr-body > .hgr-cols, [data-house].hgr--studio .hgr-body > .hgr-pn { flex: 1 1 auto; }
+[data-house].hgr--studio .hgr-grow { display: flex; flex-direction: column; }
+[data-house].hgr--studio .hgr-grow > .hk-panel-body { flex: 1 1 auto; }

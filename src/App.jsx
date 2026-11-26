@@ -312,8 +312,8 @@ const AuthenticatedApp = () => {
         <Route path="/diary" element={<Navigate to="/checkin-log" replace />} />
         <Route path="/tasks" element={<DailyTasks />} />
         <Route path="/todo" element={<ToDoList />} />
-        <Route path="/groups" element={<GroupsManager />} />
-        <Route path="/group/:id" element={<GroupProfile />} />
+        <Route path="/groups" element={<HouseRoomGate><GroupsManager /></HouseRoomGate>} />
+        <Route path="/group/:id" element={<HouseRoomGate><GroupProfile /></HouseRoomGate>} />
         <Route path="/location/:id" element={<LocationProfile />} />
         <Route path="/assets" element={<AssetsLibrary />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />

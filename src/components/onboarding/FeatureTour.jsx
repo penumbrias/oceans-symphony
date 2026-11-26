@@ -1765,6 +1765,26 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `New group makes one. Select lets you move or delete several groups at once, and deleted groups go to the trash first.`,
       route: "/groups", target: ["groups-new-btn", "groups-page"],
     }),
+    s("groups", {
+      emoji: "🌳", title: "The group tree",
+      body: `In the new house every group is in the tree on the left. On a computer, drag a group onto another to nest it, or onto the empty list to bring it to the top.`,
+      route: "/groups", target: ["groups-tree", "groups-page"], look: `the group tree`,
+    }),
+    s("groups", {
+      emoji: "🪪", title: "A group's page",
+      body: `Info changes its name, picture and settings. Edit page arranges its own layout. The ⋯ menu renames, moves, recolours or deletes it.`,
+      route: "/groups", target: ["groups-info", "groups-page"], look: `the Info button`,
+    }),
+    s("groups", {
+      emoji: "👥", title: `Its ${t.alters} and notes`,
+      body: `Choose ${t.alters} picks who is in the group. Notes keeps a private notebook for it, with @mentions and ~commands like everywhere else.`,
+      route: "/groups", target: ["groups-members", "groups-notes", "groups-page"], look: `the ${t.Alters} panel`,
+    }),
+    s("groups", {
+      emoji: "🧰", title: "Manage",
+      body: `Manage opens the full manager: select several groups to move, recolour or delete, and put groups and their ${t.alters} in order.`,
+      route: "/groups", target: ["groups-manage", "groups-page"], look: `the Manage button`,
+    }),
     s("sleep", {
       emoji: "😴", title: "Sleep",
       body: `This page keeps your nights: how long, how well, and any dreams. The numbers up top sum up this month.`,
