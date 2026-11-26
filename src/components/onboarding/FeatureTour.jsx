@@ -732,13 +732,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("journals", {
       emoji: "🔄", title: `${t.Switch} logs`,
-      body: `The "${t.Switch} Logs" tab holds the entries written with "Journal this ${t.switch}?", each linked to its ${t.switch}.`,
+      body: `Entries written with "Journal this ${t.switch}?" are kept together, each linked to its ${t.switch}: the "${t.Switch} Logs" tab, or "${t.Switch} journals" in the folder list.`,
       route: "/journals", target: ["journals-tabs", "px-subtabs"], look: `the "${t.Switch} Logs" tab`,
     }),
     s("journals", {
       emoji: "🔍", title: "Find an entry",
       body: `Search by title or text, filter by author, or tap a tag. The eye button shows only what's open to whoever is ${t.fronting}.`,
       route: "/journals", target: "journals-filters", look: `the highlighted search and filters`,
+    }),
+    s("journals", {
+      emoji: "ℹ️", title: "About this entry",
+      body: `Info shows the entry's folder, who wrote it and who was ${t.fronting} then. Move files it in another folder.`,
+      route: "/journals", target: "journal-info-panel", look: `the Info panel (Info in the header on a phone)`,
     }),
 
     // ─── BULLETIN BOARD ─────────────────────────────────────────────────────
@@ -1605,13 +1610,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("chat", {
       emoji: "📂", title: "Channels",
-      body: `On a phone, the panel button on the left of the header slides the channel list in. Sort channels into coloured categories; Edit lets you drag them around.`,
-      route: "/chat", look: `the panel button on the left of the header`,
+      body: `The channel list holds every channel, sorted into coloured categories. On a phone it opens from the header; Edit or Arrange lets you drag them around.`,
+      route: "/chat", target: ["chat-channels"], look: `the channel list (# in the header on a phone)`,
     }),
     s("chat", {
       emoji: "↩️", title: "Replies and mentions",
-      body: `Reply to a message to quote it. @mention ${an(t.alter)} and it shows in their mentions.`,
-      route: "/chat",
+      body: `Pick who's speaking on the left of the box, then write. Reply to a message to quote it; @mention ${an(t.alter)} and it shows in their mentions.`,
+      route: "/chat", target: ["chat-composer"],
     }),
     s("chat", {
       emoji: "🤫", title: "Whispers",
@@ -1621,7 +1626,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("chat", {
       emoji: "🔒", title: "Private channels",
       body: `A private channel is for chosen ${t.alters}. When none of them are ${t.fronting}, its name is hidden and opening it asks first.`,
-      route: "/chat",
+      route: "/chat", target: ["chat-channel-info", "chat-channels"],
     }),
     s("chat", {
       emoji: "📎", title: "Pictures and files",

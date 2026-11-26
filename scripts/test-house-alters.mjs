@@ -329,6 +329,9 @@ test("the room's classes stay out of the frame's and kit's CSS (and it brings no
   for (const f of ["src/house/kit/frame/frameKit.css", "src/house/kit/panels.css", "src/house/kit/kit.css"]) {
     assert.ok(!/\.hal-/.test(read(f)), `${f} has no hal- classes`);
   }
+  // The rooms' own prefixes stay apart too (hal- Alters, hw- Write).
+  assert.ok(!/\.hw-/.test(read("src/house/alters/alters.css")), "alters.css has no hw- classes");
+  assert.ok(!/\.hal-/.test(read("src/house/write/write.css")), "write.css has no hal- classes");
   const css = read("src/house/alters/alters.css");
   assert.ok(!/^\s*\[data-house\][^{]*\.hk-[a-z-]+\s*\{[^}]*\}/m.test(css.replace(/\.hal[a-z-]*[^{]*\.hk-/g, "")), "alters.css defines no bare kit class");
   assert.ok(!/!important/.test(css));
