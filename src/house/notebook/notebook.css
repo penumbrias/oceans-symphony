@@ -1,0 +1,269 @@
+/* The house's Notebook room (HouseNotebook.jsx, NotebookParts.jsx): boards
+   19-Notebook, 20-NotebookPage and 18-NotebookPhone. House tokens only;
+   every class is hn-. Imported by the room itself, so the phone (which does
+   not load frameKit.css) has it too. Old insides kept inside house panels
+   (the page's lines, its note, the person's own boards) sit in .hn-old and
+   keep their own look until they are rebuilt. */
+
+[data-house].hn { color: var(--house-text); font-family: var(--house-font-body); background: var(--house-page); }
+[data-house] .hn-muted { color: var(--house-muted); }
+[data-house] .hn-small { font-size: var(--house-text-xs); }
+[data-house] .hn-flex { flex: 1 1 auto; }
+[data-house] .hn-minw0 { min-width: 0; }
+[data-house] .hn-col { display: flex; flex-direction: column; }
+[data-house] .hn-gap { gap: 2px; }
+[data-house] .hn-pad { padding: 0.375rem 0.5rem; }
+[data-house] .hn-r { text-align: right; justify-self: end; }
+[data-house] .hn-ell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hn-pf { font-family: var(--house-font-label); }
+[data-house] .hn-num { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
+[data-house] .hn-good { color: var(--house-good, #9cc46b); }
+[data-house] .hn-warn { color: var(--house-accent-text, var(--house-accent)); }
+[data-house] .hn-k { color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hn-big { font-family: var(--house-font-value); font-size: var(--house-text-2xl); line-height: 1.1; }
+[data-house] .hn-huge { font-family: var(--house-font-value); font-size: var(--house-text-2xl); line-height: 1.1; }
+[data-house] .hn-mid { font-size: var(--house-text-md); }
+[data-house] .hn-note { margin: 0; color: var(--house-muted); font-size: var(--house-text-xs); line-height: var(--house-lh-sm, 1.4); }
+[data-house] .hn-empty { margin: 0; padding: 0.5rem; color: var(--house-muted); font-size: var(--house-text-sm); list-style: none; }
+[data-house] .hn-old { min-width: 0; }
+[data-house] .hn-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+[data-house] .hn-more.hk-btn { align-self: flex-start; margin: 0.25rem 0.5rem; }
+[data-house] .hn-sheet-body { display: flex; flex-direction: column; gap: 0.75rem; }
+[data-house] .hn-facts { margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+[data-house] .hn-fact { display: flex; justify-content: space-between; gap: 0.625rem; }
+[data-house] .hn-fact dt { color: var(--house-muted); }
+[data-house] .hn-fact dd { margin: 0; text-align: right; font-family: var(--house-font-value); }
+
+/* Swatches, bars, sparks */
+[data-house] .hn-sw {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 0.75rem; height: 0.75rem; outline: 2px solid var(--house-outline); outline-offset: -1px;
+  color: var(--house-on-accent, #fff); font-size: var(--house-text-xs); line-height: 1;
+}
+[data-house] .hn-letter { width: 1.75rem; height: 1.75rem; font-family: var(--house-font-label); font-size: var(--house-text-sm); }
+[data-house] .hn-bar { position: relative; display: block; height: 0.375rem; background: var(--house-sunken, var(--house-page)); outline: 1px solid var(--house-outline); }
+[data-house] .hn-bar--tall { height: 0.875rem; }
+[data-house] .hn-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; }
+[data-house] .hn-bar-pace { position: absolute; top: -0.1875rem; bottom: -0.1875rem; width: 2px; margin-left: -1px; background: var(--house-text); }
+[data-house] .hn-spark { display: block; }
+
+/* The range row and the small Outline · Board · Map row */
+[data-house] .hn-ranges { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+[data-house] .hn-ranges .hk-btn { min-height: var(--house-h-control, 1.75rem); padding: 0 0.5rem; white-space: nowrap; }
+[data-house] .hn-ranges--tiny .hk-btn { min-height: 1.5rem; padding: 0 0.375rem; font-size: var(--house-text-xs); }
+
+/* ── Studio (board 19: Pages 245 · the rest) ── */
+[data-house].hn--studio {
+  position: absolute; inset: 0; z-index: 1;
+  display: grid; gap: 2px; min-height: 0; min-width: 0;
+  grid-template-columns: 15.3125rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+[data-house].hn--studio > .hk-loading, [data-house].hn--studio > .hk-empty { grid-column: 1 / -1; }
+[data-house] .hn-left { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+[data-house] .hn-left > .hk-panel { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; margin: 0; }
+[data-house] .hn-left .hk-panel-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding: 0.375rem; overflow-y: auto; }
+[data-house] .hn-side-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; }
+[data-house] .hn-foot-note { margin: auto 0 0; color: var(--house-muted); font-size: var(--house-text-xs); line-height: var(--house-lh-sm, 1.4); }
+[data-house] .hn-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; gap: 2px; }
+[data-house].hn--studio[data-house-size="compact"] { grid-template-columns: 13.5rem minmax(0, 1fr); }
+
+/* Pages list */
+[data-house] .hn-pages { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+[data-house] .hn-find .hk-field { margin: 0; }
+[data-house] .hn-find .hk-input { width: 100%; min-width: 0; }
+[data-house] .hn-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+[data-house] .hn-tag.hk-btn { min-height: 1.5rem; padding: 0 0.375rem; font-size: var(--house-text-xs); text-decoration: none; }
+[data-house] .hn-plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+[data-house] .hn-ghead { display: flex; align-items: center; gap: 0.25rem; margin-top: 0.375rem; min-height: 1.75rem; }
+[data-house] .hn-ghead-name { flex: 1 1 auto; min-width: 0; color: var(--house-muted); font-size: var(--house-text-xs); text-align: left; }
+[data-house] .hn-ghead-name.hk-btn { justify-content: flex-start; padding: 0 0.25rem; text-decoration: none; font-family: var(--house-font-label); }
+[data-house] .hn-count { color: var(--house-muted); font-size: var(--house-text-xs); font-family: var(--house-font-value); flex: 0 0 auto; }
+[data-house] .hn-fold.hk-btn, [data-house] .hn-fold { flex: 0 0 auto; width: 1.25rem; min-width: 1.25rem; min-height: 1.5rem; padding: 0; }
+[data-house] .hn-prow { display: flex; flex-direction: column; gap: 0.1875rem; padding: 0.25rem 0.375rem; }
+[data-house] .hn-prow[data-selected] { background: var(--house-bevel-light, var(--house-raised)); outline: 2px solid var(--house-accent); outline-offset: -2px; }
+[data-house] .hn-prow[data-drop] { outline: 2px dashed var(--house-accent); outline-offset: -2px; }
+[data-house] .hn-prow-top { display: flex; align-items: center; gap: 0.375rem; min-width: 0; }
+[data-house] .hn-prow-name.hk-btn {
+  flex: 1 1 auto; min-width: 0; justify-content: flex-start; padding: 0; min-height: 1.5rem;
+  color: var(--house-text); text-decoration: none; font-weight: 400; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-house] .hn-prow-name.hk-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hn-prow-name.hn-muted.hk-btn { color: var(--house-muted); }
+[data-house] .hn-hit.hk-btn {
+  display: flex; align-items: center; justify-content: flex-start; gap: 0.375rem; width: 100%;
+  padding: 0.25rem 0.375rem; min-height: 1.75rem; color: var(--house-text); text-decoration: none; text-align: left; font-weight: 400;
+}
+[data-house] .hn-hit[data-selected] { background: var(--house-bevel-light, var(--house-raised)); }
+[data-house] .hn-hit-text { display: flex; flex-direction: column; min-width: 0; }
+[data-house] .hn-hit-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── The overview ── */
+[data-house] .hn-over { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+[data-house] .hn-titlebar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.375rem;
+  padding: 0.375rem 0.5rem; background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hn-h1 { margin: 0; font-size: var(--house-text-lg); font-weight: 400; }
+[data-house] .hn-over-body { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem 0; }
+[data-house] .hn-over-body > .hk-panel, [data-house] .hn-split .hk-panel { margin: 0; }
+[data-house] .hn-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
+[data-house] .hn-stat {
+  display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; padding: 0.5rem 0.625rem;
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hn-stat-v { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; }
+[data-house] .hn-stat-v .hn-good { font-size: var(--house-text-xs); font-family: var(--house-font-label); }
+[data-house] .hn-split { display: grid; grid-template-columns: minmax(0, 1fr) 17.5rem; gap: 0.5rem; align-items: start; }
+[data-house] .hn-split > .hn-col { gap: 0.5rem; }
+[data-house] .hn-side-col { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+[data-house] .hn-side-col > span { display: block; }
+[data-house] .hn-dashed.hk-btn {
+  width: 100%; min-height: 2.25rem; outline: 2px dashed var(--house-outline); outline-offset: -2px;
+  background: transparent; box-shadow: none; color: var(--house-muted); text-decoration: none;
+}
+[data-house][data-house-size="compact"] .hn-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-house][data-house-size="compact"] .hn-split { grid-template-columns: minmax(0, 1fr); }
+
+/* Time chart */
+[data-house] .hn-chart-body { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem; }
+[data-house] .hn-chart-body svg { display: block; }
+[data-house] .hn-axis { display: flex; justify-content: space-between; gap: 0.5rem; color: var(--house-muted); font-size: var(--house-text-xs); font-family: var(--house-font-label); }
+[data-house] .hn-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 0.875rem; font-size: var(--house-text-xs); }
+[data-house] .hn-legend > span { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0; }
+
+/* Ledger */
+[data-house] .hn-ledger { display: flex; flex-direction: column; }
+[data-house] .hn-lrow {
+  display: grid; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; min-height: 2rem;
+  grid-template-columns: 5.5rem minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.9fr) 4.5rem;
+  border-bottom: 1px solid var(--house-divider, var(--house-outline));
+  font-size: var(--house-text-sm);
+}
+[data-house] .hn-ledger--nopage .hn-lrow { grid-template-columns: 5.5rem minmax(0, 1.6fr) minmax(0, 0.9fr) 4.5rem; }
+[data-house] .hn-ledger--compact .hn-lrow { min-height: 1.75rem; font-size: var(--house-text-xs); grid-template-columns: 4.5rem minmax(0, 1fr) minmax(0, 0.8fr) 4rem; }
+[data-house] .hn-lrow--head { min-height: 1.5rem; color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hn-lrow > span { min-width: 0; }
+[data-house] .hn-lpage-btn.hk-btn, [data-house] .hn-who.hk-btn {
+  display: flex; align-items: center; justify-content: flex-start; gap: 0.375rem; width: 100%; min-width: 0;
+  padding: 0; min-height: 1.5rem; font-weight: 400; color: var(--house-text); text-align: left;
+}
+[data-house] .hn-lpage-btn.hk-btn { text-decoration: none; }
+[data-house] .hn-who.hk-btn { text-decoration: underline dotted; text-underline-offset: 0.1875rem; }
+[data-house] .hn-who.hk-btn > span, [data-house] .hn-lpage-btn.hk-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hn-ledgerpanel [data-tour="notebook-ledger"] > .hn-note { padding-top: 0.5rem; }
+
+/* Targets, due, repeats, points */
+[data-house] .hn-targets .hn-col, [data-house] .hn-due .hn-col, [data-house] .hn-repeats .hn-col, [data-house] .hn-points .hn-col { gap: 0.375rem; }
+[data-house] .hn-target.hk-btn {
+  display: flex; flex-direction: column; align-items: stretch; gap: 0.25rem; width: 100%;
+  padding: 0.125rem 0; min-height: 0; color: var(--house-text); text-decoration: none; font-weight: 400; text-align: left;
+}
+[data-house] .hn-target.hk-btn > span { display: contents; }
+[data-house] .hn-target-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; font-size: var(--house-text-sm); }
+[data-house] .hn-line.hk-btn, [data-house] .hn-line {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%; min-width: 0;
+  padding: 0.125rem 0; min-height: 1.75rem; color: var(--house-text); text-decoration: none; font-weight: 400; text-align: left;
+  font-size: var(--house-text-sm);
+}
+[data-house] .hn-line.hk-btn > span { display: contents; }
+[data-house] .hn-line-when { flex: 0 0 4.5rem; font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house] .hn-line-when.hn-warn { color: var(--house-accent-text, var(--house-accent)); }
+
+/* ── A page (board 20) ── */
+[data-house] .hn-page { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+[data-house] .hn-page--studio { flex: 1 1 auto; padding-bottom: 0.5rem; }
+[data-house] .hn-pagehead {
+  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem 0.625rem;
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hn-pagehead-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.375rem; min-width: 0; }
+[data-house] .hn-crumbs { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hn-crumbs .hk-btn { min-height: 1.5rem; padding: 0 0.125rem; color: var(--house-muted); font-weight: 400; }
+[data-house] .hn-iconsq.hk-btn {
+  width: 2rem; min-width: 2rem; height: 2rem; min-height: 2rem; padding: 0; justify-content: center;
+  color: var(--house-on-accent, #fff); text-decoration: none; outline: 2px solid var(--house-outline); outline-offset: -2px;
+  font-family: var(--house-font-label);
+}
+[data-house] .hn-pagetitle { margin: 0 0.25rem 0 0; min-width: 0; font-size: var(--house-text-xl); font-weight: 400; overflow-wrap: anywhere; }
+[data-house] .hn-measure { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1rem; }
+[data-house] .hn-measure-so, [data-house] .hn-measure-week { display: flex; flex-direction: column; gap: 0.125rem; }
+[data-house] .hn-measure-week { text-align: right; }
+[data-house] .hn-measure-bar { display: flex; flex-direction: column; gap: 0.375rem; min-width: 0; }
+[data-house] .hn-pagegrid { display: grid; grid-template-columns: 15rem minmax(0, 1fr) 17.5rem; gap: 0.5rem; align-items: start; }
+[data-house] .hn-pagegrid > .hn-col { gap: 0.5rem; }
+[data-house] .hn-pagegrid .hk-panel, [data-house] .hn-page > .hk-panel { margin: 0; }
+[data-house] .hn-scroll { max-height: 32rem; overflow-y: auto; }
+[data-house] .hn-paper { padding: 0.75rem 0.875rem; min-height: 8rem; line-height: 1.55; overflow-wrap: anywhere; }
+[data-house] .hn-notestatus {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; padding: 0.25rem 0.5rem;
+  border-top: 2px solid var(--house-outline); color: var(--house-muted); font-size: var(--house-text-xs);
+}
+[data-house] .hn-shares { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.625rem; padding: 0.5rem; font-size: var(--house-text-xs); }
+[data-house] .hn-sharebar { display: flex; flex: 1 0 100%; height: 0.5rem; outline: 1px solid var(--house-outline); }
+[data-house] .hn-sharebar > span { display: block; height: 100%; }
+[data-house][data-house-size="compact"] .hn-pagegrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+[data-house][data-house-size="compact"] .hn-pagegrid > .hn-lines { grid-column: 1 / -1; }
+
+/* The person's own boards, mounted inside a house panel */
+[data-house] .hn-boardwrap { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+[data-house] .hn-boardpanel { margin: 0; flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+[data-house] .hn-boardbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+/* ── Phone (board 18): the boards' slim gutter, edge to edge ── */
+[data-house].hn--phone { min-height: 100%; padding: 0 var(--house-space-2, 0.5rem); overflow-x: hidden; }
+[data-house] .hn-stack { display: flex; flex-direction: column; gap: var(--house-space-3, 0.75rem); padding: var(--house-space-3, 0.75rem) 0; }
+[data-house] .hn-stack > .hk-panel, [data-house] .hn-stack .hn-page > .hk-panel { margin: 0; }
+[data-house] .hn-stack-in { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0; }
+[data-house] .hn-stack-in > .hk-panel { margin: 0; }
+[data-house] .hn-sum {
+  display: flex; flex-direction: column; gap: 0.375rem; padding: 0.625rem 0.75rem;
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hn-sum-top { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+[data-house] .hn-sum-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
+[data-house] .hn-sum-main .hn-muted { font-size: var(--house-text-xs); }
+[data-house] .hn-sum svg { display: block; }
+[data-house].hn--phone .hn-ranges { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+[data-house].hn--phone .hn-ranges .hk-btn { min-height: 36px; padding: 0 0.25rem; }
+[data-house] .hn-tiles { list-style: none; margin: 0; padding: 0.25rem; display: flex; flex-direction: column; gap: 2px; }
+[data-house] .hn-tile.hk-btn {
+  display: flex; align-items: center; gap: 0.625rem; width: 100%; min-height: 48px; padding: 0.375rem 0.5rem;
+  color: var(--house-text); text-decoration: none; font-weight: 400; text-align: left;
+}
+[data-house] .hn-tile.hk-btn > span { display: contents; }
+[data-house] .hn-tile-mid { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.3125rem; }
+[data-house] .hn-tile-mid > .hn-ell { display: block; }
+[data-house] .hn-tile-val { font-size: var(--house-text-sm); }
+[data-house] .hn-recent-row {
+  display: grid; grid-template-columns: 0.375rem minmax(0, 1fr) auto; grid-template-rows: auto auto;
+  column-gap: 0.5rem; align-items: center; padding: 0.375rem 0.5rem; border-bottom: 1px solid var(--house-divider, var(--house-outline));
+}
+[data-house] .hn-recent-mark { grid-row: 1 / span 2; align-self: stretch; }
+[data-house] .hn-recent-what.hk-btn, [data-house] .hn-recent-who.hk-btn {
+  justify-content: flex-start; padding: 0; min-height: 1.75rem; min-width: 0; font-weight: 400; color: var(--house-text); text-decoration: none; text-align: left;
+}
+[data-house] .hn-recent-what.hk-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hn-recent-who.hk-btn { grid-column: 2; grid-row: 2; }
+[data-house] .hn-recent-row > .hn-num { grid-column: 3; grid-row: 1 / span 2; }
+[data-house].hn--phone .hn-pagehead { padding: 0.5rem; }
+[data-house].hn--phone .hn-pagetitle { flex: 1 1 100%; order: 3; }
+[data-house].hn--phone .hn-crumbs { flex: 1 1 100%; }
+[data-house].hn--phone .hn-measure { grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem 0.75rem; }
+[data-house].hn--phone .hn-measure-bar { grid-column: 1 / -1; grid-row: 2; }
+[data-house].hn--phone .hn-lrow { grid-template-columns: 4rem minmax(0, 1fr) minmax(0, 0.8fr) 3.75rem; font-size: var(--house-text-xs); }
+[data-house].hn--phone .hn-ledger--nopage .hn-lrow, [data-house].hn--phone .hn-ledger--compact .hn-lrow { grid-template-columns: 4rem minmax(0, 1fr) minmax(0, 0.8fr) 3.75rem; }
+[data-house].hn--phone .hn-tile.hk-btn, [data-house].hn--phone .hn-line.hk-btn, [data-house].hn--phone .hn-hit.hk-btn { min-height: 44px; }
+[data-house].hn--phone .hn-scroll { max-height: none; }
+/* Docked by the phone frame in its bottom zone (roomTools.bar), above its own bar. */
+[data-house] .hn-roombar {
+  display: flex; gap: 0.5rem; padding: 0.5rem var(--house-space-2, 0.5rem);
+  background: var(--house-panel); border-top: 2px solid var(--house-outline);
+}
+[data-house] .hn-roombar > * { flex: 1 1 0; min-width: 0; }
+[data-house] .hn-roombar .hk-btn { min-height: 44px; width: 100%; }
