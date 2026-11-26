@@ -90,6 +90,10 @@ export default function HouseNotebook({ size = "full", tokens }) {
   const [params] = useSearchParams();
   // ?new=1 ("New goal" links): the house asks for the new page's name.
   const [newOpen, setNewOpen] = useState(() => params.get("new") === "1");
+  // Also when a "New goal" link lands while the room is already open (runs
+  // before the workspace tidies ?new out of the address).
+  const asksNew = params.get("new") === "1";
+  useEffect(() => { if (asksNew) setNewOpen(true); }, [asksNew]);
   const ws = useNotebookWorkspace({ onNew: null });
   return (
     <WorkspaceProvider value={ws.value}>
@@ -272,7 +276,7 @@ function Overview({ phone, range, setRange, onWho, onInfo, onBoard, onNew, onPag
     <Panel className="hn-ledgerpanel" headingLevel={2} title="Ledger: everything that moved a page"
       tools={<>
         <Button rank={who ? "primary" : "quiet"} onClick={() => setWhoPick(true)} title={`Only what one ${t.alter} did`}>{whoName ? `By ${whoName}` : t.Alter}</Button>
-        <Button rank="quiet" onClick={exportLedger} disabledReason={ledger.length ? undefined : "Nothing to export yet"}>export</Button>
+        {ledger.length ? <Button rank="quiet" onClick={exportLedger}>export</Button> : null}
       </>}>
       <div data-tour="notebook-ledger">
         {ledger.length === 0 ? <p className="hn-empty">{who ? "Nothing by them here." : "Nothing yet. Time on a page, words written, and study sessions land here."}</p>

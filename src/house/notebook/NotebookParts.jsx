@@ -411,7 +411,7 @@ export function TimeChart({ nums, range }) {
   const labelAt = (i) => nums.buckets[Math.min(n - 1, Math.max(0, i))]?.label || "";
   return (
     <Panel className="hn-chart" headingLevel={2} title={`Time on pages, ${UNIT_TITLE[nums.unit] || "by week"}`} tools={<span className="hn-muted hn-small">stacked by page</span>}>
-      {series.length === 0 ? <p className="hn-empty">{`No time logged on a page in ${RANGE_WORDS[range]}. "Work on it" on a page times it.`}</p> : (
+      {series.length === 0 ? <p className="hn-empty">{`No time logged on a page ${range === "week" ? "" : "in "}${RANGE_WORDS[range]}. "Work on it" on a page times it.`}</p> : (
         <div className="hn-chart-body">
           <svg width="100%" height="150" viewBox="0 0 520 150" preserveAspectRatio="none" shapeRendering="crispEdges" role="img"
             aria-label={`Time on pages: ${series.map((s) => `${s.id === "__other" ? "other pages" : index.byId.get(s.id)?.title || "Untitled"} ${formatMinutes(s.total)}`).join(", ")}`}>
