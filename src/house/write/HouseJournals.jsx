@@ -62,7 +62,7 @@ const fail = (e, what = "That didn't save.") => showToast({ tone: "failed", mess
 // Locking happens when an entry is first written (the editor's "Make this
 // entry private"). Locking one that's already saved would rewrite its text,
 // so that waits for its own careful write path; the button says why.
-const LOCK_LATER = "Entries are locked when they're first written (New entry → Make this entry private). Locking a saved one isn't here yet.";
+const LOCK_LATER = "Only a new entry can be locked, as it's written";
 
 export default function HouseJournals({ size = "full", tokens }) {
   const t = useTerms();
@@ -256,8 +256,8 @@ export default function HouseJournals({ size = "full", tokens }) {
         title={`Only entries by who's ${t.fronting} now`}>{`${t.Fronter} view${fronterOn && fronterIds.length !== nowIds.length ? ` (${fronterIds.length})` : ""}`}</Button>
       {fronterOn ? <Button rank="quiet" onClick={() => setRefineOpen(true)}>Pick who…</Button> : null}
       <Button rank={filterCount ? "primary" : "secondary"} onClick={() => setFiltersOpen(true)}>{`Filter${filterCount ? ` (${filterCount})` : ""}`}</Button>
-      <span className="hw-flex" />
-      <span data-tour="journals-import"><Button rank="quiet" onClick={() => setImportOpen(true)}>Import files</Button></span>
+      {phone ? null : <span className="hw-flex" />}
+      {phone ? null : <span data-tour="journals-import"><Button rank="quiet" onClick={() => setImportOpen(true)}>Import files</Button></span>}
     </div>
   );
 
@@ -407,11 +407,17 @@ export default function HouseJournals({ size = "full", tokens }) {
       <Button rank="secondary" onClick={() => openNew()}>New entry</Button>
     </div>
   ) : null), [phoneEntry, current?.id, openNew]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The list keeps Search in the header and puts Import and New folder in ⋯.
   const tools = useMemo(() => (phoneEntry ? {
     info: { label: "Info", ariaLabel: "Info: this entry", pressed: infoOpen, tour: "journal-info-panel", onSelect: () => setInfoOpen((o) => !o) },
     items: entryMenu(current).map((i) => ({ ...i })),
     bar,
-  } : null), [phoneEntry, current?.id, current?.is_encrypted, infoOpen, bar]); // eslint-disable-line react-hooks/exhaustive-deps
+  } : phone ? {
+    items: [
+      { id: "import", label: "Import files…", onSelect: () => setImportOpen(true) },
+      { id: "folder", label: "New folder…", onSelect: () => setFolderSheet({ mode: "new", path: folder && folder !== SWITCH_FOLDER ? folder : null, name: "" }) },
+    ],
+  } : null), [phone, phoneEntry, current?.id, current?.is_encrypted, infoOpen, bar, folder]); // eslint-disable-line react-hooks/exhaustive-deps
   useRoomTools(phone ? tools : null);
 
   const sheets = (
@@ -512,7 +518,7 @@ export default function HouseJournals({ size = "full", tokens }) {
             {find}
             <div className="hw-side-tree">{folderTree}</div>
             <div className="hw-split" aria-hidden="true" />
-            <div className="hw-side-list">{shown.length ? entryList : empty}</div>
+            <div className="hw-side-list">{shown.length ? entryList : <p className="hw-muted hw-small">No entries here.</p>}</div>
           </div>
         </Panel>
       </aside>

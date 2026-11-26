@@ -164,7 +164,9 @@
    right above the frame's bottom bar. The room fills main exactly, so only
    the stream scrolls and nothing floats over it. */
 [data-house].hw-c--phone {
-  height: 100%; min-height: 0; display: flex; flex-direction: column;
+  /* Absolute over main's padding box: the old app's bottom-nav reserve
+     (padding-bottom on main) would otherwise leave a gap under the composer. */
+  position: absolute; inset: 0; z-index: 1; min-height: 0; display: flex; flex-direction: column;
   padding: 0 var(--house-space-2) var(--house-space-2); gap: 0;
 }
 [data-house].hw-c--phone .hw-c-main { flex: 1 1 auto; }
@@ -247,3 +249,9 @@
 [data-house] .hw-c .px-chat-comp .px-chat-tools { margin-top: 0; border: 0; border-radius: 0; background: transparent; }
 [data-house] .hw-c .px-chat-comp .px-chat-tools > div:first-child { background: transparent; padding: 0; }
 [data-house] .hw-c .px-chat-comp .px-chat-tools button { border-radius: 0; }
+
+/* The side panels' head tools stay on the title's line (board 05: "Journals … + new"). */
+[data-house] .hw-side .hk-panel-title { flex: 0 1 auto; }
+[data-house] .hw-side .hk-panel-tools { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap; }
+[data-house] .hw-side .hk-panel-tools .hk-btn { padding: 0 0.25rem; white-space: nowrap; }
+[data-house] .hw-did .hw-info-body > .hw-muted:first-child { font-size: var(--house-text-sm); }
