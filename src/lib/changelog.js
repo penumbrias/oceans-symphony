@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "feature", text: "New house: the Notebook is rebuilt as the approved design, with page balances, a ledger of what moved each page (tap By to change who did it), and weekly targets with a pace tick." },
+      { type: "improve", text: "New house: Set front is easier to use, with slim rows for who's in front, a tighter footer and the pixel back button and title." },
+      { type: "improve", text: "Preview Mode now shows the house's own colours and pixel font." },
       { type: "improve", text: "New house: edges and bevels are thinner and lighter everywhere, closer to the approved design." },
       { type: "improve", text: "Pixel look: tick boxes have thinner, flatter edges." },
       { type: "feature", text: "New house: Quick check-in, \"Who feels it?\" and Set front open as the approved design's sheets on phones and computers." },
