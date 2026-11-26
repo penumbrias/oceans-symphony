@@ -322,7 +322,7 @@ export default function GroupsManager({ embedded = false } = {}) {
     <>
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manage groups</h1>
+            <h1 className={embedded ? "sr-only" : "text-2xl sm:text-3xl font-bold text-foreground"}>Manage groups</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5"

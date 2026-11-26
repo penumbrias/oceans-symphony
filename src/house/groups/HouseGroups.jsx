@@ -328,10 +328,11 @@ export default function HouseGroups({ size = "full", tokens }) {
       <EmptyBlock title="This group isn't here" body="It may have been deleted. Deleted things wait in Recent changes."
         action={{ label: "Back to the groups", onClick: () => navigate("/groups", { replace: true }) }} />
     ) : (
-      <Panel className="hgr-pn" title="Groups">
+      <div className="hgr-firstgroup">
+        <h1 className="hk-sr">Groups</h1>
         <EmptyBlock title="Make a first group" body={`Gather ${t.alters} who belong together: a folder, a team, a place they share. Give it a root ${t.alter} and it becomes ${An(subTerm).toLowerCase()} of its own.`}
           action={{ label: "New group", icon: Plus, onClick: () => setCreateParent(null) }} />
-      </Panel>
+      </div>
     );
   } else if (oldView) {
     main = (

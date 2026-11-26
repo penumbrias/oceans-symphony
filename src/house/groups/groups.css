@@ -183,3 +183,4 @@
 [data-house].hgr--studio .hgr-body > .hgr-cols, [data-house].hgr--studio .hgr-body > .hgr-pn { flex: 1 1 auto; }
 [data-house].hgr--studio .hgr-grow { display: flex; flex-direction: column; }
 [data-house].hgr--studio .hgr-grow > .hk-panel-body { flex: 1 1 auto; }
+[data-house] .hgr-firstgroup { padding: 2rem 1rem; }
