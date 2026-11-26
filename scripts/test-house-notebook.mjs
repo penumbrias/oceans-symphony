@@ -196,7 +196,7 @@ test("deep links survive: ?page, ?highlight, ?new, ?fromWish, ?list, ?notes, ?vi
 });
 
 test("hn- classes are the room's own and the CSS is the room's", () => {
-  for (const f of ["src/house/kit/frame/frameKit.css", "src/house/kit/panels.css", "src/house/kit/kit.css", "src/house/alters/alters.css", "src/house/write/write.css", "src/house/planner/planner.css", "src/house/home/home.css", "src/house/day/day.css", "src/house/checkin/checkin.css", "src/house/support/support.css", "src/house/frame/frame.css", "src/house/phone/phone.css"]) {
+  for (const f of ["src/house/kit/frame/frameKit.css", "src/house/kit/panels.css", "src/house/kit/kit.css", "src/house/alters/alters.css", "src/house/write/write.css", "src/house/planner/planner.css", "src/house/home/home.css", "src/house/day/day.css", "src/house/checkin/checkin.css", "src/house/support/support.css", "src/house/frame/frame.css", "src/house/phone/phone.css", "src/house/settings/settings.css"]) {
     let t = ""; try { t = read(f); } catch { continue; }
     assert.ok(!/\.hn-|\.hn\b/.test(t), `${f} has no hn- classes`);
   }

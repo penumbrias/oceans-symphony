@@ -1405,6 +1405,21 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/settings", target: "settings-side-panel",
     }),
     s("settings", {
+      emoji: "💾", title: "Your data, one tap away",
+      body: `In the new house, Settings opens on an overview: export a backup, import one, or back up now, beside the version testers quote.`,
+      route: "/settings", target: ["settings-backup-actions", "settings-data"], look: `Your data, on the Settings overview`,
+    }),
+    s("settings", {
+      emoji: "🪟", title: "Display options as a page",
+      body: `In the new house, Display options opens right inside Settings, with its tabs across the top: Text, Shape, Bars, Colour and Styles. "Open as a sheet" still opens it over any page.`,
+      route: "/settings#display", target: ["settings-display-inspector", "settings-display-options"], look: `the Display options page`,
+    }),
+    s("settings", {
+      emoji: "👀", title: "Preview, live",
+      body: `On a computer, the look pages show a live Preview on the right: who's ${t.fronting}, buttons, text at your size and icons, so you see each change as you make it.`,
+      route: "/settings#display", target: ["settings-preview", "settings-display-options"], look: `the Preview panel on the right`,
+    }),
+    s("settings", {
       emoji: "✏️", title: `Name and words`,
       body: `Profile is where your ${t.system}'s name lives, and Terminology changes the words the app uses, like "${t.system}", "${t.alter}" and "${t.fronting}". Changes show everywhere at once.`,
       route: "/settings", target: "settings-system", look: `the highlighted Profile row`,
