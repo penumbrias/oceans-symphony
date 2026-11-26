@@ -42,6 +42,7 @@ The shared step is `src/lib/recordEdit.js` (`editRecord`, `trashRecords`,
 | Location | `checkinEntry.js`: `editLocation` (logLocation's shape rules), `deleteLocation` | LocationHistory (edit, delete), CheckInLog (delete) |
 | DiaryCard | `checkinEntry.js`: `editDiaryCard` (diary fields through `diaryDataToPatch`, the rest kept), `deleteDiaryCardRecord` | DiaryCardEditDialog (and `deleteDiaryCard`, which CheckInLog uses) |
 | FrontingSession (who it was) | `frontSessionEdit.js`: `reassignFrontSession`, `undoFrontReassign` | The Day's session Info (`src/house/day/DaySheets.jsx` `ReassignSheet`: "It wasn't {name}…", toast Undo), in the Timeline room and Home's timeline dock |
+| Activity (when and how long, by dragging) | `planner/moveEntry.js`: `moveActivityTime` (the patch is `planner/movePatch.js` `movePatch`: `timestamp` plus the length field the record already used; a plan still to come keeps `scheduled` and gains a `reschedule_history` entry; a mirrored night keeps its Sleep in step through `syncLinkedSleep`) | The Planner room's time columns (`src/house/planner/HousePlanner.jsx`: drag to move, drag the edge to resize, toast Undo writes the old time back through the same call). The old planner's drag-resize still writes `Activity.update` itself; move it here when that page is retired. Test: `node scripts/test-house-planner.mjs` |
 
 Test: `node scripts/test-day-entry.mjs` 20/20.
 

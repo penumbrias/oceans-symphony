@@ -357,3 +357,14 @@ Boards 01-Main and 08-Phone's layered timeline given the whole canvas, with boar
 5. **Landings** (`?date`, `?view`, `?focusSessionId`(`&edit=1`), `?highlightStatus`) land once; the one-visit ones are taken off the address.
 6. **Reused old insides**: `AlterSessionEdit`, `SymptomSessionPopup`, `QuickCheckInModal`, `DailyTallyPanel` (in the Tally sheet) keep their old styling until their own rebuild.
 
+## 18. The Planner room (2026-11-26, branch house/planner-room)
+
+Board 04-Planner built in `src/house/planner/` and drawn by both frames on `/planner` (`housePlannerRoom`). With the switch off, the old Planner page is untouched (`HouseRoomGate`). Board 48's editor and the phone layout were not drawn as a room, so the phone stacks the calendar (in a titled panel with ‹ Today ›) over Needs a decision, This week, Goals and the folded month and categories, in the slim gutter.
+
+1. **The grids are kit blocks.** The vertical week (`TimeColumns`, `timeColumns.css`, `timeColumnsModel.js` for the drag maths) and the month grids (`MiniMonth`, `MonthBoard`, `YearBoard`, `monthGrid.css`) live in `src/house/kit/` with their own `hk-tc-` and `hk-cal-` classes, never in `frameKit.css`. The shared Day parts are horizontal lanes, so the week grid is its own block; the pure date helpers are still `src/house/day/dayView.js`.
+2. **One row of views.** Day · Week · Month · Year · Plans list is one radio row (board 04's flaw "drawn like add buttons" fixed); + Log, + Event and + Plan sit apart on the right; Insights opens from This week. The keys are the old planner's, so the remembered view carries between the houses.
+3. **Words, not colour alone.** Every block's spoken name carries its time and how it stands (planned, needs a decision, done, partly done, skipped, called off). The outcome is "Called off", never "Cancel" (§1); the old details sheet still says Cancelled until its own rebuild.
+4. **Drags write through `moveActivityTime` only.** A mouse drags at once; touch holds first. Undo writes the old time back through the same call. Creating from a drag opens the one editor (`ActivityEditor`); outcomes go through `resolvePlan.js`; series deletes through `deleteSeries` inside `withTrashBatch`.
+5. **Reused old insides**: `ActivityEditor`, `PlanDetailsSheet`, `EventSheet`, `SeriesDeleteSheet`, `ActivityActionMenu`, the old `PlansList` (inside "Select several…"), `ActivityGoalsPanel`, `PlanCompletionTracker` and `ActivityTallyTracker` keep their old styling until their own rebuild.
+6. **Tests**: `node scripts/test-house-planner.mjs` (the model, drag maths, the move patch, routing, and that the room writes only through the write paths).
+
