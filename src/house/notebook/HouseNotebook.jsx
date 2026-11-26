@@ -385,7 +385,7 @@ function Overview({ phone, range, setRange, onWho, onInfo, onBoard, onNew, onPag
   return (
     <div className="hn-over">
       <div className="hn-titlebar">
-        <h1 className="hn-h1 house-label">Notebook</h1>
+        <h1 className="sr-only">Notebook</h1>
         <span className="hn-flex" />
         <RangeRow range={range} setRange={setRange} />
         <Button rank="secondary" onClick={onInfo} data-tour="goals-info-btn">Info</Button>

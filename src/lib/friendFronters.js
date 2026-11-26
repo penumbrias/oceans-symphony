@@ -125,3 +125,51 @@ export function friendFrontersFor(fronters, vis, levels = []) {
   }
   return out;
 }
+
+// What rides along with each fronter, per the share mode stored on the
+// identity (Friends → profile): "name" (default) strips pronouns and
+// preferences; "name_prefs" keeps them; "prefs_only" shows the pronouns in
+// place of the name, so the name never leaves the device. pushFrontStatus
+// sends this; the house's Friends room previews it (same function).
+export function applyShareMode(rawFronters, shareMode = "name") {
+  return (rawFronters || []).map((f) => {
+    const { pronouns, preferences, ...rest } = f;
+    if (shareMode === "name_prefs") {
+      return { ...rest, pronouns: pronouns || "", preferences: preferences || [] };
+    }
+    if (shareMode === "prefs_only") {
+      const display = (pronouns || "").trim() || "?";
+      return { ...rest, name: display, initial: display[0] || "?", pronouns: pronouns || "", preferences: preferences || [] };
+    }
+    return rest; // "name": strip everything new
+  });
+}
+
+// One friend's own entry in perFriendFronters, or null when they have no
+// settings of their own (they then get the shared list at the global level).
+// `levels` is null when the levels couldn't be read: a friend on levels then
+// sees nothing rather than a guess. Used by pushFrontStatus for every friend.
+export function perFriendView(fronters, vis, levels, basePrivacy) {
+  if (!vis) return null;
+  if (vis.privacyOverride === "hidden" || (friendUsesLevels(vis) && levels === null)) {
+    return { fronters: [], privacyLevel: "hidden" };
+  }
+  const theirs = friendFrontersFor(fronters, vis, levels || []);
+  if (vis.privacyOverride === "count_only") {
+    return {
+      fronters: theirs.map((f) => ({ ...f, name: "?", initial: "?", color: null, pronouns: undefined, preferences: undefined })),
+      privacyLevel: "count_only",
+    };
+  }
+  if (friendUsesLevels(vis) || (vis.hiddenAlterIds || []).length) {
+    return { fronters: theirs, privacyLevel: vis.privacyOverride || basePrivacy };
+  }
+  return null;
+}
+
+// What one friend is sent right now: their own entry, or the shared list at
+// the global level. Read-only; the preview in the house's Friends room.
+export function whatFriendSees(fronters, vis, levels, basePrivacy) {
+  return perFriendView(fronters, vis, levels, basePrivacy)
+    || { fronters: friendFrontersFor(fronters, undefined), privacyLevel: basePrivacy };
+}

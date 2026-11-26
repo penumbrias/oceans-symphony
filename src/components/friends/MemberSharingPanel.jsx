@@ -17,7 +17,6 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 // half. Collapsible so it stays out of the way.
 export default function MemberSharingPanel() {
   const terms = useTerms();
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [showManager, setShowManager] = useState(false);
   const [levelMembersFor, setLevelMembersFor] = useState(null);
@@ -30,18 +29,7 @@ export default function MemberSharingPanel() {
   // standard order for every list that names members.
   const sortAlters = useFrontersFirst();
   const liveAlters = useMemo(() => sortAlters(alters.filter((a) => !a.is_archived)), [alters, sortAlters]);
-  const altersById = useMemo(() => Object.fromEntries(liveAlters.map((a) => [a.id, a])), [liveAlters]);
-
   const sharedCount = liveAlters.filter((a) => Array.isArray(a.privacy_levels) && a.privacy_levels.length).length;
-
-  const toggleLevel = async (alter, levelId) => {
-    const cur = Array.isArray(alter.privacy_levels) ? alter.privacy_levels : [];
-    const next = cur.includes(levelId) ? cur.filter((id) => id !== levelId) : [...cur, levelId];
-    await base44.entities.Alter.update(alter.id, { privacy_levels: next });
-    queryClient.invalidateQueries({ queryKey: ["alters"] });
-    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
-    pushAlterShares().catch(() => {}); // refresh what friends see
-  };
 
   return (
     <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
@@ -92,27 +80,7 @@ export default function MemberSharingPanel() {
 
               <p className="text-[0.625rem] text-muted-foreground px-0.5 pt-1">Or set levels per {terms.alter}:</p>
 
-              <AlterTreeSelect
-                isSelected={(id) => { const a = altersById[id]; return Array.isArray(a?.privacy_levels) && a.privacy_levels.length > 0; }}
-                renderControl={(a) => {
-                  const cur = Array.isArray(a.privacy_levels) ? a.privacy_levels : [];
-                  return (
-                    <div className="flex flex-wrap gap-1 items-center">
-                      {cur.length === 0 && <span className="text-[0.625rem] text-muted-foreground mr-1">Private</span>}
-                      {levels.map((l) => {
-                        const on = cur.includes(l.id);
-                        return (
-                          <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(a, l.id)}
-                            className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${selectablePillClass(on)}`}>
-                            {on ? "✓ " : ""}{l.number}. {l.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                }}
-                maxHeight="48vh"
-              />
+              <PerAlterLevels />
             </>
           )}
         </div>
@@ -121,5 +89,51 @@ export default function MemberSharingPanel() {
       <PrivacyLevelsManager isOpen={showManager} onClose={() => setShowManager(false)} />
       <LevelMembersModal isOpen={!!levelMembersFor} level={levelMembersFor} onClose={() => setLevelMembersFor(null)} />
     </div>
+  );
+}
+
+// Each {alter}'s sharing levels, set from a searchable tree (by subsystem and
+// group) with the level pills beside each name. Writes the alter's
+// privacy_levels and re-pushes the encrypted member share. Used inside the
+// panel above and by the house's Friends room.
+export function PerAlterLevels({ maxHeight = "48vh" }) {
+  const queryClient = useQueryClient();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const levels = sortedLevels(getPrivacyLevels(pickPrimarySystemSettings(settingsList)));
+  const altersById = useMemo(() => Object.fromEntries(alters.filter((a) => !a.is_archived).map((a) => [a.id, a])), [alters]);
+
+  const toggleLevel = async (alter, levelId) => {
+    const cur = Array.isArray(alter.privacy_levels) ? alter.privacy_levels : [];
+    const next = cur.includes(levelId) ? cur.filter((id) => id !== levelId) : [...cur, levelId];
+    await base44.entities.Alter.update(alter.id, { privacy_levels: next });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
+    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    pushAlterShares().catch(() => {}); // refresh what friends see
+  };
+
+  if (!levels.length) return null;
+  return (
+    <AlterTreeSelect
+      isSelected={(id) => { const a = altersById[id]; return Array.isArray(a?.privacy_levels) && a.privacy_levels.length > 0; }}
+      renderControl={(a) => {
+        const cur = Array.isArray(a.privacy_levels) ? a.privacy_levels : [];
+        return (
+          <div className="flex flex-wrap gap-1 items-center">
+            {cur.length === 0 && <span className="text-xs text-muted-foreground mr-1">Private</span>}
+            {levels.map((l) => {
+              const on = cur.includes(l.id);
+              return (
+                <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(a, l.id)}
+                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${selectablePillClass(on)}`}>
+                  {on ? "✓ " : ""}{l.number}. {l.name}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }}
+      maxHeight={maxHeight}
+    />
   );
 }

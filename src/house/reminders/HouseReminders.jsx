@@ -277,7 +277,7 @@ export default function HouseReminders({ size = "full", tokens }) {
     <HouseScope tokens={tokens} className="hrm hrm--studio" data-house-size={size} data-reminders-room="">
       <div className="hrm-bar">
         <div className="hrm-toolbar" role="toolbar" aria-label="Reminders">
-          <h1 className="hrm-title">Reminders</h1>
+          <h1 className="sr-only">Reminders</h1>
           {filterRow}
           <span className="hrm-grow" />
           <Button rank="secondary" icon={SettingsIcon} onClick={() => navigate("/settings#reminders")}>Quiet hours</Button>

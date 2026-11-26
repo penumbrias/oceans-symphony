@@ -1707,6 +1707,31 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/friends", target: "friends-code", look: `your friend code`,
     }),
     s("friends", {
+      emoji: "📇", title: "Your friends",
+      body: `Your friends are listed with who's ${t.fronting} for them. New requests wait here with Accept and Decline. Pick a friend to open them.`,
+      route: "/friends", target: ["friends-list", "friends-code"], look: `the Friends list`,
+    }),
+    s("friends", {
+      emoji: "👁️", title: "What they see of you",
+      body: `Choose a level for one friend: Hidden, Count only, or Names and colours. "Right now they would see" shows exactly what this friend gets.`,
+      route: "/friends", target: ["friends-what-they-see", "friends-code"], look: `"What they see of you"`,
+    }),
+    s("friends", {
+      emoji: "🎚️", title: "Your default level",
+      body: `Sharing levels shows the level every friend gets unless you set one for them, and what each ${t.fronter} shares. Manage changes it in your Friends profile.`,
+      route: "/friends", target: ["friends-levels", "friends-code"], look: `the Sharing levels panel`,
+    }),
+    s("friends", {
+      emoji: "✅", title: `Show when ${t.fronting}`,
+      body: `Tick the ${t.alters} that friends without sharing levels may see when they're ${t.fronting}. New ${t.alters} start unticked.`,
+      route: "/friends", target: ["friends-show-when", "friends-code"], look: `the Show when ${t.fronting} panel`,
+    }),
+    s("friends", {
+      emoji: "📖", title: "How it works",
+      body: `How it works says what the relay holds and how the encryption works, and starts this tour of the page.`,
+      route: "/friends", target: ["friends-how", "friends-code"], look: `the How it works panel`,
+    }),
+    s("friends", {
       emoji: "🔔", title: `${t.Front} updates`,
       body: `"Notify on change" sends a push when a friend's ${t.front} changes; their status also refreshes here every 30 seconds. Privacy levels choose how much you share.`,
       route: "/friends", look: `a friend's card`,
@@ -1714,12 +1739,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("friends", {
       emoji: "🔐", title: `Sharing ${t.alters}`,
       body: `Make privacy levels that choose what's shown (name, pronouns, bio…) and put ${t.alters} in them. Everyone stays private until you do.`,
-      route: "/friends", look: `any profile's Info → ⋯ → Sharing`,
+      route: "/friends", target: ["friends-member-levels"], look: `Member levels, or any profile's Info → ⋯ → Sharing`,
     }),
     s("friends", {
       emoji: "🗝️", title: "Only they can read it",
       body: `On a friend's card, grant the levels they may see. It's end-to-end encrypted, so only that friend can read it. Compare a safety number to be sure it's really them.`,
-      route: "/friends", look: `a friend's card → "Members this friend can see"`,
+      route: "/friends", target: ["friends-what-they-see"], look: `a friend's "What they see of you"`,
     }),
 
     // ─── SYSTEM CHAT ────────────────────────────────────────────────────────
