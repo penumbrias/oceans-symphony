@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "feature", text: "New house: Groups is redrawn, with your group tree down the side (drag one onto another to nest it) and each group's page with its {{alters}}, nested groups and notes." },
       { type: "feature", text: "New house: Friends is redrawn, with your friends, what each one sees of you (with a live preview) and how sharing works on one screen." },
       { type: "improve", text: "New house: Analytics, Reminders and Notebook drop the title that repeated the page tab, and the Analytics toolbar is slimmer." },
       { type: "feature", text: "New house: Reminders is redrawn, with Due now and your reminders side by side and a full reminder editor on phone and computer." },
