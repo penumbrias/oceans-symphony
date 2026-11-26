@@ -288,9 +288,11 @@ function Overview({ ctx }) {
       </section>
       <section className="hst-block" aria-labelledby="hst-ver-h">
         <h2 id="hst-ver-h" className="hst-bhead">This app</h2>
-        <p className="hst-version"><span className="hst-chip">{ctx.version}</span></p>
-        <div className="hst-old"><DesktopUpdateButton /></div>
         <div className="hst-actions">
+          <span className="hst-chip">{ctx.version}</span>
+          <span className="hst-old"><DesktopUpdateButton /></span>
+        </div>
+        <div className="hst-actions hst-links">
           {LINKS.map((l) => <Button key={l.id} rank="quiet" icon={l.icon} onClick={() => openExternalUrl(l.url)}>{l.label}</Button>)}
         </div>
       </section>
@@ -309,7 +311,6 @@ function PhoneList({ ctx }) {
   return (
     <div className="hst-plist">
       <FindField ctx={ctx} />
-      {!ctx.query ? <Panel title="Settings" tools={<span className="hst-aside">{ctx.version}</span>}><Overview ctx={ctx} /></Panel> : null}
       {ctx.shown.length === 0 ? <p className="hst-empty">{`Nothing matches "${ctx.query}".`}</p> : null}
       <div data-tour="settings-content" className="hst-pgroups">
         {ctx.shown.map((g) => (
@@ -325,6 +326,7 @@ function PhoneList({ ctx }) {
           </div>
         ))}
       </div>
+      {!ctx.query ? <Panel title="Your data and this app" tools={<span className="hst-aside">{ctx.version}</span>}><Overview ctx={ctx} /></Panel> : null}
     </div>
   );
 }

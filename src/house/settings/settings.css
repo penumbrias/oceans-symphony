@@ -30,7 +30,7 @@
 [data-house] .hst-side-in { display: flex; flex-direction: column; gap: 0.375rem; min-height: 100%; }
 [data-house] .hst-find .hk-field { margin: 0; gap: 0.25rem; }
 [data-house] .hst-side .hst-find .hk-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-[data-house] .hst-find .hk-input { width: 100%; min-width: 0; }
+[data-house] .hst-find .hk-input { width: 100%; min-width: 0; min-height: var(--house-h-control, 1.75rem); padding: 0 0.5rem; font-size: var(--house-text-sm); }
 [data-house] .hst-tree { display: flex; flex-direction: column; }
 [data-house] .hst-group { display: flex; flex-direction: column; scroll-margin-top: 0.25rem; }
 [data-house] .hst-ghead {
@@ -65,8 +65,9 @@
 [data-house] .hst-lead { margin: 0; color: var(--house-muted); font-size: var(--house-text-sm); line-height: var(--house-lh-sm, 1.4); }
 [data-house] .hst-block { display: flex; flex-direction: column; gap: 0.375rem; }
 [data-house] .hst-bhead { margin: 0; font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-px-label, var(--house-text-sm)); color: var(--house-text); }
-[data-house] .hst-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; }
-[data-house] .hst-version { margin: 0; }
+[data-house] .hst-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: center; }
+[data-house] .hst-links { gap: 0.125rem 0.375rem; }
+[data-house] .hst-links .hk-btn { min-height: var(--house-h-control, 1.75rem); padding: 0 0.375rem; font-size: var(--house-text-sm); }
 [data-house] .hst-chip {
   display: inline-flex; align-items: center; padding: 0.125rem 0.5rem;
   font-family: var(--house-font-label); font-size: var(--house-text-xs);

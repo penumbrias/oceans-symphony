@@ -131,6 +131,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 
 | Room | Functions | Records | Write path | New home | Status |
 |---|---|---|---|---|---|
+| Settings (`/settings`) | Every settings page, Find, the old `#page` / `#group` / `?section=` links, Recent updates (What's new), Setup, Tour, backup export / import / back up now, Find my data, bug report, feedback | SystemSettings and each page's own records | each page's own writer (unchanged); backups through `runAutoBackupNow`, `DataBackupRestore`, `ImportDataSection` | 5.5 | rebuilt (5.5: Settings room, board 07 on a computer and tablet: Settings list with Find (group headings, slim rows, the open one marked), the open page under its "Group: Page" title bar, a live Preview beside Display options and Accessibility, an overview with Your data, the version and What's new; phone: Find, each group a panel of rows, a drill-in page with the square ‹ back, backup doors in ⋯. Display options is drawn in board 10's shell (file tabs, rows, sliders) around the same `UiEditSheet` body. Every page's own contents are the old settings components inside house panels; the app-wide Display options sheet (rail gear, ⋯) is still the old sheet) |
 | Terms and command words | Core terms, derived forms, command symbol and words [12.1] | SystemSettings | settings writer (0.4); `commandTerms.js` | 5.5 | old |
 | Appearance, Display options, fonts, icons | Themes, light/dark, fonts, corners, accents, readability guard [12.2] | SystemSettings, localStorage, CustomFont | 0.4 (one look writer), read by 0.5 (translator); CustomFont MISSING (2 UI files) | 0.4, 0.5, then 5.5 (one Appearance) | old |
 | Page looks, profile looks, widget looks, presets, look history | Per-page backgrounds and songs, `PS.*` profile styling, widget looks, presets, linked themes [12.5, 12.6] | SystemSettings, Alter/Group custom fields, board settings | `writePageLook`, `profileStyle.js`, `widgetLook.js`, `presetSync.js` | 0.5, then 5.5 | old |
@@ -158,7 +159,7 @@ Storage modes and encryption, unlock, recovery, multiple systems, backups and au
 | `/Home` | Alters directory | 5.3 |
 | `/alter/:id` | Alter profile | 5.3 |
 | `/contacts`, `/contacts/:id` | Contacts | 5.3 |
-| `/settings` | The house itself | 5.5 |
+| `/settings` | Settings room (rebuilt: board 07, board 10's shell) | 5.5 |
 | `/analytics` | Analytics | 5.4 |
 | `/journals` | Journals | 5.2 |
 | `/diary` → `/checkin-log` | Check-in log (redirect) | 3.3 |
