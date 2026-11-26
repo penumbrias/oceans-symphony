@@ -54,6 +54,7 @@ import { HouseScope } from "@/house/tokens/HouseRoot";
 import HouseSheets from "@/house/checkin/HouseSheets";
 import { Button, IconButton } from "@/house/kit/Button";
 import { Sheet } from "@/house/kit/Sheet";
+import { ToastHost } from "@/house/kit/Toast";
 import { TreeView, RowText } from "@/house/kit/TreeList";
 import { KitPopover } from "@/house/kit/KitLayer";
 import OpenTabs from "@/house/kit/frame/OpenTabs";
@@ -530,6 +531,8 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
           {dockBody}
         </Sheet>
         <DoSheet open={doOpen} onClose={() => setDoOpen(false)} onSetFront={() => setFrontOpen(true)} onNote={() => setNoteOpen(true)} />
+        {/* The kit's toasts (Undo after a change), as the phone frame has. */}
+        <ToastHost />
       </HouseScope>
 
       {frontOpen ? <SetFrontSheet open onClose={() => setFrontOpen(false)} /> : null}

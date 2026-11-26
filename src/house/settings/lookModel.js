@@ -22,6 +22,10 @@
 //   Penumblob       ui_pixel.guide (small | hidden)
 
 import { THEME_TO_SWATCH } from "@/house/paint/translate";
+import { PIXEL_LABEL_FONT } from "@/house/tokens/roles";
+
+// The pixel font's own name, from its one token.
+const PIXEL_FONT_NAME = (String(PIXEL_LABEL_FONT).match(/'([^']+)'/) || [])[1] || "the pixel font";
 
 // Board 07's sixteen swatches, in its order, with its names.
 export const LOOK_SWATCHES = Object.freeze([
@@ -162,7 +166,7 @@ export function houseBodyOptions(options = []) {
 }
 export function houseHeadingOptions(options = [], look = "pixel") {
   return [
-    { id: HOUSE_HEADING_DEFAULT_ID, label: look === "pixel" ? "Pixelify Sans (house)" : "Same as the body" },
+    { id: HOUSE_HEADING_DEFAULT_ID, label: look === "pixel" ? `${PIXEL_FONT_NAME} (house)` : "Same as the body" },
     ...options.filter((o) => o.id && o.id !== HOUSE_HEADING_DEFAULT_ID),
   ];
 }

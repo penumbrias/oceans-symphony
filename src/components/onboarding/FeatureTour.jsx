@@ -1436,8 +1436,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("settings", {
       emoji: "🪟", title: "Display options as a page",
-      body: `In the new house, Display options opens right inside Settings, with its tabs across the top: Text, Shape, Bars, Colour and Styles. "Open as a sheet" still opens it over any page.`,
+      body: `In the new house, Display options opens right inside Settings, with its tabs across the top: Look, Text, Shape, Bars, Colour and Styles. "Open the full options" still opens everything over any page.`,
       route: "/settings#display", target: ["settings-display-inspector", "settings-display-options"], look: `the Display options page`,
+    }),
+    s("settings", {
+      emoji: "🎨", title: "The look, on one tab",
+      body: `Look holds the house's paint: tap any colour square to change it, pick heading and body fonts, set the border, bevel and corners, the header wave and how big Penumblob is. Each ${t.alter} keeps their own colour.`,
+      route: "/settings#display", target: ["settings-look", "settings-display-inspector"], look: `the Look tab`,
     }),
     s("settings", {
       emoji: "👀", title: "Preview, live",

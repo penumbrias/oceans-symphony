@@ -13,6 +13,14 @@ import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { translatePaint, readDevicePaint } from "@/house/paint/translate";
 import { houseTokens, houseLookFromRow } from "@/house/tokens/roles";
 
+// Fired (on window) after a same-tab change to the look prefs in localStorage.
+export const HOUSE_PAINT_CHANGED = "house-paint-changed";
+export function announcePaintChanged() {
+  if (typeof window === "undefined") return;
+  // After React has run ThemeContext's effect (which writes localStorage).
+  setTimeout(() => { try { window.dispatchEvent(new Event(HOUSE_PAINT_CHANGED)); } catch { /* no window */ } }, 60);
+}
+
 function readEnv() {
   const root = typeof document !== "undefined" ? document.documentElement : null;
   let isDarkOS = true;
@@ -47,7 +55,11 @@ export function useHouseTokens() {
     let mq;
     try { mq = window.matchMedia("(prefers-color-scheme: dark)"); mq.addEventListener?.("change", refresh); } catch { /* no window */ }
     window.addEventListener("storage", refresh);
+    // A look change made in this tab that may not touch <html> (Display
+    // options → Look's Reset puts the theme back): re-read on request.
+    window.addEventListener(HOUSE_PAINT_CHANGED, refresh);
     return () => {
+      window.removeEventListener(HOUSE_PAINT_CHANGED, refresh);
       mo?.disconnect();
       mq?.removeEventListener?.("change", refresh);
       window.removeEventListener("storage", refresh);

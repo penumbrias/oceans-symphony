@@ -25,11 +25,13 @@ import { Sheet } from "@/house/kit/Sheet";
 import { LoadingBlock } from "@/house/kit/States";
 import { showToast } from "@/house/kit/Toast";
 import { useHouse } from "@/house/tokens/HouseRoot";
+import { announcePaintChanged } from "@/house/tokens/useHouseTokens";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { useTheme } from "@/lib/ThemeContext";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
-import { writeSettings } from "@/lib/settingsWriter";
+import { writeUiLook, writeHouseSwatch, writeWaveColour, writeLookReset, restoreLook } from "@/lib/houseLookWrites";
+import { usePixelLook } from "@/lib/uiLook";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { readPixelLook } from "@/lib/pixelLook";
 import { houseLookFromRow } from "@/house/tokens/roles";
@@ -42,7 +44,7 @@ import {
 import { useBoardField } from "@/lib/boardWriter";
 import { resolveUserStyles } from "@/lib/widgetLook";
 import {
-  LOOK_SWATCHES, LOOK_SLIDERS, swatchTarget, swatchShown, swatchIsOwn, themeDraft, nextHouseSwatches,
+  LOOK_SWATCHES, LOOK_SLIDERS, swatchTarget, swatchShown, swatchIsOwn, themeDraft,
   waveChoice, lookResetPatch, houseBodyOptions, houseHeadingOptions, isUnchosenBody,
   HOUSE_BODY_DEFAULT_ID, HOUSE_HEADING_DEFAULT_ID,
 } from "@/house/settings/lookModel";
@@ -82,7 +84,7 @@ export default function DisplayLookPage({ onOpenSheet, phone = false }) {
     { id: "styles", label: tr("editSheet.tabStyles") },
   ];
   return (
-    <div className="hst-insp hlk" data-tour="settings-display-inspector" data-phone={phone || undefined}>
+    <div className="hst-insp hst-lk" data-tour="settings-display-inspector" data-phone={phone || undefined}>
       <div className="hst-insp-tabs">
         <PageTabs label="Display options" idPrefix="inspector" value={tab} onChange={setTab} tabs={tabs} />
       </div>
@@ -90,7 +92,7 @@ export default function DisplayLookPage({ onOpenSheet, phone = false }) {
         <LookTab onTab={setTab} />
       ) : (
         <Suspense fallback={<LoadingBlock label="Loading Display options" />}>
-          <UiEditSheet tab={tab} scopeless renderTabs={() => null} />
+          <div className="hst-lk-old"><UiEditSheet tab={tab} scopeless renderTabs={() => null} /></div>
         </Suspense>
       )}
       <div className="hst-insp-foot">
@@ -116,12 +118,9 @@ function LookTab({ onTab }) {
   const [resetOpen, setResetOpen] = useState(false);
   const [pack, setPack] = useState(null); // "import" | "export" | null
 
-  const write = (patch) => writeSettings(patch, { queryClient: qc });
-  const writePixel = (patch) => {
-    const sub = {};
-    for (const [k, v] of Object.entries(patch)) sub[k] = (v === "" || v == null) ? undefined : v;
-    return write({ ui_pixel: sub });
-  };
+  const opts = { queryClient: qc };
+  // ui_pixel keys go through the pixel look's own writer ("" clears a key).
+  const writePixel = usePixelLook().write;
 
   // ── Colours ──
   const variant = paint?.tokens?.variant === "light" ? "light" : "dark";
@@ -134,18 +133,13 @@ function LookTab({ onTab }) {
       const base = themeColours(device, "pixel");
       const draft = themeDraft(customColors, base, variant, target.key, hex);
       updateCustomColorsFull(draft.light, draft.dark);
+      announcePaintChanged();
     } else if (target.kind === "pixel") {
       settle(() => writePixel({ [target.key]: hex }));
     } else if (target.kind === "house") {
-      settle(() => write((fresh) => {
-        const cur = fresh?.ui_pixel && typeof fresh.ui_pixel === "object" ? fresh.ui_pixel : {};
-        const swatches = nextHouseSwatches(cur.swatches, target.key, hex);
-        const next = { ...cur, swatches };
-        if (!Object.keys(swatches).length) delete next.swatches;
-        return { ui_pixel: next };
-      }));
+      settle(() => writeHouseSwatch(target.key, hex, opts));
     } else if (target.kind === "wave") {
-      settle(() => write({ wave_color_custom: hex || null }));
+      settle(() => writeWaveColour(hex, opts));
     }
   };
   const clearSwatch = (key) => setSwatch(key, "");
@@ -180,24 +174,26 @@ function LookTab({ onTab }) {
     const headingBefore = a11y.headingFont || HOUSE_HEADING_DEFAULT_ID;
     const hadColours = !!(customColors && (customColors.light || customColors.dark));
     try {
-      await write({ ui_pixel: clear, wave_color_custom: null });
+      await writeLookReset(clear, opts);
       // The colours are kept as a preset ("Unsaved colours (auto-kept)"),
       // never thrown away.
       if (hadColours) stashAndClearCustomColors();
       setAccessibilityFontFamily(APP_FONT_OPTIONS[0].value);
       setAccessibilityHeadingFont(HOUSE_HEADING_DEFAULT_ID);
       setA11y(getAccessibilitySettings());
+      announcePaintChanged();
       showToast({
         message: "The look is back to the house's own.",
         detail: hadColours ? "Your colours are kept under Styles as “Unsaved colours (auto-kept)”." : undefined,
         action: {
           label: "Undo",
           onClick: async () => {
-            await write({ ui_pixel: undo, wave_color_custom: waveBefore });
+            await restoreLook(undo, waveBefore, opts);
             if (hadColours) updateCustomColorsFull(customColors.light || {}, customColors.dark || {});
             if (fontBefore) setAccessibilityFontFamily(fontBefore);
             setAccessibilityHeadingFont(headingBefore);
             setA11y(getAccessibilitySettings());
+            announcePaintChanged();
           },
         },
       });
@@ -210,57 +206,57 @@ function LookTab({ onTab }) {
   const lookChoice = waveChoice(paint);
 
   return (
-    <div className="hlk-tab" role="tabpanel" aria-labelledby="inspector-tab-look" data-tour="settings-look">
+    <div className="hst-lk-tab" role="tabpanel" aria-labelledby="inspector-tab-look" data-tour="settings-look">
       <LookRow label="Look">
-        <Segmented label="Look" value={look} onChange={(v) => { if (v !== look) write({ ui_look: v }); }}
+        <Segmented label="Look" value={look} onChange={(v) => { if (v !== look) writeUiLook(v, opts); }}
           options={[{ value: "pixel", label: "Pixel" }, { value: "smooth", label: "Smooth" }]} />
       </LookRow>
 
       <LookRow label="Colours" top>
-        <div className="hlk-colours">
-          <div className="hlk-grid">
+        <div className="hst-lk-colours">
+          <div className="hst-lk-grid">
             {LOOK_SWATCHES.map((s) => {
               const shown = swatchShown(s.key, paint, roles) || "#888888";
               const own = swatchIsOwn(s.key, px, row);
               return (
-                <div key={s.key} className="hlk-sw" data-picking={picking === s.key || undefined}
+                <div key={s.key} className="hst-lk-sw" data-picking={picking === s.key || undefined}
                   onPointerDownCapture={() => setPicking(s.key)} onFocusCapture={() => setPicking(s.key)}>
                   <HousePopups>
                     <ColorPicker compact caption={false} label={`Colour: ${s.label}`} value={shown}
                       onChange={(hex) => setSwatch(s.key, hex)}
                       onClear={own ? () => clearSwatch(s.key) : undefined} />
                   </HousePopups>
-                  <span className="hlk-swname" aria-hidden="true">{s.label}</span>
+                  <span className="hst-lk-swname" aria-hidden="true">{s.label}</span>
                 </div>
               );
             })}
           </div>
-          <p className="hlk-note">
-            {alterChips.map((c, i) => <span key={i} className="hlk-chip" style={{ background: c }} aria-hidden="true" />)}
+          <p className="hst-lk-note">
+            {alterChips.map((c, i) => <span key={i} className="hst-lk-chip" style={{ background: c }} aria-hidden="true" />)}
             {`Each ${terms.alter} keeps the colour from their own profile. The look never changes it.`}
           </p>
-          <div className="hlk-btns">
+          <div className="hst-lk-btns">
             <Button onClick={() => onTab("styles")}>Presets</Button>
           </div>
         </div>
       </LookRow>
 
       <LookRow label="Heading font">
-        <div className="hlk-font">
+        <div className="hst-lk-font hst-lk-font--heading">
           <NestedPicker label="Heading font" value={headingValue} onChange={pickHeading} options={headingOptions}
             placeholder="Heading font" searchPlaceholder="Find a font…" />
         </div>
       </LookRow>
       <LookRow label="Body font">
-        <div className="hlk-font">
+        <div className="hst-lk-font">
           <NestedPicker label="Body font" value={bodyValue} onChange={pickBody} options={bodyOptions}
             placeholder="Body font" searchPlaceholder="Find a font…" />
         </div>
-        <span className="hlk-hint">OpenDyslexic, Lexend and your own fonts are in the list</span>
+        <span className="hst-lk-hint">OpenDyslexic, Lexend and your own fonts are in the list</span>
       </LookRow>
 
       {LOOK_SLIDERS.map((sl) => (
-        <div key={sl.id} className="hlk-slider">
+        <div key={sl.id} className="hst-lk-slider">
           <SliderRow label={sl.label} value={px[sl.id]} fallback={sl.fallback} min={sl.min} max={sl.max} unit="px"
             onChange={(v) => writePixel({ [sl.id]: Math.round(v) })}
             onClear={() => writePixel({ [sl.id]: "" })} />
@@ -277,14 +273,14 @@ function LookTab({ onTab }) {
       <LookRow label="Header wave">
         <Segmented label="Header wave" value={lookChoice} onChange={(v) => writePixel({ wave: v })}
           options={[{ value: "off", label: "Off" }, { value: "stepped", label: "Stepped" }, { value: "smooth", label: "Smooth" }]} />
-        <span className="hlk-sw hlk-sw--one">
+        <span className="hst-lk-sw hst-lk-sw--one">
           <HousePopups>
             <ColorPicker compact caption={false} label="Wave colour" value={swatchShown("wave", paint, roles) || "#6D73B0"}
               onChange={(hex) => setSwatch("wave", hex)}
               onClear={swatchIsOwn("wave", px, row) ? () => clearSwatch("wave") : undefined} />
           </HousePopups>
         </span>
-        <span className="hlk-hint">wave colour, still when Reduce motion is on</span>
+        <span className="hst-lk-hint">wave colour, still when Reduce motion is on</span>
       </LookRow>
 
       <LookRow label="Penumblob">
@@ -292,21 +288,21 @@ function LookTab({ onTab }) {
           options={[{ value: "shown", label: "Shown" }, { value: "small", label: "Small" }, { value: "hidden", label: "Hidden" }]} />
       </LookRow>
 
-      <div className="hlk-foot">
+      <div className="hst-lk-foot">
         <Button onClick={() => setResetOpen(true)}>Reset the look</Button>
-        <span className="hlk-grow" />
+        <span className="hst-lk-grow" />
         <Button onClick={() => setPack("import")}>Import a look</Button>
         <Button onClick={() => setPack("export")}>Share this look</Button>
       </div>
 
       <Sheet open={resetOpen} onClose={() => setResetOpen(false)} title="Reset the look?" size="half" modal
         footer={(
-          <div className="hlk-btns">
+          <div className="hst-lk-btns">
             <Button rank="primary" onClick={reset}>Reset the look</Button>
             <Button onClick={() => setResetOpen(false)}>Keep it</Button>
           </div>
         )}>
-        <p className="hlk-sheet-p">
+        <p className="hst-lk-sheet-p">
           Colours, fonts, border, bevel, corners, icons and the header wave go back to the house&apos;s own.
           Your colours are kept under Styles as a preset, and Undo brings everything back.
           The Look choice and Penumblob stay as they are.
@@ -328,9 +324,9 @@ function LookTab({ onTab }) {
 
 function LookRow({ label, top = false, children }) {
   return (
-    <div className="hlk-row" data-top={top || undefined}>
-      <span className="hlk-lab">{label}</span>
-      <div className="hlk-ctl">{children}</div>
+    <div className="hst-lk-row" data-top={top || undefined}>
+      <span className="hst-lk-lab">{label}</span>
+      <div className="hst-lk-ctl">{children}</div>
     </div>
   );
 }
