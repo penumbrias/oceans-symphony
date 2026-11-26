@@ -219,6 +219,8 @@ export default function HouseAlterProfile({ size = "full", tokens }) {
   const alterMap = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const myRels = useMemo(() => (alter ? relationshipsOf(relationships, alter.id, alterMap) : []), [relationships, alter, alterMap]);
   const [relOpen, setRelOpen] = useState(false);
+  // A long bio shows its start; the rest is one tap away (board 12's About is a few lines).
+  const [bioAll, setBioAll] = useState(false);
   const saveRel = async (data) => {
     try {
       const row = await saveRelationship({ id: null, data, alters, terms: t, navigatePath: `/alter/${alter.id}?tab=relationships` });
@@ -255,8 +257,12 @@ export default function HouseAlterProfile({ size = "full", tokens }) {
   const about = (
     <Panel key="about" className="hal-pf-panel" title="About" tools={<Button rank="quiet" onClick={() => setEditMode("info")}>edit</Button>}>
       {bio === null ? <p className="hal-muted">The bio can't be shown here. Open Info and save it again to fix it.</p>
-        : bio.length ? bio.map((p, i) => <p key={i} className="hal-p">{p}</p>)
-          : <p className="hal-muted">{`No bio yet. Tap edit to write one.`}</p>}
+        : bio.length ? (
+          <>
+            {(bioAll || bio.length <= 5 ? bio : bio.slice(0, 4)).map((p, i) => <p key={i} className="hal-p">{p}</p>)}
+            {bio.length > 5 ? <Button rank="quiet" onClick={() => setBioAll((v) => !v)}>{bioAll ? "Show less" : "Show all"}</Button> : null}
+          </>
+        ) : <p className="hal-muted">{`No bio yet. Tap edit to write one.`}</p>}
     </Panel>
   );
   const custom = (
