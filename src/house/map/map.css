@@ -61,7 +61,7 @@
 
 [data-house] .hmp-right { display: flex; flex-direction: column; gap: 2px; min-height: 0; min-width: 0; }
 [data-house] .hmp-right > .hk-panel { margin: 0; min-height: 0; display: flex; flex-direction: column; }
-[data-house] .hmp-right > .hmp-layers { flex: 0 1 auto; max-height: 45%; }
+[data-house] .hmp-right > .hmp-layers { flex: 0 0 auto; max-height: 45%; }
 [data-house] .hmp-right > .hmp-info { flex: 1 1 auto; }
 [data-house] .hmp-right > .hk-panel > .hk-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
@@ -186,4 +186,4 @@
 
 /* The room's bar in the frame's bottom zone: Move · Place · Room · Link · Layers. */
 [data-house] .hmp-bar { display: flex; gap: 0.375rem; padding: 0.25rem var(--house-space-2, 0.5rem); }
-[data-house] .hmp-bar .hk-btn { flex: 1 1 0; min-width: 0; padding: 0 0.25rem; justify-content: center; }
+[data-house] .hmp-bar .hk-btn { flex: 1 1 0; min-width: 0; padding: 0 0.125rem; justify-content: center; white-space: nowrap; font-size: var(--house-text-sm); }

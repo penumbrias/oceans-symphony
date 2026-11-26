@@ -73,10 +73,10 @@ export function relModeWords(mode) {
 }
 
 /** The phone canvas's chip: "Viewing | Ground floor, Garden". */
-export function viewingWords({ layers = [], soloName, viewOnly }) {
+export function viewingWords({ layers = [], soloName }) {
   if (soloName) return { lead: "Only", names: soloName };
   const shown = layers.filter((l) => l.is_visible).map((l) => l.name || "Layer");
-  return { lead: viewOnly ? "Viewing" : "Showing", names: shown.length ? shown.join(", ") : "no layers" };
+  return { lead: "Viewing", names: shown.length ? shown.join(", ") : "no layers" };
 }
 
 // The studio's keys (board 02's tool column). Only plain keys: a modifier

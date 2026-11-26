@@ -68,7 +68,9 @@ export default function HouseMap({ size = "full", tokens }) {
   const [relsOpen, setRelsOpen] = useState(false);
   const goView = useCallback((v) => { if (v !== view) navigate(mapViewHref(v)); }, [view, navigate]);
 
-  const ctx = { phone, size, terms, data, view, goView, navigate, openRels: () => setRelsOpen(true) };
+  // Stable, so the phone's ⋯ (published to the frame) doesn't change every render.
+  const openRels = useCallback(() => setRelsOpen(true), []);
+  const ctx = { phone, size, terms, data, view, goView, navigate, openRels };
 
   const relSheet = (
     <Sheet open={relsOpen} onClose={() => setRelsOpen(false)} title="Relationships" size={phone ? "full" : "half"} side={phone ? "bottom" : "right"}>
@@ -88,6 +90,7 @@ export default function HouseMap({ size = "full", tokens }) {
           initialMapId={landing.mapId}
           initialLayerId={landing.layerId}
           initialSolo={landing.solo}
+          initialView="fit"
           houseSize={size}
           renderHouse={(api) => (phone ? <MapPhone api={api} ctx={ctx} /> : <MapStudio api={api} ctx={ctx} />)}
         />
@@ -124,16 +127,19 @@ function ViewSwitch({ ctx }) {
 // ── Phone: board 11's tabs (the maps, then Who fronts together) ─────────
 function PhoneTabs({ ctx, maps = [], activeMapId, onMap }) {
   const together = "__together__";
+  const list = "__list__";
   const tabs = [
     ...maps.map((m) => ({ id: m.id, label: m.name || "Map" })),
     { id: together, label: `Who ${ctx.terms.fronts || "fronts"} together` },
+    { id: list, label: "List" },
   ];
-  const value = ctx.view === "together" ? together : (activeMapId || maps[0]?.id || together);
+  const value = ctx.view === "together" ? together : ctx.view === "list" ? list : (activeMapId || maps[0]?.id || together);
   return (
     <div className="hmp-tabs" data-tour="system-map-views">
       <PageTabs label="Maps" idPrefix="hmp-maps" value={value} tabs={tabs}
         onChange={(id) => {
           if (id === together) { ctx.goView("together"); return; }
+          if (id === list) { ctx.goView("list"); return; }
           if (ctx.view !== "inner") { ctx.navigate(`/system-map?view=inner&map=${encodeURIComponent(id)}`); return; }
           onMap?.(id);
         }} />
@@ -149,7 +155,7 @@ function ViewTools({ ctx }) {
       { id: "list", label: "List every place", icon: ListIcon, onSelect: () => ctx.goView("list") },
       { id: "rels", label: "Relationships", icon: Spline, onSelect: ctx.openRels },
     ],
-  }), [ctx.goView, ctx.openRels]); // eslint-disable-line react-hooks/exhaustive-deps
+  }), [ctx.goView, ctx.openRels]); // eslint-disable-line react-hooks/exhaustive-deps -- ctx itself is new each render
   useRoomTools(tools);
   return null;
 }
@@ -681,7 +687,6 @@ function MapPhone({ api, ctx }) {
       ] : []),
       { id: "view-only", label: viewOnly ? "Switch to editing" : "Switch to viewing only", icon: Eye, onSelect: () => a().toggleViewOnly() },
       { id: "reset", label: "Reset the view", icon: RotateCcw, onSelect: () => a().resetView() },
-      { id: "list", label: "List every place", icon: ListIcon, onSelect: () => ctx.goView("list") },
       { id: "rels", label: "Relationships", icon: Spline, onSelect: ctx.openRels },
       ...(!viewOnly && a().deleteMap ? [{ id: "delete-map", label: "Delete this map", icon: Trash2, danger: true, onSelect: () => a().deleteMap() }] : []),
     ],
