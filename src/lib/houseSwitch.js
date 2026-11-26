@@ -254,9 +254,21 @@ export function houseMapRoom(pathname) {
   return p === "/system-map";
 }
 
+// ── The house's Analytics room (board 06) ─────────────────────────────
+// With the new house on, /analytics is drawn by the house itself
+// (src/house/analytics/): the range toolbar, the board of panels (Fronting
+// time, Feelings by day, Who fronts together, Symptoms, Sleep, Noticed) and
+// "Look closer" doors into the old page's five views, drawn inside the room
+// on their old addresses (?tab=, ?alter=). The old page is not mounted
+// (HouseRoomGate); with the switch off it runs exactly as before.
+export function houseAnalyticsRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/analytics";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────

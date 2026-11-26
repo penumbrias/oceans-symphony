@@ -306,7 +306,7 @@ const AuthenticatedApp = () => {
         <Route path="/contacts/:id" element={<ContactProfile />} />
         <Route path="/settings" element={<HouseRoomGate><Settings /></HouseRoomGate>} />
 
-        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/analytics" element={<HouseRoomGate><Analytics /></HouseRoomGate>} />
         <Route path="/journals" element={<HouseRoomGate><Journals /></HouseRoomGate>} />
         {/* /diary (Daily Log) is deprecated — redirect to the Check-In Log */}
         <Route path="/diary" element={<Navigate to="/checkin-log" replace />} />
