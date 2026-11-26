@@ -135,7 +135,7 @@ export function showingVariant(device = {}) {
 // The 8 old colours for each variant, and where they came from.
 // `houseDefault`: the theme to use when the person never picked one (the
 // new house passes "pixel", the mockups' palette); a pick always wins.
-function themeColours(device = {}, houseDefault = null) {
+export function themeColours(device = {}, houseDefault = null) {
   const custom = isObj(device.customColors) ? device.customColors : null;
   const userPresets = isObj(device.userCustomPresets) ? device.userCustomPresets : {};
   const fallback = houseDefault && ALL_PRESETS[houseDefault] ? houseDefault : DEFAULT_THEME;
@@ -188,6 +188,12 @@ function swatchesFor(colours, variant, settingsRow, px, houseDefaultTheme = fals
   if (px.outline) s.outline = px.outline;
   if (px.titleBar) { s.tab = px.titleBar; s.titleBar = px.titleBar; }
   if (px.floorTop) s.deep = px.floorTop;
+  // The house colours no theme colour fills, when the person set their own
+  // (Settings → Display options → Look). `bevelOwn` tells the roles the
+  // button bevel is the person's, not worked out from the title bar.
+  const own = px.swatches || {};
+  for (const k of ["bevelLight", "good", "warning", "info", "note"]) if (own[k]) s[k] = own[k];
+  if (own.bevel) { s.bevel = own.bevel; s.bevelOwn = true; }
   return s;
 }
 
@@ -257,7 +263,16 @@ export function translatePaint(settingsRow, opts = {}) {
     bevel: px.bevel ?? null,
     type: px.type === "plain" ? "plain" : null,
     floor: px.floorTop || px.floorBottom ? { top: px.floorTop || swatches.deep, bottom: px.floorBottom || px.floorTop || swatches.deep } : null,
-    waveOff: !readWaveCustom(row) && readWaveColorKey(row) === "background",
+    // The wave: the house's own choice (ui_pixel.wave) wins; without one,
+    // the old wave setting's "Off" (the background key) turns it off.
+    waveOff: px.wave ? px.wave === "off" : (!readWaveCustom(row) && readWaveColorKey(row) === "background"),
+    waveShape: px.wave === "smooth" ? "smooth" : "stepped",
+    // The pixel look's own edges, only when the person set them (null: the
+    // house's 1 px line and bevel, square corners).
+    line: px.line ?? null,
+    pxCorners: px.corners ?? null,
+    icons: px.icons === "classic" ? "classic" : null,
+    guide: px.guide || "shown",
     source: colours.source,
   };
 
@@ -305,7 +320,7 @@ export function translatePaint(settingsRow, opts = {}) {
     if (typeof c === "string" && HEX.test(c)) alterColours[id] = c;
   }
   const overrides = {
-    pixel: Object.fromEntries(["outline", "titleBar", "floorTop", "floorBottom", "corners", "bevel", "type"].filter((k) => px[k] != null).map((k) => [k, px[k]])),
+    pixel: Object.fromEntries(["outline", "titleBar", "floorTop", "floorBottom", "corners", "bevel", "type", "line", "icons", "wave", "guide", "swatches"].filter((k) => px[k] != null).map((k) => [k, clone(px[k])])),
     alterColours,
     levelColours,
     icons: isObj(uiV2.icons) ? clone(uiV2.icons) : null,

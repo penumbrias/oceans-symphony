@@ -98,7 +98,7 @@ function buildRoles(sw, variant, highContrast) {
     // status bar): the pixel title-bar override when set, else the raised
     // colour. The raised bevel: a lighter step of it, for buttons.
     title: sw.titleBar || raised,
-    bevelRaised: mix(sw.titleBar || raised, sw.text, 0.2),
+    bevelRaised: sw.bevelOwn ? sw.bevel : mix(sw.titleBar || raised, sw.text, 0.2),
   };
 }
 
@@ -175,6 +175,15 @@ export function houseTokens(paint, { look, highContrast = false } = {}) {
   vars["--house-font-body"] = fonts.body;
   vars["--house-font-label"] = fonts.label;
   vars["--house-font-value"] = fonts.value;
+  // The pixel look's own edges (pixel.css), only when the person set them:
+  // the outline width, the bevel depth and the corners of panels, buttons
+  // and fields. Unset, pixel.css draws the house's 1 px and square corners.
+  const t = paint?.tokens || {};
+  if (l === "pixel" && Number.isFinite(t.line)) vars["--house-px-line"] = `${t.line}px`;
+  if (l === "pixel" && Number.isFinite(t.bevel)) vars["--house-px-bevel"] = `${t.bevel}px`;
+  if (l === "pixel" && Number.isFinite(t.pxCorners)) vars["--house-px-corner"] = `${t.pxCorners}px`;
+  // Icons: "classic" gives the line icons round ends in the pixel look too.
+  if (t.icons === "classic") { vars["--house-icon-cap"] = "round"; vars["--house-icon-join"] = "round"; }
 
   return { look: l, variant, highContrast: !!highContrast, roles, fonts, shape, vars, failures: roleFailures(roles), adjusted };
 }

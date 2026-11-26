@@ -22,6 +22,10 @@ export const PIXEL_COLOUR_VARS = {
   floorBottom: "--px-floor-bottom", // …and bottom
 };
 const HEX = /^#[0-9a-f]{3,8}$/i;
+// The header wave's shapes (ui_pixel.wave) and the house colours a person can
+// set beyond the theme's eight (ui_pixel.swatches), read by readPixelLook.
+export const PIXEL_WAVE_SHAPES = Object.freeze(["off", "stepped", "smooth"]);
+export const PIXEL_HOUSE_SWATCHES = Object.freeze(["bevel", "bevelLight", "good", "warning", "info", "note"]);
 const num = (v, lo, hi) => {
   const n = Number(v);
   return v === "" || v == null || !Number.isFinite(n) ? null : Math.min(hi, Math.max(lo, n));
@@ -36,6 +40,24 @@ export function readPixelLook(settings) {
   if (bevel != null) out.bevel = bevel;
   for (const k of Object.keys(PIXEL_COLOUR_VARS)) if (HEX.test(raw[k] || "")) out[k] = raw[k];
   if (raw.type === "plain") out.type = "plain";
+  // The new house's own look (Settings → Display options → Look, v0.393).
+  // The old house never reads these; unset is the house's default.
+  //   line    the outline width, 1–4 px (unset: 1 px)
+  //   icons   "classic": round ends on the line icons (unset: square, pixel)
+  //   wave    the header wave: "off" | "stepped" | "smooth" (unset: the old
+  //           wave setting decides on/off, and the wave is stepped)
+  //   guide   Penumblob, the guide: "small" | "hidden" (unset: shown)
+  //   swatches the house colours no theme colour fills: bevel, bevelLight,
+  //           good, warning, info, note (hex; unset: worked out / built in)
+  const line = num(raw.line, 1, 4);
+  if (line != null) out.line = Math.round(line);
+  if (raw.icons === "classic") out.icons = "classic";
+  if (PIXEL_WAVE_SHAPES.includes(raw.wave)) out.wave = raw.wave;
+  if (raw.guide === "small" || raw.guide === "hidden") out.guide = raw.guide;
+  const sw = raw.swatches && typeof raw.swatches === "object" && !Array.isArray(raw.swatches) ? raw.swatches : {};
+  const swatches = {};
+  for (const k of PIXEL_HOUSE_SWATCHES) if (HEX.test(sw[k] || "")) swatches[k] = sw[k];
+  if (Object.keys(swatches).length) out.swatches = swatches;
   // The status bar along the bottom (computer): on unless switched off,
   // and which of its items are hidden.
   out.statusBar = raw.statusBar !== false;

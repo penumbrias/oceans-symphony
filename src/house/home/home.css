@@ -92,6 +92,9 @@
 [data-house] .hh-guide-body[data-compact] .hh-guide-line { flex: 1 1 10rem; align-self: auto; }
 [data-house] .hh-guide-body[data-compact] .hh-blob { width: 4.5rem; height: 4.5rem; }
 [data-house] .hh-guide-body[data-compact] .hh-guide-actions { flex-basis: 100%; }
+/* Penumblob: Small (Display options → Look). */
+[data-house] .hh-blob[data-guide-size="small"] { width: 3.75rem; height: 3.75rem; }
+[data-house] .hh-guide-body[data-compact] .hh-blob[data-guide-size="small"] { width: 2.75rem; height: 2.75rem; }
 [data-house] .hh-guide-actions { justify-content: center; flex-wrap: wrap; }
 
 /* Phone (board 08-Phone): stacked panels under the page tabs. */

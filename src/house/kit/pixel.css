@@ -16,14 +16,17 @@
    Loaded with the house roots (HouseRoot.jsx), scoped to the pixel look. */
 
 [data-house][data-house-look="pixel"] {
-  --house-px-raise: inset 1px 1px 0 var(--house-bevel-light), inset -1px -1px 0 var(--house-page);
-  --house-px-btn: inset 1px 1px 0 var(--house-bevel-raised), inset -1px -1px 0 var(--house-page);
-  --house-px-on: inset 1px 1px 0 color-mix(in srgb, var(--house-accent) 62%, #fff), inset -1px -1px 0 color-mix(in srgb, var(--house-accent) 62%, #000);
-  --house-px-sink: inset 1px 1px 0 var(--house-outline), inset -1px -1px 0 var(--house-bevel-light);
+  --house-px-raise: inset var(--house-px-bevel) var(--house-px-bevel) 0 var(--house-bevel-light), inset calc(var(--house-px-bevel) * -1) calc(var(--house-px-bevel) * -1) 0 var(--house-page);
+  --house-px-btn: inset var(--house-px-bevel) var(--house-px-bevel) 0 var(--house-bevel-raised), inset calc(var(--house-px-bevel) * -1) calc(var(--house-px-bevel) * -1) 0 var(--house-page);
+  --house-px-on: inset var(--house-px-bevel) var(--house-px-bevel) 0 color-mix(in srgb, var(--house-accent) 62%, #fff), inset calc(var(--house-px-bevel) * -1) calc(var(--house-px-bevel) * -1) 0 color-mix(in srgb, var(--house-accent) 62%, #000);
+  --house-px-sink: inset var(--house-px-bevel) var(--house-px-bevel) 0 var(--house-outline), inset calc(var(--house-px-bevel) * -1) calc(var(--house-px-bevel) * -1) 0 var(--house-bevel-light);
   /* Small tick boxes and swatches: one pixel, flat like the boards (Penumbra 2026-11-25: "thinner"). */
   --house-px-sink-thin: inset 1px 1px 0 color-mix(in srgb, var(--house-outline) 70%, transparent);
   --house-px-on-thin: none;
   --house-px-line: 1px;
+  /* The bevel depth: 1 px unless the person set their own (roles.js puts
+     --house-px-bevel, --house-px-line and --house-px-corner on the root). */
+  --house-px-bevel: 1px;
   --house-px-title-h: max(22px, 1.375rem);
   --house-px-label: 0.8125rem;
 }
@@ -39,7 +42,7 @@
 /* ── Panels and cards ────────────────────────────────────────────── */
 [data-house][data-house-look="pixel"] .hk-panel,
 [data-house][data-house-look="pixel"] .hk-card {
-  border: var(--house-px-line, 1px) solid var(--house-outline); border-radius: 0;
+  border: var(--house-px-line, 1px) solid var(--house-outline); border-radius: var(--house-px-corner, 0);
   background: var(--house-panel);
   box-shadow: var(--house-px-raise);
 }
@@ -76,7 +79,7 @@
 
 /* ── Buttons ─────────────────────────────────────────────────────── */
 [data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet) {
-  border: var(--house-px-line, 1px) solid var(--house-outline); border-radius: 0;
+  border: var(--house-px-line, 1px) solid var(--house-outline); border-radius: var(--house-px-corner, 0);
   background: var(--house-title); color: var(--house-text);
   box-shadow: var(--house-px-btn);
   font-weight: 400; font-size: var(--house-px-label);
@@ -104,7 +107,7 @@
 /* ── Fields: sunken ──────────────────────────────────────────────── */
 [data-house][data-house-look="pixel"] .hk-input,
 [data-house][data-house-look="pixel"] .hk-inputwrap {
-  border: 0; border-radius: 0; background: var(--house-page); box-shadow: var(--house-px-sink);
+  border: 0; border-radius: var(--house-px-corner, 0); background: var(--house-page); box-shadow: var(--house-px-sink);
 }
 
 /* ── Menus and popovers ──────────────────────────────────────────── */

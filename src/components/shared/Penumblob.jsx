@@ -4,6 +4,10 @@
 // moment only when `cue` changes to something new, or when tapped, and never
 // when the device asks for reduced motion.
 import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { readPixelLook } from "@/lib/pixelLook";
 import penumblobStill from "@/assets/penumblob/penumblob.png";
 import penumblobWave from "@/assets/penumblob/penumblob-wave.png";
 
@@ -15,7 +19,17 @@ function reducedMotion() {
 
 // `size` (px or any CSS length) sets the drawn size; leave it off to size it
 // from a class instead.
-export default function Penumblob({ cue = null, size, backdrop = true, className = "", style }) {
+// How the person wants the guide drawn (Settings → Display options → Look →
+// Penumblob: Shown · Small · Hidden; SystemSettings.ui_pixel.guide). Hidden
+// draws nothing (the words beside it stay); Small draws it at 60%.
+export function usePenumblobSize() {
+  const { data: list = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  return readPixelLook(pickPrimarySystemSettings(list)).guide || "shown";
+}
+
+export default function Penumblob({ cue = null, size: sizeIn, backdrop = true, className = "", style }) {
+  const guide = usePenumblobSize();
+  const size = guide === "small" && typeof sizeIn === "number" ? Math.round(sizeIn * 0.6) : sizeIn;
   const [waving, setWaving] = useState(false);
   const wave = () => { if (!reducedMotion()) setWaving(true); };
   useEffect(() => { if (cue != null) wave(); }, [cue]);
@@ -37,12 +51,14 @@ export default function Penumblob({ cue = null, size, backdrop = true, className
       style={{ imageRendering: "pixelated", flexShrink: 0, cursor: "pointer", display: "block", ...(size != null ? { width: size, height: size } : { width: "100%", height: "100%" }), ...(backdrop ? null : style) }}
     />
   );
+  if (guide === "hidden") return null;
   if (!backdrop) return img;
   // The backdrop: a small light, bevelled pixel tile, so the navy blob reads
   // on dark themes as well as light ones.
   return (
     <span
       className={`penumblob-tile ${className}`}
+      data-guide-size={guide === "small" ? "small" : undefined}
       style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
         padding: "0.25em", lineHeight: 0,
