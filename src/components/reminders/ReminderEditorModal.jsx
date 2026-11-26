@@ -20,68 +20,11 @@ import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
 import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 import ReminderEditorPixel from "./ReminderEditorPixel";
 
-const CATEGORIES = ["check_in", "habit", "meds", "grounding", "appointment", "custom"];
-const TRIGGER_TYPES = ["scheduled", "interval", "contextual", "event"];
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const CONTEXTUAL_ON_BASE = [
-  { value: "no_front_update", labelKey: "front" },
-  { value: "emotion_logged", label: "Emotion logged" },
-  { value: "alter_fronts", labelKey: "alter" },
-  { value: "symptom_logged", label: "Symptom logged" },
-  { value: "sleep_ended", label: "After sleep ends" },
-];
-const AUTO_RESOLVE_ON_BASE = [
-  { value: "check_in", label: "Check-in saved" },
-  { value: "symptom_checkin", label: "Symptom logged" },
-  { value: "activity", label: "Activity logged" },
-  { value: "front_update", labelKey: "front" },
-];
-const DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
-const BASE_EMOTIONS = ["happy", "content", "calm", "grateful", "hopeful", "excited", "proud", "loved", "safe", "sad", "anxious", "overwhelmed", "angry", "scared", "frustrated", "ashamed", "guilty", "lonely", "confused", "dissociated", "numb", "depressed", "panic", "terrified", "crisis", "unsafe", "frozen", "tired", "bored", "curious"];
-
-const getActionTypeOptions = (terms) => [
-  { value: "open_check_in",        label: "Check in" },
-  { value: "open_grounding",       label: "Grounding exercise" },
-  { value: "open_set_front",       label: `Set who's ${terms.fronting}` },
-  { value: "open_journal",         label: "Open journal" },
-  { value: "open_diary",           label: "Open Check-In Log" },
-  { value: "open_symptom_check_in",label: "Log a symptom" },
-  { value: "open_system_map",      label: `View ${terms.system} map` },
-  { value: "open_timeline",        label: "View timeline" },
-  { value: "open_todo",            label: "View to-do list" },
-  { value: "log_symptom",          label: "Log a specific symptom" },
-  { value: "dismiss",              label: "Dismiss" },
-  { value: "open_route",           label: "Other page…" },
-];
-const PRE_ALERT_OPTIONS = [15, 60, 1440];
-// What a reminder's schedule starts as when its trigger type is picked.
-const TRIGGER_DEFAULTS = {
-  scheduled: { times: ["09:00"], days: [0,1,2,3,4,5,6] },
-  interval: { every_minutes: 60, after_last: "fire" },
-  contextual: { on: "no_front_update", threshold_minutes: 120 },
-  event: { when: null, pre_alerts: [] },
-};
-
-const DEFAULT_FORM = {
-  title: "",
-  body: "",
-  category: "custom",
-  trigger_type: "scheduled",
-  trigger_config: { times: ["09:00"], days: [0,1,2,3,4,5,6] },
-  // Push ON by default — closed-app OS notifications are the whole point of
-  // a reminder. Both delivery paths (OS pre-schedule + FCM relay) skip any
-  // reminder without "push", so an in-app-only default meant reminders never
-  // reached the tray. Users can untick Push per-reminder to keep it quiet.
-  delivery_channels: ["in_app", "push"],
-  alter_id: null,
-  alter_scope: null,
-  alter_scope_catchup: false,
-  inline_actions: [],
-  auto_resolve_rule: null,
-  quiet_hours_respect: true,
-  snooze_options: DEFAULT_SNOOZE_OPTIONS,
-  is_active: true,
-};
+import {
+  CATEGORIES, TRIGGER_TYPES, DAYS, CONTEXTUAL_ON_BASE, AUTO_RESOLVE_ON_BASE, DISTRESS_EMOTIONS, BASE_EMOTIONS,
+  getActionTypeOptions, PRE_ALERT_OPTIONS, TRIGGER_DEFAULTS, DEFAULT_FORM, DEFAULT_LOOKBACK, formFromReminder,
+  reminderFormProblem, reminderSaveData,
+} from "@/lib/reminderForm";
 
 function Collapsible({ label, summary, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -494,7 +437,7 @@ function AutoResolveFields({ form, set, hasAutoResolve, setHasAutoResolve, autoR
         {hasAutoResolve && (() => {
           const rule = form.auto_resolve_rule || { on: "check_in", lookback_minutes: 120 };
           const setRule = (fields) => set("auto_resolve_rule", { ...rule, ...fields });
-          const defaultLookback = { check_in: 120, front_update: 240, symptom_checkin: 60, activity: 60 };
+          const defaultLookback = DEFAULT_LOOKBACK;
           return (
             <div className="space-y-3">
               <div>
@@ -605,13 +548,8 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   });
 
   useEffect(() => {
-    if (existing) {
-      setForm({ ...DEFAULT_FORM, ...existing });
-      setHasAutoResolve(!!existing.auto_resolve_rule);
-    } else {
-      setForm(DEFAULT_FORM);
-      setHasAutoResolve(false);
-    }
+    setForm(formFromReminder(existing));
+    setHasAutoResolve(!!existing?.auto_resolve_rule);
   }, [existing, isOpen]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -622,28 +560,18 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   );
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast.error("Title is required"); return; }
-    if (!form.delivery_channels.length) { toast.error("Choose at least one delivery channel"); return; }
+    const problem = reminderFormProblem(form);
+    if (problem) { toast.error(problem); return; }
     setSaving(true);
     // If the user picked push but push isn't actually enabled on this
     // device, auto-add the in-app banner so the reminder still fires
-    // visibly. Otherwise a push-only reminder on a device with push off
-    // would never notify the user, even with the app open.
-    let effectiveChannels = form.delivery_channels;
-    if (effectiveChannels.includes("push") && !effectiveChannels.includes("in_app")) {
-      try {
-        const pushOn = await isPushEnabled();
-        if (!pushOn) effectiveChannels = [...effectiveChannels, "in_app"];
-      } catch { effectiveChannels = [...effectiveChannels, "in_app"]; }
+    // visibly (reminderSaveData). Otherwise a push-only reminder on a
+    // device with push off would never notify the user, even with the app open.
+    let pushOn = true;
+    if (form.delivery_channels.includes("push") && !form.delivery_channels.includes("in_app")) {
+      try { pushOn = await isPushEnabled(); } catch { pushOn = false; }
     }
-    const data = {
-      ...form,
-      delivery_channels: effectiveChannels,
-      alter_id: form.alter_id || null,
-      alter_scope: form.alter_id ? (form.alter_scope || "always") : null,
-      alter_scope_catchup: form.alter_id && form.alter_scope === "when_fronting" ? (form.alter_scope_catchup || false) : false,
-      auto_resolve_rule: hasAutoResolve ? form.auto_resolve_rule : null,
-    };
+    const data = reminderSaveData(form, { hasAutoResolve, pushOn });
     // An edit sends only what the person can change (never the snapshot's
     // stale last_fired_at) and a new schedule retires the old one's popups
     // (saveReminder, reminderEntry.js).
@@ -681,7 +609,6 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
         renderAutoResolve={() => <AutoResolveFields form={form} set={set} hasAutoResolve={hasAutoResolve} setHasAutoResolve={setHasAutoResolve} autoResolveOn={autoResolveOn} symptoms={symptoms} activityCategories={activityCategories} />}
         renderSnooze={() => <SnoozeFields form={form} set={set} />}
         renderScope={() => <AlterScopeSection form={form} set={set} alters={alters} />}
-        triggerDefaults={TRIGGER_DEFAULTS}
       />
     );
     if (inline) return isOpen ? body : null;

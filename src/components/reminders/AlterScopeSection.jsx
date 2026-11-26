@@ -2,6 +2,7 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { alterScopeWarnings } from "@/lib/reminderForm";
 
 /**
  * Alter scope collapsible section for ReminderEditorModal.
@@ -14,44 +15,8 @@ export default function AlterScopeSection({ form, set, alters }) {
   const selectedAlter = alters.find(a => a.id === form.alter_id);
   const isArchivedAlter = form.alter_id && selectedAlter?.is_archived;
 
-  // Conflict detection
-  const warnings = [];
-  const triggerAlterId = form.trigger_config?.alter_id;
-
-  if (
-    form.alter_id &&
-    form.alter_scope === "when_fronting" &&
-    form.trigger_type === "contextual" &&
-    form.trigger_config?.on === "alter_fronts" &&
-    triggerAlterId === form.alter_id
-  ) {
-    warnings.push(
-      `Heads-up: this reminder is already tied to ${selectedAlter?.name || `this ${terms.alter}`}'s ${terms.fronting} via the trigger — the "when ${terms.fronting}" scope is redundant here. You can leave it or switch to "Always active".`
-    );
-  }
-
-  if (
-    form.alter_id &&
-    form.trigger_type === "contextual" &&
-    form.trigger_config?.on === "alter_fronts" &&
-    triggerAlterId &&
-    triggerAlterId !== form.alter_id
-  ) {
-    const triggerAlter = alters.find(a => a.id === triggerAlterId);
-    warnings.push(
-      `This reminder is tied to ${selectedAlter?.name || `one ${terms.alter}`} but triggers when ${triggerAlter?.name || `another ${terms.alter}`} ${terms.fronts} — is that intentional?`
-    );
-  }
-
-  if (
-    form.alter_id &&
-    form.alter_scope === "when_fronting" &&
-    form.trigger_type === "event"
-  ) {
-    warnings.push(
-      `This event reminder will skip if ${selectedAlter?.name || `this ${terms.alter}`} isn't ${terms.fronting} at the event time. Consider "Always active" instead if you don't want to miss it.`
-    );
-  }
+  // Conflict detection (shared with the new house: src/lib/reminderForm.js).
+  const warnings = alterScopeWarnings(form, alters, terms);
 
   return (
     <div className="space-y-3">

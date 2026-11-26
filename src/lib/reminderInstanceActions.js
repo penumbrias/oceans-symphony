@@ -26,3 +26,12 @@ export function snoozeReminder(instance, option) {
 export function unsnoozeReminder(instance) {
   return base44.entities.ReminderInstance.update(instance.id, { status: "fired", snoozed_until: null });
 }
+
+// A tap on a notification lands on /reminders?act=<instance>&action=<type>
+// (reminderDeepLink, src/lib/reminderForm.js): the instance is answered
+// first (dismissed, or acted with that action), then the page runs the
+// action itself (the check-in, the front picker, a page).
+export function applyReminderDeepLink(link) {
+  if (!link?.instanceId) return Promise.resolve();
+  return base44.entities.ReminderInstance.update(link.instanceId, { status: link.status, acted_action: link.actionType });
+}

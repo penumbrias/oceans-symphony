@@ -9,6 +9,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { clockPattern } from "@/lib/timeFormat";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "./snoozeHelpers";
+import { CATEGORY_LABELS, reminderKinds, reminderKindOf, kindPatch, resolveWords } from "@/lib/reminderForm";
 import "@/styles/pixel/reminders.css";
 
 // The reminder editor in the pixel look — the "Reminder" phone board
@@ -20,17 +21,6 @@ import "@/styles/pixel/reminders.css";
 // Layout only. The form, the field editors and the save all belong to
 // ReminderEditorModal (passed in), so both looks write the same record the
 // same way.
-
-const CATEGORY_LABELS = {
-  check_in: "Check in", habit: "Habit", meds: "Meds",
-  grounding: "Grounding", appointment: "Appointment", custom: "Other",
-};
-
-// Each kind is a trigger type, or the contextual trigger's "on".
-function kindOf(form) {
-  if (form.trigger_type === "contextual") return `ctx:${form.trigger_config?.on || "no_front_update"}`;
-  return form.trigger_type;
-}
 
 function Row({ label, children, top = false }) {
   return (
@@ -50,34 +40,20 @@ function Chip({ on = false, children, ...rest }) {
 export default function ReminderEditorPixel({
   form, set, existing, saving, onSave, onClose, onDelete,
   hasAutoResolve, toggleChannel, alters,
-  renderTrigger, renderActions, renderAutoResolve, renderSnooze, renderScope, triggerDefaults,
+  renderTrigger, renderActions, renderAutoResolve, renderSnooze, renderScope,
 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const [open, setOpen] = useState({ scope: false, actions: false, resolve: false, snooze: false });
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
-  const kinds = [
-    { id: "scheduled", label: "At set times" },
-    { id: "interval", label: "Every so often" },
-    { id: "ctx:emotion_logged", label: "Feeling logged" },
-    { id: "ctx:symptom_logged", label: "Symptom logged" },
-    { id: "ctx:alter_fronts", label: `${terms.Alter} ${terms.fronts}` },
-    { id: "ctx:sleep_ended", label: "After sleep ends" },
-    { id: "ctx:no_front_update", label: "No update for" },
-    { id: "event", label: "On a date" },
-  ];
-  const kind = kindOf(form);
+  const kinds = reminderKinds(terms);
+  const kind = reminderKindOf(form);
   const pickKind = (id) => {
     if (id === kind) return;
-    if (id.startsWith("ctx:")) {
-      const on = id.slice(4);
-      set("trigger_type", "contextual");
-      set("trigger_config", on === "no_front_update" ? { ...triggerDefaults.contextual } : { on });
-    } else {
-      set("trigger_type", id);
-      set("trigger_config", triggerDefaults[id]);
-    }
+    const p = kindPatch(id);
+    set("trigger_type", p.trigger_type);
+    set("trigger_config", p.trigger_config);
   };
 
   const scoped = alters.find((a) => a.id === form.alter_id);
@@ -85,11 +61,7 @@ export default function ReminderEditorPixel({
   const snoozeOpts = form.snooze_options || DEFAULT_SNOOZE_OPTIONS;
   const channels = form.delivery_channels || [];
   const rule = form.auto_resolve_rule;
-  const resolveLabel = !hasAutoResolve || !rule ? "off"
-    : rule.on === "check_in" ? "a check-in is saved"
-    : rule.on === "front_update" ? `the ${terms.front} is updated`
-    : rule.on === "symptom_checkin" ? "a symptom is logged"
-    : rule.on === "activity" ? "an activity is logged" : "on";
+  const resolveLabel = resolveWords(rule, terms, hasAutoResolve);
   const lastFired = existing?.last_fired_at ? new Date(existing.last_fired_at) : null;
 
   return (

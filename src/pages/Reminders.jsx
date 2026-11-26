@@ -9,6 +9,8 @@ import RemindersManage from "@/components/reminders/RemindersManage";
 import RemindersOnboarding from "@/components/reminders/RemindersOnboarding";
 import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
 import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import { reminderDeepLink } from "@/lib/reminderForm";
+import { applyReminderDeepLink } from "@/lib/reminderInstanceActions";
 
 export default function Reminders() {
   const [tab, setTab] = useState("inbox");
@@ -21,14 +23,11 @@ export default function Reminders() {
 
   // Handle notification click deep-link: /reminders?act=<id>&action=<type>
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const instanceId = params.get("act");
-    const actionType = params.get("action");
-    if (instanceId && actionType) {
-      // Update the instance status
-      const statusMap = { dismiss: "dismissed" };
-      const status = statusMap[actionType] || "acted";
-      base44.entities.ReminderInstance.update(instanceId, { status, acted_action: actionType })
+    const link = reminderDeepLink(window.location.search);
+    if (link) {
+      const { instanceId, actionType } = link;
+      // Update the instance status (shared with the new house's room)
+      applyReminderDeepLink(link)
         .then(() => queryClient.invalidateQueries({ queryKey: ["reminderInstances"] }));
       // Clean URL and switch to inbox tab
       window.history.replaceState({}, "", "/reminders");
