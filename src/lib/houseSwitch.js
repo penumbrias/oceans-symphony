@@ -266,9 +266,20 @@ export function houseAnalyticsRoom(pathname) {
   return p === "/analytics";
 }
 
+// ── The house's Reminders room (boards 23 and 24) ──────────────────────
+// With the new house on, /reminders is drawn by the house itself
+// (src/house/reminders/): Due now, Your reminders and the reminder editor
+// (on a phone, Inbox · Manage and the editor on its own address,
+// ?edit=<id> or ?new=1). The old page is not mounted (HouseRoomGate); with
+// the switch off it runs exactly as before.
+export function houseRemindersRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/reminders";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname) || houseRemindersRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────

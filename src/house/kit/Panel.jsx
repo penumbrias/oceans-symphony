@@ -97,6 +97,7 @@ export function PageTabs({ label, tabs = [], value, onChange, idPrefix, withPane
               aria-controls={withPanels && on ? `${pre}-panel-${t.id}` : undefined}
               tabIndex={on ? 0 : -1}
               className="hk-tab"
+              data-tour={t.tour || undefined}
               onClick={() => onChange?.(t.id)}
               onKeyDown={(e) => {
                 if (e.key === "ArrowRight") move(1, e);

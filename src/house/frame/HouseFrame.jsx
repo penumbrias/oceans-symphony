@@ -45,7 +45,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom, houseMapRoom, houseAnalyticsRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom, houseMapRoom, houseAnalyticsRoom, houseRemindersRoom } from "@/lib/houseSwitch";
 import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
@@ -92,6 +92,7 @@ const HouseNotebook = React.lazy(() => import("@/house/notebook/HouseNotebook"))
 const HouseSettings = React.lazy(() => import("@/house/settings/HouseSettings"));
 const HouseMap = React.lazy(() => import("@/house/map/HouseMap"));
 const HouseAnalytics = React.lazy(() => import("@/house/analytics/HouseAnalytics"));
+const HouseReminders = React.lazy(() => import("@/house/reminders/HouseReminders"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 const RAIL_REM = 3.5;
@@ -280,7 +281,9 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
   const mapRoom = houseMapRoom(location.pathname);
   // The Analytics room (board 06): the range toolbar, the board, the old views.
   const analyticsRoom = houseAnalyticsRoom(location.pathname);
-  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom;
+  // The Reminders room (boards 23 and 24): Due now, Your reminders, the editor, the status line.
+  const remindersRoom = houseRemindersRoom(location.pathname);
+  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom || remindersRoom;
   const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
@@ -509,6 +512,11 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
           {analyticsRoom ? (
             <Suspense fallback={null}>
               <HouseAnalytics size={size} tokens={tokens} />
+            </Suspense>
+          ) : null}
+          {remindersRoom ? (
+            <Suspense fallback={null}>
+              <HouseReminders size={size} tokens={tokens} />
             </Suspense>
           ) : null}
           {homeRoom ? (
