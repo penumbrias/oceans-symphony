@@ -51,6 +51,8 @@ import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { an } from "@/lib/articles";
 import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 import SetFrontSheetPixel from "@/components/fronting/SetFrontSheetPixel";
+import { useHouseSheet } from "@/lib/houseSwitch";
+import useKeyboardInset from "@/hooks/useKeyboardInset";
 
 // One alter in the draft (the "here now" list being edited).
 function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary, onLevel, onRemove, holdProps = null }) {
@@ -140,7 +142,10 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
   const levelCfg = useFrontLevels();
-  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  // The new house draws board 47 in its own paint whatever the look is.
+  const houseSheet = useHouseSheet();
+  const keyboardInset = useKeyboardInset();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL || !!houseSheet;
 
   // Everyone already in the draft sits in the section above, so this list
   // never needs fronters-first — just the user's chosen order.
@@ -428,6 +433,8 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
       triggerCategory={triggerCategory} setTriggerCategory={setTriggerCategory}
       triggerLabel={triggerLabel} setTriggerLabel={setTriggerLabel}
       allTriggerCategories={allTriggerCategories}
+      tick={houseSheet ? houseSheet.tick : "x"}
+      head={houseSheet?.phone ? <houseSheet.Head title={`Set ${terms.front}`} onBack={onClose} /> : null}
     />
   ) : null;
 
@@ -436,8 +443,11 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
       <Dialog open={open} onOpenChange={onClose}>
         {pixel ? (
           <DialogContent showCloseButton={false} aria-describedby={undefined}
-            className="psh-dlg psh-dlg-sf"
-            style={{ height: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)" }}>
+            className={`psh-dlg psh-dlg-sf${houseSheet ? " hcs-sf" : ""}`}
+            {...(houseSheet ? houseSheet.attrs : null)}
+            style={houseSheet
+              ? { ...houseSheet.style, ...houseSheet.place("front", keyboardInset) }
+              : { height: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)" }}>
             {pixelBody}
           </DialogContent>
         ) : (

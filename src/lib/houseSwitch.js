@@ -19,7 +19,7 @@
 // Writes "1" or "0", never removes the key, so the mirror can't resurrect an
 // old value over a deliberate "off".
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export const HOUSE_SWITCH_KEY = "symphony_new_house_v1";
 export const HOUSE_SWITCH_EVENT = "symphony-house-switch";
@@ -222,4 +222,21 @@ export function houseWriteRoom(pathname) {
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
   return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname);
+}
+
+// ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────
+// Quick check-in, "Who feels …?" and Set front are old dialogs opened from
+// many places (the Home room, the old Dashboard host, the check-in log, the
+// timeline, the frames). With the new house on, the frames wrap everything
+// in the house's sheet look (src/house/checkin/HouseSheets.jsx, loaded with
+// the frames) and each sheet reads it here: the board's layout, the house's
+// paint on its portaled root, and the house's own pieces (the phone header).
+// Outside the house there is no provider, so the hook returns null and every
+// sheet draws exactly as it did. This stays a bare context so nothing of
+// src/house reaches the old house's bundle.
+export const HouseSheetContext = createContext(null);
+
+/** The house's sheet look while the new house is on, else null. */
+export function useHouseSheet() {
+  return useContext(HouseSheetContext);
 }

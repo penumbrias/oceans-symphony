@@ -95,6 +95,8 @@ export default function SetFrontSheetPixel(p) {
     railNodes,
     journalSwitch, setJournalSwitch, triggeredSwitch, setTriggeredSwitch,
     triggerCategory, setTriggerCategory, triggerLabel, setTriggerLabel, allTriggerCategories,
+    // The new house: its tick (✓) and, on a phone, board 47's "‹ Set front" header.
+    tick = "x", head = null,
   } = p;
 
   const pxTab = tab === "presence" ? "presence" : viewMode === "tree" ? "group" : "alters";
@@ -107,6 +109,8 @@ export default function SetFrontSheetPixel(p) {
   const tabs = [["alters", terms.Alters], ["group", "By group"], ["presence", "New presence"]];
 
   return (
+    <>
+    {head}
     <div className="psh-pn psh-sf">
       <div className="psh-ttl psh-ttl-lg">
         <DialogTitle asChild><span className="psh-ttl-name">Who's in {terms.front}</span></DialogTitle>
@@ -221,7 +225,7 @@ export default function SetFrontSheetPixel(p) {
             <button type="button" className="psh-tickrow" data-tour="setfront-triggered"
               aria-pressed={triggeredSwitch} disabled={isUnsure}
               onClick={() => setTriggeredSwitch(!triggeredSwitch)}>
-              <span className={`psh-tick${triggeredSwitch && !isUnsure ? " y" : ""}`} aria-hidden="true">{triggeredSwitch && !isUnsure ? "x" : ""}</span>
+              <span className={`psh-tick${triggeredSwitch && !isUnsure ? " y" : ""}`} aria-hidden="true">{triggeredSwitch && !isUnsure ? tick : ""}</span>
               <span className="psh-mut">Trigger</span>
             </button>
             <SearchableSelect
@@ -245,11 +249,12 @@ export default function SetFrontSheetPixel(p) {
           <button type="button" className="psh-tickrow" data-tour="setfront-journal"
             aria-pressed={journalSwitch} disabled={isUnsure}
             onClick={() => setJournalSwitch(!journalSwitch)}>
-            <span className={`psh-tick${journalSwitch && !isUnsure ? " y" : ""}`} aria-hidden="true">{journalSwitch && !isUnsure ? "x" : ""}</span>
+            <span className={`psh-tick${journalSwitch && !isUnsure ? " y" : ""}`} aria-hidden="true">{journalSwitch && !isUnsure ? tick : ""}</span>
             <span>Write {an(terms.switch)} journal after saving</span>
           </button>
         </div>
       )}
     </div>
+    </>
   );
 }

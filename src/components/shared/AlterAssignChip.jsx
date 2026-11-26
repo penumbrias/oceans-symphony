@@ -29,6 +29,8 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useUiLook } from "@/lib/uiLook";
+import { useHouseSheet } from "@/lib/houseSwitch";
+import useKeyboardInset from "@/hooks/useKeyboardInset";
 import "@/styles/pixel/phone3.css";
 
 export default function AlterAssignChip({ alters = [], value = null, defaultIds = [], onChange, zIndex = 90 }) {
@@ -81,9 +83,12 @@ export default function AlterAssignChip({ alters = [], value = null, defaultIds 
 // assigned — shown above the search box.
 // titleNode / footer: optional richer title and a closing note (the Quick
 // check-in's "Who feels …?" in the pixel look).
-export function AlterAssignPopup({ open, onOpenChange, alters = [], value = null, defaultIds = [], onChange, title = null, titleNode = null, footer = null, zIndex = 90 }) {
+export function AlterAssignPopup({ open, onOpenChange, alters = [], value = null, defaultIds = [], onChange, title = null, titleNode = null, footer = null, rowNote = null, zIndex = 90 }) {
   const t = useTerms();
-  const pixel = useUiLook() === "pixel";
+  // The new house draws board 17 in its own paint whatever the look is.
+  const houseSheet = useHouseSheet();
+  const keyboardInset = useKeyboardInset();
+  const pixel = useUiLook() === "pixel" || !!houseSheet;
   const formatAlter = useAlterLabel();
   const [search, setSearch] = useState("");
   // Assigned-at-open ids: the pinned top band. Frozen so toggling doesn't
@@ -129,8 +134,11 @@ export function AlterAssignPopup({ open, onOpenChange, alters = [], value = null
     return (
       <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
         <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 bg-black/50" style={{ zIndex }} />
-          <DialogPrimitive.Content aria-describedby={undefined} className="px-who" style={{ zIndex }}>
+          <DialogPrimitive.Overlay className="fixed inset-0 bg-black/50" style={houseSheet ? { zIndex, bottom: "var(--house-sheet-bottom, 0px)" } : { zIndex }} />
+          <DialogPrimitive.Content aria-describedby={undefined}
+            className={`px-who${houseSheet ? " hcs-who" : ""}`}
+            {...(houseSheet ? houseSheet.attrs : null)}
+            style={houseSheet ? { ...houseSheet.style, ...houseSheet.place("who", keyboardInset), zIndex } : { zIndex }}>
             <div className="px-who-head">
               <DialogPrimitive.Title className="px-who-title">{titleNode || title || `Assign to ${t.alters}`}</DialogPrimitive.Title>
               <AlterSortToggle sorter={sorter} className="px-who-sort" />
@@ -155,10 +163,12 @@ export function AlterAssignPopup({ open, onOpenChange, alters = [], value = null
                 return (
                   <button key={a.id} type="button" onClick={() => toggle(a.id)} aria-pressed={sel}
                     className={`px-who-row${sel ? " sel" : ""}`}>
-                    <span className="px-who-box" aria-hidden>{sel ? "×" : ""}</span>
+                    <span className="px-who-box" aria-hidden>{sel ? (houseSheet ? houseSheet.tick : "×") : ""}</span>
                     <span className="px-who-sw" style={{ background: a.color || "transparent" }} aria-hidden />
                     <span className="px-who-name">{formatAlter(a)}</span>
-                    {defaults.has(a.id) && <span className="px-who-note">in the check-in</span>}
+                    {rowNote
+                      ? (rowNote(a) ? <span className="px-who-note">{rowNote(a)}</span> : null)
+                      : defaults.has(a.id) && <span className="px-who-note">in the check-in</span>}
                   </button>
                 );
               })}

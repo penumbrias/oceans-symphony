@@ -6,6 +6,7 @@ import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
 import EmotionColorField from "@/components/emotions/EmotionColorField";
 import { normalizeHex } from "@/lib/hexColor";
 import { useUiLook } from "@/lib/uiLook";
+import { useHouseSheet } from "@/lib/houseSwitch";
 
 export const WHEEL = {
   good: {
@@ -124,7 +125,10 @@ function EmotionPill({ label, selected, color, onToggle, small = false }) {
     : "bg-muted/60 text-foreground border-border/50 hover:border-border"
   }`;
   // --emo carries the feeling's colour for the pixel look's tinted chips.
-  const style = selected ? { backgroundColor: color, borderColor: color, "--emo": color } : { "--emo": color };
+  // The new house paints them from --emo alone (its CSS can't out-rank an
+  // inline colour without forcing it).
+  const house = !!useHouseSheet();
+  const style = selected && !house ? { backgroundColor: color, borderColor: color, "--emo": color } : { "--emo": color };
   const inner = <>{label}<EmotionDots dots={dots} onColor /></>;
   if (hold?.onHold) {
     return (
@@ -194,7 +198,9 @@ export default function EmotionWheelPicker({
   // A line under the picked feelings (the Quick check-in's hold hint).
   hint = null,
 }) {
-  const pixel = useUiLook() === "pixel";
+  // The new house draws board 16's picker whatever the person's look is.
+  const house = !!useHouseSheet();
+  const pixel = useUiLook() === "pixel" || house;
   // Guided or Classic is one setting (check-in manager), not a toggle on
   // every picker (UI critique H4).
   const [pickerMode,    setPickerMode]    = useState(() => lsGet(LS_PICKER_MODE, "wheel"));
@@ -213,6 +219,8 @@ export default function EmotionWheelPicker({
   const [customCategory, setCustomCategory] = useState("custom");
   // Optional own colour (hex) for the new custom emotion; "" = category colour.
   const [customColor, setCustomColor] = useState("");
+  // The new house folds the add row behind board 16's "+ my own".
+  const [mineOpen, setMineOpen] = useState(false);
   // User-renamable root labels ("Good" → "Positive", …). Structure stays;
   // display AND the logged valence-mood string use the current name.
   const catLabels = useEmotionCategoryLabels();
@@ -310,10 +318,11 @@ export default function EmotionWheelPicker({
     <EmotionHoldContext.Provider value={holdCtx}>
     <div className="os-ewp space-y-3">
       {/* Search */}
-      <div className="os-ewp-search relative">
+      <div className={`os-ewp-search relative${house ? " hcs-ewp-searchrow" : ""}`}>
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
-          placeholder="Search emotions..."
+          placeholder={house ? "Search feelings..." : "Search emotions..."}
+          aria-label={house ? "Search feelings" : undefined}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="pl-7 h-8 text-sm"
@@ -323,6 +332,10 @@ export default function EmotionWheelPicker({
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             <X className="w-3.5 h-3.5" />
           </button>
+        )}
+        {house && !search && (
+          <button type="button" className="hcs-mine" aria-expanded={mineOpen || !!customInput.trim()}
+            onClick={() => setMineOpen((o) => !o)}>+ my own</button>
         )}
       </div>
 
@@ -356,13 +369,13 @@ export default function EmotionWheelPicker({
             <HoldableButton key={e} label={e} onTap={onToggle} onHold={onEmotionHold}
               ariaLabel={holdAriaLabel?.(e, true)}
               className="os-ewp-chip flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
-              style={{ backgroundColor: colorFor(e), "--emo": colorFor(e) }}>
+              style={house ? { "--emo": colorFor(e) } : { backgroundColor: colorFor(e), "--emo": colorFor(e) }}>
               {e}<EmotionDots dots={emotionDots?.(e)} onColor /> <X className="w-2.5 h-2.5" />
             </HoldableButton>
           ) : (
             <button key={e} onClick={() => onToggle(e)}
               className="os-ewp-chip flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
-              style={{ backgroundColor: colorFor(e), "--emo": colorFor(e) }}>
+              style={house ? { "--emo": colorFor(e) } : { backgroundColor: colorFor(e), "--emo": colorFor(e) }}>
               {e} <X className="w-2.5 h-2.5" />
             </button>
           ))}
@@ -386,7 +399,7 @@ export default function EmotionWheelPicker({
                   className={`os-ewp-root py-2 px-3 rounded-xl border text-sm font-semibold transition-all text-left ${
                     lit ? v.activeClass : v.bgClass
                   }`}
-                  style={lit ? { "--emo": v.color } : { color: v.color, "--emo": v.color }}>
+                  style={lit || house ? { "--emo": v.color } : { color: v.color, "--emo": v.color }}>
                   {rootLabel(key)}
                 </button>
               );
@@ -444,7 +457,8 @@ export default function EmotionWheelPicker({
                             : "bg-muted/60 text-foreground border-border/50 hover:border-border"
                         }`}
                         style={
-                          selectedEmotions.includes(core)
+                          house ? { "--emo": color }
+                          : selectedEmotions.includes(core)
                             ? { backgroundColor: color, "--emo": color }
                             : { borderLeftColor: color, borderLeftWidth: 3, "--emo": color }
                         }>
@@ -564,7 +578,7 @@ export default function EmotionWheelPicker({
           go into the emotions manager afterwards to assign a category.
           Presents the four roots + every core, using the user's renamed
           root labels where set (via catLabels). */}
-      {!search && (
+      {!search && (!house || mineOpen || !!customInput.trim()) && (
         <div className="os-ewp-add flex gap-1.5 pt-1 border-t border-border/50">
           <Input
             placeholder="Add custom emotion..."

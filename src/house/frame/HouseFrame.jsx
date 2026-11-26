@@ -51,6 +51,7 @@ import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { useHouseTokens } from "@/house/tokens/useHouseTokens";
 import { HouseScope } from "@/house/tokens/HouseRoot";
+import HouseSheets from "@/house/checkin/HouseSheets";
 import { Button, IconButton } from "@/house/kit/Button";
 import { Sheet } from "@/house/kit/Sheet";
 import { TreeView, RowText } from "@/house/kit/TreeList";
@@ -244,7 +245,7 @@ function FrameStatus({ size, look }) {
 }
 
 // ── The frame ──────────────────────────────────────────────────────────
-export default function HouseFrame({ children, mainRef }) {
+export default function HouseFrame({ children, mainRef, tail = null }) {
   const tokens = useHouseTokens();
   const sizeClass = useHouseSizeClass();
   const size = sizeClass === "compact" ? "compact" : "full";
@@ -388,6 +389,7 @@ export default function HouseFrame({ children, mainRef }) {
   const waveOn = !tokens?.paint?.tokens?.waveOff;
 
   return (
+    <HouseSheets tokens={tokens} size={size}>
     <div className="hf" data-house-frame="" data-size={size} data-home-room={homeRoom || undefined}>
       <HouseScope {...scope()} className="hf-skips">
         <a href="#main-content" className="hf-skip">Skip to the page</a>
@@ -509,6 +511,10 @@ export default function HouseFrame({ children, mainRef }) {
       {frontOpen ? <SetFrontSheet open onClose={() => setFrontOpen(false)} /> : null}
       {noteOpen ? <QuickNoteSheet open onClose={() => setNoteOpen(false)} /> : null}
     </div>
+    {/* The app-wide hosts (reminder toasts, quick actions…) sit inside the
+        house's sheet look too, so a check-in they open is drawn as board 16. */}
+    {tail}
+    </HouseSheets>
   );
 }
 

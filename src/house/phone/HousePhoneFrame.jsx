@@ -46,6 +46,7 @@ import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
 import { useHouseTokens } from "@/house/tokens/useHouseTokens";
 import { HouseScope } from "@/house/tokens/HouseRoot";
+import HouseSheets from "@/house/checkin/HouseSheets";
 import { Button, IconButton } from "@/house/kit/Button";
 import Menu from "@/house/kit/Menu";
 import { Sheet } from "@/house/kit/Sheet";
@@ -233,7 +234,7 @@ function LastTimeCard({ lastTime, onDismiss, terms, formatAlter }) {
 }
 
 // ── The frame ──────────────────────────────────────────────────────────
-export default function HousePhoneFrame({ children, mainRef }) {
+export default function HousePhoneFrame({ children, mainRef, tail = null }) {
   const tokens = useHouseTokens();
   const location = useLocation();
   const navigate = useNavigate();
@@ -328,6 +329,7 @@ export default function HousePhoneFrame({ children, mainRef }) {
   const scope = (extra = {}) => ({ tokens, "data-house-size": "phone", ...extra });
 
   return (
+    <HouseSheets tokens={tokens} size="phone">
     <div className="hp" data-house-frame="" data-house-phone="" data-size="phone">
       <HouseScope {...scope()} className="hp-skips">
         <a href="#main-content" className="hp-skip">Skip to the page</a>
@@ -446,5 +448,9 @@ export default function HousePhoneFrame({ children, mainRef }) {
       {frontOpen ? <SetFrontSheet open onClose={() => setFrontOpen(false)} /> : null}
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
     </div>
+    {/* The app-wide hosts (reminder toasts, quick actions…) sit inside the
+        house's sheet look too, so a check-in they open is drawn as board 16. */}
+    {tail}
+    </HouseSheets>
   );
 }

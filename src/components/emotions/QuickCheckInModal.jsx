@@ -30,7 +30,7 @@ import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import { AlterAssignPopup } from "@/components/shared/AlterAssignChip";
 import RatingMeter from "@/components/emotions/RatingMeter";
-import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
+import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled, readEmotionPickerMode, writeEmotionPickerMode } from "@/lib/quickCheckinPrefs";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { defaultEmotionAlterIds, checkInEmotionDefault, applyAttributionPolicy } from "@/lib/emotionAttribution";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
@@ -50,6 +50,8 @@ import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { sharedList } from "@/lib/sharedLists";
 import { useUiLook } from "@/lib/uiLook";
+import { useHouseSheet } from "@/lib/houseSwitch";
+import useKeyboardInset from "@/hooks/useKeyboardInset";
 import "@/styles/pixel/phone3.css";
 
 // One row in the Quick Check-In "Who's fronting?" picker. Uses the SAME
@@ -130,7 +132,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const enabledSectionIds = useMemo(() => enabledCheckinSectionIds(pickPrimarySystemSettings(ssList)), [ssList]);
   // Pixel look: drawn as the CheckInPhone mockup (title-bar sections with a
   // summary, Cancel · title · Save). Same state and handlers.
-  const pixel = useUiLook() === "pixel";
+  // The new house draws the same layout (boards 16 and 17) in its own paint,
+  // whatever the person's look is (src/house/checkin/HouseSheets.jsx).
+  const houseSheet = useHouseSheet();
+  const keyboardInset = useKeyboardInset();
+  const pixel = useUiLook() === "pixel" || !!houseSheet;
+  // Board 16 puts Wheel | List on the Feeling head: the same one setting
+  // the check-in manager sets (quickCheckinPrefs.js).
+  const [pickerMode, setPickerMode] = useState(() => readEmotionPickerMode());
+  useEffect(() => {
+    if (!houseSheet) return undefined;
+    const on = () => setPickerMode(readEmotionPickerMode());
+    window.addEventListener("symphony-emotion-picker-mode", on);
+    return () => window.removeEventListener("symphony-emotion-picker-mode", on);
+  }, [houseSheet]);
   const visiblePills = useMemo(() => PILLS.filter((p) => enabledSectionIds.includes(p.id)), [enabledSectionIds]);
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   // The section the bottom prev/next arrows currently step from. Tracks the
@@ -388,13 +403,24 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     const open = openSections.has(id);
     const label = id === "fronting" ? terms.Fronting : pill.label;
     if (pixel) {
-      return (
+      const head = (
         <button type="button" onClick={() => toggleSection(id)} aria-expanded={open}
           className="px-ci-head">
           <span className="px-ci-chev" aria-hidden>{open ? "v" : ">"}</span>
           <span className="px-ci-label">{id === "fronting" ? `Who's ${terms.fronting}` : label}</span>
           <span className="px-ci-sum">{sectionSummary(id)}</span>
         </button>
+      );
+      if (!(houseSheet && id === "feeling" && open)) return head;
+      return (
+        <div className="hcs-headrow" data-open="">
+          {head}
+          <span className="hcs-mode" role="group" aria-label="Feelings shown as">
+            <button type="button" aria-pressed={pickerMode !== "classic"} onClick={() => writeEmotionPickerMode("wheel")}>Wheel</button>
+            <span aria-hidden>|</span>
+            <button type="button" aria-pressed={pickerMode === "classic"} onClick={() => writeEmotionPickerMode("classic")}>List</button>
+          </span>
+        </div>
       );
     }
     return (
@@ -1288,7 +1314,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
       <DialogContent
-        className={`max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0${pixel ? " px-ci" : ""}`}
+        className={`max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0${pixel ? " px-ci" : ""}${houseSheet ? " hcs-ci" : ""}`}
+        {...(houseSheet ? houseSheet.attrs : null)}
+        style={houseSheet ? { ...houseSheet.style, ...houseSheet.place("checkin", keyboardInset) } : undefined}
         // Pixel look: Cancel sits top-left in place of the corner X.
         showCloseButton={!pixel}
         // Block accidental dismissal — testers were tapping off-canvas
@@ -1424,7 +1452,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                     onOpenChange={(o) => { if (!o) setHoldEmotion(null); }}
                     title={holdEmotion ? `Who feels ${holdEmotion}?` : null}
                     titleNode={holdEmotion ? <>Who feels <span className="px-ci-accent">{holdEmotion}</span>?</> : null}
-                    footer={`Feelings you don't hold belong to whoever "Entries belong to" says in Settings. You can change this later from the check-in log.`}
+                    footer={houseSheet
+                      ? houseSheet.whoFooter({ defaultIds: defaultEmotionIds, frontingIds: selectedAlters, names: Object.fromEntries(alters.map((a) => [a.id, formatAlter(a)])), terms })
+                      : `Feelings you don't hold belong to whoever "Entries belong to" says in Settings. You can change this later from the check-in log.`}
+                    rowNote={houseSheet ? (a) => houseSheet.whoRowNote(a.id, { fronting: selectedAlterIds, levelOf: levelCfg.levels.length > 1 ? levelLabelOf : null, topLevel: levelCfg.levels[0] ? frontLevelLabel(levelCfg.levels[0], terms) : null, terms }) : null}
                     alters={alters}
                     value={holdEmotion ? (emotionAlters[holdEmotion] ?? null) : null}
                     defaultIds={defaultEmotionIds}

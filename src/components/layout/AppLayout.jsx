@@ -905,7 +905,9 @@ const handleNotifClick = (mentionLog) => {
             <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading the new house" />
           </div>
         }>
-          <Frame mainRef={houseMainRef}>
+          {/* The tail hosts ride inside the frame (outside its layout), so a
+              check-in or Set front they open gets the house's sheet look. */}
+          <Frame mainRef={houseMainRef} tail={renderTailHosts(true)}>
             {bannerVisible && (
               <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} framing={bannerFraming} />
             )}
@@ -929,7 +931,6 @@ const handleNotifClick = (mentionLog) => {
             <LazyBlobStorageMigrationModal onClose={() => setShowBlobMigration(false)} />
           </React.Suspense>
         )}
-        {renderTailHosts(true)}
       </>
     );
   }
