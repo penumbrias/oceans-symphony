@@ -33,6 +33,7 @@ export const PixelAlters = glyph("M3 1h2v3H3zM2 5h4v4H2zM7 2h2v2H7zM6 5h3v3H6z",
 export const PixelTimeline = glyph("M1 1h1v8H1zm2 1h5v2H3zm0 3h3v2H3z", "Timeline");
 export const PixelSupport = glyph("M3 1h4v1h1v1h1v4H8v1H7v1H3V8H2V7H1V3h1V2h1zm1 2v1H3v2h1v1h2V6h1V4H6V3z", "Support");
 export const PixelSearch = glyph("M2 1h3v1h1v1h1v3H6v1H5v1H2V7H1V6H0V3h1V2h1zm0 2v3h3V3zM7 7h1v1h1v1H8V8H7z", "Search");
+export const PixelBack = glyph("M6 1h2v1H7v1H6v1H5v2h1v1h1v1h1v1H6V8H5V7H4V6H3V4h1V3h1V2h1z", "Back");
 export const PixelDots = glyph("M1 4h2v2H1zm3 0h2v2H4zm3 0h2v2H7z", "Dots");
 export const PixelEye = glyph("M3 2h4v1h1v1h1v2H8v1H7v1H3V7H2V6H1V4h1V3h1zm1 2v2h2V4z", "Eye");
 export const PixelEyeOff = glyph("M1 4h8v2H1z", "EyeOff");

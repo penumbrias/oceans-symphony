@@ -10,7 +10,7 @@
 // frameKit.css) carry it, and only while the new house is on.
 
 import React, { useMemo } from "react";
-import { ArrowLeft } from "lucide-react";
+import { PixelBack } from "@/house/tokens/PixelGlyphs";
 import { HouseSheetContext } from "@/lib/houseSwitch";
 import { houseAttrs } from "@/house/kit/KitLayer";
 import { IconButton } from "@/house/kit/Button";
@@ -24,9 +24,9 @@ import "@/house/checkin/checkin.css";
 function SheetHead({ title, onBack, backLabel = "Back", tokens }) {
   const h = houseAttrs(tokens);
   return (
-    <header {...h.attrs} data-house-size="phone" className="hp-head hcs-head">
+    <header {...h.attrs} style={h.style} data-house-size="phone" className="hp-head hcs-head">
       {tokens?.paint?.tokens?.waveOff ? null : <HeaderWave />}
-      <IconButton icon={ArrowLeft} label={backLabel} onClick={onBack} />
+      <IconButton icon={PixelBack} rank="secondary" label={backLabel} onClick={onBack} />
       <div className="hp-titles"><span className="hp-title house-label">{title}</span></div>
     </header>
   );

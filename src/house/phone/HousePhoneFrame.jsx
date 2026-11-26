@@ -27,8 +27,7 @@
 import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowLeft, LayoutGrid, Info as InfoIcon, Layers as LayersIcon, History, GraduationCap, Pencil,
+import { LayoutGrid, Info as InfoIcon, Layers as LayersIcon, History, GraduationCap, Pencil,
   SlidersHorizontal, PlayCircle, Map as MapIcon, Boxes, ShoppingCart, Eye, LogOut, Settings as SettingsIcon, Clock,
 } from "lucide-react";
 import { localEntities } from "@/api/base44Client";
@@ -62,7 +61,7 @@ import { HOUSE_RECENT_KEY, readRecent, recordVisit, touch, lastTimeFrom, awayWor
 import DoSheet, { HouseIconLite } from "@/house/frame/DoSheet";
 import { QuickNoteSheet } from "@/components/v2/V2Frame";
 import HeaderWave from "@/house/kit/frame/HeaderWave";
-import { PixelHome, PixelAlters, PixelTimeline, PixelPen, PixelSupport, PixelSearch, PixelDots, PixelPlus } from "@/house/tokens/PixelGlyphs";
+import { PixelHome, PixelAlters, PixelTimeline, PixelPen, PixelSupport, PixelSearch, PixelDots, PixelPlus, PixelBack } from "@/house/tokens/PixelGlyphs";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 import "@/house/kit/frame/phoneKit.css";
@@ -344,7 +343,7 @@ export default function HousePhoneFrame({ children, mainRef, tail = null }) {
               <img src="/logo.png" alt="" className="hp-logo" />
             </Link>
           )
-          : <IconButton icon={ArrowLeft} label="Back" onClick={back} />}
+          : <IconButton icon={PixelBack} rank="secondary" label="Back" onClick={back} />}
         <div className="hp-titles">
           <span className="hp-title house-label">{page.title}</span>
           <span className="hp-sub">

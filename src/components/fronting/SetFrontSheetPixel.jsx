@@ -8,7 +8,6 @@
 // SetFrontSheet, which still saves through src/lib/setFront.js — this file
 // never writes a session. Rendered only while the pixel look is on.
 import React from "react";
-import { formatDistanceToNow } from "date-fns";
 import { Search, User, List, Grid3x3 } from "lucide-react";
 import { DialogTitle } from "@/components/ui/dialog";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
@@ -34,10 +33,17 @@ function Mark({ alter }) {
   );
 }
 
+// How long someone has been in, short enough to sit beside the name: 31m, 2h 14m, 3d.
+function shortSince(start) {
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(start).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return mins % 60 ? `${h}h ${mins % 60}m` : `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
 function NowRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary, onLevel, onRemove, holdProps }) {
-  const since = entry.startTime
-    ? `${terms.fronting} ${formatDistanceToNow(new Date(entry.startTime), { addSuffix: false })}`
-    : "new";
+  const since = entry.startTime ? shortSince(entry.startTime) : "new";
   return (
     <div {...(holdProps || {})} className="psh-ins psh-row psh-now">
       <Mark alter={alter} />
