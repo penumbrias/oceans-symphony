@@ -236,7 +236,7 @@ export default function HouseReminders({ size = "full", tokens }) {
             })}
           </ul>
         )}
-        {phone ? <p className="hrm-foot">Tap one to change it. Tap the box to pause it or turn it on. Delivery: in the app, and as phone notifications where allowed.</p> : null}
+        {phone && !nothingYet ? <p className="hrm-foot">Tap one to change it. Tap the box to pause it or turn it on. Delivery: in the app, and as phone notifications where allowed.</p> : null}
       </div>
     </Panel>
   );

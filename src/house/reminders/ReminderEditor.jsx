@@ -134,7 +134,7 @@ export default function ReminderEditor({ existing, onClose, onSaved, onDelete, p
           ))}
           <Button rank="quiet" icon={Plus} onClick={() => setCfg("times", [...times, "12:00"])}>Add a time</Button>
         </div>
-        <Line label="Days" top>
+        <Line label="Days" top className="hrm-line--days">
           {DAYS.map((d, i) => <Chip key={d} on={days.includes(i)} onClick={() => setCfg("days", days.includes(i) ? days.filter((x) => x !== i) : [...days, i])}>{d}</Chip>)}
         </Line>
       </>
