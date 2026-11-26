@@ -120,12 +120,12 @@ export function PerAlterLevels({ maxHeight = "48vh" }) {
         const cur = Array.isArray(a.privacy_levels) ? a.privacy_levels : [];
         return (
           <div className="flex flex-wrap gap-1 items-center">
-            {cur.length === 0 && <span className="text-[0.625rem] text-muted-foreground mr-1">Private</span>}
+            {cur.length === 0 && <span className="text-xs text-muted-foreground mr-1">Private</span>}
             {levels.map((l) => {
               const on = cur.includes(l.id);
               return (
                 <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(a, l.id)}
-                  className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${selectablePillClass(on)}`}>
+                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${selectablePillClass(on)}`}>
                   {on ? "✓ " : ""}{l.number}. {l.name}
                 </button>
               );

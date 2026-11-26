@@ -166,7 +166,7 @@ export function ProfileSetupModal({ open, onClose, onSaved, existing, onDeleted 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="names">Show names & colours</SelectItem>
-                <SelectItem value="count_only">Count only (e.g. "2 fronters")</SelectItem>
+                <SelectItem value="count_only">{`Count only (e.g. "2 ${terms.fronters}")`}</SelectItem>
                 <SelectItem value="hidden">Hidden (friends see no front info)</SelectItem>
               </SelectContent>
             </Select>
