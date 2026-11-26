@@ -121,7 +121,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 |---|---|---|---|---|---|
 | Timeline (`/timeline`), timeline dock, timeline widget | Any day rebuilt across every record type, layers, infinite backscroll [9.1, 3.3] | readers | read only; session edits via `frontSessionEdit.js`, plans via `resolvePlan.js`, episodes via `symptomSessions.js` | 3.3 (one Day, lane view) | rebuilt (3.3: Timeline room, Day · 6 hours · Week, Whose, layers incl. meds and "everything else", Info with Edit/Split/End/It wasn't…/Remove, Add, Tally, landings; Home's dock draws the same parts; the timeline widget is still old) |
 | Check-in log (`/checkin-log`) with its daily summary, tally, Day review | The record, filterable, editable after the fact; daily summary (keep, Penumbra) [3.3] | readers (edits through the capture writers) | read only; edits via `checkinEntry.js` | 3.3 (list and summary views) | old |
-| Analytics (`/analytics`) | Baselines, presence, wellbeing, life, per-member patterns, observations [9.2–9.7] | readers | read only | 5.4 | old |
+| Analytics (`/analytics`) | Baselines, presence, wellbeing, life, per-member patterns, observations [9.2–9.7] | readers | read only | 5.4 | rebuilt (5.4: Analytics room, board 06: Week · Month · Year · Pick dates with < > and Whose, Fronting time, Feelings by day, Who fronts together, Symptoms, Sleep, Noticed, status line; phone one column with the report and views in ⋯; the old five views — Your usual, Fronting, Wellbeing, Life, footprints — are the old components behind Look closer, until their own rebuild) |
 | Therapy report (`/therapy-report`) | Sections, detail levels, pruning, anonymize, PDF/text, saved templates, export log, therapy notes [9.8] | ReportTemplate, ReportExport, TherapyNote | MISSING: page writes directly (`TherapyReport.jsx` via `db.ReportTemplate`); TherapyNote via `logCommands.js` → 0.6 | 0.6, then 5.4 | old |
 | Location history (`/location-history`) | Log plus history split, maps link | Location | `logLocation` | 5.4 | old |
 | Recent changes (`/history`) | Undo history, "Changed by sync", restorable layouts | HistoryEvent | entity layer; removal refused by the time lock | 5.4 (and the History tab, 2.1) | old |
@@ -160,7 +160,7 @@ Storage modes and encryption, unlock, recovery, multiple systems, backups and au
 | `/alter/:id` | Alter profile | 5.3 |
 | `/contacts`, `/contacts/:id` | Contacts | 5.3 |
 | `/settings` | Settings room (rebuilt: board 07, board 10's shell) | 5.5 |
-| `/analytics` | Analytics | 5.4 |
+| `/analytics` | Analytics room (rebuilt: board 06; the five old views inside it) | 5.4 |
 | `/journals` | Journals | 5.2 |
 | `/diary` → `/checkin-log` | Check-in log (redirect) | 3.3 |
 | `/tasks` | Routines | 5.1 |

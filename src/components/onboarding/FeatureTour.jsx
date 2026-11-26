@@ -1174,6 +1174,26 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/analytics", target: "analytics-charts",
     }),
     s("analytics", {
+      emoji: "🗓️", title: "Pick the stretch",
+      body: `In the new house, Week, Month and Year show one calendar stretch; the arrows step back or forward. Pick dates sets your own, with Last 90 days and All time one tap away.`,
+      route: "/analytics", target: ["analytics-range", "analytics-charts"], look: `the range row at the top`,
+    }),
+    s("analytics", {
+      emoji: "🫂", title: "Whose",
+      body: `Whose narrows feelings, symptoms, who ${t.fronts} with them and their ${t.switches} to one ${t.alter}: what they logged, or what was logged while they were in front. Sleep and plans stay everyone's.`,
+      route: "/analytics", target: ["analytics-whose", "analytics-range", "analytics-charts"], look: `the Whose picker`,
+    }),
+    s("analytics", {
+      emoji: "🧮", title: "The board",
+      body: `Six panels for the stretch: ${t.fronting} time, the most-felt feeling each day, who ${t.fronts} together, symptoms, sleep, and a few things noticed from your own records.`,
+      route: "/analytics", target: ["analytics-board", "analytics-charts"], look: `the panels`,
+    }),
+    s("analytics", {
+      emoji: "🔎", title: "Look closer",
+      body: `Under the board, Look closer opens the full views: your usual, ${t.Fronting}, Wellbeing, Life and each ${t.alter}'s footprint. The square back button returns to the board.`,
+      route: "/analytics", target: ["analytics-more", "analytics-charts"], look: `the Look closer panel`,
+    }),
+    s("analytics", {
       emoji: "🎛️", title: "Choose what the log shows",
       body: `The Show button picks which entry types the Check-In Log shows. Hiding one only hides it here; it's still saved and on the timeline.`,
       route: "/checkin-log", target: "checkin-log-display", look: `the highlighted Show button`,

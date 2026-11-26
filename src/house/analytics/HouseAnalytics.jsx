@@ -24,7 +24,8 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, FileText, BarChart3, LayoutGrid } from "lucide-react";
-import { HouseScope } from "@/house/tokens/HouseRoot";
+import { HouseScope, useHouse } from "@/house/tokens/HouseRoot";
+import { readableOnAll } from "@/house/tokens/contrast";
 import { Button, IconButton } from "@/house/kit/Button";
 import { Panel } from "@/house/kit/Panel";
 import { Segmented } from "@/house/kit/Choices";
@@ -60,10 +61,21 @@ import "@/house/kit/panels.css";
 import "@/house/analytics/analytics.css";
 
 const HOUR_MS = 3600000;
-// The feelings legend: house colours only (the default look: green, the
-// periwinkle wave, the amber accent, the note cream).
-const FEEL_TOKENS = ["var(--house-good)", "var(--house-wave)", "var(--house-accent)", "var(--house-note)"];
-const TONE = { accent: "var(--house-accent)", good: "var(--house-good)", wave: "var(--house-wave)" };
+// The board's colours: house colours only (the default look: the amber
+// accent, the periwinkle wave, green, the note cream, the warning red),
+// each kept at 3:1 against the panel so a dark wave or note still reads,
+// as the kit's charts do.
+const TONE_KEYS = ["accent", "wave", "good", "note", "danger"];
+function useBoardColours() {
+  const r = useHouse()?.roles || {};
+  const deps = TONE_KEYS.map((k) => r[k]).concat(r.panel, r.page, r.sunken);
+  return useMemo(() => {
+    const bgs = [r.panel, r.sunken || r.page].filter(Boolean);
+    const out = {};
+    for (const k of TONE_KEYS) out[k] = r[k] && bgs.length ? readableOnAll(r[k], bgs, 3) : `var(--house-${k})`;
+    return out;
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps -- deps are the role colours themselves
+}
 
 const isoDay = (d) => dayKey(d);
 const dayDate = (k, end = false) => { const [y, m, d] = String(k).split("-").map(Number); return end ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d); };
@@ -224,6 +236,8 @@ function Board({ size, data, kind, anchor, weekStartsOn, from, to, customRange, 
   const keys = useMemo(() => periodDayKeys(from, to), [from, to]);
   const todayKey = dayKey(Date.now());
   const noun = nounOf(kind);
+  const col = useBoardColours();
+  const FEEL = [col.good, col.wave, col.accent, col.note];
 
   // Whose: a record counts for them when it names them, or (as the old
   // analytics do) when they were in front at the time.
@@ -251,7 +265,7 @@ function Board({ size, data, kind, anchor, weekStartsOn, from, to, customRange, 
     const grid = feelingCells({ keys, byDay, todayKey, weekStartsOn });
     return { legend, grid };
   }, [emotionCheckIns, range, keep, keys, todayKey, weekStartsOn]);
-  const feelColour = (label) => { const i = feel.legend.indexOf(label); return i >= 0 ? FEEL_TOKENS[i] : "var(--house-muted)"; };
+  const feelColour = (label) => { const i = feel.legend.indexOf(label); return i >= 0 ? FEEL[i] : "var(--house-muted)"; };
 
   const pairs = useMemo(() => coFrontingPairs({ sessions, range }), [sessions, range]);
   const grid = useMemo(() => togetherGrid(togetherIds({ fronters: frontRows.map((r) => r.alter.id), pairs, whoseId }).filter((id) => altersById[id]), pairs), [frontRows, pairs, whoseId, altersById]);
@@ -356,13 +370,13 @@ function Board({ size, data, kind, anchor, weekStartsOn, from, to, customRange, 
 
       <Panel className="han-pn han-span2" title={`Symptoms over ${span}`} tools={<span className="han-note">{whoseName ? `${whoseName}, average 1 to 5` : "average 1 to 5"}</span>}>
         {symptomBars.some((b) => b.value != null)
-          ? <Bars points={symptomBars} max={5} colour="var(--house-danger)" label="Average symptom rating" unit="of 5" axis />
+          ? <Bars points={symptomBars} max={5} colour={col.danger} label="Average symptom rating" unit="of 5" axis />
           : <p className="han-empty">{emptyWords("symptoms", terms)}</p>}
       </Panel>
 
       <Panel className="han-pn" title="Sleep" tools={<span className="han-note">{whoseName ? "everyone's hours a night" : "hours a night"}</span>}>
         {sleepBars.some((b) => b.value != null)
-          ? <Bars points={sleepBars} max={10} colour="var(--house-wave)" label="Hours of sleep a night" unit="h" axis={false} />
+          ? <Bars points={sleepBars} max={10} colour={col.wave} label="Hours of sleep a night" unit="h" axis={false} />
           : <p className="han-empty">{emptyWords("sleep", terms)}</p>}
       </Panel>
 
@@ -370,7 +384,7 @@ function Board({ size, data, kind, anchor, weekStartsOn, from, to, customRange, 
         <div className="han-noticed">
           {noticed.map((n) => (
             <div key={n.id}>
-              <span className="han-big" style={{ color: TONE[n.tone] }}>{n.big}</span>
+              <span className="han-big" style={{ color: col[n.tone] }}>{n.big}</span>
               <span className="han-words">{n.words}</span>
             </div>
           ))}
