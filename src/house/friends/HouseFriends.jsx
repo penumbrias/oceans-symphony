@@ -275,7 +275,7 @@ export default function HouseFriends({ size = "full", tokens }) {
           <>
             <div className="hfr-tabs">
               <PageTabs label="Friends views" value={tab} onChange={setTab}
-                tabs={[{ id: "friends", label: "Friends", tour: "friends-tab" }, { id: "sharing", label: "Sharing", tour: "friends-sharing-tab" }]} />
+                tabs={[{ id: "friends", label: "Friends" }, { id: "sharing", label: "Sharing" }]} />
             </div>
             <div className="hfr-floor">{tab === "friends" ? list : sharing}</div>
           </>
@@ -485,7 +485,7 @@ function FriendPanels({ identity, phone, onRemoved, ...props }) {
             {v.pushReady === false && friend.notifyOnChange ? <span className="hfr-dim hfr-small">Push notifications aren't on here. Settings → Reminders turns them on.</span> : null}
           </span>
         </div>
-        <p className="hfr-sunk" data-tour="friends-preview">{`Right now they would see: ${seeWords(view, terms)}.`}</p>
+        <p className="hfr-sunk">{`Right now they would see: ${seeWords(view, terms)}.`}</p>
         {levelsPart}
         {hidePart}
       </div>
@@ -646,7 +646,7 @@ function MemberLevelsPanel({ terms }) {
   const live = alters.filter((a) => !a.is_archived);
   return (
     <Panel className="hfr-pn" title="Member levels" tools={<Button rank="quiet" icon={Settings2} onClick={() => setManage(true)}>Manage levels</Button>}>
-      <div className="hfr-body hfr-body--tight">
+      <div className="hfr-body hfr-body--tight" data-tour="friends-member-levels">
         <p className="hfr-p hfr-dim hfr-small">{`Levels decide what a friend sees of each ${terms.alter} (name, pronouns, bio…). ${terms.Alters} are private until you put them in a level.`}</p>
         {levels.length === 0 ? <p className="hfr-p hfr-dim">No levels yet. Manage levels makes some.</p> : (
           <ul className="hfr-lvls" aria-label="Member levels">

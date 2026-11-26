@@ -97,7 +97,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 | Room (routes) | Functions | Records | Write path | New home | Status |
 |---|---|---|---|---|---|
 | Contacts (`/contacts`, `/contacts/:id`) | Directory, categories, custom fields, archive, safety and awareness levels, boundaries, emergency dial [7.1, 7.2, 7.4] | Contact* | `contacts.js`, `contactFields.js`, `deleteContact` | 5.3 (emergency dial also in 3.1) | old |
-| Friends (`/friends`) | Codes, tiered disclosure, presence sharing, E2E, inbound hygiene [11.1] | FriendIdentity (device-bound) | `friendsApi.js` | 5.3 | old |
+| Friends (`/friends`) | Codes, tiered disclosure, presence sharing, E2E, inbound hygiene [11.1] | FriendIdentity (device-bound) | `friendsApi.js`; the page's effects and handlers `useFriendsPage`, one friend `useFriendView`, words `friendsView.js`, the push's rule `friendFronters.js` (`applyShareMode`, `perFriendView`, `whatFriendSees`) | 5.3 | rebuilt (5.3: Friends room, board 22: the list (rows, requests in and out, Add a friend, your code and Copy, Visible as), the open friend (verified, safety number, remove with confirm; who's fronting for them; What they see of you: level, override, notify, the live "right now they would see", levels and the hide list; their profile and shared members), the sharing column (Sharing levels, Show when fronting, member levels, how it works); Friends · Sharing on a phone, the friend in the history state. Same relay calls and writes as the old page; the setup/add dialogs, privacy and E2E cards, level managers and alter trees are the shared old ones) |
 
 ## H. Get through the hard moment (latency-critical)
 
