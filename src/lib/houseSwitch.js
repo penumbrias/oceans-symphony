@@ -231,9 +231,21 @@ export function houseNotebookRoom(pathname) {
   return p === "/goals";
 }
 
+// ── The house's Settings room (board 07, board 10's shell) ─────────────
+// With the new house on, /settings is drawn by the house itself
+// (src/house/settings/): the section list with Find, the open page in the
+// middle, the live Preview beside the look pages; on a phone the list
+// drills into each page. The pages' own contents are the old settings
+// components (one catalogue, settingsPages.jsx). The old page is not
+// mounted (HouseRoomGate); with the switch off it runs exactly as before.
+export function houseSettingsRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/settings";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────

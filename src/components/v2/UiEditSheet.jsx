@@ -2113,7 +2113,10 @@ function PageLookTab({ settingsRow, page }) {
   );
 }
 
-export default function UiEditSheet() {
+// `renderTabs` (optional): the new house's Settings room draws the tab strip
+// itself (board 10's file tabs) with `({ tabs, value, onChange })`. Without
+// it (everywhere else) the strip is the shared TabBar, exactly as before.
+export default function UiEditSheet({ renderTabs } = {}) {
   const v2 = useV2Display();
   const qc = useQueryClient();
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
@@ -2211,11 +2214,11 @@ export default function UiEditSheet() {
         <>
           {/* The tab strip stays put while the panel scrolls (the hosts give it
               a scrolling container with 16px side padding, hence the -mx-4). */}
-          {!stacked && (
+          {!stacked && (renderTabs ? renderTabs({ tabs, value: tab, onChange: pickTab }) : (
             <div className="sticky -top-1 z-10 -mx-4 bg-background">
               <TabBar tabs={tabs} value={tab} onChange={pickTab} />
             </div>
-          )}
+          ))}
           <div role={stacked ? undefined : "tabpanel"} aria-labelledby={stacked ? undefined : `inspector-tab-${tab}`} className="pt-2">
             {head("text")}{show("text") && <TextTab v2={v2} />}
             {head("shape")}{show("shape") && <ShapeTab v2={v2} />}
