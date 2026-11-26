@@ -164,7 +164,7 @@ test("both frames mount both rooms; the phone runs them edge to edge", () => {
     assert.ok(t.includes("house/write/HouseJournals") && t.includes("house/write/HouseChat"), `${f} loads the rooms`);
     assert.ok(/writeRoom === "journals"/.test(t) && /writeRoom === "chat"/.test(t), `${f} mounts them`);
   }
-  assert.ok(/altersRoom \|\| writeRoom \? "px-0"/.test(read("src/house/phone/HousePhoneFrame.jsx")));
+  assert.ok(/altersRoom \|\| writeRoom( \|\| notebookRoom)? \? "px-0"/.test(read("src/house/phone/HousePhoneFrame.jsx")));
   assert.ok(/ownDocks[^;]*writeRoom/.test(read("src/house/frame/HouseFrame.jsx")), "the room draws its own side panels");
 });
 

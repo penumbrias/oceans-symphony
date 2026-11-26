@@ -219,9 +219,21 @@ export function houseWriteRoom(pathname) {
   return null;
 }
 
+// ── The house's Notebook room (boards 18, 19 and 20) ────────────────────
+// With the new house on, /goals (the Notebook: pages, notes & lists, flash
+// cards) is drawn by the house itself (src/house/notebook/). The old page
+// is not mounted (HouseRoomGate); the person's own boards (the Notebook's
+// front board, a page's own layout, the Notes & lists board) stay
+// reachable inside the room. /notes still redirects to /goals?notes=1.
+// With the switch off the old page runs exactly as before.
+export function houseNotebookRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/goals";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────

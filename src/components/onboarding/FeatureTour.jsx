@@ -952,6 +952,36 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals", target: "goals-page", look: `the Notebook page`,
     }),
     s("activities", {
+      emoji: "📒", title: "Your pages, with their balances",
+      body: `In the new house, Pages lists every goal, note, list and flash-card deck with how far along it is. Drag a page onto another to nest it there.`,
+      route: "/goals", target: ["notebook-pages", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "📅", title: "This week to all time",
+      body: `The range row (This week, 1M, 6M, 1Y, All time) changes what the Notebook's numbers and its chart of time on pages cover.`,
+      route: "/goals", target: ["notebook-ranges", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "🧾", title: "The ledger",
+      body: `The ledger lists everything that moved a page: time, words and study sessions, newest first. Tap By on a row to change which ${t.alters} did it.`,
+      route: "/goals", target: ["notebook-ledger", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "🎯", title: "This week's targets",
+      body: `Every weekly point on your pages, with how far you've got. The white tick shows where an even pace would be by now. Behind is fine.`,
+      route: "/goals", target: ["notebook-targets", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "📈", title: "A page at a glance",
+      body: `In the new house, a page's top shows its status, day and tags, then the words or points so far against an even pace to its day.`,
+      route: "/goals", target: ["notebook-page-head", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "➕", title: "Start something new",
+      body: `On a phone in the new house, + at the top of the Notebook starts a page, a story, a note or a flash-card deck.`,
+      route: "/goals", target: ["notebook-new", "goals-page"],
+    }),
+    s("activities", {
       emoji: "🧩", title: "Lay out the Notebook",
       body: `The Notebook's front page is made of widgets too: Add to the Notebook and your goal cards. Tap the pencil (Edit page) to move them, or add pictures, notes or anything else beside them.`,
       route: "/goals", target: ["notebook-layout-btn", "notebook-tabs", "goals-page"],

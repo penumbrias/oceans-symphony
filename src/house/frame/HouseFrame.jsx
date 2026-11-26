@@ -45,7 +45,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom } from "@/lib/houseSwitch";
 import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
@@ -87,6 +87,7 @@ const HouseAlters = React.lazy(() => import("@/house/alters/HouseAlters"));
 const HouseAlterProfile = React.lazy(() => import("@/house/alters/HouseAlterProfile"));
 const HouseJournals = React.lazy(() => import("@/house/write/HouseJournals"));
 const HouseChat = React.lazy(() => import("@/house/write/HouseChat"));
+const HouseNotebook = React.lazy(() => import("@/house/notebook/HouseNotebook"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 const RAIL_REM = 3.5;
@@ -267,7 +268,9 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
   const altersRoom = houseAltersRoom(location.pathname);
   // The Write room (boards 05 and 14): Journals and System chat.
   const writeRoom = houseWriteRoom(location.pathname);
-  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom;
+  // The Notebook room (boards 18, 19 and 20): pages, notes & lists, flash cards.
+  const notebookRoom = houseNotebookRoom(location.pathname);
+  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom || notebookRoom;
   const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
@@ -476,6 +479,11 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
           {writeRoom === "chat" ? (
             <Suspense fallback={null}>
               <HouseChat size={size} tokens={tokens} />
+            </Suspense>
+          ) : null}
+          {notebookRoom ? (
+            <Suspense fallback={null}>
+              <HouseNotebook size={size} tokens={tokens} />
             </Suspense>
           ) : null}
           {homeRoom ? (

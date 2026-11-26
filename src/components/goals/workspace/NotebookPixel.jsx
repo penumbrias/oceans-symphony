@@ -29,25 +29,14 @@ import MapView from "./MapView";
 import ActivityStrip from "./ActivityStrip";
 import { PageNote, Connections } from "./PageView";
 import { useWorkspace } from "./WorkspaceContext";
+import { PAGE_COLORS, LIST_COLOR, DECK_COLOR, RANGES, RANGE_WORDS, VS_WORDS } from "@/house/notebook/notebookModel";
 
-// Series colours for pages (a page's sections take its colour), lists and
-// decks — the mockup's palette. Alters keep their own colours.
-const PAGE_COLORS = ["#c98bb9", "#5aa0c8", "#9cc46b", "#e8a65d", "#86b88f", "#e3c16f", "#7fb3a6", "#b48ad6"];
-const LIST_COLOR = "#f4e3b5";
-const DECK_COLOR = "#9cc46b";
-
+// Series colours, the ranges and their words: one copy, shared with the
+// house's Notebook room (src/house/notebook/notebookModel.js).
 const HAPPENED = new Set([ACTIVITY_STATUSES.LOGGED, ACTIVITY_STATUSES.DONE, ACTIVITY_STATUSES.PARTIAL]);
 const DAY = 86400000;
 
-export const RANGES = [
-  { id: "week", label: "This week", short: "Week" },
-  { id: "1m", label: "1M", short: "1M" },
-  { id: "6m", label: "6M", short: "6M" },
-  { id: "1y", label: "1Y", short: "1Y" },
-  { id: "all", label: "All time", short: "All" },
-];
-const RANGE_WORDS = { week: "this week", "1m": "the last month", "6m": "the last 6 months", "1y": "the last year", all: "all time" };
-const VS_WORDS = { week: "vs last week", "1m": "vs the month before", "6m": "vs the 6 before", "1y": "vs the year before" };
+export { RANGES };
 
 // ── Colours ─────────────────────────────────────────────────────────
 
