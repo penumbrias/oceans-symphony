@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "improve", text: "New house: Analytics, Reminders and Notebook drop the title that repeated the page tab, and the Analytics toolbar is slimmer." },
       { type: "feature", text: "New house: Reminders is redrawn, with Due now and your reminders side by side and a full reminder editor on phone and computer." },
       { type: "feature", text: "New house: Analytics is a board of panels for any week, month, year or dates you pick, with the full views one tap away under Look closer." },
       { type: "feature", text: "New house: Display options opens on a Look tab like the mockup, where you can change any colour, the fonts, border, bevel, corners, icons, header wave and Penumblob's size." },

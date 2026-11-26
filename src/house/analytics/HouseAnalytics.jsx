@@ -153,7 +153,7 @@ export default function HouseAnalytics({ size = "full", tokens }) {
 
   const toolbar = (
     <div className="han-toolbar" role="toolbar" aria-label="Analytics range" data-tour="analytics-range">
-      {phone ? null : <h1 className="han-title">Analytics</h1>}
+      {phone ? null : <h1 className="sr-only">Analytics</h1>}
       <div className="han-ranges">
         <Segmented label="Range" value={kind} onChange={pickKind} options={ANALYTICS_RANGES.map((r) => ({ value: r.id, label: r.label }))} />
       </div>
