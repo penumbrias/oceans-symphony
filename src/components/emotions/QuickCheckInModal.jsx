@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { saveCheckInJournal } from "@/lib/journalEntry";
 import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
 import { applyFrontSelection } from "@/lib/setFront";
 import { useTriggerCategories } from "@/lib/useTriggerCategories";
@@ -29,13 +30,13 @@ import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import { AlterAssignPopup } from "@/components/shared/AlterAssignChip";
 import RatingMeter from "@/components/emotions/RatingMeter";
-import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled } from "@/lib/quickCheckinPrefs";
+import { readQuickCheckinSliderEnabled, writeQuickCheckinSliderEnabled, readEmotionPickerMode, writeEmotionPickerMode } from "@/lib/quickCheckinPrefs";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { defaultEmotionAlterIds, checkInEmotionDefault, applyAttributionPolicy } from "@/lib/emotionAttribution";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
-import { loadSystemDistressSet, mapEmotionsToGroundingStates, emotionsAreDistressing } from "@/lib/emotionDistress";
-import { logEmotionCheckIn, logSymptomCheckIns, logLocation, logDiaryCard } from "@/lib/checkinEntry";
+import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
+import { logEmotionCheckIn, logSymptomCheckIns, logLocation, logDiaryCard, editEmotionCheckIn, checkInNoteFields, syncCheckInSymptoms } from "@/lib/checkinEntry";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHoldDragLevel, useGroupLevelRail, FrontLevelRail, useFrontOptionsMenu } from "@/components/fronting/FrontLevelRail";
@@ -48,6 +49,10 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook } from "@/lib/uiLook";
+import { useHouseSheet } from "@/lib/houseSwitch";
+import useKeyboardInset from "@/hooks/useKeyboardInset";
+import "@/styles/pixel/phone3.css";
 
 // One row in the Quick Check-In "Who's fronting?" picker. Uses the SAME
 // hold-and-slide level rail as every other {front} surface (the swipe
@@ -125,6 +130,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const enabledSectionIds = useMemo(() => enabledCheckinSectionIds(pickPrimarySystemSettings(ssList)), [ssList]);
+  // Pixel look: drawn as the CheckInPhone mockup (title-bar sections with a
+  // summary, Cancel · title · Save). Same state and handlers.
+  // The new house draws the same layout (boards 16 and 17) in its own paint,
+  // whatever the person's look is (src/house/checkin/HouseSheets.jsx).
+  const houseSheet = useHouseSheet();
+  const keyboardInset = useKeyboardInset();
+  const pixel = useUiLook() === "pixel" || !!houseSheet;
+  // Board 16 puts Wheel | List on the Feeling head: the same one setting
+  // the check-in manager sets (quickCheckinPrefs.js).
+  const [pickerMode, setPickerMode] = useState(() => readEmotionPickerMode());
+  useEffect(() => {
+    if (!houseSheet) return undefined;
+    const on = () => setPickerMode(readEmotionPickerMode());
+    window.addEventListener("symphony-emotion-picker-mode", on);
+    return () => window.removeEventListener("symphony-emotion-picker-mode", on);
+  }, [houseSheet]);
   const visiblePills = useMemo(() => PILLS.filter((p) => enabledSectionIds.includes(p.id)), [enabledSectionIds]);
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   // The section the bottom prev/next arrows currently step from. Tracks the
@@ -355,6 +376,23 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     if (id === "fronting") setHadFrontingOpen(true);
   };
 
+  // Pixel section heads say what's in each section, like the mockup.
+  const sectionSummary = (id) => {
+    switch (id) {
+      case "feeling": return selectedEmotions.length ? `${selectedEmotions.length} picked` : "none";
+      case "fronting": {
+        const names = [...selectedAlterIds].map((x) => activeAlters.find((a) => a.id === x)).filter(Boolean).map((a) => formatAlter(a));
+        return names.length ? names.join(", ") : "nobody";
+      }
+      case "activity": return selectedActivityCategories.length ? `${selectedActivityCategories.length} picked` : "none";
+      case "diary": return hasDiaryData(diaryData) ? "filled in" : "not filled";
+      case "note": { const n = note.trim(); return n ? (n.length > 22 ? `${n.slice(0, 22)}…` : n) : "empty"; }
+      case "contacts": return selectedContactIds.length ? `${selectedContactIds.length} with you` : "alone";
+      case "location": return locationName.trim() || (locationCategory ? getCategoryMeta(locationCategory)?.label || "" : "") || "none";
+      default: return "";
+    }
+  };
+
   // Each section is a worded row that opens in place, one list top to
   // bottom (UI critique H4) — the old chip row plus a Prev/Next pager were
   // two ways of moving around the same form, and nothing slides now.
@@ -364,6 +402,27 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     const Icon = pill.icon;
     const open = openSections.has(id);
     const label = id === "fronting" ? terms.Fronting : pill.label;
+    if (pixel) {
+      const head = (
+        <button type="button" onClick={() => toggleSection(id)} aria-expanded={open}
+          className="px-ci-head">
+          <span className="px-ci-chev" aria-hidden>{open ? "v" : ">"}</span>
+          <span className="px-ci-label">{id === "fronting" ? `Who's ${terms.fronting}` : houseSheet && id === "symptoms" ? "Symptoms and habits" : label}</span>
+          <span className="px-ci-sum">{sectionSummary(id)}</span>
+        </button>
+      );
+      if (!(houseSheet && id === "feeling" && open)) return head;
+      return (
+        <div className="hcs-headrow" data-open="">
+          {head}
+          <span className="hcs-mode" role="group" aria-label="Feelings shown as">
+            <button type="button" aria-pressed={pickerMode !== "classic"} onClick={() => writeEmotionPickerMode("wheel")}>Wheel</button>
+            <span aria-hidden>|</span>
+            <button type="button" aria-pressed={pickerMode === "classic"} onClick={() => writeEmotionPickerMode("classic")}>List</button>
+          </span>
+        </div>
+      );
+    }
     return (
       <button type="button" onClick={() => toggleSection(id)} aria-expanded={open}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-sm transition-colors ${open ? "border-primary/40 bg-primary/5 text-foreground" : "border-border/50 bg-card text-muted-foreground hover:text-foreground"}`}>
@@ -988,90 +1047,37 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // a new one if the noteOut crossed the threshold mid-edit, or
         // detach the link if the noteOut shrank below the threshold.
         const trimmedNote = noteOut.trim();
-        const wc = trimmedNote ? trimmedNote.split(/\s+/).filter(Boolean).length : 0;
-        let journalEntryId = editingEntry.journal_entry_id || null;
-        if (trimmedNote && wc > 50) {
-          if (journalEntryId) {
-            try {
-              await base44.entities.JournalEntry.update(journalEntryId, { content: trimmedNote });
-            } catch {
-              const entry = await base44.entities.JournalEntry.create({
-                title: `Check-in - ${new Date(now).toLocaleDateString()}`,
-                content: trimmedNote,
-                entry_type: "personal",
-                tags: ["checkin"],
-                folder: "Check-In Journals",
-                created_date: now,
-                entry_date: now, // create() re-stamps created_date; this keeps the chosen time
-              });
-              journalEntryId = entry.id;
-            }
-          } else {
-            const entry = await base44.entities.JournalEntry.create({
-              title: `Check-in - ${new Date(now).toLocaleDateString()}`,
-              content: trimmedNote,
-              entry_type: "personal",
-              tags: ["checkin"],
-              folder: "Check-In Journals",
-              created_date: now,
-              entry_date: now, // create() re-stamps created_date; this keeps the chosen time
-            });
-            journalEntryId = entry.id;
-          }
-        }
-        const noteForCheckIn = trimmedNote
-          ? (wc <= 50 ? trimmedNote : trimmedNote.substring(0, 300) + "...")
-          : null;
-        await base44.entities.EmotionCheckIn.update(editingEntry.id, {
+        const noteFields = await checkInNoteFields(trimmedNote, {
+          journalEntryId: editingEntry.journal_entry_id || null,
+          title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+          at: now,
+        });
+        // editEmotionCheckIn reads the row fresh and writes only what the
+        // person changed since the modal opened (baseline), restamping
+        // is_distress from the feelings. The emotion_alters map and the
+        // company list are restated in full (empty clears them).
+        await editEmotionCheckIn(editingEntry.id, {
+          baseline: editingEntry,
           timestamp: now,
           emotions: selectedEmotions,
-          is_distress: emotionsAreDistressing(selectedEmotions, customEmotions),
-          fronting_alter_ids: selectedAlters,
-          // Always write the map on edit (empty object clears removed
-          // overrides — an edit is an explicit re-statement of the record).
+          customEmotions,
+          frontingAlterIds: selectedAlters,
           emotion_alters: resolvedEmotionAlters(),
-          note: noteForCheckIn,
-          journal_entry_id: journalEntryId,
-          // Like emotion_alters above: an edit is an explicit re-statement,
-          // so the company list is always written (empty clears it).
+          ...noteFields,
           contact_ids: selectedContactIds,
         });
         await recordAuthoredText({ ...preparedNote, alters, sourceType: "checkin", sourceId: editingEntry.id, sourceLabel: "Check-in note", navigatePath: `/checkin-log?id=${editingEntry.id}` });
         queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
-        // Propagate symptom changes attached to this check-in so
-        // edits actually reflect on the Timeline / Current symptoms
-        // panel. Compare draft against the originals we loaded; for
-        // each row in the draft, update an existing record or
-        // create a fresh one. Delete any originals the user removed.
+        // The symptoms attached to this check-in are restated: edited in
+        // place, removed ones to the trash, new ones logged with the link.
         try {
-          const existing = await base44.entities.SymptomCheckIn.filter({ check_in_id: editingEntry.id });
-          const existingBySymptomId = new Map((existing || []).map((r) => [r.symptom_id, r]));
-          const draftBySymptomId = new Map(symptomCheckIns.map((sc) => [sc.symptom_id, sc]));
-          for (const row of existing || []) {
-            if (!draftBySymptomId.has(row.symptom_id)) {
-              await base44.entities.SymptomCheckIn.delete(row.id);
-            } else {
-              const sc = draftBySymptomId.get(row.symptom_id);
-              await base44.entities.SymptomCheckIn.update(row.id, {
-                severity: sc.severity,
-                timestamp: now,
-                fronting_alter_ids: sc.alter_ids ?? selectedAlters,
-              });
-            }
-          }
-          for (const sc of symptomCheckIns) {
-            if (existingBySymptomId.has(sc.symptom_id)) continue;
-            await base44.entities.SymptomCheckIn.create({
-              symptom_id: sc.symptom_id,
-              severity: sc.severity,
-              timestamp: now,
-              fronting_alter_ids: sc.alter_ids ?? selectedAlters,
-              check_in_id: editingEntry.id,
-            });
-          }
+          await syncCheckInSymptoms(
+            editingEntry.id,
+            symptomCheckIns.map((sc) => ({ symptomId: sc.symptom_id, severity: sc.severity, frontingAlterIds: sc.alter_ids ?? selectedAlters })),
+            { timestamp: now, frontingAlterIds: selectedAlters },
+          );
         } catch (e) {
           // Non-fatal — the emotion edit still saved.
-           
           console.warn("Symptom edit propagation failed", e);
         }
         // Activities/diary/location added during edit are new records —
@@ -1159,16 +1165,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         const wordCount = noteOut ? noteOut.trim().split(/\s+/).filter(Boolean).length : 0;
         let journalEntryId = null;
         if (noteOut && wordCount > 50) {
-          const entry = await base44.entities.JournalEntry.create({
-            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+          journalEntryId = await saveCheckInJournal({
             content: noteOut,
-            entry_type: "personal",
-            tags: ["checkin"],
-            folder: "Check-In Journals",
-            created_date: now,
-            entry_date: now, // create() re-stamps created_date; this keeps the chosen time
+            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+            at: now,
           });
-          journalEntryId = entry.id;
         }
         // Per-emotion assignment overrides (only for still-selected emotions
         // with a non-empty explicit assignment — everything else inherits).
@@ -1313,7 +1314,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0"
+        className={`max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0${houseSheet ? " hcs-ci" : pixel ? " px-ci" : ""}`}
+        {...(houseSheet ? houseSheet.attrs : null)}
+        style={houseSheet ? { ...houseSheet.style, ...houseSheet.place("checkin", keyboardInset) } : undefined}
+        // Pixel look: Cancel sits top-left in place of the corner X.
+        showCloseButton={!pixel}
         // Block accidental dismissal — testers were tapping off-canvas
         // mid-entry and losing the whole check-in. The user has to use
         // the X, Cancel, or Save button to close. Escape is blocked for
@@ -1340,6 +1345,41 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             without scrolling past the whole form (tap-fatigue from the
             old bottom-footer placement was producing accidental early
             saves). */}
+        {pixel ? (
+          <div className="px-ci-top">
+            <div className="px-ci-toprow">
+              <button type="button" className="px-p3-btn px-ci-topbtn" onClick={onClose}>Cancel</button>
+              <DialogTitle className="px-ci-title">{isEditing ? "Edit check\u2011in" : "Quick check\u2011in"}</DialogTitle>
+              <button type="button" className="px-p3-btn px-ci-topbtn on" onClick={handleSubmit} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 animate-spin mr-1 inline" />}
+                {isEditing ? "Save changes" : "Save"}
+              </button>
+            </div>
+            <DialogDescription asChild>
+              <div className="px-ci-subrow">
+                {!isEditing && (
+                  <button type="button" className="px-p3-btn px-ci-manage"
+                    onClick={() => { onClose(); navigate("/manage-checkin"); }}
+                    aria-label="Open check-in manager" title="Manage check-in">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </button>
+                )}
+                <input
+                  type="datetime-local"
+                  aria-label="Check-in date and time"
+                  value={entryTime}
+                  onChange={e => setEntryTime(e.target.value)}
+                  className="px-ci-when"
+                />
+                {!isEditing && lastCheckInAt && (
+                  <span className="px-ci-last">
+                    last check-in {formatDistanceToNow(new Date(lastCheckInAt), { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+            </DialogDescription>
+          </div>
+        ) : (
         <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-border/50 space-y-3">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1383,9 +1423,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             </Button>
           </div>
         </div>
+        )}
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
+        <div className={`flex-1 overflow-y-auto min-h-0 space-y-3 ${houseSheet ? "hcs-ci-body" : pixel ? "px-ci-body" : "px-6 py-4"}`}>
           {/* Feeling */}
           {sectionRow("feeling")}
           {openSections.has("feeling") &&
@@ -1404,11 +1445,17 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   onAddCustom={(label, category, color) => addCustomEmotionMutation.mutate({ label, category, color })}
                   onEmotionHold={alters.length > 0 ? holdEmotionOpen : null}
                   emotionDots={emotionDots}
-                  holdAriaLabel={emotionHoldAria} />
+                  holdAriaLabel={emotionHoldAria}
+                  hint={pixel && alters.length > 0 ? `Hold a feeling to choose which ${terms.alters} feel it. A dot means it isn't everyone in the check-in.` : null} />
                   <AlterAssignPopup
                     open={!!holdEmotion}
                     onOpenChange={(o) => { if (!o) setHoldEmotion(null); }}
                     title={holdEmotion ? `Who feels ${holdEmotion}?` : null}
+                    titleNode={holdEmotion ? <>Who feels <span className="px-ci-accent">{holdEmotion}</span>?</> : null}
+                    footer={houseSheet
+                      ? houseSheet.whoFooter({ defaultIds: defaultEmotionIds, frontingIds: selectedAlters, names: Object.fromEntries(alters.map((a) => [a.id, formatAlter(a)])), terms })
+                      : `Feelings you don't hold belong to whoever "Entries belong to" says in Settings. You can change this later from the check-in log.`}
+                    rowNote={houseSheet ? (a) => houseSheet.whoRowNote(a.id, { fronting: selectedAlterIds, levelOf: levelCfg.levels.length > 1 ? levelLabelOf : null, topLevel: levelCfg.levels[0] ? frontLevelLabel(levelCfg.levels[0], terms) : null, terms }) : null}
                     alters={alters}
                     value={holdEmotion ? (emotionAlters[holdEmotion] ?? null) : null}
                     defaultIds={defaultEmotionIds}
@@ -1426,8 +1473,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 <div className="os-side-rating flex flex-col items-center gap-1.5 pl-2.5 border-l border-border/40 flex-shrink-0">
                   <button type="button" onClick={() => setShowSliderPicker(true)}
                     aria-label={`Rating tracks ${sliderSymptom?.label || "Energy"} — change`}
-                    className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground max-w-[3.75rem] truncate leading-tight text-center flex items-center gap-0.5">
-                    {sliderSymptom?.label || "Energy"}<ChevronRight className="w-2.5 h-2.5 rotate-90 flex-shrink-0" />
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground max-w-[3.75rem] leading-tight text-center flex items-center gap-0.5">
+                    <span className="min-w-0 line-clamp-2 break-words">{sliderSymptom?.label || "Energy"}</span><ChevronRight className="w-2.5 h-2.5 rotate-90 flex-shrink-0" />
                   </button>
                   <RatingMeter
                     value={sliderValue}
@@ -1442,7 +1489,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           }
 
           {/* Fronting */}
-          {visiblePills.some((p) => p.id !== "feeling") && (
+          {!pixel && visiblePills.some((p) => p.id !== "feeling") && (
             <p className="text-xs font-medium text-muted-foreground pt-1">Add more (optional)</p>
           )}
           {sectionRow("fronting")}
@@ -1834,6 +1881,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 </a>
               )}
             </div>
+          )}
+          {pixel && !isEditing && (
+            <p className="px-ci-foot">Pick which sections show, and their order, in Manage check-in.</p>
           )}
         </div>
 

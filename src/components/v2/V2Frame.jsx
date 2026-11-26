@@ -18,11 +18,11 @@
 
 import BulletinComposerModal from "@/components/bulletin/BulletinComposerModal";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { clockOpts } from "@/lib/timeFormat";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -42,7 +42,6 @@ import useLongPress from "@/hooks/useLongPress";
 import { V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
 import { isDesktop } from "@/lib/platform";
-import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT } from "@/lib/i18n";
 import { ALL_PAGES, DEFAULT_CONFIG, normalizeNavConfig, pageLabel } from "@/utils/navigationConfig";
@@ -65,7 +64,7 @@ import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/
 import { IconSlot } from "@/components/shared/LucideByName";
 import { readPinnedBar, pinnedBarPatch, openBarsEditor } from "@/lib/barsModel";
 import { saveStatusNote } from "@/lib/checkinEntry";
-import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
+import { useFrontPresence, useClock } from "@/lib/useFrontPresence";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -74,12 +73,12 @@ import { mentionLogsQuery, pendingMentionsFor } from "@/lib/mentionNotices";
 // sheet is actually opened.
 const UiEditSheet = React.lazy(() => import("@/components/v2/UiEditSheet"));
 
-const KEY_ICONS = {
+export const KEY_ICONS = {
   quick_checkin: Heart, quick_note: PenLine, start_activity: Zap,
   start_symptom: ActivityIcon, quick_thing: CheckSquare, set_front: Users,
   active_now: null, // drawn by ActiveNowKeyFace (icon + count badge)
 };
-const KEY_LABEL_KEYS = {
+export const KEY_LABEL_KEYS = {
   quick_checkin: "capture.checkIn", quick_note: "capture.note",
   start_activity: "capture.activity", start_symptom: "capture.symptom",
   quick_thing: "capture.thing", set_front: "capture.front", active_now: "capture.active",
@@ -154,14 +153,6 @@ export function requestClassicHomeAction(navigate, pathname) {
   }
 }
 
-function useClock() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(id);
-  }, []);
-  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", ...clockOpts() });
-}
 
 // ── Display options ────────────────────────────────────────────────
 export const DOCK_KEY = "symphony_display_options_dock";
@@ -192,10 +183,10 @@ function OptionsSheet({ open, onClose }) {
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} hideHandle
+      <DrawerContent direction={dock} hideHandle className="os-insp"
         style={{ maxHeight: `${peekResize.peekH}vh`, height: `${peekResize.peekH}vh` }} {...sheetPortalGuards}>
         <PeekHandle resize={peekResize} dock={dock} />
-        <DrawerHeader className="pb-1">
+        <DrawerHeader className="os-insp-head pb-1">
           <div className="flex items-start justify-between gap-2">
             <span className="flex items-center gap-2 min-w-0">
               <button type="button" onClick={onClose} aria-label="Close"
@@ -217,7 +208,7 @@ function OptionsSheet({ open, onClose }) {
             </span>
           </div>
         </DrawerHeader>
-        <div className="px-4 overflow-y-auto overscroll-contain space-y-2 flex-1 min-h-0"
+        <div className="os-insp-body px-4 overflow-y-auto overscroll-contain space-y-2 flex-1 min-h-0"
           style={{ paddingBottom: "calc(var(--os-sab) + 24px)" }}>
           {/* The unified UI edit popup (docs/v2-edit-menu-spec.md) — the
               user's wireframed structure. Bars/layout controls stay in
@@ -366,7 +357,6 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
   const location = useLocation();
   const t = useT();
   const terms = useTerms();
-  const formatAlter = useAlterLabel();
   const clock = useClock();
   const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
   // Upper-left button. Its default icon is the app logo, so people read it
@@ -387,25 +377,8 @@ export function V2StatusLine({ settingsRow, uiV2, classicHost = false }) {
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { data: activeSessions = [] } = useQuery({
-    queryKey: ["activeFront"],
-    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
-  });
-  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: mentionLogs = [] } = useQuery(mentionLogsQuery);
-
-  const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
-  const fronters = activeSessions
-    .map((s) => ({ s, alter: altersById[s.alter_id || s.primary_alter_id] }))
-    .filter((x) => x.alter)
-    .sort((a, b) => (b.s.is_primary === true) - (a.s.is_primary === true));
-  const presenceText = fronters.length === 0
-    ? applyTerms(t("top.noFronter"), terms)
-    : fronters.length === 1
-      ? formatAlter(fronters[0].alter)
-      : `${formatAlter(fronters[0].alter)} +${fronters.length - 1}`;
-  // Unread for whoever is here now — the same rule as every other bell.
-  const hasUnread = pendingMentionsFor(mentionLogs, activeSessions.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean)).length > 0;
+  // Who's in front and the bell's dot: one copy, shared with the pixel header.
+  const { fronters, presenceText, hasUnread } = useFrontPresence();
 
   const openOptions = () => window.dispatchEvent(new CustomEvent("os-open-display-options"));
 
@@ -781,10 +754,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
   const savePos = async (pos) => {
     try {
       if (!settingsRow?.id) return;
-      await base44.entities.SystemSettings.update(settingsRow.id, {
-        ui_v2: { ...(settingsRow.ui_v2 || {}), dockPos: pos },
-      });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ ui_v2: { dockPos: pos } }, { queryClient: qc });
     } catch { /* best-effort */ }
   };
 
@@ -1139,7 +1109,7 @@ function TabButtons({ items, uiV2, isActive, navigate, t }) {
         return (
           <button key={item.id} type="button" role="tab" aria-selected={on}
             onClick={() => navigate(item.path)}
-            className="flex-1 basis-0 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden"
+            className="os-v2-tab flex-1 basis-0 min-w-[56px] flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden"
             style={{
               color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
               boxShadow: on ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
@@ -1166,7 +1136,7 @@ function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
             onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
             holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
             onTap={() => (k.id === "quick_note" ? onNote() : k.id === "active_now" ? onActive() : navigate(k.target))}
-            className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
+            className="os-qa-key flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
             style={{
               width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
               borderRadius: "var(--v2-radius)",
@@ -1178,7 +1148,7 @@ function QaKeys({ keys, uiV2, terms, t, navigate, onNote, onActive }) {
       })}
       <button type="button" onClick={() => navigate("/grounding")}
         aria-label={t("capture.support")} title={t("capture.support")}
-        className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+        className="os-qa-key os-qa-support flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
         style={{
           width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
           borderRadius: "var(--v2-radius)",
@@ -1327,8 +1297,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
   const altersPos = altersBarCfg.position;
   const setNavAlters = async (collapsed) => {
     if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, { enabled: true, collapsed }));
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettings((fresh) => pinnedBarPatch(fresh, { enabled: true, collapsed }), { queryClient: qc });
   };
   const toggleNavAlters = () => setNavAlters(!altersBarCfg.collapsed);
   // The split handle, the Set-Front key hold and the board all speak this
@@ -1414,8 +1383,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
         onToggle={(on) => setNavAlters(!on)}
         onSavePos={async (bubble) => {
           if (!settingsRow?.id) return;
-          await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, { bubble }));
-          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+          await writeSettings((fresh) => pinnedBarPatch(fresh, { bubble }), { queryClient: qc });
         }}
         onGear={() => openBarsEditor("alters")} />
     )}
@@ -1534,7 +1502,7 @@ export function V2BottomChrome({ uiV2, settingsRow, classicHost = false, insetLe
       // The rail takes over on wide screens; a bottom bar there is just a
       // phone habit stretched across a monitor.
       data-widget-content
-      className={`fixed left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+      className={`os-v2-bottom fixed left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
         ...barLookStyle(uiV2, "tabs"),
         left: insetLeft,

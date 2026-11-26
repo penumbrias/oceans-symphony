@@ -24,3 +24,22 @@ export async function createPresence(fields = {}) {
     resolved_alter_id: "",
   });
 }
+
+// Sensed again: one more sighting, appended onto a FRESH read so a second
+// device's (or a second tap's) sighting is never written over. The set-front
+// sheet's unsure path and the presence picker log through here.
+export async function notePresenceSighting(id, at = new Date().toISOString()) {
+  if (!id) throw new Error("No presence to note.");
+  const fresh = await base44.entities.Presence.get(id);
+  if (!fresh) throw new Error("That presence isn't here any more.");
+  const prev = Array.isArray(fresh.sightings) && fresh.sightings.length
+    ? fresh.sightings
+    : (fresh.timestamp ? [fresh.timestamp] : []);
+  return base44.entities.Presence.update(id, { sightings: [...prev, at], timestamp: at });
+}
+
+// An edit of a presence's own words: only the fields given are written.
+export async function updatePresence(id, fields = {}) {
+  if (!id) throw new Error("No presence to update.");
+  return base44.entities.Presence.update(id, fields);
+}

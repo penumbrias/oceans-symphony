@@ -6,15 +6,21 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import useKeyboardInset from "@/hooks/useKeyboardInset"
+import { useCloseOnSupportJump } from "@/lib/houseSwitch"
 
 // When the tour is active, disable modal mode so Radix doesn't apply
 // aria-hidden/inert to the tour card (which lives outside the dialog).
-const Dialog = ({ modal, ...props }) => (
-  <DialogPrimitive.Root
-    modal={window.__tourActive ? false : modal}
-    {...props}
-  />
-)
+// In the new house, arriving at Support closes it the way its own close
+// button would (useCloseOnSupportJump; the old house never sends that).
+const Dialog = ({ modal, ...props }) => {
+  useCloseOnSupportJump(props.open, props.onOpenChange)
+  return (
+    <DialogPrimitive.Root
+      modal={window.__tourActive ? false : modal}
+      {...props}
+    />
+  )
+}
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -25,6 +31,7 @@ const DialogClose = DialogPrimitive.Close
 const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
+    data-os-overlay=""
     className={cn(
       "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
@@ -53,6 +60,7 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
     )}
     <DialogPrimitive.Content
       ref={ref}
+      data-os-dialog=""
       // When the tour is active, block outside-click dismissal so tapping the
       // tour card's Next/Back/Skip buttons doesn't accidentally close the dialog.
       // Same for the floating notification layers (reminder toasts, mention
@@ -86,7 +94,7 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
         // clips — on landscape phones that meant cut-off, unreachable
         // controls in any dialog taller than ~340px. Dialogs that manage
         // their own internal scrolling override this via className.
-        "fixed left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "os-sheet fixed left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
         className
       )}
       {...props}>
@@ -127,7 +135,7 @@ DialogFooter.displayName = "DialogFooter"
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    className={cn("os-title text-lg font-semibold leading-none tracking-tight", className)}
     {...props} />
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName

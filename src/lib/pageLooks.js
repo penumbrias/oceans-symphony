@@ -13,7 +13,7 @@
 // Writes go through writePageLook: fresh settings row, one page's entry
 // replaced, the rest kept. A null entry removes the page's look.
 
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 
 export const PAGE_LOOKS_FIELD = "page_looks";
@@ -55,12 +55,15 @@ export async function writePageLook(rowOrId, pageId, change) {
   const id = rowOrId && typeof rowOrId === "object" ? rowOrId.id : rowOrId;
   if (!id) throw new Error("There's no settings record to save the page look to yet");
   if (!pageId) throw new Error("No page");
-  const row = await base44.entities.SystemSettings.get(id);
-  const all = row?.[PAGE_LOOKS_FIELD] && typeof row[PAGE_LOOKS_FIELD] === "object" ? { ...row[PAGE_LOOKS_FIELD] } : {};
-  const current = all[pageId] && typeof all[pageId] === "object" ? all[pageId] : null;
-  const next = typeof change === "function" ? change(current) : change;
-  if (next && typeof next === "object") all[pageId] = next;
-  else delete all[pageId];
-  await base44.entities.SystemSettings.update(id, { [PAGE_LOOKS_FIELD]: all });
+  // Through the one settings writer (fresh primary row, one queue).
+  let all = null;
+  await writeSettings((row) => {
+    all = row?.[PAGE_LOOKS_FIELD] && typeof row[PAGE_LOOKS_FIELD] === "object" ? { ...row[PAGE_LOOKS_FIELD] } : {};
+    const current = all[pageId] && typeof all[pageId] === "object" ? all[pageId] : null;
+    const next = typeof change === "function" ? change(current) : change;
+    if (next && typeof next === "object") all[pageId] = next;
+    else delete all[pageId];
+    return { [PAGE_LOOKS_FIELD]: all };
+  });
   return all;
 }

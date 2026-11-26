@@ -16,6 +16,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import { normalizeNavConfig } from "@/utils/navigationConfig";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { usePixelDesk } from "@/lib/uiLook";
 
 export default function Home() {
   const [searchParams] = useSearchParams();
@@ -24,6 +25,7 @@ export default function Home() {
   const [showImport, setShowImport] = useState(false);
   const [showSeveral, setShowSeveral] = useState(false);
   const terms = useTerms();
+  const pixelDesk = usePixelDesk();
 
   // Handle bulletin deep-link
   useDeepLinkHighlight("bulletinId", "bulletin-");
@@ -91,6 +93,36 @@ export default function Home() {
         <div className="w-full max-w-md text-left"><NotSureYetSection /></div>
       </motion.div>);
 
+  }
+
+  // Pixel look on a computer: the mockup's workspace. The header's
+  // Import / Export / Add and "Add several" move into it (Import under the
+  // groups, Add in the toolbar, Export and Add several in its ⋯ menu), and
+  // the system's own header shows in the Info panel while no card is picked.
+  if (pixelDesk) {
+    return (
+      <div>
+        <div data-tour="alters-grid">
+          <AlterGrid
+            alters={activeAlters}
+            workspace
+            archivedCount={archivedAlters.length}
+            onAddAlter={() => setShowAddAlter(true)}
+            onImport={() => setShowImport(true)}
+            menuExtras={[
+              { label: "Add several at once", run: () => setShowSeveral(true) },
+              { label: `Export ${terms.alters}…`, run: () => setShowExport(true) },
+            ]}
+            systemCard={<div data-tour="system-profile"><SystemHeaderCard settings={systemSettings} /></div>}
+          />
+        </div>
+        <NotSureYetSection />
+        <QuickPeopleSheet open={showSeveral} onClose={() => setShowSeveral(false)} />
+        <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} />
+        <AlterExportModal isOpen={showExport} onClose={() => setShowExport(false)} alters={alters} />
+        <ImportAltersModal open={showImport} onClose={() => setShowImport(false)} />
+      </div>
+    );
   }
 
   return (

@@ -99,7 +99,7 @@ export default function QuickSupportRing({ title = "Quick support", subtitle }) 
   };
 
   return (
-    <div className="text-center pt-4">
+    <div className="os-qs-ring text-center pt-4">
       <div className="relative mx-auto w-28 h-28 flex items-center justify-center select-none" aria-hidden="true">
         <div
           className="absolute inset-0 rounded-full border-2 border-primary/40"
@@ -112,7 +112,7 @@ export default function QuickSupportRing({ title = "Quick support", subtitle }) 
         />
         <span className="relative text-3xl">🫧</span>
       </div>
-      <h1 className="text-2xl font-semibold text-foreground mt-1">{title}</h1>
+      {title && <h1 className="text-2xl font-semibold text-foreground mt-1">{title}</h1>}
       {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
       <div className="mt-2 flex items-center justify-center gap-1.5 text-[0.6875rem] text-muted-foreground">
         <span className="italic">{still ? "Breathe at your own pace." : `${CUE[kind]} with the ring if it helps.`}</span>

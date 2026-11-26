@@ -1,21 +1,19 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ReminderInstanceCard from "./ReminderInstanceCard";
-import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
-import SetFrontSheet from "@/components/fronting/SetFrontSheet";
-import { markReminderDone, dismissReminder, snoozeReminder, unsnoozeReminder } from "@/lib/reminderInstanceActions";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import { inboxBuckets } from "@/lib/reminderForm";
+import { useReminderActions } from "./useReminderActions";
 
 export default function RemindersInbox({ autoTriggerAction = null }) {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const [showHandled, setShowHandled] = useState(false);
-  const [checkInOpen, setCheckInOpen] = useState(false);
-  const [setFrontOpen, setSetFrontOpen] = useState(false);
-  const [pendingActInstance, setPendingActInstance] = useState(null);
+  // The answers (and the sheets a button opens) are shared with the new
+  // house's Reminders room: useReminderActions.jsx.
+  const acts = useReminderActions({ notify: (kind, words) => (kind === "done" ? toast.success(words) : toast.info(words)) });
 
   const { data: instances = [] } = useQuery({
     queryKey: ["reminderInstances", "inbox"],
@@ -52,83 +50,54 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
     handleAction(instance, { action_type: actionType });
   }, [autoTriggerAction, instances]);
 
-  const active = instances.filter(i => {
-    if (i.status === "snoozed") return true; // always show snoozed so user can unsnooze
-    return ["fired", "pending"].includes(i.status);
-  }).sort((a, b) => {
-    const aTime = a.fired_at || a.scheduled_for;
-    const bTime = b.fired_at || b.scheduled_for;
-    return new Date(bTime) - new Date(aTime);
-  });
+  const { due: active, handled } = inboxBuckets(instances);
+  const handleAction = acts.run;
+  const handleSnoozeWithToast = acts.snooze;
+  const handleUnsnooze = acts.unsnooze;
+  const handleDone = acts.done;
+  const handleDismiss = acts.dismiss;
+  const modals = acts.modals;
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const handled = instances
-    .filter(i => ["acted", "dismissed", "auto_resolved"].includes(i.status) && (i.updated_date || i.created_date) >= sevenDaysAgo)
-    .sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date))
-    .slice(0, 10);
-
-  // The writes live in src/lib/reminderInstanceActions.js, shared with the
-  // Reminders widget; this screen only decides which modal or page an
-  // inline action opens.
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
-
-  const handleAction = async (instance, action) => {
-    const type = action.action_type;
-
-    if (type === "open_set_front") {
-      setPendingActInstance(instance);
-      setSetFrontOpen(true);
-      return; // status updated on modal close
-    } else if (type === "open_check_in") {
-      setPendingActInstance(instance);
-      setCheckInOpen(true);
-      return; // status updated on modal close
-    } else if (type === "open_grounding") {
-      navigate("/grounding");
-    } else if (type === "open_journal") {
-      navigate("/journals");
-    } else if (type === "open_diary") {
-      navigate("/checkin-log");
-    } else if (type === "open_symptom_check_in") {
-      setPendingActInstance(instance);
-      setCheckInOpen(true);
-      return; // status updated on modal close
-    } else if (type === "open_system_map") {
-      navigate("/system-map");
-    } else if (type === "open_timeline") {
-      navigate("/timeline");
-    } else if (type === "open_todo") {
-      navigate("/todo");
-    } else if (type === "open_route") {
-      const path = action.payload?.path;
-      if (path && path !== "/") navigate(path);
-      else return; // no valid path — skip navigation and don't mark as acted
-    } else if (type === "log_symptom") {
-      setPendingActInstance(instance);
-      setCheckInOpen(true);
-      return; // open check-in modal so user can log symptoms with context
-    } else if (type === "dismiss") {
-      await dismissReminder(instance); refresh();
-      return;
-    }
-    await markReminderDone(instance, type); refresh();
+  const card = (instance, readOnly = false) => {
+    const reminder = reminderMap[instance.reminder_id];
+    return (
+      <ReminderInstanceCard
+        key={instance.id}
+        instance={instance}
+        reminder={reminder}
+        alter={reminder?.alter_id ? alterMap[reminder.alter_id] : null}
+        readOnly={readOnly}
+        onAction={(action) => handleAction(instance, action)}
+        onSnooze={(opt) => handleSnoozeWithToast(instance, opt)}
+        onUnsnooze={() => handleUnsnooze(instance)}
+        onDone={() => handleDone(instance)}
+        onDismiss={() => handleDismiss(instance)}
+      />
+    );
   };
 
-  const handleSnooze = async (instance, option) => { await snoozeReminder(instance, option); refresh(); };
-  const handleUnsnooze = async (instance) => { await unsnoozeReminder(instance); refresh(); };
-  const handleDone = async (instance) => {
-    await markReminderDone(instance); refresh();
-    toast.success("Marked done");
-  };
-  const handleDismiss = async (instance) => {
-    await dismissReminder(instance); refresh();
-    toast.info("Dismissed");
-  };
-  const handleSnoozeWithToast = async (instance, option) => {
-    await handleSnooze(instance, option);
-    const { formatSnoozeLabel } = await import("./snoozeHelpers");
-    toast.info(`Snoozed for ${formatSnoozeLabel(option)}`);
-  };
+  // Pixel look: the "Due now" panel of the Reminders board, with the
+  // recently handled ones folded at its foot.
+  if (pixel) {
+    return (
+      <section className="prm-pn" aria-label="Due now">
+        <div className="prm-ttl"><span>Due now</span><span className="prm-mut">{active.length}</span></div>
+        {active.length === 0 ? (
+          <div className="prm-empty">Nothing due right now. When a reminder fires, it waits here until you act on it. Snoozed ones wait here too.</div>
+        ) : active.map((i) => card(i))}
+        {handled.length > 0 && (
+          <>
+            <button type="button" className="prm-fold" aria-expanded={showHandled} onClick={() => setShowHandled(o => !o)}>
+              {showHandled ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              Recently handled ({handled.length})
+            </button>
+            {showHandled && handled.map((i) => card(i, true))}
+          </>
+        )}
+        {modals}
+      </section>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -187,28 +156,7 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
         </div>
       )}
 
-      <QuickCheckInModal
-        isOpen={checkInOpen}
-        onClose={(saved) => {
-          setCheckInOpen(false);
-          if (saved && pendingActInstance) {
-            markReminderDone(pendingActInstance, "open_check_in").then(refresh);
-          }
-          setPendingActInstance(null);
-        }}
-      />
-
-      <SetFrontSheet
-        open={setFrontOpen}
-        alters={alters}
-        onClose={() => {
-          setSetFrontOpen(false);
-          if (pendingActInstance) {
-            markReminderDone(pendingActInstance, "open_set_front").then(refresh);
-          }
-          setPendingActInstance(null);
-        }}
-      />
+      {modals}
     </div>
   );
 }

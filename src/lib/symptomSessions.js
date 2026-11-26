@@ -69,3 +69,41 @@ export async function startSymptomSession(symptomId, {
   });
   return { session, reused: false };
 }
+
+// ── Editing and deleting one episode (house 3.3) ──────────────────────
+// Times are validated; a session given an end is ENDED (is_active off), or
+// it lingers as a ghost-active symptom. Notes run through the caller's
+// authored-text grammar and arrive here as text + author ids. Read fresh,
+// only changed fields written, the version before kept in Recent changes.
+export class SymptomSessionEditError extends Error {}
+
+export async function editSymptomSession(id, { start, end, notes, authorIds, baseline = null, ...fields } = {}) {
+  const { readFresh, editRecord } = await import("@/lib/recordEdit");
+  const fresh = await readFresh("SymptomSession", id);
+  const patch = { ...fields };
+  if (start && Number.isNaN(new Date(start).getTime())) throw new SymptomSessionEditError("Pick a valid start time");
+  if (end && Number.isNaN(new Date(end).getTime())) throw new SymptomSessionEditError("Pick a valid end time");
+  const startIso = start ? new Date(start).toISOString() : null;
+  const endIso = end ? new Date(end).toISOString() : null;
+  const s = startIso || fresh.start_time;
+  const e = endIso || fresh.end_time;
+  if (startIso && e && new Date(startIso) > new Date(e)) throw new SymptomSessionEditError("Start can't be after the end time");
+  if (endIso && s && new Date(endIso) < new Date(s)) throw new SymptomSessionEditError("End can't be before the start time");
+  if (startIso) patch.start_time = startIso;
+  if (endIso) { patch.end_time = endIso; patch.is_active = false; }
+  if (notes !== undefined) patch.notes = (typeof notes === "string" && notes.trim()) || null;
+  if (Array.isArray(authorIds)) patch.author_alter_ids = authorIds;
+  return editRecord("SymptomSession", id, patch, { baseline, fresh });
+}
+
+// End one episode (not every one of its symptom — that's endSymptomSessions).
+export function endSymptomSession(id, { endTime = null } = {}) {
+  return editSymptomSession(id, { end: endTime || new Date().toISOString() });
+}
+
+// An episode goes to the trash. The point check-ins rated during it stay:
+// they are their own entries on the Day.
+export async function deleteSymptomSession(id) {
+  const { trashRecords } = await import("@/lib/recordEdit");
+  return trashRecords([{ entity: "SymptomSession", id }]);
+}

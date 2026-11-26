@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { saveReflection, reflectionTarget } from "@/lib/reflectionEntry";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -52,21 +53,9 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
     if (!hasContent) return;
     setSaving(true);
     try {
-      const targetId = sessionEntryIdRef.current || (!keepHistoryRef.current && currentEntry ? currentEntry.id : null);
-      if (targetId) {
-        await base44.entities.SupportJournalEntry.update(targetId, {
-          responses: currentResponses,
-          exercise_title: exerciseTitle,
-        });
-      } else {
-        const created = await base44.entities.SupportJournalEntry.create({
-          exercise_id: exerciseId,
-          exercise_title: exerciseTitle,
-          responses: currentResponses,
-          keep_history: keepHistoryRef.current,
-        });
-        if (created?.id) sessionEntryIdRef.current = created.id;
-      }
+      const targetId = reflectionTarget({ sessionEntryId: sessionEntryIdRef.current, keepHistory: keepHistoryRef.current, latestEntry: currentEntry });
+      const saved = await saveReflection({ entryId: targetId, exerciseId, exerciseTitle, responses: currentResponses, keepHistory: keepHistoryRef.current });
+      if (!targetId && saved?.id) sessionEntryIdRef.current = saved.id;
       queryClient.invalidateQueries({ queryKey: ["supportJournal", exerciseId] });
       queryClient.invalidateQueries({ queryKey: ["supportJournalAll"] });
       setSaved(true);
@@ -91,21 +80,9 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
     clearTimeout(autoSaveTimerRef.current);
     setSaving(true);
     try {
-      const targetId = sessionEntryIdRef.current || (!keepHistory && latestEntry ? latestEntry.id : null);
-      if (!targetId) {
-        const created = await base44.entities.SupportJournalEntry.create({
-          exercise_id: exerciseId,
-          exercise_title: exerciseTitle,
-          responses,
-          keep_history: keepHistory,
-        });
-        if (created?.id) sessionEntryIdRef.current = created.id;
-      } else {
-        await base44.entities.SupportJournalEntry.update(targetId, {
-          responses,
-          exercise_title: exerciseTitle,
-        });
-      }
+      const targetId = reflectionTarget({ sessionEntryId: sessionEntryIdRef.current, keepHistory, latestEntry });
+      const saved = await saveReflection({ entryId: targetId, exerciseId, exerciseTitle, responses, keepHistory });
+      if (!targetId && saved?.id) sessionEntryIdRef.current = saved.id;
       queryClient.invalidateQueries({ queryKey: ["supportJournal", exerciseId] });
       queryClient.invalidateQueries({ queryKey: ["supportJournalAll"] });
       setSaved(true);

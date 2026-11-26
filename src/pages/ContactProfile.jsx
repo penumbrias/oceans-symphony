@@ -16,6 +16,7 @@ import { contactDisplayName } from "@/lib/contacts";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 import { pictureStyle } from "@/lib/imageFraming";
+import ContactPixelHead from "@/components/contacts/ContactPixelHead";
 const PAGE_ICONS = {
   [profilePageId("about")]: Info,
   [profilePageId("relationships")]: Link2,
@@ -24,8 +25,11 @@ const PAGE_ICONS = {
   [profilePageId("options")]: SlidersHorizontal,
 };
 
-export default function ContactProfile() {
-  const { id } = useParams();
+// `contactId` + `embedded` (the pixel Contacts desk): the same board for the
+// contact picked in the list, under the desk's own header panel.
+export default function ContactProfile({ contactId = null, embedded = false } = {}) {
+  const params = useParams();
+  const id = contactId || params.id;
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -52,6 +56,25 @@ export default function ContactProfile() {
 
   const name = contactDisplayName(contact);
   const initial = name.trim()[0]?.toUpperCase() || "?";
+
+  const board = onNewLayout === contactOnNew && (
+    <ProfileBoardCanvas key={contactOnNew ? "v2" : "classic"} ownerType="contact" record={contact} pageIcons={PAGE_ICONS} page={page}
+      tourId="contact-profile-tabs" api={{ alters }} layoutSuffix={layoutSuffixFor(contact, "contact")} />
+  );
+
+  if (embedded) {
+    return (
+      <div className="pg-main">
+        <ContactPixelHead contact={contact} avatar={avatar} initial={initial} name={name}
+          layoutEditing={page.layoutEditing} onInfo={() => setEditOpen(true)} onOpenPage={() => navigate(`/contacts/${contact.id}`)} />
+        <div className="pg-body pg-board">
+          {page.onFirstPage && !page.layoutEditing && <NewProfileOffer ownerType="contact" record={contact} />}
+          {board}
+        </div>
+        <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} contact={contact} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-1 pb-12">
@@ -86,10 +109,7 @@ export default function ContactProfile() {
       {page.onFirstPage && !page.layoutEditing && <NewProfileOffer ownerType="contact" record={contact} />}
       {/* One render behind a switch, the pages and the layout would
           disagree — wait for the page list to follow the record. */}
-      {onNewLayout === contactOnNew && (
-        <ProfileBoardCanvas key={contactOnNew ? "v2" : "classic"} ownerType="contact" record={contact} pageIcons={PAGE_ICONS} page={page}
-          tourId="contact-profile-tabs" api={{ alters }} layoutSuffix={layoutSuffixFor(contact, "contact")} />
-      )}
+      {board}
 
       <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} contact={contact} />
     </div>

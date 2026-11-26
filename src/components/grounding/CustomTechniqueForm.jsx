@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { createCustomTechnique } from "@/lib/groundingEntry";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
 import { CATEGORY_LABELS, EMOTIONAL_STATES } from "@/utils/groundingDefaults";
 
 export default function CustomTechniqueForm({ onClose, onSaved }) {
@@ -24,17 +24,7 @@ export default function CustomTechniqueForm({ onClose, onSaved }) {
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await base44.entities.GroundingTechnique.create({
-      name: name.trim(),
-      description: description.trim(),
-      category,
-      steps: steps.filter(s => s.trim()),
-      duration_seconds: duration ? parseInt(duration) * 60 : null,
-      suggested_for: suggestedFor,
-      is_default: false,
-      is_archived: false,
-      order: 100,
-    });
+    await createCustomTechnique({ name, description, category, steps, durationMinutes: duration, suggestedFor });
     setSaving(false);
     onSaved();
   };

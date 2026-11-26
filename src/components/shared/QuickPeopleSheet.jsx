@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import QuickPeopleList from "@/components/shared/QuickPeopleList";
 import { useTerms } from "@/lib/useTerms";
-import { newLine, lineKind, saveQuickPeople } from "@/lib/quickPeople";
+import { newLine, countToSave, saveQuickPeople } from "@/lib/quickPeople";
 
 // Saves a quick list and says what happened. Lines that failed come back
 // so the caller keeps them on screen (nothing typed is lost).
@@ -32,7 +32,7 @@ export default function QuickPeopleSheet({ open, onClose, unsure = false }) {
   const save = useQuickPeopleSave();
   const [lines, setLines] = useState(() => [newLine({ unsure })]);
   const [saving, setSaving] = useState(false);
-  const count = lines.filter((l) => lineKind(l)).length;
+  const count = countToSave(lines);
 
   const close = () => { setLines([newLine({ unsure })]); onClose?.(); };
 
@@ -58,7 +58,7 @@ export default function QuickPeopleSheet({ open, onClose, unsure = false }) {
           <DialogTitle>Add several</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          One line each. A name is enough, or just a colour or emoji. Switch on "Not sure yet" for anyone you can't pin down; they're kept as presences, and you can make them {t.alters} later.
+          Type names with commas between them ("mark, amy, susan, carol"), or one per line. A name is enough, or just a colour or emoji. Switch on "Not sure yet" for anyone you can't pin down; they're kept as presences, and you can make them {t.alters} later.
         </p>
         <div className="overflow-y-auto min-h-0 pr-1 -mr-1">
           <QuickPeopleList lines={lines} onChange={setLines} />

@@ -20,6 +20,7 @@ import { resolveAssetRules, autoFolderForItem, explicitFolderOf, alterFolderName
 import { useReferencedAssets, useImageUsage } from "@/lib/referencedAssets";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { sharedList } from "@/lib/sharedLists";
+import { usePopupTheme } from "@/components/shared/popupTheme";
 
 function AssetThumb({ item, onSelect }) {
   const resolved = useResolvedAvatarUrl(item.url);
@@ -49,6 +50,7 @@ function AssetThumb({ item, onSelect }) {
 export default function AssetPickerModal({ open, onClose, onSelect, kind = "image", ownerAlterId = null, ownerAlterName = "", allowFolders = false }) {
   const qc = useQueryClient();
   const t = useTerms();
+  const popTheme = usePopupTheme("assets");
   const [rawImages, setRawImages] = useState({});
   const [search, setSearch] = useState("");
   const [folder, setFolder] = useState(() => (ownerAlterId ? `👤 ${ownerAlterName || "Unknown"}` : "all"));
@@ -194,7 +196,7 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
   // zIndex 110 keeps it above the inner-world map's fullscreen shell (z-[100]).
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent showCloseButton={false} style={{ zIndex: 110 }}
+      <DialogContent {...popTheme.attrs} showCloseButton={false} style={{ ...popTheme.style, zIndex: 110 }}
         className="max-w-lg p-0 gap-0 flex flex-col overflow-hidden rounded-2xl">
         <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2">
           <DialogTitle className="font-semibold text-sm flex items-center gap-1.5"><Images className="w-4 h-4" /> Choose an image</DialogTitle>

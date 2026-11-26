@@ -26,8 +26,10 @@ const RESOURCES = [
   }
 ];
 
-export default function CrisisResourcesCard() {
-  const [showResources, setShowResources] = useState(false);
+// defaultOpen: start with the lines showing (the pixel Support page's
+// "Call someone" button opens it already unfolded).
+export default function CrisisResourcesCard({ defaultOpen = false }) {
+  const [showResources, setShowResources] = useState(defaultOpen);
 
   return (
     <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/40 rounded-2xl p-4 space-y-3">

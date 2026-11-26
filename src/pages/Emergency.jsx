@@ -18,12 +18,15 @@ import EmergencyInfoSheet from "@/components/emergency/EmergencyInfoSheet";
 import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import { useEmergencyCard } from "@/lib/useEmergencyCard";
 import { flagOf } from "@/lib/emergencyInfo";
+import { useUiLook } from "@/lib/uiLook";
+import EmergencyPixel from "@/components/emergency/EmergencyPixel";
 
 export default function Emergency() {
   const { info, sections, isFetched } = useEmergencyCard();
   const [params, setParams] = useSearchParams();
   const [full, setFull] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [sheetTab, setSheetTab] = useState("about");
   useEffect(() => {
     const show = params.get("show"), edit = params.get("edit");
     if (!show && !edit) return;
@@ -35,6 +38,19 @@ export default function Emergency() {
   }, [params, setParams]);
 
   const lockOn = flagOf(info, "lock_copy") && (info?.lock_fields || []).length > 0;
+  const pixel = useUiLook() === "pixel";
+  if (pixel) {
+    // Pixel look (EmergencyPhone): the same card, record and Info door,
+    // drawn as the mockup's panels.
+    return (
+      <>
+        <EmergencyPixel info={info} sections={sections} isFetched={isFetched}
+          onShow={() => setFull(true)} onEdit={(tab = "about") => { setSheetTab(tab); setEditing(true); }} />
+        {full && sections.length > 0 && <EmergencyCardView sections={sections} fullScreen onClose={() => setFull(false)} />}
+        <EmergencyInfoSheet key={sheetTab} initialTab={sheetTab} open={editing} onClose={() => setEditing(false)} />
+      </>
+    );
+  }
   return (
     <div className="min-h-screen px-4 pt-4"
       style={{ paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + var(--os-sab))" }}>

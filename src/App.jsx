@@ -14,6 +14,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import Privacy from '@/pages/Privacy';
 import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
+import { HouseRoomGate } from '@/lib/houseSwitch';
 
 // Route-level code splitting (v0.184.0). Every page except the landing
 // (Dashboard), Settings (reached from every header) and Privacy is loaded
@@ -71,6 +72,13 @@ const EmergencyPage = lazy(() => import('@/pages/Emergency'));
 const ActivitiesPage = lazy(() => import('@/pages/Activities'));
 const ModsPage = lazy(() => import('@/pages/Mods'));
 const ModPage = lazy(() => import('@/pages/ModPage'));
+// The new house's step 1.1 sample (docs/house/building-code.md): unlinked,
+// lazy, reached only by typing /house/kit. It reads the look, writes nothing.
+const HouseKitSample = lazy(() => import('@/house/sample/KitSample'));
+// Step 1.2's story sheet: every kit control in every state (/house/kit/controls).
+const HouseKitControls = lazy(() => import('@/house/sample/ControlsSample'));
+// Step 1.3's story sheet: panels, content and sheets (/house/kit/panels).
+const HouseKitPanels = lazy(() => import('@/house/sample/PanelsSample'));
 
 
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
@@ -132,6 +140,7 @@ import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 import OrphanRecoveryScreen from '@/components/onboarding/OrphanRecoveryScreen';
 import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 import { CornerModeApplier } from '@/lib/useCornerMode';
+import { UiLookApplier } from '@/lib/uiLook';
 import { unifyHomeBoards } from "@/lib/homeBoardUnify";
 import SaveHealthBanner from "@/components/shared/SaveHealthBanner";
 import { hideLaunchCover, watchForFirstScreen } from "@/lib/launchCover";
@@ -235,6 +244,7 @@ const AuthenticatedApp = () => {
   return (
     <ReduceMotionConfig>
       <CornerModeApplier />
+      <UiLookApplier />
       <ErrorBoundary
         resetKeys={[location.pathname]}
         // Stash the trace so the bug-report form can carry it. By the time
@@ -290,20 +300,20 @@ const AuthenticatedApp = () => {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/Dashboard" element={<Navigate to="/" replace />} />
-        <Route path="/Home" element={<Home />} />
-        <Route path="/alter/:id" element={<AlterProfile />} />
+        <Route path="/Home" element={<HouseRoomGate><Home /></HouseRoomGate>} />
+        <Route path="/alter/:id" element={<HouseRoomGate><AlterProfile /></HouseRoomGate>} />
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/contacts/:id" element={<ContactProfile />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<HouseRoomGate><Settings /></HouseRoomGate>} />
 
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/journals" element={<Journals />} />
+        <Route path="/analytics" element={<HouseRoomGate><Analytics /></HouseRoomGate>} />
+        <Route path="/journals" element={<HouseRoomGate><Journals /></HouseRoomGate>} />
         {/* /diary (Daily Log) is deprecated — redirect to the Check-In Log */}
         <Route path="/diary" element={<Navigate to="/checkin-log" replace />} />
         <Route path="/tasks" element={<DailyTasks />} />
         <Route path="/todo" element={<ToDoList />} />
-        <Route path="/groups" element={<GroupsManager />} />
-        <Route path="/group/:id" element={<GroupProfile />} />
+        <Route path="/groups" element={<HouseRoomGate><GroupsManager /></HouseRoomGate>} />
+        <Route path="/group/:id" element={<HouseRoomGate><GroupProfile /></HouseRoomGate>} />
         <Route path="/location/:id" element={<LocationProfile />} />
         <Route path="/assets" element={<AssetsLibrary />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />
@@ -311,37 +321,44 @@ const AuthenticatedApp = () => {
             entry links (?activityId= etc.) are forwarded there. */}
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/sleep" element={<SleepTracker />} />
-        <Route path="/timeline" element={<Timeline />} />
-        <Route path="/system-map" element={<SystemMapPage />} />
+        <Route path="/timeline" element={<HouseRoomGate><Timeline /></HouseRoomGate>} />
+        <Route path="/system-map" element={<HouseRoomGate><SystemMapPage /></HouseRoomGate>} />
         <Route path="/presences" element={<NewPresencesPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/bulletins" element={<BulletinsPage />} />
-        <Route path="/unblend" element={<HelpMeUnblend />} />
+        <Route path="/unblend" element={<HouseRoomGate><HelpMeUnblend /></HouseRoomGate>} />
         <Route path="/get-to-know-me" element={<GetToKnowMe />} />
-        <Route path="/chat" element={<Chat />} />
+        <Route path="/chat" element={<HouseRoomGate><Chat /></HouseRoomGate>} />
         <Route path="/unblend/questions" element={<UnblendQuestionsManager />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
-        <Route path="/grounding" element={<Grounding />} />
-        <Route path="/safety-plan" element={<SafetyPlan />} />
+        <Route path="/grounding" element={<HouseRoomGate><Grounding /></HouseRoomGate>} />
+        <Route path="/safety-plan" element={<HouseRoomGate><SafetyPlan /></HouseRoomGate>} />
         <Route path="/therapy-report" element={<TherapyReport />} />
-        <Route path="/reminders" element={<Reminders />} />
-        <Route path="/polls" element={<Polls />} />
+        <Route path="/reminders" element={<HouseRoomGate><Reminders /></HouseRoomGate>} />
+        <Route path="/polls" element={<HouseRoomGate><Polls /></HouseRoomGate>} />
         <Route path="/checkin-log" element={<CheckInLog />} />
         <Route path="/system-history" element={<SystemHistory />} />
         <Route path="/history" element={<HistoryArchive />} />
         <Route path="/location-history" element={<LocationHistory />} />
-        <Route path="/friends" element={<FriendsPage />} />
+        <Route path="/friends" element={<HouseRoomGate><FriendsPage /></HouseRoomGate>} />
         {/* New planner — lives alongside the old tracker until it replaces it. */}
-        <Route path="/planner" element={<PlannerPage />} />
-        <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/planner" element={<HouseRoomGate><PlannerPage /></HouseRoomGate>} />
+        <Route path="/goals" element={<HouseRoomGate><GoalsPage /></HouseRoomGate>} />
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/needs" element={<NeedsPage />} />
         <Route path="/medications" element={<MedicationsPage />} />
-        <Route path="/emergency" element={<EmergencyPage />} />
+        <Route path="/emergency" element={<HouseRoomGate><EmergencyPage /></HouseRoomGate>} />
         {/* Mods other people made (docs/mods.md). Each mod page runs in a sandboxed frame. */}
         <Route path="/mods" element={<ExperimentalGate name="Mods"><ModsPage /></ExperimentalGate>} />
         <Route path="/mod/:modId/:pageId" element={<ExperimentalGate name="Mods"><ModPage /></ExperimentalGate>} />
+        {/* Opened from inside the app (Settings → About): the same page the
+            outside link shows, here inside the frame instead of a dead end. */}
+        <Route path="/privacy" element={<Privacy />} />
       </Route>
+      {/* New house, step 1.1: its own root, outside the old frame. Unlinked. */}
+      <Route path="/house/kit" element={<HouseKitSample />} />
+      <Route path="/house/kit/controls" element={<HouseKitControls />} />
+      <Route path="/house/kit/panels" element={<HouseKitPanels />} />
       <Route path="*" element={<PageNotFound />} />
       </Routes>
       </Suspense>

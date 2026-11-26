@@ -9,7 +9,7 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterOrder } from "@/lib/alterOrder";
@@ -24,9 +24,7 @@ export default function AlterOrderSettings() {
   const save = async (next) => {
     setBusy(true);
     try {
-      if (settingsId) await base44.entities.SystemSettings.update(settingsId, { alter_order: next });
-      else await base44.entities.SystemSettings.create({ alter_order: next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ alter_order: next }, { create: true, queryClient: qc });
     } catch {
       toast.error("Couldn't save the order");
     } finally { setBusy(false); }

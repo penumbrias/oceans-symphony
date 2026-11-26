@@ -33,7 +33,10 @@ const FONT_OPTIONS = [
   { value: "xl5",     label: "Huge",    desc: "200%" },
 ];
 
-export default function AccessibilityFab({ position = "bottom-left", zIndex = 60, compact = false }) {
+// `inline`: a small icon button that sits in its parent's layout (the tour
+// card's header) instead of floating over the page; its sheet still opens
+// on top of everything.
+export default function AccessibilityFab({ position = "bottom-left", zIndex = 60, compact = false, inline = false }) {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(getAccessibilitySettings);
 
@@ -56,9 +59,20 @@ export default function AccessibilityFab({ position = "bottom-left", zIndex = 60
   // their containers (framer-motion transforms), which turn a `position:fixed`
   // child into one positioned relative to that transformed ancestor — so the
   // button got clipped/hidden. A body portal escapes any such containing block.
-  return createPortal(
+  const trigger = inline ? (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      aria-label="Accessibility options"
+      title="Accessibility options"
+      className="os-a11y-inline flex items-center justify-center min-w-[32px] min-h-[32px] rounded-md bg-primary text-primary-foreground flex-shrink-0"
+    >
+      <Accessibility className="w-4 h-4" />
+    </button>
+  ) : null;
+  const layer = (
     <>
-      <button
+      {!inline && <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Accessibility options"
@@ -68,7 +82,7 @@ export default function AccessibilityFab({ position = "bottom-left", zIndex = 60
       >
         <Accessibility className="w-5 h-5" />
         {!compact && <span>Accessibility</span>}
-      </button>
+      </button>}
 
       {open && (
         <div
@@ -156,7 +170,11 @@ export default function AccessibilityFab({ position = "bottom-left", zIndex = 60
           </div>
         </div>
       )}
-    </>,
-    document.body,
+    </>
   );
+  // The floating button and the sheet go to <body>; the inline button stays
+  // where it's placed and only the sheet is portaled.
+  return inline
+    ? <>{trigger}{createPortal(layer, document.body)}</>
+    : createPortal(layer, document.body);
 }

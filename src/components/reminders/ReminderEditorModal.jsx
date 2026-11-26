@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveReminder } from "@/lib/reminderEntry";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,62 +17,14 @@ import { isPushEnabled } from "@/lib/pushRegistration";
 import { useTerms } from "@/lib/useTerms";
 import { toast } from "sonner";
 import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import ReminderEditorPixel from "./ReminderEditorPixel";
 
-const CATEGORIES = ["check_in", "habit", "meds", "grounding", "appointment", "custom"];
-const TRIGGER_TYPES = ["scheduled", "interval", "contextual", "event"];
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const CONTEXTUAL_ON_BASE = [
-  { value: "no_front_update", labelKey: "front" },
-  { value: "emotion_logged", label: "Emotion logged" },
-  { value: "alter_fronts", labelKey: "alter" },
-  { value: "symptom_logged", label: "Symptom logged" },
-  { value: "sleep_ended", label: "After sleep ends" },
-];
-const AUTO_RESOLVE_ON_BASE = [
-  { value: "check_in", label: "Check-in saved" },
-  { value: "symptom_checkin", label: "Symptom logged" },
-  { value: "activity", label: "Activity logged" },
-  { value: "front_update", labelKey: "front" },
-];
-const DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
-const BASE_EMOTIONS = ["happy", "content", "calm", "grateful", "hopeful", "excited", "proud", "loved", "safe", "sad", "anxious", "overwhelmed", "angry", "scared", "frustrated", "ashamed", "guilty", "lonely", "confused", "dissociated", "numb", "depressed", "panic", "terrified", "crisis", "unsafe", "frozen", "tired", "bored", "curious"];
-
-const getActionTypeOptions = (terms) => [
-  { value: "open_check_in",        label: "Check in" },
-  { value: "open_grounding",       label: "Grounding exercise" },
-  { value: "open_set_front",       label: `Set who's ${terms.fronting}` },
-  { value: "open_journal",         label: "Open journal" },
-  { value: "open_diary",           label: "Open Check-In Log" },
-  { value: "open_symptom_check_in",label: "Log a symptom" },
-  { value: "open_system_map",      label: `View ${terms.system} map` },
-  { value: "open_timeline",        label: "View timeline" },
-  { value: "open_todo",            label: "View to-do list" },
-  { value: "log_symptom",          label: "Log a specific symptom" },
-  { value: "dismiss",              label: "Dismiss" },
-  { value: "open_route",           label: "Other page…" },
-];
-const PRE_ALERT_OPTIONS = [15, 60, 1440];
-
-const DEFAULT_FORM = {
-  title: "",
-  body: "",
-  category: "custom",
-  trigger_type: "scheduled",
-  trigger_config: { times: ["09:00"], days: [0,1,2,3,4,5,6] },
-  // Push ON by default — closed-app OS notifications are the whole point of
-  // a reminder. Both delivery paths (OS pre-schedule + FCM relay) skip any
-  // reminder without "push", so an in-app-only default meant reminders never
-  // reached the tray. Users can untick Push per-reminder to keep it quiet.
-  delivery_channels: ["in_app", "push"],
-  alter_id: null,
-  alter_scope: null,
-  alter_scope_catchup: false,
-  inline_actions: [],
-  auto_resolve_rule: null,
-  quiet_hours_respect: true,
-  snooze_options: DEFAULT_SNOOZE_OPTIONS,
-  is_active: true,
-};
+import {
+  CATEGORIES, TRIGGER_TYPES, DAYS, CONTEXTUAL_ON_BASE, AUTO_RESOLVE_ON_BASE, DISTRESS_EMOTIONS, BASE_EMOTIONS,
+  getActionTypeOptions, PRE_ALERT_OPTIONS, TRIGGER_DEFAULTS, DEFAULT_FORM, DEFAULT_LOOKBACK, formFromReminder,
+  reminderFormProblem, reminderSaveData,
+} from "@/lib/reminderForm";
 
 function Collapsible({ label, summary, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -153,7 +106,7 @@ function PillRow({ options, value, onChange, multi = false, labels }) {
   );
 }
 
-function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = [], customEmotions = [] }) {
+function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = [], customEmotions = [], hideOn = false }) {
   const terms = useTerms();
   const set = (key, val) => onChange({ ...config, [key]: val });
   const allEmotions = [...new Set([...BASE_EMOTIONS, ...customEmotions.map(e => e.name || e.label).filter(Boolean)])];
@@ -246,6 +199,8 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
     const on = config.on || "no_front_update";
     return (
       <div className="space-y-3">
+        {/* The pixel layout picks the "when" from its own grid of kinds. */}
+        {!hideOn && (
         <div>
           <Label className="text-xs font-medium text-muted-foreground">Trigger when</Label>
           <select className="mt-1.5 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
@@ -253,6 +208,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
             {CONTEXTUAL_ON.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
+        )}
         {on === "no_front_update" && (
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground w-28">No update for</Label>
@@ -392,7 +348,183 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
   return null;
 }
 
-export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved }) {
+// The three editor parts below are shared by the smooth dialog and the
+// pixel layout, so both edit the same fields the same way.
+function InlineActionsFields({ form, set, actionTypeOptions, symptoms }) {
+  return (
+      <div className="space-y-2">
+        {(form.inline_actions || []).map((action, i) => {
+          const updateAction = (fields) => {
+            const updated = (form.inline_actions || []).map((a, j) => j === i ? { ...a, ...fields } : a);
+            set("inline_actions", updated);
+          };
+          const removeAction = () => set("inline_actions", (form.inline_actions || []).filter((_, j) => j !== i));
+
+          return (
+            <div key={i} className="space-y-1.5 p-3 bg-muted/20 rounded-xl border border-border/30">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Button label, e.g. Try grounding"
+                  value={action.label || ""}
+                  className="h-7 text-xs flex-1"
+                  onChange={e => updateAction({ label: e.target.value })}
+                />
+                <button type="button" onClick={removeAction} className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {/* ui-ok: moved unchanged from the smooth editor into a shared part */}
+              <select
+                className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
+                value={action.action_type || "open_check_in"}
+                onChange={e => updateAction({ action_type: e.target.value, payload: {} })}
+              >
+                {actionTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              {action.action_type === "log_symptom" && (
+                <SearchableSelect
+                  value={action.payload?.symptom_id || null}
+                  onChange={id => updateAction({ payload: { symptom_id: id } })}
+                  options={symptoms.filter(s => !s.is_archived).map(s => ({
+                    id: s.id,
+                    label: s.label,
+                    color: s.color,
+                  }))}
+                  placeholder="— pick symptom —"
+                  allowClear
+                />
+              )}
+              {action.action_type === "open_route" && (
+                <Input
+                  placeholder="/path (e.g. /analytics)"
+                  value={action.payload?.path || ""}
+                  className="h-7 text-xs"
+                  onChange={e => updateAction({ payload: { path: e.target.value } })}
+                />
+              )}
+            </div>
+          );
+        })}
+
+        {(form.inline_actions || []).length < 3 && (
+          <button
+            type="button"
+            onClick={() => set("inline_actions", [...(form.inline_actions || []), { label: "", action_type: "open_check_in", payload: {} }])}
+            className="w-full flex items-center justify-center gap-1.5 h-8 text-xs border border-dashed border-border/50 rounded-xl text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add action
+          </button>
+        )}
+        {(form.inline_actions || []).length >= 3 && (
+          <p className="text-xs text-muted-foreground text-center">Maximum 3 actions reached</p>
+        )}
+      </div>
+  );
+}
+
+function AutoResolveFields({ form, set, hasAutoResolve, setHasAutoResolve, autoResolveOn, symptoms, activityCategories }) {
+  return (
+    <>
+        <p className="text-xs text-muted-foreground">If this rule is satisfied before the reminder fires, it won't fire that cycle. Useful for reminders you might complete before the scheduled time — like a meds reminder that auto-clears if you log meds earlier.</p>
+        <div className="flex items-center justify-between">
+          <span className="text-sm">Enable auto-resolve</span>
+          <Switch checked={hasAutoResolve} onCheckedChange={v => {
+            setHasAutoResolve(v);
+            if (!v) set("auto_resolve_rule", null);
+            else set("auto_resolve_rule", { on: "check_in", lookback_minutes: 120 });
+          }} />
+        </div>
+        {hasAutoResolve && (() => {
+          const rule = form.auto_resolve_rule || { on: "check_in", lookback_minutes: 120 };
+          const setRule = (fields) => set("auto_resolve_rule", { ...rule, ...fields });
+          const defaultLookback = DEFAULT_LOOKBACK;
+          return (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Resolve when…</Label>
+                {/* ui-ok: moved unchanged from the smooth editor into a shared part */}
+                <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
+                  value={rule.on || "check_in"}
+                  onChange={e => setRule({ on: e.target.value, lookback_minutes: defaultLookback[e.target.value] || 60, symptom_id: undefined, category_id: undefined })}>
+                  {autoResolveOn.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              {rule.on === "symptom_checkin" && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Which symptom</Label>
+                  <SearchableSelect
+                    className="mt-1"
+                    value={rule.symptom_id || null}
+                    onChange={id => setRule({ symptom_id: id })}
+                    options={symptoms.filter(s => !s.is_archived).map(s => ({
+                      id: s.id,
+                      label: s.label,
+                      color: s.color,
+                    }))}
+                    placeholder="— any symptom —"
+                    allowClear
+                  />
+                </div>
+              )}
+              {rule.on === "activity" && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Which activity</Label>
+                  <SearchableSelect
+                    className="mt-1"
+                    value={rule.category_id || null}
+                    onChange={id => setRule({ category_id: id })}
+                    options={activityCategories.map(c => ({
+                      id: c.id,
+                      label: c.name,
+                      color: c.color,
+                    }))}
+                    placeholder="— any activity —"
+                    allowClear
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground w-36">Lookback window</Label>
+                <Input type="number" min={5} value={rule.lookback_minutes || 60} className="h-8 text-sm w-24"
+                  onChange={e => setRule({ lookback_minutes: parseInt(e.target.value) })} />
+                <span className="text-xs text-muted-foreground">minutes before fire</span>
+              </div>
+            </div>
+          );
+        })()}
+    </>
+  );
+}
+
+function SnoozeFields({ form, set }) {
+  return (
+    <>
+        <p className="text-xs text-muted-foreground mb-3">These are the snooze durations shown when you tap Snooze on this reminder's notification.</p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {(form.snooze_options || DEFAULT_SNOOZE_OPTIONS).map((opt, i) => (
+            <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/40 text-xs">
+              {formatSnoozeLabel(opt)}
+              <button type="button" onClick={() => set("snooze_options", (form.snooze_options || DEFAULT_SNOOZE_OPTIONS).filter((_, j) => j !== i))}
+                className="text-muted-foreground hover:text-destructive">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <SnoozeAdder current={form.snooze_options || DEFAULT_SNOOZE_OPTIONS} onAdd={(opt) => set("snooze_options", [...(form.snooze_options || DEFAULT_SNOOZE_OPTIONS), opt])} />
+        <button type="button" onClick={() => set("snooze_options", DEFAULT_SNOOZE_OPTIONS)}
+          className="mt-2 text-xs text-muted-foreground hover:text-primary underline">
+          Reset to defaults
+        </button>
+    </>
+  );
+}
+
+// `inline`: the pixel look's computer layout shows the editor as a panel
+// beside the list instead of a dialog. `onDelete(reminder)` lets the pixel
+// editor offer Delete (the list owns the delete itself).
+export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved, inline = false, onDelete }) {
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const terms = useTerms();
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
@@ -416,13 +548,8 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   });
 
   useEffect(() => {
-    if (existing) {
-      setForm({ ...DEFAULT_FORM, ...existing });
-      setHasAutoResolve(!!existing.auto_resolve_rule);
-    } else {
-      setForm(DEFAULT_FORM);
-      setHasAutoResolve(false);
-    }
+    setForm(formFromReminder(existing));
+    setHasAutoResolve(!!existing?.auto_resolve_rule);
   }, [existing, isOpen]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -433,58 +560,22 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   );
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast.error("Title is required"); return; }
-    if (!form.delivery_channels.length) { toast.error("Choose at least one delivery channel"); return; }
+    const problem = reminderFormProblem(form);
+    if (problem) { toast.error(problem); return; }
     setSaving(true);
     // If the user picked push but push isn't actually enabled on this
     // device, auto-add the in-app banner so the reminder still fires
-    // visibly. Otherwise a push-only reminder on a device with push off
-    // would never notify the user, even with the app open.
-    let effectiveChannels = form.delivery_channels;
-    if (effectiveChannels.includes("push") && !effectiveChannels.includes("in_app")) {
-      try {
-        const pushOn = await isPushEnabled();
-        if (!pushOn) effectiveChannels = [...effectiveChannels, "in_app"];
-      } catch { effectiveChannels = [...effectiveChannels, "in_app"]; }
+    // visibly (reminderSaveData). Otherwise a push-only reminder on a
+    // device with push off would never notify the user, even with the app open.
+    let pushOn = true;
+    if (form.delivery_channels.includes("push") && !form.delivery_channels.includes("in_app")) {
+      try { pushOn = await isPushEnabled(); } catch { pushOn = false; }
     }
-    const data = {
-      ...form,
-      delivery_channels: effectiveChannels,
-      alter_id: form.alter_id || null,
-      alter_scope: form.alter_id ? (form.alter_scope || "always") : null,
-      alter_scope_catchup: form.alter_id && form.alter_scope === "when_fronting" ? (form.alter_scope_catchup || false) : false,
-      auto_resolve_rule: hasAutoResolve ? form.auto_resolve_rule : null,
-    };
-    if (existing?.id) {
-      // The form was seeded from a SNAPSHOT of the reminder (`...existing`), so
-      // `data` also carries bookkeeping fields. `last_fired_at` is the
-      // dangerous one: a fast reminder keeps firing in the background while this
-      // editor is open, and writing the stale copy back made the scheduler think
-      // it was overdue — so it re-fired immediately, again and again, every time
-      // the reminder was edited. Only send what the user can actually change.
-      const patch = { ...data };
-      for (const k of ["id", "created_date", "updated_date", "created_by", "last_fired_at"]) delete patch[k];
-
-      const scheduleChanged =
-        JSON.stringify([existing.trigger_type, existing.trigger_config]) !==
-        JSON.stringify([data.trigger_type, data.trigger_config]);
-      if (scheduleChanged) {
-        // New schedule: restart an interval's clock from this edit (instead of
-        // the old anchor) and retire popups/instances that belonged to the old one.
-        if (data.trigger_type === "interval") patch.last_fired_at = new Date().toISOString();
-        try {
-          const old = await base44.entities.ReminderInstance.filter({ reminder_id: existing.id });
-          await Promise.all(
-            (old || [])
-              .filter(i => ["fired", "pending", "snoozed"].includes(i.status))
-              .map(i => base44.entities.ReminderInstance.update(i.id, { status: "dismissed" }))
-          );
-        } catch { /* best-effort cleanup */ }
-      }
-      await base44.entities.Reminder.update(existing.id, patch);
-    } else {
-      await base44.entities.Reminder.create(data);
-    }
+    const data = reminderSaveData(form, { hasAutoResolve, pushOn });
+    // An edit sends only what the person can change (never the snapshot's
+    // stale last_fired_at) and a new schedule retires the old one's popups
+    // (saveReminder, reminderEntry.js).
+    await saveReminder(existing, data);
     setSaving(false);
     onSaved?.();
     onClose();
@@ -494,6 +585,48 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
     const arr = form.delivery_channels || [];
     set("delivery_channels", arr.includes(ch) ? arr.filter(x => x !== ch) : [...arr, ch]);
   };
+
+  if (pixel) {
+    const body = (
+      <ReminderEditorPixel
+        form={form} set={set} existing={existing} saving={saving}
+        onSave={handleSave} onClose={onClose} onDelete={onDelete}
+        hasAutoResolve={hasAutoResolve} setHasAutoResolve={setHasAutoResolve}
+        toggleChannel={toggleChannel}
+        alters={alters} symptoms={symptoms} customEmotions={customEmotions}
+        renderTrigger={() => (
+          <TriggerConfig
+            hideOn
+            triggerType={form.trigger_type}
+            config={form.trigger_config || {}}
+            onChange={cfg => set("trigger_config", cfg)}
+            alters={alters}
+            symptoms={symptoms.filter(s => !s.is_archived)}
+            customEmotions={customEmotions}
+          />
+        )}
+        renderActions={() => <InlineActionsFields form={form} set={set} actionTypeOptions={actionTypeOptions} symptoms={symptoms} />}
+        renderAutoResolve={() => <AutoResolveFields form={form} set={set} hasAutoResolve={hasAutoResolve} setHasAutoResolve={setHasAutoResolve} autoResolveOn={autoResolveOn} symptoms={symptoms} activityCategories={activityCategories} />}
+        renderSnooze={() => <SnoozeFields form={form} set={set} />}
+        renderScope={() => <AlterScopeSection form={form} set={set} alters={alters} />}
+      />
+    );
+    if (inline) return isOpen ? body : null;
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent
+          showCloseButton={false}
+          className="prm-dlg max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-0"
+          onInteractOutside={(e) => {
+            if (document.querySelector("[data-searchable-dropdown]")) e.preventDefault();
+          }}
+        >
+          <DialogTitle className="sr-only">{existing ? "Edit reminder" : "New reminder"}</DialogTitle>
+          {body}
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -547,13 +680,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
               {TRIGGER_TYPES.map(t => (
                 <button key={t} type="button" onClick={() => {
                   set("trigger_type", t);
-                  const defaults = {
-                    scheduled: { times: ["09:00"], days: [0,1,2,3,4,5,6] },
-                    interval: { every_minutes: 60, after_last: "fire" },
-                    contextual: { on: "no_front_update", threshold_minutes: 120 },
-                    event: { when: null, pre_alerts: [] },
-                  };
-                  set("trigger_config", defaults[t]);
+                  set("trigger_config", TRIGGER_DEFAULTS[t]);
                 }}
                   className={`px-3 py-1.5 rounded-lg text-xs border transition-all capitalize ${
                     form.trigger_type === t ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
@@ -617,72 +744,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
 
           {/* Inline actions */}
           <Collapsible label="Quick action buttons">
-            <div className="space-y-2">
-              {(form.inline_actions || []).map((action, i) => {
-                const updateAction = (fields) => {
-                  const updated = (form.inline_actions || []).map((a, j) => j === i ? { ...a, ...fields } : a);
-                  set("inline_actions", updated);
-                };
-                const removeAction = () => set("inline_actions", (form.inline_actions || []).filter((_, j) => j !== i));
-
-                return (
-                  <div key={i} className="space-y-1.5 p-3 bg-muted/20 rounded-xl border border-border/30">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        placeholder="Button label, e.g. Try grounding"
-                        value={action.label || ""}
-                        className="h-7 text-xs flex-1"
-                        onChange={e => updateAction({ label: e.target.value })}
-                      />
-                      <button type="button" onClick={removeAction} className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <select
-                      className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
-                      value={action.action_type || "open_check_in"}
-                      onChange={e => updateAction({ action_type: e.target.value, payload: {} })}
-                    >
-                      {actionTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                    {action.action_type === "log_symptom" && (
-                      <SearchableSelect
-                        value={action.payload?.symptom_id || null}
-                        onChange={id => updateAction({ payload: { symptom_id: id } })}
-                        options={symptoms.filter(s => !s.is_archived).map(s => ({
-                          id: s.id,
-                          label: s.label,
-                          color: s.color,
-                        }))}
-                        placeholder="— pick symptom —"
-                        allowClear
-                      />
-                    )}
-                    {action.action_type === "open_route" && (
-                      <Input
-                        placeholder="/path (e.g. /analytics)"
-                        value={action.payload?.path || ""}
-                        className="h-7 text-xs"
-                        onChange={e => updateAction({ payload: { path: e.target.value } })}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-
-              {(form.inline_actions || []).length < 3 && (
-                <button
-                  type="button"
-                  onClick={() => set("inline_actions", [...(form.inline_actions || []), { label: "", action_type: "open_check_in", payload: {} }])}
-                  className="w-full flex items-center justify-center gap-1.5 h-8 text-xs border border-dashed border-border/50 rounded-xl text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add action
-                </button>
-              )}
-              {(form.inline_actions || []).length >= 3 && (
-                <p className="text-xs text-muted-foreground text-center">Maximum 3 actions reached</p>
-              )}
-            </div>
+            <InlineActionsFields form={form} set={set} actionTypeOptions={actionTypeOptions} symptoms={symptoms} />
           </Collapsible>
 
           {/* Auto-resolve */}
@@ -698,93 +760,12 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
               return "Enabled";
             })()}
           >
-            <p className="text-xs text-muted-foreground">If this rule is satisfied before the reminder fires, it won't fire that cycle. Useful for reminders you might complete before the scheduled time — like a meds reminder that auto-clears if you log meds earlier.</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Enable auto-resolve</span>
-              <Switch checked={hasAutoResolve} onCheckedChange={v => {
-                setHasAutoResolve(v);
-                if (!v) set("auto_resolve_rule", null);
-                else set("auto_resolve_rule", { on: "check_in", lookback_minutes: 120 });
-              }} />
-            </div>
-            {hasAutoResolve && (() => {
-              const rule = form.auto_resolve_rule || { on: "check_in", lookback_minutes: 120 };
-              const setRule = (fields) => set("auto_resolve_rule", { ...rule, ...fields });
-              const defaultLookback = { check_in: 120, front_update: 240, symptom_checkin: 60, activity: 60 };
-              return (
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Resolve when…</Label>
-                    <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
-                      value={rule.on || "check_in"}
-                      onChange={e => setRule({ on: e.target.value, lookback_minutes: defaultLookback[e.target.value] || 60, symptom_id: undefined, category_id: undefined })}>
-                      {autoResolveOn.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  {rule.on === "symptom_checkin" && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Which symptom</Label>
-                      <SearchableSelect
-                        className="mt-1"
-                        value={rule.symptom_id || null}
-                        onChange={id => setRule({ symptom_id: id })}
-                        options={symptoms.filter(s => !s.is_archived).map(s => ({
-                          id: s.id,
-                          label: s.label,
-                          color: s.color,
-                        }))}
-                        placeholder="— any symptom —"
-                        allowClear
-                      />
-                    </div>
-                  )}
-                  {rule.on === "activity" && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Which activity</Label>
-                      <SearchableSelect
-                        className="mt-1"
-                        value={rule.category_id || null}
-                        onChange={id => setRule({ category_id: id })}
-                        options={activityCategories.map(c => ({
-                          id: c.id,
-                          label: c.name,
-                          color: c.color,
-                        }))}
-                        placeholder="— any activity —"
-                        allowClear
-                      />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-36">Lookback window</Label>
-                    <Input type="number" min={5} value={rule.lookback_minutes || 60} className="h-8 text-sm w-24"
-                      onChange={e => setRule({ lookback_minutes: parseInt(e.target.value) })} />
-                    <span className="text-xs text-muted-foreground">minutes before fire</span>
-                  </div>
-                </div>
-              );
-            })()}
+            <AutoResolveFields form={form} set={set} hasAutoResolve={hasAutoResolve} setHasAutoResolve={setHasAutoResolve} autoResolveOn={autoResolveOn} symptoms={symptoms} activityCategories={activityCategories} />
           </Collapsible>
 
           {/* Snooze options */}
           <Collapsible label="Snooze options">
-            <p className="text-xs text-muted-foreground mb-3">These are the snooze durations shown when you tap Snooze on this reminder's notification.</p>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {(form.snooze_options || DEFAULT_SNOOZE_OPTIONS).map((opt, i) => (
-                <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/40 text-xs">
-                  {formatSnoozeLabel(opt)}
-                  <button type="button" onClick={() => set("snooze_options", (form.snooze_options || DEFAULT_SNOOZE_OPTIONS).filter((_, j) => j !== i))}
-                    className="text-muted-foreground hover:text-destructive">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <SnoozeAdder current={form.snooze_options || DEFAULT_SNOOZE_OPTIONS} onAdd={(opt) => set("snooze_options", [...(form.snooze_options || DEFAULT_SNOOZE_OPTIONS), opt])} />
-            <button type="button" onClick={() => set("snooze_options", DEFAULT_SNOOZE_OPTIONS)}
-              className="mt-2 text-xs text-muted-foreground hover:text-primary underline">
-              Reset to defaults
-            </button>
+            <SnoozeFields form={form} set={set} />
           </Collapsible>
 
         </div>

@@ -15,7 +15,7 @@
 // src/lib/groupMembership.js. Neither is duplicated here.
 
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -42,9 +42,11 @@ import {
   indexGroups, ancestorIds, byGroupOrder,
 } from "@/lib/groupTree";
 import { getMemberAlters } from "@/lib/subsystemUtils";
-import { setGroupMembers, currentMemberIds, deleteGroupCascade } from "@/lib/groupMembership";
+import { setGroupMembers, currentMemberIds } from "@/lib/groupMembership";
+import { renameGroup, setGroupsColour, moveGroups, reorderGroupLevel, reorderGroupMembers, deleteGroups } from "@/lib/groupEntry";
 import { isValidHexColor } from "@/lib/colorUtils";
-import { withTrashBatch } from "@/lib/localDb";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import GroupsPixelDesk from "@/components/groups/GroupsPixelDesk";
 
 const dotColor = (c) => (isValidHexColor(c) ? c : "hsl(var(--muted))");
 
@@ -120,7 +122,10 @@ function GroupRow({
   );
 }
 
-export default function GroupsManager() {
+// `embedded`: the new house's Groups room shows this manager as its Manage
+// view (multi-select, reorder, rename, member order). It draws the body and
+// its sheets only; the room supplies the frame around it.
+export default function GroupsManager({ embedded = false } = {}) {
   const t = useTerms();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -132,6 +137,11 @@ export default function GroupsManager() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [createOpen, setCreateOpen] = useState(false);
+  // The pixel desk names where a new group goes (top level, or nested in
+  // the group it was asked from); undefined = the level you're inside.
+  const [createParent, setCreateParent] = useState(undefined);
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  const [searchParams] = useSearchParams();
   const [membersFor, setMembersFor] = useState(null);
   const [movingIds, setMovingIds] = useState(null);   // array of group ids
   const [colorIds, setColorIds] = useState(null);     // array of group ids
@@ -188,42 +198,26 @@ export default function GroupsManager() {
     setNavStack([...ancestorIds(g, byId).reverse(), g.id]);
   };
 
+  // Every write goes through src/lib/groupEntry.js (shared with the new
+  // house's Groups room).
   const handleRename = async (group, name) => {
-    try { await base44.entities.Group.update(group.id, { name }); refresh(); }
+    try { await renameGroup(group, name); refresh(); }
     catch (e) { fail(e, "Couldn't rename that"); }
   };
 
-  // Reorder among the CURRENT siblings: renumber the whole level so the
-  // arrows always work, even when every group still has order 0.
   const handleReorder = async (group, dir) => {
-    const list = [...siblings];
-    const i = list.findIndex((g) => g.id === group.id);
-    const j = i + dir;
-    if (i === -1 || j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-    try {
-      await Promise.all(list.map((g, idx) => (
-        (g.order || 0) === (idx + 1) * 10 ? null : base44.entities.Group.update(g.id, { order: (idx + 1) * 10 })
-      )).filter(Boolean));
-      refresh();
-    } catch (e) { fail(e, "Couldn't reorder that"); }
+    try { if (await reorderGroupLevel(siblings, group.id, dir)) refresh(); }
+    catch (e) { fail(e, "Couldn't reorder that"); }
   };
 
   const handleColor = async (ids, color) => {
-    try {
-      await Promise.all(ids.map((id) => base44.entities.Group.update(id, { color })));
-      refresh();
-    } catch (e) { fail(e, "Couldn't change the colour"); }
+    try { await setGroupsColour(ids, color); refresh(); }
+    catch (e) { fail(e, "Couldn't change the colour"); }
   };
 
   const handleMove = async (ids, targetId) => {
-    const blocked = ids.filter((id) => wouldNest(groups, id, targetId));
-    if (blocked.length) {
-      toast.error("That would put a group inside itself");
-      return;
-    }
     try {
-      await Promise.all(ids.map((id) => base44.entities.Group.update(id, { parent: targetId || "" })));
+      await moveGroups(groups, ids, targetId);
       refresh();
       setMovingIds(null);
       setSelected(new Set());
@@ -242,17 +236,7 @@ export default function GroupsManager() {
     });
     if (!ok) return;
     try {
-      // One trash batch for the whole selection.
-      await withTrashBatch(async () => { for (const id of ids) {
-        // Re-home the children FIRST, so a failure can't strand them under
-        // a group that no longer exists.
-        for (const kid of childGroups(groups, id)) {
-          if (!ids.includes(kid.id)) await base44.entities.Group.update(kid.id, { parent: "" });
-        }
-        // Cascade: also scrubs the group's membership entries off every
-        // member, so no "Group not found" chips are left behind.
-        await deleteGroupCascade(byId[id] || { id });
-      } });
+      await deleteGroups(groups, ids);
       refresh();
       setSelected(new Set());
       setSelectMode(false);
@@ -263,15 +247,8 @@ export default function GroupsManager() {
 
   // Members of the CURRENT group: reorder (member_order) and remove.
   const handleMemberReorder = async (alterId, dir) => {
-    const ids = members.map((a) => a.id);
-    const i = ids.indexOf(alterId);
-    const j = i + dir;
-    if (i === -1 || j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    try {
-      await base44.entities.Group.update(current.id, { member_order: ids });
-      refresh();
-    } catch (e) { fail(e, "Couldn't reorder that"); }
+    try { if (await reorderGroupMembers(current, members.map((a) => a.id), alterId, dir)) refresh(); }
+    catch (e) { fail(e, "Couldn't reorder that"); }
   };
   const handleMemberRemove = async (alter) => {
     const ok = await confirm({
@@ -339,13 +316,13 @@ export default function GroupsManager() {
     return parts.join(" · ");
   };
 
-  return (
-    <div className="min-h-screen p-4 sm:p-6">
-      <div className="os-page-shell space-y-4" data-tour="groups-page"
-        style={{ paddingBottom: selectMode ? 72 : 0 }}>
+  // Everything the manager shows — the classic page, and the pixel desk's
+  // "Manage" view.
+  const body = (
+    <>
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manage groups</h1>
+            <h1 className={embedded ? "sr-only" : "text-2xl sm:text-3xl font-bold text-foreground"}>Manage groups</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5"
@@ -535,8 +512,11 @@ export default function GroupsManager() {
             )}
           </>
         )}
-      </div>
+    </>
+  );
 
+  const overlays = (
+    <>
       {/* Mass-edit action bar. */}
       {selectMode && (
         <div className="fixed inset-x-0 z-[60] px-4"
@@ -611,8 +591,8 @@ export default function GroupsManager() {
 
       <CreateGroupModal
         open={createOpen}
-        onClose={() => { setCreateOpen(false); refresh(); }}
-        parentGroup={current}
+        onClose={() => { setCreateOpen(false); setCreateParent(undefined); refresh(); }}
+        parentGroup={createParent !== undefined ? createParent : current}
       />
       {membersFor && (
         <GroupMembersModal
@@ -622,6 +602,45 @@ export default function GroupsManager() {
           onClose={() => { setMembersFor(null); refresh(); }}
         />
       )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        <div className="space-y-4" style={{ paddingBottom: selectMode ? 72 : 0 }}>{body}</div>
+        {overlays}
+      </>
+    );
+  }
+
+  if (pixel) {
+    return (
+      <div className="pb-2">
+        <GroupsPixelDesk
+          groups={groups} alters={alters} byId={byId} stranded={stranded}
+          initialGroupId={searchParams.get("group")}
+          managerBody={<div className="space-y-4" style={{ paddingBottom: selectMode ? 72 : 0 }}>{body}</div>}
+          onRename={handleRename}
+          onMovePick={(ids) => setMovingIds(ids)}
+          onMoveTo={handleMove}
+          onDelete={handleDelete}
+          onColor={(ids) => setColorIds(ids)}
+          onMembers={(g) => setMembersFor(g)}
+          onCreate={(parent) => { setCreateParent(parent); setCreateOpen(true); }}
+        />
+        {overlays}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 sm:p-6">
+      <div className="os-page-shell space-y-4" data-tour="groups-page"
+        style={{ paddingBottom: selectMode ? 72 : 0 }}>
+        {body}
+      </div>
+      {overlays}
     </div>
   );
 }

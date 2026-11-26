@@ -1,9 +1,15 @@
 import React, { useRef, useState, useEffect } from "react";
 
 import { pictureStyle } from "@/lib/imageFraming";
+import { useUiLook } from "@/lib/uiLook";
 const MIN_SIZE = 80;
 
-export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1 }) {
+// `pixel` (optional) forces the pixel boxes whatever the look is (the new
+// house's map room draws board 02's places); `thin` draws its 1 px edges.
+export default function LocationNode({ location, layerName = null, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1, pixel: pixelProp, thin = false }) {
+  // Pixel look: square boxes with a title bar, like the mockup's places.
+  const lookPixel = useUiLook() === "pixel";
+  const pixel = pixelProp ?? lookPixel;
   const [dragging, setDragging] = useState(false);
   const [pressingId, setPressingId] = useState(false);
   const dragStart = useRef(null);
@@ -198,8 +204,9 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const fill = color + "26"; // 15% opacity
   const borderColor = color;
   const isOval = shape === "oval";
-  const rx = isOval ? width / 2 : 8;
-  const ry = isOval ? height / 2 : 8;
+  const rx = isOval ? width / 2 : pixel ? 0 : 8;
+  const ry = isOval ? height / 2 : pixel ? 0 : 8;
+  const titleBar = pixel && !isOval;
 
   return (
     <g opacity={opacity} transform={rotation ? `rotate(${rotation} ${x + width / 2} ${y + height / 2})` : undefined}
@@ -224,7 +231,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
           through to the fill rect below; clipped to the box shape. */}
       {resolvedBgUrl && (
         <foreignObject x={x} y={y} width={width} height={height} style={{ pointerEvents: "none" }}>
-          <div style={{ width: "100%", height: "100%", borderRadius: isOval ? "50%" : 8, overflow: "hidden" }}>
+          <div style={{ width: "100%", height: "100%", borderRadius: isOval ? "50%" : pixel ? 0 : 8, overflow: "hidden" }}>
             <img src={resolvedBgUrl} alt="" draggable={false}
               style={{ width: "100%", height: "100%", opacity: background_opacity ?? 0.7, display: "block", ...pictureStyle(location, background_image_url) }} />
           </div>
@@ -237,13 +244,32 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         rx={rx} ry={ry}
         fill="none"
         stroke={borderColor}
-        strokeWidth={isSelected ? 2.5 : 1.5}
-        strokeDasharray={isSelected ? "6,3" : "none"}
+        strokeWidth={thin ? (isSelected ? 1.5 : 1) : isSelected ? 2.5 : pixel ? 2 : 1.5}
+        strokeDasharray={isSelected && !pixel ? "6,3" : "none"}
         pointerEvents="none"
       />
 
+      {/* Pixel title bar: name left, layer right; solid when selected. */}
+      {titleBar && (
+        <>
+          <rect x={x} y={y} width={width} height={Math.min(22, height)} fill={isSelected ? color : color + "59"} pointerEvents="none" />
+          <rect x={x} y={y + Math.min(22, height) - (thin ? 1 : 2)} width={width} height={thin ? 1 : 2} fill="#0d0f10" opacity={0.6} pointerEvents="none" />
+          <text x={x + 8} y={y + 15} fontSize={11} fill={isSelected ? "#1a1c2b" : thin ? "var(--house-text, #e9e7f5)" : "var(--px-text, #e9e7f5)"} pointerEvents="none" style={{ userSelect: "none", fontFamily: thin ? "var(--house-font-label, var(--px-font))" : "var(--px-font)" }}>
+            {name?.length > Math.max(4, Math.floor(width / 9)) ? name.slice(0, Math.max(3, Math.floor(width / 9) - 1)) + "…" : name}
+          </text>
+          {layerName && width > 140 && (
+            <text x={x + width - 8} y={y + 15} textAnchor="end" fontSize={10} fill={isSelected ? "#1a1c2b" : thin ? "var(--house-muted, #cfd1ea)" : "var(--px-text-2, #cfd1ea)"} opacity={0.85} pointerEvents="none" style={{ userSelect: "none", fontFamily: thin ? "var(--house-font-label, var(--px-font))" : "var(--px-font)" }}>
+              {layerName.length > 12 ? layerName.slice(0, 11) + "…" : layerName}
+            </text>
+          )}
+          {isSelected && [[x, y], [x + width, y], [x, y + height], [x + width, y + height]].map(([hx, hy], i) => (
+            <rect key={i} x={hx - 4} y={hy - 4} width={8} height={8} fill={color} stroke="#0d0f10" strokeWidth={thin ? 1 : 2} pointerEvents="none" />
+          ))}
+        </>
+      )}
+
       {/* Name label */}
-      <text
+      {!titleBar && <text
         x={x + width / 2} y={y + 18}
         textAnchor="middle"
         fontSize={12}
@@ -253,14 +279,14 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         style={{ userSelect: "none" }}
       >
         {name?.length > 20 ? name.slice(0, 18) + "…" : name}
-      </text>
+      </text>}
 
       {/* Tap the name to open the editor — a large, reliable target (fires on
           press, like the ✏️ button) so you don't have to hit the small pencil.
           Sits to the left of the ✏️ so it never overlaps it. Edit mode only. */}
       {!viewOnly && (
         <rect
-          x={x} y={y} width={Math.max(10, width - 36)} height={28}
+          x={x} y={y} width={titleBar ? width : Math.max(10, width - 36)} height={titleBar ? 22 : 28}
           fill="transparent"
           onMouseDown={(e) => { e.stopPropagation(); onEdit?.(); }}
           onTouchStart={(e) => { e.stopPropagation(); onEdit?.(); }}
@@ -295,8 +321,8 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         </text>
       )}
 
-      {/* Edit button */}
-      {!viewOnly && (
+      {/* Edit button (pixel: the title bar is the tap target) */}
+      {!viewOnly && !titleBar && (
         <>
           <rect
             x={x + width - 32} y={y + 6}

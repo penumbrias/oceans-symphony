@@ -23,6 +23,10 @@ import { sectionHeading, pageWordCount, wordTargetOf, wordProgressLabel } from "
 import { prepareNote, recordNote, NoteText } from "./ItemRow";
 import { useWorkspace } from "./WorkspaceContext";
 import BoardPageHeader from "@/components/profile/BoardPageHeader";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import { runningOnPage, startPageActivity, stopPageActivity } from "@/lib/goalActivities";
+import { useActiveSessions } from "./ActivityStrip";
+import { PageMeasureRow, usePageColors } from "./NotebookPixel";
 
 export function PageNote({ page, editing, setEditing, emptyPrompt = false }) {
   const { alters, run, busy } = useWorkspace();
@@ -109,7 +113,7 @@ export function Connections({ page, emptyText = null, bare = false }) {
 
 // The page's title, renamed right where it is (as before v0.359.0; the
 // Info sheet has it too). Enter or leaving the box saves; empty puts it back.
-function TitleField({ page }) {
+export function TitleField({ page }) {
   const { run } = useWorkspace();
   const [title, setTitle] = useState(page.title || "");
   const ref = useRef(null);
@@ -144,6 +148,7 @@ function TitleField({ page }) {
 // the page (and pin, move, delete) is on its Info sheet too (PageInfoSheet).
 // How the lines show (outline, board, map) is switched on the Page widget.
 export default function PageView({ page, body, onEditLayout = null, layoutEditing = false }) {
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const ws = useWorkspace();
   const { index, steps, run, open } = ws;
   const [moving, setMoving] = useState(false);
@@ -176,6 +181,35 @@ export default function PageView({ page, body, onEditLayout = null, layoutEditin
     const v = await promptText({ title: "Icon", body: "An emoji for this page (leave it empty for none).", defaultValue: page.icon || "" });
     if (v !== null) run(() => updatePage(page.id, { icon: String(v).trim().slice(0, 8) || null }));
   };
+
+  const sheets = (
+    <>
+      <PageInfoSheet page={page} open={infoOpen && !layoutEditing} initialTab={infoTab} onClose={() => setInfoOpen(false)}
+        onMove={() => { setInfoOpen(false); setMoving(true); }} onDelete={remove} />
+      {moving && (
+        <MovePageDialog open title={`Move "${page.title || "page"}" to…`} movingPageId={page.id} allowTop
+          currentId={index.parent.get(page.id) || null} onClose={() => setMoving(false)}
+          onPick={(target) => {
+            setMoving(false);
+            run(() => movePage(index, page.id, target, target ? orderAfter(pageEntries(index, steps, target)) : null), "Moved");
+          }} />
+      )}
+    </>
+  );
+
+  // The pixel look: the "Notebook page" board's header panel (crumbs, the
+  // icon square, title, status · by date · tags, Work on it · Info · Edit
+  // page, then words or lines so far against the even pace).
+  if (pixel) {
+    return (
+      <article className="pxn-page" data-highlight-id={page.id}>
+        <PixelPageHead page={page} crumbs={crumbs} isTop={isTop} pickIcon={pickIcon} openInfo={openInfo}
+          infoOpen={infoOpen} closeInfo={() => setInfoOpen(false)} onEditLayout={onEditLayout} layoutEditing={layoutEditing} />
+        {body}
+        {sheets}
+      </article>
+    );
+  }
 
   return (
     <article className="space-y-4" data-highlight-id={page.id}>
@@ -257,5 +291,66 @@ export default function PageView({ page, body, onEditLayout = null, layoutEditin
           }} />
       )}
     </article>
+  );
+}
+
+function PixelPageHead({ page, crumbs, isTop, pickIcon, openInfo, infoOpen, closeInfo, onEditLayout, layoutEditing }) {
+  const { run, open } = useWorkspace();
+  const colors = usePageColors();
+  const sessions = useActiveSessions();
+  const running = runningOnPage(page.id, sessions);
+  const status = page.status ? goalStatusLabel(page.status) : "No status";
+  const working = running.length > 0;
+  return (
+    <div className="pxn-panel pxn-pagehead">
+      <div className="pxn-pagehead-row">
+        <nav aria-label="Where this page is" className="pxn-crumbs">
+          <button type="button" onClick={() => open(null)}>Notebook</button>
+          {crumbs.map((c) => (
+            <React.Fragment key={c.id}>
+              <span aria-hidden="true">&gt;</span>
+              <button type="button" onClick={() => open(c.id)}>{c.title || "Untitled"}</button>
+            </React.Fragment>
+          ))}
+          <span aria-hidden="true">&gt;</span>
+        </nav>
+        <button type="button" onClick={pickIcon} aria-label={page.icon ? "Change the icon" : "Choose an icon"} title="Icon"
+          className="pxn-swatch pxn-iconsq" style={{ background: colors.color(page.id) }}>
+          {page.icon || (page.title || "?")[0].toUpperCase()}
+        </button>
+        <div className="pxn-titlefield">{layoutEditing ? <span>{page.title || "Untitled"}</span> : <TitleField page={page} />}</div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={`pxn-chip${page.status === "active" || !page.status ? " going" : ""}`} aria-label={`Status: ${status}`}>
+              {status}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {GOAL_STATUSES.map((st) => (
+              <DropdownMenuItem key={st.id} onSelect={() => run(() => setGoalStatus(page, st.id), st.id === "done" ? "Reached 🎉" : null)}>{st.label}</DropdownMenuItem>
+            ))}
+            {!isTop && <DropdownMenuItem onSelect={() => run(() => updatePage(page.id, { status: null }))}>No status</DropdownMenuItem>}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <label className="pxn-chip pxn-datechip">
+          by
+          <input type="date" value={page.target_date || ""} aria-label="Aiming for"
+            onChange={(e) => run(() => updatePage(page.id, { target_date: e.target.value || null }))} />
+        </label>
+        <TagChips page={page} onAdd={() => openInfo("info")} className="pxn-tagchips" />
+        {page.pinned && <Pin className="w-3 h-3" aria-label="Pinned" />}
+        <span className="pxn-grow" />
+        <span className="pxn-pagehead-btns">
+          <button type="button" className={`pxn-btn${working ? "" : " on"}`}
+            onClick={() => run(() => (working ? Promise.all(running.map((s) => stopPageActivity(s))) : startPageActivity(page, null)), working ? "Logged" : null)}>
+            {working ? "Stop working" : "Work on it"}
+          </button>
+          <button type="button" className={`pxn-btn${infoOpen ? " sel" : ""}`} data-tour="goals-info-btn"
+            onClick={() => (infoOpen ? closeInfo() : openInfo("info"))} title="Everything about this page: title, icon, status, tags, word target, chapters">Info</button>
+          {onEditLayout && <button type="button" className="pxn-btn" onClick={onEditLayout} data-tour="goals-layout-btn">{layoutEditing ? "Editing" : "Edit page"}</button>}
+        </span>
+      </div>
+      <PageMeasureRow page={page} />
+    </div>
   );
 }

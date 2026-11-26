@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY, isBipolarScale, deriveDirection, isContextItem } from "@/lib/trackingModel";
 import AlterAssignChip from "@/components/shared/AlterAssignChip";
-import { startSymptomSession, endSymptomSessions } from "@/lib/symptomSessions";
+import { startSymptomSession, endSymptomSessions, deleteSymptomSession } from "@/lib/symptomSessions";
 import { SymptomDuplicatesBanner } from "@/components/symptoms/SymptomDuplicatesModal";
 
 // "context" is a virtual tab: context-kind items live in category "symptom"
@@ -276,7 +276,7 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
           action: {
             label: "Undo",
             onClick: async () => {
-              if (session && !reused) await base44.entities.SymptomSession.delete(session.id);
+              if (session && !reused) await deleteSymptomSession(session.id);
               else await endSymptomSessions(symptom.id);
               queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
             },

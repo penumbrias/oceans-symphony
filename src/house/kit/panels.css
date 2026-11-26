@@ -1,0 +1,350 @@
+/* The kit's panels, content and sheets (new house step 1.3). Tokens only,
+   scoped to [data-house]; the old house never sees a rule of it. Text is
+   rem through the type tokens; targets are the 44 px tokens; hover,
+   pressed and selected change shape as well as colour (as in kit.css). */
+
+/* ── Panel ───────────────────────────────────────────────────────── */
+[data-house] .hk-panel {
+  display: flex; flex-direction: column; min-width: 0; container-type: inline-size;
+  background: var(--house-panel); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner);
+  box-shadow: var(--house-surface-shadow), var(--house-raise);
+}
+[data-house][data-house-look="pixel"] .hk-panel { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
+/* Heads wrap when narrow: the title keeps the first line (at least 6 rem
+   of it), tools and the fold go under it, never a title a letter wide. */
+[data-house] .hk-panel-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2);
+  min-height: var(--house-h-control); padding: 0 var(--house-space-1) 0 var(--house-space-3);
+  border-bottom: var(--house-border-w) solid var(--house-divider);
+}
+[data-house] .hk-panel[data-open="false"] .hk-panel-head { border-bottom-color: transparent; }
+[data-house] .hk-panel-title { flex: 1 1 6rem; min-width: 0; padding: var(--house-space-1) 0; margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 700; overflow-wrap: break-word; }
+[data-house] .hk-panel-tools { display: flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; max-width: 100%; }
+[data-house] .hk-panel-head > .hk-iconbtn { margin-left: auto; }
+/* Side padding gives way a little in a narrow panel (cqi: the panel's width). */
+[data-house] .hk-panel-body { padding: var(--house-space-3) min(var(--house-space-3), 4cqi); min-width: 0; }
+[data-house] .hk-panel-body[hidden] { display: none; }
+
+/* ── Page tabs: flat strip, current = bold + 3 px accent underline ── */
+[data-house] .hk-tabs-wrap { position: relative; min-width: 0; border-bottom: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; gap: var(--house-space-1); }
+[data-house] .hk-tabs::-webkit-scrollbar { display: none; }
+[data-house] .hk-tabs-wrap[data-cut-right="true"] .hk-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
+[data-house] .hk-tabs-wrap[data-cut-left="true"] .hk-tabs { mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent); -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent); }
+[data-house] .hk-tabs-wrap[data-cut-left="true"][data-cut-right="true"] .hk-tabs { mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent); -webkit-mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent); }
+[data-house] .hk-tab {
+  position: relative; flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--house-space-1);
+  min-height: var(--house-target); min-width: var(--house-target); padding: 0 var(--house-space-3);
+  background: transparent; border: 0; border-radius: 0; color: var(--house-muted);
+  font-family: var(--house-font-label); font-size: var(--house-frame-text-sm); line-height: var(--house-lh-sm); white-space: nowrap; cursor: pointer;
+}
+[data-house] .hk-tab::after { content: ""; position: absolute; left: var(--house-space-2); right: var(--house-space-2); bottom: 0; height: 3px; background: transparent; }
+[data-house] .hk-tab[aria-selected="true"] { color: var(--house-text); font-weight: 700; }
+[data-house] .hk-tab[aria-selected="true"]::after { background: var(--house-accent); }
+@media (hover: hover) { [data-house] .hk-tab:hover:not([aria-selected="true"])::after { background: var(--house-border); height: 1px; } [data-house] .hk-tab:hover { color: var(--house-text); } }
+[data-house] .hk-tab:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
+[data-house] .hk-tab-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--house-accent); flex-shrink: 0; }
+
+/* ── List and tree ───────────────────────────────────────────────── */
+[data-house] .hk-list-wrap { display: flex; flex-direction: column; gap: var(--house-space-2); min-width: 0; }
+[data-house] .hk-list { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
+[data-house] .hk-listrow {
+  position: relative; display: flex; align-items: center; gap: var(--house-space-2);
+  min-height: var(--house-h-row); padding: var(--house-space-1) var(--house-space-3);
+  border-radius: var(--house-corner-sm); cursor: pointer; color: var(--house-text);
+  border-bottom: var(--house-border-w) solid var(--house-divider);
+}
+[data-house] .hk-listrow:last-child { border-bottom-color: transparent; }
+@media (hover: hover) { [data-house] .hk-listrow:hover { box-shadow: inset 0 0 0 1px var(--house-border); } }
+[data-house] .hk-listrow:active { transform: translateY(1px); }
+[data-house] .hk-listrow:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
+/* Chosen: a 4 px accent bar, the sunken fill and bold words (shape, not only colour). */
+[data-house] .hk-listrow[aria-selected="true"] { background: var(--house-sunken); box-shadow: inset 4px 0 0 var(--house-accent); }
+[data-house] .hk-listrow[aria-selected="true"] .hk-rowtext-title { font-weight: 700; }
+[data-house] .hk-listrow-lead { display: inline-flex; flex-shrink: 0; }
+[data-house] .hk-listrow-body { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+/* The indent stops at 15% of the list's width, so deep rows keep room
+   for their words (aria-level still says the real level). */
+[data-house] .hk-tree-indent { flex-shrink: 0; width: min(calc(var(--hk-depth, 0) * 1.25rem), 15cqi); }
+/* The fold target: the row's full height and a whole target wide
+   (2.75rem); in a narrow list at large text it gives way down to the
+   44 px floor, never below, so the name keeps room for whole words. */
+[data-house] .hk-treerow { padding-top: 0; padding-bottom: 0; align-items: stretch; }
+[data-house] .hk-treerow > .hk-listrow-body { align-self: center; padding: var(--house-space-1) 0; }
+[data-house] .hk-tree-toggle { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: max(44px, min(var(--house-target), 16cqi)); min-height: var(--house-h-row); margin-left: calc(var(--house-space-3) * -1); margin-right: calc(var(--house-space-2) * -1); color: var(--house-muted); }
+[data-house] .hk-tree-toggle[data-fold] { cursor: pointer; }
+@media (hover: hover) { [data-house] .hk-tree-toggle[data-fold]:hover { color: var(--house-text); box-shadow: inset 0 0 0 1px var(--house-border); border-radius: var(--house-corner-sm); } }
+[data-house] .hk-rowtext { display: flex; flex-direction: column; min-width: 0; }
+[data-house] .hk-rowtext-title { overflow-wrap: break-word; }
+[data-house] .hk-rowtext-sub { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); overflow-wrap: break-word; }
+[data-house] .hk-rowtext-meta { font-size: var(--house-text-sm); color: var(--house-muted); font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
+[data-house] .hk-pager { position: sticky; bottom: 0; background: var(--house-panel); display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); flex-wrap: wrap; padding-top: var(--house-space-2); border-top: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-pager-words { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-sm); color: var(--house-muted); }
+
+/* ── Info ────────────────────────────────────────────────────────── */
+[data-house] .hk-info { display: flex; flex-direction: column; gap: var(--house-space-4); min-width: 0; container-type: inline-size; }
+[data-house] .hk-info-head { display: flex; align-items: center; gap: var(--house-space-2) var(--house-space-3); min-width: 0; }
+/* Narrow: picture and ⋯ on the first line, the title under them. */
+@container (max-width: 20rem) {
+  [data-house] .hk-info-head { flex-wrap: wrap; }
+  [data-house] .hk-info-titles { order: 1; flex-basis: 100%; }
+  [data-house] .hk-info-head > .hk-iconbtn { margin-left: auto; }
+}
+[data-house] .hk-info-lead { flex-shrink: 0; }
+[data-house] .hk-info-titles { flex: 1 1 auto; min-width: 0; }
+[data-house] .hk-info-title { margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
+[data-house] .hk-info-kind { margin: 0; font-size: var(--house-text-sm); color: var(--house-muted); }
+[data-house] .hk-info-section { display: flex; flex-direction: column; gap: var(--house-space-1); }
+[data-house] .hk-info-section-title { margin: 0; font-size: var(--house-text-sm); color: var(--house-muted); font-weight: 700; }
+
+/* ── Inspector ───────────────────────────────────────────────────── */
+[data-house] .hk-insp { display: flex; flex-direction: column; min-width: 0; min-height: 0; max-height: 100%; background: var(--house-panel); }
+[data-house] .hk-insp-head { display: flex; flex-shrink: 0; align-items: center; gap: var(--house-space-1); padding: 0 var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-row); flex-wrap: wrap; }
+[data-house] .hk-insp > .hk-tabs-wrap { flex-shrink: 0; }
+[data-house] .hk-insp-title { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
+[data-house] .hk-insp-actions { display: flex; align-items: center; gap: var(--house-space-1); flex-wrap: wrap; margin-left: auto; }
+[data-house] .hk-insp-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--house-space-4) var(--house-space-4); }
+[data-house] .hk-insp-tab:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
+[data-house] .hk-insp-group { display: flex; flex-direction: column; padding-top: var(--house-space-3); }
+[data-house] .hk-insp-group-title { margin: 0 0 var(--house-space-1); font-size: var(--house-text-sm); font-weight: 700; color: var(--house-muted); }
+[data-house] .hk-insp-stack { padding-top: var(--house-space-3); }
+[data-house] .hk-insp-stack-title { display: flex; align-items: center; gap: var(--house-space-2); margin: 0; padding-bottom: var(--house-space-1); border-bottom: var(--house-border-w) solid var(--house-divider); font-size: var(--house-text-md); }
+[data-house] .hk-insp-reset { padding-top: var(--house-space-4); }
+
+/* ── Layers ──────────────────────────────────────────────────────── */
+[data-house] .hk-layers-wrap { display: flex; flex-direction: column; gap: var(--house-space-2); min-width: 0; }
+[data-house] .hk-layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+[data-house] .hk-layer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-2); min-height: var(--house-h-row); border-bottom: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-layer[data-hidden="true"] { color: var(--house-muted); }
+[data-house] .hk-layer[data-hidden="true"] .hk-layer-name > span:first-child { text-decoration: line-through; text-decoration-style: dashed; }
+[data-house] .hk-layer-name { flex: 1 1 8rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--house-space-2); overflow-wrap: break-word; }
+[data-house] .hk-layer-state { font-size: var(--house-text-sm); font-style: italic; }
+[data-house] .hk-layer-meta { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--house-muted); font-size: var(--house-text-xs); }
+/* At 200% text on a phone the move buttons drop under the name rather than run off the side. */
+[data-house] .hk-layer-moves { display: inline-flex; flex-shrink: 0; margin-left: auto; }
+[data-house] .hk-layer-lead { display: inline-flex; flex-shrink: 0; }
+
+/* ── Row ─────────────────────────────────────────────────────────── */
+/* Wraps when narrow: the words keep at least 6 rem, meta and trailing
+   bits go under them (right-aligned) instead of squeezing them. */
+[data-house] .hk-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1) var(--house-space-3); width: 100%;
+  min-height: var(--house-h-row); padding: var(--house-space-2) var(--house-space-3);
+  background: transparent; border: 0; border-bottom: var(--house-border-w) solid var(--house-divider); border-radius: 0;
+  color: var(--house-text); text-align: left; font: inherit; text-decoration: none;
+}
+[data-house] :is(button, a).hk-row { cursor: pointer; }
+@media (hover: hover) { [data-house] :is(button, a).hk-row:hover { box-shadow: inset 0 0 0 1px var(--house-border); } }
+[data-house] :is(button, a).hk-row:active { transform: translateY(1px); }
+[data-house] .hk-row:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
+[data-house] .hk-row[data-selected="true"] { background: var(--house-sunken); box-shadow: inset 4px 0 0 var(--house-accent); }
+[data-house] .hk-row[data-selected="true"] .hk-row-title { font-weight: 700; }
+[data-house] .hk-row[aria-disabled="true"] { cursor: not-allowed; color: var(--house-muted); border-bottom-style: dashed; }
+[data-house] .hk-row-lead { display: inline-flex; flex-shrink: 0; }
+[data-house] .hk-row-text { flex: 1 1 6rem; min-width: 0; display: flex; flex-direction: column; }
+[data-house] .hk-row-title { overflow-wrap: break-word; }
+[data-house] .hk-row-sub { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); overflow-wrap: break-word; }
+[data-house] .hk-row-meta { flex-shrink: 0; margin-left: auto; font-size: var(--house-text-sm); color: var(--house-muted); font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
+[data-house] .hk-row-trailing { display: inline-flex; flex-shrink: 0; gap: var(--house-space-1); margin-left: auto; }
+
+/* ── Card ────────────────────────────────────────────────────────── */
+[data-house] .hk-card {
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--house-panel); border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner);
+  box-shadow: var(--house-surface-shadow), var(--house-raise);
+}
+[data-house][data-house-look="pixel"] .hk-card { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
+[data-house] .hk-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2); padding: var(--house-space-2) var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); }
+[data-house] .hk-card-title { flex: 1 1 6rem; min-width: 0; margin: 0; font-size: var(--house-text-md); line-height: var(--house-lh-md); overflow-wrap: break-word; }
+[data-house] .hk-card-tools { display: flex; gap: var(--house-space-1); margin-left: auto; }
+[data-house] .hk-card-body { padding: var(--house-space-2) var(--house-space-4) var(--house-space-4); min-width: 0; }
+[data-house] .hk-card-foot { padding: var(--house-space-2) var(--house-space-4); border-top: var(--house-border-w) solid var(--house-divider); display: flex; gap: var(--house-space-2); flex-wrap: wrap; justify-content: flex-end; }
+
+/* ── Stat ────────────────────────────────────────────────────────── */
+[data-house] .hk-stat { display: flex; flex-direction: column; gap: var(--house-space-1); min-width: 0; }
+[data-house] .hk-stat-label { font-family: var(--house-font-label); font-size: var(--house-text-sm); color: var(--house-muted); font-weight: 600; overflow-wrap: break-word; }
+[data-house] .hk-stat-value { display: flex; align-items: baseline; gap: var(--house-space-1); flex-wrap: wrap; }
+[data-house] .hk-stat-number { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-2xl); line-height: var(--house-lh-2xl); font-weight: 700; overflow-wrap: break-word; }
+[data-house] .hk-stat-unit { font-size: var(--house-text-sm); color: var(--house-muted); }
+[data-house] .hk-stat-change { font-size: var(--house-text-sm); }
+
+/* ── Alter chip and avatar ───────────────────────────────────────── */
+[data-house] .hk-avatar {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
+  width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  background: var(--hk-alter-fill, var(--house-raised)); color: var(--hk-alter-on, var(--house-text));
+  box-shadow: 0 0 0 2px var(--hk-alter-ring, var(--house-border));
+}
+[data-house][data-house-look="pixel"] .hk-avatar { border-radius: var(--house-corner-sm); }
+[data-house] .hk-avatar--sm { width: 1.25rem; height: 1.25rem; }
+[data-house] .hk-avatar--lg { width: 3rem; height: 3rem; }
+[data-house] .hk-avatar img { width: 100%; height: 100%; object-fit: cover; }
+[data-house] .hk-avatar-initial { font-family: var(--house-font-value); font-weight: 700; font-size: 0.75em; }
+[data-house] .hk-avatar--sm .hk-avatar-initial { font-size: var(--house-text-xs); }
+[data-house] .hk-avatar--md .hk-avatar-initial { font-size: var(--house-text-sm); }
+[data-house] .hk-avatar--lg .hk-avatar-initial { font-size: var(--house-text-lg); }
+[data-house] .hk-alterchip {
+  display: inline-flex; align-items: center; gap: var(--house-space-2); max-width: 100%; min-width: 0;
+  min-height: var(--house-target); padding: var(--house-space-1) var(--house-space-3) var(--house-space-1) var(--house-space-1);
+  background: transparent; border: 0; color: var(--house-text); font: inherit; text-align: left;
+}
+[data-house] .hk-alterchip > .hk-chipname { min-width: 0; overflow-wrap: break-word; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
+[data-house] .hk-alterchip[data-size="lg"] > .hk-chipname { font-size: var(--house-text-md); line-height: var(--house-lh-md); }
+[data-house] span.hk-alterchip,
+[data-house] button.hk-alterchip { position: relative; }
+[data-house] .hk-alterchip > .hk-avatar { margin: 0; }
+/* The chip's visible face: a rounded outline in the alter's ring colour. */
+[data-house] .hk-alterchip::after {
+  content: ""; position: absolute; inset: calc((var(--house-target) - var(--house-chip)) / 2) 0;
+  border: var(--house-border-w) solid var(--hk-alter-ring, var(--house-border)); border-radius: 999px; pointer-events: none;
+}
+[data-house][data-house-look="pixel"] .hk-alterchip::after { border-radius: var(--house-corner-sm); border-width: 2px; }
+[data-house] button.hk-alterchip { cursor: pointer; }
+@media (hover: hover) { [data-house] button.hk-alterchip:hover::after { border-width: 3px; } }
+[data-house] button.hk-alterchip[aria-pressed="true"] { font-weight: 700; }
+[data-house] button.hk-alterchip[aria-pressed="true"]::after { border-width: 3px; background: color-mix(in srgb, var(--hk-alter-ring) 14%, transparent); }
+[data-house] .hk-alterchip--more { padding: 0 var(--house-space-3); justify-content: center; min-width: var(--house-target); }
+[data-house] .hk-alterchip--more > .hk-chipname { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-weight: 700; }
+[data-house] .hk-alterchip--more::after { border-style: dashed; }
+[data-house] .hk-alterchips { display: flex; flex-wrap: wrap; gap: 0 var(--house-space-2); align-items: center; min-width: 0; }
+[data-house] .hk-chipsuffix { font-size: var(--house-text-xs); color: var(--house-muted); }
+
+/* ── Charts ──────────────────────────────────────────────────────── */
+[data-house] .hk-chart { margin: 0; display: flex; flex-direction: column; gap: var(--house-space-2); min-width: 0; }
+[data-house] .hk-chart-head { display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); flex-wrap: wrap; }
+[data-house] .hk-chart-title { font-size: var(--house-text-md); font-weight: 700; overflow-wrap: break-word; }
+[data-house] .hk-chart-plot { width: 100%; min-width: 0; }
+[data-house] .hk-chart-plot text { font-family: var(--house-font-body); font-size: var(--house-text-sm); fill: var(--house-muted); }
+[data-house] .hk-chart .recharts-tooltip-wrapper { font-size: var(--house-text-sm); }
+[data-house] .hk-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--house-space-1) var(--house-space-4); font-size: var(--house-text-sm); }
+[data-house] .hk-legend-item { display: inline-flex; align-items: center; gap: var(--house-space-2); min-height: 1.75rem; }
+[data-house] .hk-legend-swatch { display: inline-flex; align-items: center; gap: 2px; }
+[data-house] .hk-legend-value { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; color: var(--house-muted); }
+[data-house] .hk-table-wrap { overflow-x: auto; max-width: 100%; }
+[data-house] .hk-table { border-collapse: collapse; width: 100%; font-size: var(--house-text-sm); }
+[data-house] .hk-table :is(th, td) { padding: var(--house-space-2) var(--house-space-3); border-bottom: var(--house-border-w) solid var(--house-divider); text-align: left; }
+[data-house] .hk-table td { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
+[data-house] .hk-table thead th { color: var(--house-muted); font-weight: 700; }
+
+/* ── Empty, loading, error ───────────────────────────────────────── */
+[data-house] .hk-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--house-space-2); padding: var(--house-space-6) var(--house-space-4); container-type: inline-size; }
+[data-house] .hk-empty[data-compact="true"] { padding: var(--house-space-4); }
+[data-house] .hk-empty-icon { color: var(--house-muted); }
+[data-house] .hk-empty-title { margin: 0; font-size: var(--house-text-md); font-weight: 700; overflow-wrap: break-word; }
+[data-house] .hk-empty-body { margin: 0; max-width: 30rem; color: var(--house-muted); font-size: var(--house-text-sm); overflow-wrap: break-word; }
+[data-house] .hk-loading { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+[data-house] .hk-ph { display: block; background: var(--house-divider); border-radius: var(--house-corner-sm); animation: hk-pulse calc(var(--house-dur-slow) * 5) var(--house-ease-in-out) infinite alternate; }
+@keyframes hk-pulse { from { opacity: 1; } to { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { [data-house] .hk-ph { animation: none; } }
+html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
+[data-house] .hk-ph-row { display: flex; align-items: center; gap: var(--house-space-3); min-height: var(--house-h-row); padding: 0 var(--house-space-3); border-bottom: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-ph-dot { width: 1.75rem; height: 1.75rem; border-radius: 50%; flex-shrink: 0; }
+[data-house] .hk-ph-lines { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--house-space-1); }
+[data-house] .hk-ph-line { height: 1rem; }
+[data-house] .hk-ph-line--thin { height: 0.75rem; }
+[data-house] .hk-loading[data-kind="text"] { gap: var(--house-space-2); }
+[data-house] .hk-ph-card { height: 10rem; }
+[data-house] .hk-ph-chart { height: 16rem; }
+[data-house] .hk-ph-stat { display: flex; flex-direction: column; gap: var(--house-space-2); }
+[data-house] .hk-ph-stat .hk-ph-line--thin { width: 8rem; }
+[data-house] .hk-ph-big { width: 5rem; height: var(--house-text-2xl); }
+[data-house] .hk-error-block { display: flex; flex-direction: column; align-items: flex-start; gap: var(--house-space-2); padding: var(--house-space-4); border: 2px solid var(--house-danger); border-radius: var(--house-corner); background: var(--house-panel); container-type: inline-size; }
+[data-house] .hk-error-block { padding-left: min(var(--house-space-4), 5cqi); padding-right: min(var(--house-space-4), 5cqi); }
+/* Narrow: the one next step goes full width, its words wrap between words. */
+@container (max-width: 18rem) {
+  [data-house] :is(.hk-empty, .hk-error-block) > :is(.hk-btn, .hk-btn-wrap) { align-self: stretch; width: 100%; padding-left: var(--house-space-2); padding-right: var(--house-space-2); }
+  [data-house] :is(.hk-empty, .hk-error-block) > .hk-btn-wrap > .hk-btn { width: 100%; }
+}
+
+[data-house] .hk-empty { padding-left: min(var(--house-space-4), 4cqi); padding-right: min(var(--house-space-4), 4cqi); }
+[data-house] .hk-error-what { margin: 0; display: flex; gap: var(--house-space-2); align-items: flex-start; font-weight: 700; color: var(--house-danger-text); overflow-wrap: break-word; }
+[data-house] .hk-error-safe { margin: 0; display: flex; gap: var(--house-space-2); align-items: flex-start; font-size: var(--house-text-sm); }
+
+/* ── Toast ───────────────────────────────────────────────────────── */
+/* Above everything but a sheet's own space: while a sheet is open the host
+   moves it above the sheet's top edge, or holds it (Toast.jsx). */
+[data-house] .hk-toast-region { position: fixed; left: 0; right: 0; bottom: calc(var(--house-sheet-bottom, 0px) + var(--house-space-4)); display: flex; justify-content: center; padding: 0 var(--house-space-4); pointer-events: none; z-index: 300; }
+[data-house] .hk-toast-region--inline { position: static; padding: 0; justify-content: flex-start; }
+[data-house] .hk-toast-region { container-type: inline-size; }
+[data-house] .hk-toast-more { display: none; }
+[data-house] .hk-toast-icon { display: inline-flex; flex-shrink: 0; }
+/* Narrow: no icon, the message beside Close, "More" (the detail, never
+   cut) and Undo on the line under it. */
+@container (max-width: 20rem) {
+  [data-house] .hk-toast .hk-toast-icon { display: none; }
+  [data-house] .hk-toast > .hk-toast-text { flex: 1 1 calc(100% - var(--house-target) - var(--house-space-2)); }
+  [data-house] .hk-toast > .hk-iconbtn:last-child { order: -1; }
+  [data-house] .hk-toast > .hk-toast-text { order: -2; }
+  [data-house] .hk-toast:not([data-more]) .hk-toast-detail { display: none; }
+  [data-house] .hk-toast-more { display: inline-flex; }
+}
+[data-house] .hk-toast {
+  pointer-events: auto; display: flex; align-items: center; gap: var(--house-space-2); flex-wrap: wrap;
+  width: min(36rem, 100%); padding: var(--house-space-2) var(--house-space-1) var(--house-space-2) var(--house-space-3);
+  /* At large text it never grows past 40% of the screen: the rest scrolls
+     inside it (kit gate item 3). */
+  max-height: 40dvh; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--house-panel); color: var(--house-text);
+  border: 2px solid var(--house-border); border-radius: var(--house-corner);
+  box-shadow: var(--house-surface-shadow), var(--house-raise);
+}
+[data-house][data-house-look="pixel"] .hk-toast { border-color: var(--house-outline); }
+[data-house] .hk-toast[data-tone="failed"] { border-color: var(--house-danger); }
+[data-house] .hk-toast[data-tone="failed"] .hk-toast-message { color: var(--house-danger-text); }
+[data-house] .hk-toast-text { flex: 1 1 12rem; min-width: 0; display: flex; flex-direction: column; }
+[data-house] .hk-toast-message { font-weight: 700; font-size: var(--house-text-sm); overflow-wrap: break-word; }
+[data-house] .hk-toast-detail { font-size: var(--house-text-sm); color: var(--house-muted); overflow-wrap: break-word; }
+
+/* ── Sheets ──────────────────────────────────────────────────────── */
+/* The scrim stops where sheets stop: the bottom bar (and Support on it) stays one tap away. */
+[data-house] .hk-scrim { position: fixed; inset: 0 0 var(--house-sheet-bottom, 0px) 0; background: rgb(0 0 0 / 0.55); }
+[data-house] .hk-sheet {
+  position: fixed; left: 0; right: 0; bottom: var(--house-sheet-bottom, 0px);
+  display: flex; flex-direction: column; min-height: 0;
+  max-width: 48rem; margin: 0 auto;
+  background: var(--house-panel); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-border); border-bottom: 0;
+  border-radius: var(--house-corner) var(--house-corner) 0 0;
+  box-shadow: 0 -4px 24px rgb(0 0 0 / 0.3), var(--house-raise);
+  font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transition: height var(--house-dur-base) var(--house-ease-out);
+}
+[data-house][data-house-look="pixel"] .hk-sheet { border: var(--house-px-line, 1px) solid var(--house-outline); border-bottom: 0; }
+[data-house] .hk-sheet:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
+[data-house] .hk-sheet[data-size="peek"] { height: calc(7.5rem + var(--house-h-control)); }
+[data-house] .hk-sheet[data-size="half"] { height: min(50dvh, calc(100dvh - var(--house-sheet-bottom, 0px) - 3rem)); min-height: min(20rem, 80dvh); }
+[data-house] .hk-sheet[data-size="full"] { height: calc(100dvh - var(--house-sheet-bottom, 0px) - env(safe-area-inset-top, 0px)); max-width: none; border-radius: 0; }
+[data-house] .hk-sheet[data-side="right"] { left: auto; right: 0; top: 0; bottom: var(--house-sheet-bottom, 0px); height: auto; width: min(26rem, 100vw); max-width: none; border-radius: 0; border-bottom: var(--house-border-w) solid var(--house-border); }
+[data-house] .hk-sheet[data-inline="true"] { position: relative; left: auto; right: auto; bottom: auto; margin: 0; max-width: 100%; height: auto; min-height: 0; padding-bottom: 0; box-shadow: var(--house-surface-shadow), var(--house-raise); border-bottom: var(--house-border-w) solid var(--house-border); border-radius: var(--house-corner); }
+[data-house] .hk-sheet[data-inline="true"] .hk-sheet-body { max-height: 22rem; }
+[data-house] .hk-sheet-grab { display: flex; justify-content: center; align-items: center; width: 100%; min-height: var(--house-target); background: transparent; border: 0; cursor: grab; touch-action: none; flex-shrink: 0; }
+[data-house] .hk-sheet-grabbar { width: 3rem; height: 0.3125rem; border-radius: 999px; background: var(--house-border); }
+[data-house] .hk-sheet-grab:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
+[data-house] .hk-sheet-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2); padding: 0 var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); border-bottom: var(--house-border-w) solid var(--house-divider); flex-shrink: 0; }
+[data-house] .hk-sheet-title { flex: 1 1 6rem; min-width: 0; margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); overflow-wrap: break-word; }
+[data-house] .hk-sheet-tools { display: flex; gap: var(--house-space-1); margin-left: auto; }
+[data-house] .hk-sheet-head > .hk-iconbtn { margin-left: auto; }
+[data-house] .hk-sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--house-space-3) var(--house-space-4) var(--house-space-4); }
+[data-house] .hk-sheet-foot { flex-shrink: 0; display: flex; gap: var(--house-space-2); flex-wrap: wrap; justify-content: flex-end; padding: var(--house-space-2) var(--house-space-4); border-top: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-confirm { display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hk-confirm-words { margin: 0; }
+/* Delete on the left, "Keep it" on the right where Save would sit. When
+   the two stack (a phone at large text), "Keep it" is the bottom line,
+   where the thumb rests, and Delete is above it (building code §1, §12). */
+[data-house] .hk-confirm-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--house-space-3); }
+
+/* The safety sheet: no app chrome, the whole screen. */
+[data-house] .hk-safety {
+  position: fixed; inset: 0; display: flex; flex-direction: column; gap: var(--house-space-3);
+  padding: calc(env(safe-area-inset-top, 0px) + var(--house-space-2)) var(--house-space-4) calc(env(safe-area-inset-bottom, 0px) + var(--house-space-4));
+  background: var(--house-page); color: var(--house-text); overflow-y: auto;
+  font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
+}
+[data-house] .hk-safety[data-inline="true"] { position: relative; inset: auto; min-height: 30rem; border: 2px solid var(--house-border); border-radius: var(--house-corner); }
+[data-house] .hk-safety-head { display: flex; }
+[data-house] .hk-safety-title { margin: 0; font-size: var(--house-text-xl); line-height: var(--house-lh-xl); overflow-wrap: break-word; }
+[data-house] .hk-safety-body { flex: 1 1 auto; max-width: 42rem; width: 100%; }
+[data-house] .hk-safety-foot { position: sticky; bottom: 0; padding-top: var(--house-space-2); background: var(--house-page); max-width: 42rem; width: 100%; }
+[data-house] .hk-chart-svg { width: 100%; height: 100%; }

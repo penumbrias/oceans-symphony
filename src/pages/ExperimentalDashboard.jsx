@@ -24,7 +24,7 @@ import { createPortal } from "react-dom";
 import SetupPackSheet from "@/components/dashboard/SetupPackSheet";
 import UndoRedoButtons, { markMachineWrite } from "@/components/v2/UndoRedoHistory";
 import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,7 +58,7 @@ import { useExpandingWidgets } from "@/hooks/useExpandingWidgets";
 import HomeOpensOnRow from "@/components/settings/HomeOpensOnRow";
 import {
   pickLook, mergeLook, lookToStyle, lookExtraCss, resolveUserStyles, userStyleId, newStyleId,
-  USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS, lookForGroups,
+  USER_STYLE_PREFIX, lookCoverage, OFF, SHADOW_PRESETS, lookForGroups, BOX_RADIUS,
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
@@ -87,11 +87,15 @@ import { libraryPageOf } from "@/lib/widgetMenuGroups";
 import { keepLayoutRestorePoint } from "@/lib/localDb";
 import { applyLayoutToAll, setDefaultLayout, resetLayout } from "@/lib/profileBoardBulk";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { BoardFieldContext } from "@/lib/boardWriter";
+import { BoardFieldContext, writeBoard } from "@/lib/boardWriter";
+import { buildPixelHomePage, withPixelHomePage } from "@/lib/pixelHomeLayout";
 import { foldedSettings, pastDefaultsFor } from "@/lib/widgetFold";
 import { startHoldTimer } from "@/lib/holdTimer";
 import { WidgetSuspense } from "@/lib/lazyNamed";
 import { keepScroll } from "@/lib/keepScroll";
+import { publishSubtabs } from "@/lib/pageSubtabs";
+import { announceBoard } from "@/lib/boardPresence";
+import { useUiLook, usePixelDesk, UI_LOOKS } from "@/lib/uiLook";
 
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -479,7 +483,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
         ...style,
         ...(ownShadowCss && !collapsed ? {
           boxShadow: ownShadowCss,
-          borderRadius: lookStyle["--v2-radius"] || "var(--v2-radius, 8px)",
+          borderRadius: ["tl", "tr", "br", "bl"].map((c) => lookStyle[`--v2-radius-${c}`] || lookStyle["--v2-radius"] || "var(--v2-radius, 8px)").join(" "),
           ...(lookStyle["--v2-accent"] ? { "--v2-accent": lookStyle["--v2-accent"] } : {}),
         } : {}),
       }}
@@ -560,6 +564,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
         data-halign={halign}
         {...(def.paintBox ? { "data-widget-box": "1" } : {})}
         data-own-bw={lookStyle["--v2-own-border-w"] ? "1" : undefined}
+        data-own-gap={lookStyle["--v2-own-gap"] ? "1" : undefined}
         {...(editMode && !a11yStack ? move.getMoveProps() : {})}
         {...(editMode && !a11yStack && onHoldSelect ? {
           // Hold, then LET GO without moving = pick this widget for a
@@ -591,7 +596,7 @@ const SortableWidget = React.memo(function SortableWidget({ widget, def, editMod
         ].join(" ").trim() || undefined}
         style={{
           ...lookStyle,
-          borderRadius: "var(--v2-radius, 8px)",
+          borderRadius: BOX_RADIUS,
           // Classic-registry widgets have no v2 Section to consume the box
           // look — the wrapper paints it for them (def.paintBox). Neutral
           // fallbacks keep the default look pixel-identical; only values
@@ -824,6 +829,12 @@ export default function ExperimentalDashboard({
   const t = useTerms();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
+  // The pixel look draws the page dots as named page tabs (the mockup's
+  // "Pages" strip).
+  const pixelLook = useUiLook() === UI_LOOKS.PIXEL;
+  const pixelDesk = usePixelDesk();
+  // Say this board is on screen (the pixel tool rail's "Edit page").
+  useEffect(() => announceBoard(eventPrefix), [eventPrefix]);
   // Tell the header ⚙ menu whether THIS home is being edited — it only
   // offers "Reset home screen…" then (owner, 2026-10-01). Mirrored on
   // window so a menu opened later reads the current state.
@@ -933,10 +944,12 @@ export default function ExperimentalDashboard({
   // The user's own saved styles live beside the layout, on the settings row,
   // so they travel with backups and device sync for free.
   const userStyles = useMemo(() => resolveUserStyles(settingsRow?.ui_v2_styles), [settingsRow?.ui_v2_styles]);
-  const persistStyles = useCallback(async (next) => {
+  // `change` maps the FRESH saved styles to the next list (read inside the
+  // settings writer's queue), so two quick saves both land.
+  const persistStyles = useCallback(async (change) => {
     try {
-      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2_styles: next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      if (!settingsRow?.id) return;
+      await writeSettings((fresh) => ({ ui_v2_styles: change(resolveUserStyles(fresh.ui_v2_styles)) }), { queryClient: qc });
     } catch (e) { toast.error(e?.message || "Couldn't save the style"); }
   }, [settingsRow?.id, qc]);
   // Phase 2: multiple pages. activePageId is transient (each visit starts
@@ -1208,6 +1221,49 @@ export default function ExperimentalDashboard({
     if (!ok) return;
     await runBulk(() => resetLayout(boardStore.ownerType, boardStore.ownerId, { qc }), "Layout reset.");
   };
+  // Pixel look, home screen only: "Use the pixel layout" adds ONE new page
+  // arranged like the pixel mockups (the desk one on a computer, the phone
+  // one on a phone). The person's own pages, the default page and every
+  // widget stay exactly as they are; it confirms first and writes through
+  // the board writer (fresh read, stamped as the person's edit).
+  const offerPixelLayout = pixelLook && !profileBoard && eventPrefix === "os-classic";
+  const applyPixelLayout = async () => {
+    setSaveMenuOpen(false);
+    const shape = pixelDesk ? "desk" : "phone";
+    const ok = await confirm({
+      title: "Use the pixel layout?",
+      body: `This adds a new page laid out like the pixel ${shape === "desk" ? "desk" : "phone"} screen, made from widgets you can move, resize or remove. Your pages and widgets stay as they are, and you can delete the new page any time.`,
+      confirmLabel: "Add the page",
+    });
+    if (!ok) return;
+    let added = null;
+    try {
+      // Let any edit still being saved land first, so it and the new page
+      // can't overwrite each other.
+      for (let i = 0; i < 50 && boardRef.current.pending > 0; i += 1) await new Promise((r) => setTimeout(r, 100));
+      const written = await writeBoard(settingsRow, store, (cur) => {
+        if (!cur || typeof cur !== "object") return null;
+        const page = buildPixelHomePage(registry, shape, cur.pages);
+        const next = withPixelHomePage(cur, page);
+        if (next) added = page;
+        return next;
+      });
+      if (!added || !written) throw new Error("The home screen isn't ready yet. Try again in a moment.");
+      // The canvas follows at once, so its own next write (a fit pass, an
+      // edit) is built on the board WITH the new page, never the one before.
+      boardRef.current.board = resolveExperimentalHome(written, registry);
+      if (store.id) { await qc.cancelQueries({ queryKey: store.queryKey }); store.setCached(written); }
+      editSnapshot.current = null;
+      closeEditSurfaces();
+      setEditMode(false);
+      store.invalidate();
+      setSwipeDir(1);
+      setActivePageId(added.id);
+      toast.success(`Added the page "${added.label}".`);
+    } catch (e) {
+      toast.error(e?.message || "That didn't save.");
+    }
+  };
   const exitDiscard = async () => {
     const snap = editSnapshot.current;
     editSnapshot.current = null;
@@ -1454,10 +1510,7 @@ export default function ExperimentalDashboard({
       if (!homeOverrideOn && home.defaultPageId !== page.id) {
         await persist({ ...boardRef.current.board, defaultPageId: page.id });
       }
-      const nextUi = { ...(settingsRow?.ui_v2 || {}), homeDefault: homeOverrideOn ? "classic" : "board" };
-      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2: nextUi });
-      else await base44.entities.SystemSettings.create({ ui_v2: nextUi });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ ui_v2: { homeDefault: homeOverrideOn ? "classic" : "board" } }, { create: true, queryClient: qc });
       toast.success(homeOverrideOn
         ? "The classic home screen is home again"
         : "This page is your home screen now — Home comes here");
@@ -1606,8 +1659,7 @@ export default function ExperimentalDashboard({
   const writePinnedBar = useCallback(async (patch) => {
     if (!settingsRow?.id) return;
     try {
-      await base44.entities.SystemSettings.update(settingsRow.id, pinnedBarPatch(settingsRow, patch));
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings((fresh) => pinnedBarPatch(fresh, patch), { queryClient: qc });
     } catch (e) { toast.error(e?.message || "Couldn't save"); }
   }, [settingsRow, qc]);
   const altersBarOn = pinnedBar.enabled;
@@ -1939,9 +1991,7 @@ export default function ExperimentalDashboard({
   const toggleBoardSnap = async () => {
     const next = !boardSnap;
     try {
-      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { board_snap: next });
-      else await base44.entities.SystemSettings.create({ board_snap: next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ board_snap: next }, { create: true, queryClient: qc });
       toast.success(next ? "Snap to grid is on" : "Snap to grid is off — widgets move and size in small steps");
     } catch (e) {
       toast.error(e?.message || "Couldn't change snapping");
@@ -2445,6 +2495,51 @@ export default function ExperimentalDashboard({
             </button>
           )}
         </PageStrip>
+      ) : pixelLook && (visiblePages.length > 1 || editMode || onExitLeft || onExitRight) ? (
+        // Pixel look: the same pages as named tabs (the shared PageStrip),
+        // with the home screen and the widget board as tabs of their own,
+        // so a mouse reaches both without a swipe.
+        <>
+        <PublishSubtabs owner={eventPrefix} data={{
+          label: "Homescreen pages",
+          value: page.id,
+          onChange: (id) => {
+            if (id === "__home_screen") { onExitLeft?.(); return; }
+            if (id === "__widget_board") { onExitRight?.(); return; }
+            const i = visiblePages.findIndex((p) => p.id === id);
+            if (i >= 0) goToPage(i);
+          },
+          items: [
+            ...(onExitLeft ? [{ id: "__home_screen", label: "Home screen" }] : []),
+            ...visiblePages.map((p, i) => ({ id: p.id, label: applyTerms(p.label, t) || `Page ${i + 1}` })),
+            ...(onExitRight ? [{ id: "__widget_board", label: "Widget board" }] : []),
+          ],
+          onAdd: editMode ? handleAddPage : null,
+        }} />
+        <PageStrip
+          label="Homescreen pages"
+          className="px-pages px-pages-sub mb-3"
+          value={page.id}
+          onChange={(id) => {
+            if (id === "__home_screen") { onExitLeft?.(); return; }
+            if (id === "__widget_board") { onExitRight?.(); return; }
+            const i = visiblePages.findIndex((p) => p.id === id);
+            if (i >= 0) goToPage(i);
+          }}
+          items={[
+            ...(onExitLeft ? [{ id: "__home_screen", label: "Home screen" }] : []),
+            ...visiblePages.map((p, i) => ({ id: p.id, label: applyTerms(p.label, t) || `Page ${i + 1}` })),
+            ...(onExitRight ? [{ id: "__widget_board", label: "Widget board" }] : []),
+          ]}
+        >
+          {editMode && (
+            <button type="button" onClick={handleAddPage} aria-label="Add page" title="Add page"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:text-primary flex-shrink-0">
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+        </PageStrip>
+        </>
       ) : (visiblePages.length > 1 || editMode || onExitLeft) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
           {onExitLeft && (
@@ -2805,8 +2900,8 @@ export default function ExperimentalDashboard({
           widgets.find((w) => w.instanceId === configId)?.settings || {},
           userStyles, home.styleMode
         )}
-        onSaveStyle={(label, look) => persistStyles([...userStyles, { id: newStyleId(), label, look }])}
-        onDeleteStyle={(id) => persistStyles(userStyles.filter((x) => x.id !== id))}
+        onSaveStyle={(label, look) => { const id = newStyleId(); persistStyles((cur) => [...cur, { id, label, look }]); }}
+        onDeleteStyle={(id) => persistStyles((cur) => cur.filter((x) => x.id !== id))}
         onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
         api={widgetApi}
         widget={widgets.find((w) => w.instanceId === configId) || null}
@@ -3050,6 +3145,10 @@ export default function ExperimentalDashboard({
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Save / share as pack…</button>
                   <button type="button" onClick={() => openPackSheet("import")}
                     className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Import a pack…</button>
+                  {offerPixelLayout && (
+                  <button type="button" onClick={applyPixelLayout}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-lg hover:bg-muted/40">Use the pixel layout…</button>
+                  )}
                   {eventPrefix === "os-classic" && (
                   // Reset offers to keep the current arrangement on the
                   // widget board first (HomeScreenResetDialog).
@@ -3075,4 +3174,11 @@ export default function ExperimentalDashboard({
     </div>
     </div>
   );
+}
+
+// Hands this board's page tabs to the pixel frame, which shows them as
+// subtabs beside the open page's tab on a computer (see pageSubtabs.js).
+function PublishSubtabs({ owner, data }) {
+  useEffect(() => publishSubtabs(owner, data));
+  return null;
 }

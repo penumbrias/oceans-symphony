@@ -9,6 +9,7 @@
 //   normal    the real thing, sized for a tile.
 //   expanded  more of it, plus the actions that belong to it.
 
+import { applyTimelineLayers, hiddenLayersOf } from "@/lib/timelineLayers";
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,7 +38,7 @@ import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import { groundingPreferenceHandlers } from "@/lib/groundingPreferences";
 import TopicView, { CURRICULUM } from "@/components/support/TopicView";
-import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+const QuickCheckInModal = lazyWhenOpen(() => import("@/components/emotions/QuickCheckInModal"), (p) => p.isOpen);
 import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { useFrontersFirst } from "@/lib/alterSort";
@@ -47,6 +48,7 @@ import { isCountedTask, taskCountState, countLabel } from "@/lib/taskCounts";
 import { checkInIsDistress } from "@/lib/emotionDistress";
 import { Row as SettingRow } from "@/components/shared/SettingRows";
 import { sharedList } from "@/lib/sharedLists";
+import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.
@@ -99,6 +101,8 @@ export function TimelineWidget({ mode = "normal", settings }) {
   const src = useTimelineSources();
   // On a profile board: only that profile's alters' entries.
   const scopeIds = useScopeAlterIds(settings);
+  // Layers switched off in the widget's options.
+  const hiddenLayers = hiddenLayersOf(settings);
   const startDays = Math.max(1, Math.min(30, parseInt(settings?.days, 10) || (mode === "expanded" ? 7 : 3)));
   const [shown, setShown] = useState(startDays);
   const days = useMemo(
@@ -107,7 +111,7 @@ export function TimelineWidget({ mode = "normal", settings }) {
   );
 
   if (mode === "minimal") {
-    const d = scopeTimelineDay(sliceTimelineDay(src, new Date()), scopeIds);
+    const d = applyTimelineLayers(scopeTimelineDay(sliceTimelineDay(src, new Date()), scopeIds), hiddenLayers);
     const bits = [
       d.sessions.length ? `${d.sessions.length} sessions` : null,
       d.activities.length ? `${d.activities.length} activities` : null,
@@ -133,7 +137,7 @@ export function TimelineWidget({ mode = "normal", settings }) {
       <ErrorBoundary fallback={<Muted>The timeline couldn't be drawn here. Open the Timeline page.</Muted>} resetKeys={[shown]}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" onScroll={onScroll}>
           {days.map((day) => {
-            const d = scopeTimelineDay(sliceTimelineDay(src, day), scopeIds);
+            const d = applyTimelineLayers(scopeTimelineDay(sliceTimelineDay(src, day), scopeIds), hiddenLayers);
             return (
               <InfiniteTimeline
                 key={d.dateStr}

@@ -49,6 +49,10 @@ import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { an } from "@/lib/articles";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import SetFrontSheetPixel from "@/components/fronting/SetFrontSheetPixel";
+import { useHouseSheet } from "@/lib/houseSwitch";
+import useKeyboardInset from "@/hooks/useKeyboardInset";
 
 // One alter in the draft (the "here now" list being edited).
 function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary, onLevel, onRemove, holdProps = null }) {
@@ -138,6 +142,10 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
   const levelCfg = useFrontLevels();
+  // The new house draws board 47 in its own paint whatever the look is.
+  const houseSheet = useHouseSheet();
+  const keyboardInset = useKeyboardInset();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL || !!houseSheet;
 
   // Everyone already in the draft sits in the section above, so this list
   // never needs fronters-first — just the user's chosen order.
@@ -374,9 +382,75 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
 
   const primaryId = draft.find((d) => d.isPrimary)?.alterId || "";
 
+  // Unsure goes straight to "how does it feel?" (owner, 2026-11-25): a
+  // colour, vibe or note saved as a presence, and the front is cleared with
+  // it. "Just clear" keeps the plain clear with none of the extras.
+  const chooseUnsure = (on) => {
+    const next = typeof on === "function" ? on(isUnsure) : on;
+    setIsUnsure(next);
+    setTab(next ? "presence" : "fronters");
+  };
+  const unsureIntro = isUnsure ? (
+    <div className="mb-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5 space-y-2" data-unsure-intro>
+      <p className="text-sm">
+        Not sure who's in {terms.front}? Note a colour, vibe or a few words for how it feels. Saving it also clears the {terms.front}.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : `Just clear ${terms.front}`}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => chooseUnsure(false)}>
+          {`Back to ${terms.fronters}`}
+        </Button>
+      </div>
+    </div>
+  ) : null;
+  const presenceBody = isUnsure
+    ? <PresencePicker onClose={onClose} onSaved={handleSave} intro={unsureIntro} />
+    : <PresencePicker onClose={onClose} />;
+
+  // The pixel look draws the "Set front" board around the same state and
+  // handlers (SetFrontSheetPixel) — the save still goes through handleSave.
+  const pixelBody = pixel ? (
+    <SetFrontSheetPixel
+      terms={terms} formatAlter={formatAlter} levelCfg={levelCfg} sorter={sorter}
+      tab={tab} setTab={setTab} viewMode={viewMode} setViewMode={setViewMode}
+      search={search} setSearch={setSearch}
+      draft={draft} altersById={altersById} isUnsure={isUnsure} setIsUnsure={chooseUnsure} presenceBody={presenceBody} primaryId={primaryId}
+      addList={addList} activeAlters={activeAlters} groups={groups} draftIds={draftIds}
+      onClose={onClose} onSave={handleSave} saving={saving}
+      togglePrimary={togglePrimary} setLevel={setLevel} removeAlter={removeAlter}
+      guardedAdd={guardedAdd} guardedToggleFromView={guardedToggleFromView} setMany={setMany}
+      getAddHoldProps={getAddHoldProps} draftLevelOf={draftLevelOf} levelName={levelName} treeGroupRail={treeGroupRail}
+      railNodes={<>
+        {rowOptionsMenu.node}
+        {groupLevelRail.node}
+        <FrontLevelRail rail={addRail} cfg={levelCfg} withRemove
+          alterName={addRailAlter ? formatAlter(addRailAlter) : ""} />
+      </>}
+      journalSwitch={journalSwitch} setJournalSwitch={setJournalSwitch}
+      triggeredSwitch={triggeredSwitch} setTriggeredSwitch={setTriggeredSwitch}
+      triggerCategory={triggerCategory} setTriggerCategory={setTriggerCategory}
+      triggerLabel={triggerLabel} setTriggerLabel={setTriggerLabel}
+      allTriggerCategories={allTriggerCategories}
+      tick={houseSheet ? houseSheet.tick : "x"}
+      head={houseSheet?.phone ? <houseSheet.Head title={`Set ${terms.front}`} onBack={onClose} /> : null}
+    />
+  ) : null;
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
+        {pixel ? (
+          <DialogContent showCloseButton={false} aria-describedby={undefined}
+            className={houseSheet ? "hcs-sf" : "psh-dlg psh-dlg-sf"}
+            {...(houseSheet ? houseSheet.attrs : null)}
+            style={houseSheet
+              ? { ...houseSheet.style, ...houseSheet.place("front", keyboardInset) }
+              : { height: "calc(100dvh - env(safe-area-inset-top, 0px) - var(--os-sab) - 2rem)" }}>
+            {pixelBody}
+          </DialogContent>
+        ) : (
         <DialogContent
           // One scrollable column, NOT a rigid flex layout: on short
           // viewports (landscape phones) a fixed header/footer flex column
@@ -406,7 +480,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
           </div>
 
           {tab === "presence" ? (
-            <PresencePicker onClose={onClose} />
+            presenceBody
           ) : (
             <>
               {/* The draft — who this save will make the front */}
@@ -535,7 +609,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="gap-1.5"
                     aria-pressed={isUnsure}
-                    onClick={() => setIsUnsure((v) => !v)}>
+                    onClick={() => chooseUnsure((v) => !v)}>
                     <HelpCircle className="w-3.5 h-3.5" /> {isUnsure ? "Not unsure" : "Unsure"}
                   </Button>
                   <Button className="flex-1" onClick={handleSave} disabled={saving}>
@@ -546,6 +620,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
             </>
           )}
         </DialogContent>
+        )}
       </Dialog>
 
       {showJournalModal && (

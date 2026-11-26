@@ -8,6 +8,7 @@ import { Sparkles, Plus, Trash2, Link2, RefreshCw, X, Pencil, GitMerge, Check, U
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
+import { an } from "@/lib/articles";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import PresenceFormModal from "@/components/presences/PresenceFormModal";
@@ -18,6 +19,10 @@ import { computeRecurrence, suggestAlters } from "@/lib/presenceSimilarity";
 import { TRASH_HINT } from "@/lib/trashSettings";
 import RichText from "@/components/shared/RichText";
 import { sharedList } from "@/lib/sharedLists";
+import RowMenu from "@/components/shared/RowMenu";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import "@/styles/pixel/meeting.css";
 
 function AlterChip({ alter, onRemove }) {
   const formatAlter = useAlterLabel();
@@ -46,6 +51,9 @@ export default function NewPresences() {
   const [selected, setSelected] = useState(() => new Set());
   const [createAlterFor, setCreateAlterFor] = useState(null);
   const [showSeveral, setShowSeveral] = useState(false);
+  const pixel = useUiLook() === "pixel";
+  const desk = usePixelDesk();
+  const formatAlter = useAlterLabel();
 
   const { data: presences = [] } = useQuery({
     ...sharedList("presences"),
@@ -135,6 +143,168 @@ export default function NewPresences() {
       toast.error(e.message || "Couldn't merge");
     }
   };
+
+  const modals = (
+    <>
+      <PresenceFormModal open={formFor !== undefined} presence={formFor || null} onClose={() => setFormFor(undefined)} />
+      <CreateAlterFromPresence open={!!createAlterFor} presence={createAlterFor} onClose={() => setCreateAlterFor(null)} />
+      <QuickPeopleSheet open={showSeveral} onClose={() => setShowSeveral(false)} unsure />
+    </>
+  );
+
+  if (pixel) {
+    // Pixel look (PresencesPhone board): + Record / Select to merge, then
+    // one panel per presence — colour square and name in the title bar,
+    // how often it was seen on the right, the note, the alters it might be
+    // or is linked with as chips, and Link · Make alter · ⋯ underneath.
+    const chipFor = (a, { onClick, onRemove, title } = {}) => (
+      <span key={a.id} className="pxm-chip" style={onClick ? { outlineStyle: "dashed" } : undefined}>
+        {onClick ? (
+          <button type="button" onClick={onClick} title={title} className="inline-flex items-center gap-1.5">
+            <span className="pxm-sq" style={{ background: a.color || undefined }} />{formatAlter(a)}
+          </button>
+        ) : (
+          <><span className="pxm-sq" style={{ background: a.color || undefined }} />{formatAlter(a)}</>
+        )}
+        {onRemove && (
+          <button type="button" onClick={onRemove} aria-label={`Unlink ${a.name}`} className="pxm-x" style={{ minWidth: 18, minHeight: 18 }}>
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </span>
+    );
+    const cards = visible.map((p) => {
+      const linked = (p.associated_alter_ids || []).map((id) => alterById[id]).filter(Boolean);
+      const linkedIds = new Set(linked.map((a) => a.id));
+      const suggestions = suggestAlters(p, alters, 3).filter((a) => !linkedIds.has(a.id));
+      const recurCount = recurrence.get(p.id) || 0;
+      const seen = sightingsOf(p).length;
+      const isSel = selected.has(p.id);
+      const name = p.label || p.vibe || "Unnamed presence";
+      return (
+        <div key={p.id} data-highlight-id={p.id} className={`pxm-pn pxm-pres${isSel ? " sel" : ""}`}
+          onClick={selectMode ? () => toggleSelect(p.id) : undefined}
+          role={selectMode ? "button" : undefined} aria-pressed={selectMode ? isSel : undefined}
+          style={selectMode ? { cursor: "pointer" } : undefined}>
+          <div className="pxm-ttl">
+            <span className="pxm-ttl-name">
+              {selectMode && <span className={`pxm-tick${isSel ? " y" : ""}`} aria-hidden="true">{isSel ? "x" : ""}</span>}
+              <span className="pxm-sq" style={{ background: p.color || undefined }} />
+              {p.emoji && <span aria-hidden="true">{p.emoji}</span>}
+              <span className="truncate">{name}</span>
+            </span>
+            <span className="pxm-mut" style={{ paddingRight: 6 }}>{seen > 1 ? `seen ${seen} times` : "seen once"}</span>
+          </div>
+          <div className="pxm-body">
+            {p.label && p.vibe && <div className="pxm-mut" style={{ fontSize: 13 }}>{p.vibe}</div>}
+            {p.notes && <div className="whitespace-pre-wrap"><RichText content={p.notes} /></div>}
+            {(p.timestamp || recurCount > 0) && (
+              <div className="pxm-mut" style={{ fontSize: 12 }}>
+                {p.timestamp && `last ${formatDistanceToNow(new Date(p.timestamp), { addSuffix: true })}`}
+                {recurCount > 0 && ` · resembles ${recurCount} other${recurCount > 1 ? "s" : ""}`}
+              </div>
+            )}
+            {linked.length > 0 && (
+              <div className="pxm-row pxm-wrap">
+                <span className="pxm-mut" style={{ fontSize: 12 }}>{p.relationship_type || "Associated with"}:</span>
+                {linked.map((a) => chipFor(a, { onRemove: selectMode ? undefined : (e) => { e.stopPropagation(); unlinkAlter(p, a.id); } }))}
+              </div>
+            )}
+            {!selectMode && suggestions.length > 0 && (
+              <div className="pxm-row pxm-wrap">
+                <span className="pxm-mut" style={{ fontSize: 12 }}>Might be:</span>
+                {suggestions.map((a) => chipFor(a, { onClick: () => linkAlter(p, a.id), title: `Link this presence to ${formatAlter(a)}` }))}
+              </div>
+            )}
+            {!selectMode && (
+              <div className="pxm-pres-acts">
+                <span className="pxm-grow" />
+                <span className="pxm-pres-link" style={{ width: 96 }}>
+                  <AlterSearchSelect alters={alters} value={null} showNone={false} terms={terms} placeholder="Link"
+                    disabledIds={linkedIds} disabledLabel="linked"
+                    onChange={(id) => { if (id) linkAlter(p, id); }} />
+                </span>
+                <button type="button" className="pxm-btn sm" onClick={() => setCreateAlterFor(p)}
+                  title={`Create ${an(terms.alter)} from this presence`}>Make {terms.alter}</button>
+                <RowMenu label="Presence actions" className="pxm-btn sm !m-0 !w-auto !h-auto" items={[
+                  { label: "Edit", icon: Pencil, onSelect: () => setFormFor(p) },
+                  { label: "Delete", icon: Trash2, onSelect: () => remove(p), destructive: true },
+                ]} />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    });
+    const toolbar = (
+      <>
+        <div className="pxm-row" style={{ gap: 10 }}>
+          <button type="button" className="pxm-btn on pxm-grow" style={{ flex: 1 }} onClick={() => setFormFor(null)}>+ Record</button>
+          <button type="button" className={`pxm-btn pxm-grow${selectMode ? " on" : ""}`} style={{ flex: 1 }}
+            disabled={visible.length < 2 && !selectMode}
+            onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}>
+            {selectMode ? "Cancel merge" : "Select to merge"}
+          </button>
+        </div>
+        {selectMode && (
+          <div className="pxm-row">
+            <span className="pxm-mut pxm-grow" style={{ fontSize: 14 }}>{selected.size} selected</span>
+            <button type="button" className="pxm-btn on sm" onClick={mergeSelected} disabled={selected.size < 2}>Merge</button>
+          </div>
+        )}
+      </>
+    );
+    const empty = (
+      <div className="pxm-pn"><div className="pxm-empty">
+        Nothing recorded yet. When you sense a presence you can't quite place, tap Record (or the “New presence” tab when you set {terms.fronters}) and jot down whatever you noticed.
+      </div></div>
+    );
+    const intro = (
+      <div className="pxm-intro">
+        Sensed someone you can't pin down yet? Record the fragment, a name, a colour, a vibe, and spot when it comes back or might be a known {terms.alter}.
+      </div>
+    );
+    if (desk) {
+      return (
+        <div className="pxm pxm-desk os-page-shell" data-tour="new-presences">
+          <h1 className="sr-only">New presences</h1>
+          <div className="pxm-pn pxm-side">
+            <div className="pxm-ttl">
+              <span>Presences</span>
+              <button type="button" className="pxm-btn xs" onClick={() => setShowSeveral(true)}>Add several</button>
+            </div>
+            <div className="pxm-side-scroll">
+              {visible.map((p) => (
+                <button key={p.id} type="button" className="pxm-side-row"
+                  onClick={() => document.querySelector(`[data-highlight-id="${p.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+                  <span className="pxm-sq" style={{ background: p.color || undefined }} />
+                  <span className="pxm-side-name">{p.label || p.vibe || "Unnamed presence"}</span>
+                  <span className="pxm-side-count">{sightingsOf(p).length}</span>
+                </button>
+              ))}
+              {visible.length === 0 && <div className="pxm-empty">None yet.</div>}
+            </div>
+            <div className="pxm-side-foot">{intro}</div>
+          </div>
+          <div className="pxm" style={{ minWidth: 0 }}>
+            {toolbar}
+            {visible.length === 0 ? empty : <div className="pxm-cards">{cards}</div>}
+          </div>
+          {modals}
+        </div>
+      );
+    }
+    return (
+      <div className="pxm os-page-shell" data-tour="new-presences">
+        <h1 className="sr-only">New presences</h1>
+        {intro}
+        {toolbar}
+        <button type="button" className="pxm-btn sm" style={{ alignSelf: "flex-start" }} onClick={() => setShowSeveral(true)}>Add several</button>
+        {visible.length === 0 ? empty : <div className="pxm-cards">{cards}</div>}
+        {modals}
+      </div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 os-page-shell" data-tour="new-presences">

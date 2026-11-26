@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { createDreamJournal, updateDreamJournal, DREAM_JOURNAL_FOLDER } from "@/lib/journalEntry";
 import { base44 } from "@/api/base44Client";
+import { editSleep } from "@/lib/sleepEntry";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,9 +150,11 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
       const bedtimeISO = new Date(bedtime).toISOString();
       const wakeTimeISO = new Date(wakeTime).toISOString();
 
-      const durationMinutes = Math.round((new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000);
-
-      await base44.entities.Sleep.update(sleep.id, {
+      // editSleep reads the night fresh, writes only what changed and keeps
+      // its planner "Sleep" activity in step (an older night finds its
+      // activity by bedtime and links both ways).
+      await editSleep(sleep.id, {
+        baseline: sleep,
         date: sleepDate,
         bedtime: bedtimeISO,
         wake_time: wakeTimeISO,
@@ -165,30 +169,6 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
       });
 
       await recordAuthoredText({ ...prepared, alters, sourceType: "sleep", sourceId: sleep.id, sourceLabel: "Sleep note", navigatePath: "/sleep" });
-      // Mirror edits to the linked "Sleep" Activity so the activity tracker
-      // doesn't drift. Backfill the FK lazily for legacy records that
-      // pre-date the linkage.
-      let activityId = sleep.linked_activity_id;
-      if (!activityId) {
-        try {
-          const candidates = await base44.entities.Activity.filter({ activity_name: "Sleep" });
-          const match = (candidates || []).find(a => a.timestamp === sleep.bedtime);
-          if (match) {
-            activityId = match.id;
-            await base44.entities.Sleep.update(sleep.id, { linked_activity_id: activityId });
-            await base44.entities.Activity.update(activityId, { source_sleep_id: sleep.id });
-          }
-        } catch {}
-      }
-      if (activityId) {
-        try {
-          await base44.entities.Activity.update(activityId, {
-            timestamp: bedtimeISO,
-            duration_minutes: durationMinutes,
-            notes: cleanNotes || null,
-          });
-        } catch {}
-      }
 
       // Two-way sync to the linked dream JournalEntry. Three paths:
       //   1. Sleep already has journal_entry_id → update that entry's content.
@@ -198,7 +178,7 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
       //   3. No link, no dream content → nothing to do. Legacy sleep records
       //      from before this fix stay unlinked unless the user explicitly
       //      opts in here.
-      const DREAM_FOLDER = "Dreams";
+      const DREAM_FOLDER = DREAM_JOURNAL_FOLDER;
       const ensureDreamFolder = () => {
         const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
         if (!saved.includes(DREAM_FOLDER)) {
@@ -206,19 +186,13 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         }
       };
       const dreamTitle = `Dream — ${format(new Date(sleepDate), "MMMM d, yyyy")}`;
-      const dreamTags = [hadNightmare ? "nightmare" : "dream"];
 
       if (sleep.journal_entry_id) {
         // Path 1: propagate edits to the existing journal entry. Never
         // delete the entry from this side — journal content is user-edited
         // and outlives the sleep record (user-data-preservation rule).
         try {
-          await base44.entities.JournalEntry.update(sleep.journal_entry_id, {
-            title: dreamTitle,
-            content: cleanNotes.trim(),
-            folder: DREAM_FOLDER,
-            tags: dreamTags,
-          });
+          await updateDreamJournal(sleep.journal_entry_id, { title: dreamTitle, content: cleanNotes.trim(), nightmare: hadNightmare });
         } catch (err) {
           console.warn("Failed to sync linked dream journal entry", err);
           toast.error("Sleep saved, but the linked dream journal couldn't be updated");
@@ -228,15 +202,9 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         // content. Create + link.
         ensureDreamFolder();
         try {
-          const journal = await base44.entities.JournalEntry.create({
-            title: dreamTitle,
-            content: cleanNotes.trim(),
-            folder: DREAM_FOLDER,
-            tags: dreamTags,
-            entry_type: "dream",
-          });
+          const journal = await createDreamJournal({ title: dreamTitle, content: cleanNotes.trim(), nightmare: hadNightmare });
           if (journal?.id) {
-            await base44.entities.Sleep.update(sleep.id, { journal_entry_id: journal.id });
+            await editSleep(sleep.id, { journal_entry_id: journal.id });
           }
         } catch (err) {
           console.warn("Failed to create linked dream journal entry", err);

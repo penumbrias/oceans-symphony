@@ -56,16 +56,24 @@ export default function Planner() {
     setParams(next, { replace: true });
   }, [params, setParams]);
 
+  // The page holds the day the calendar shows. Same starting day as before.
+  // In the pixel look on a computer the surface lays itself out as the
+  // mockup's desk (month + categories, calendar, insights) — deskLayout.
+  const [anchor, setAnchor] = useState(() => initialAnchor || new Date());
+
   return (
     <>
     {eventRequest && <EventSheet request={eventRequest} onClose={() => setEventLink(null)} />}
     <PlannerSurface
       dayCount={7}
       chrome
+      anchor={anchor}
+      onAnchorChange={setAnchor}
       initialAnchor={initialAnchor}
       initialView={initialView}
       openActivityId={openId}
       onOpenedActivity={() => setOpenId(null)}
+      deskLayout
     />
     </>
   );

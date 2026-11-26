@@ -23,6 +23,15 @@
 //     device restoring it would aim at the same cloud file
 
 export const BACKUP_LS_KEYS = [
+  // "Try the new house" (step 2.1, src/lib/houseSwitch.js) and the new
+  // house's fixed docks per page (src/house/frame/dockPrefs.js). Device
+  // preferences like the theme: mirrored so an Android cache clear doesn't
+  // drop them. Neither holds any record; both houses share every record.
+  "symphony_new_house_v1",
+  "symphony_house_layout_v1",
+  // Which layers the house Home's timeline shows (src/house/home/layerPrefs.js).
+  "symphony_house_home_layers_v1",
+  "symphony_pixel_help_open_v1",
   "symphony_time_format_v1",
   "symphony_experimental_features_v1",
   "symphony_goals_last_line_kind",
@@ -190,6 +199,8 @@ export const BACKUP_LS_KEYS = [
   "symphony_persist_notif_fronters_opts_v1",
   // Planner's last section and view (its other choices are listed above).
   "symphony_planner_section_v1", "symphony_planner_view_v1",
+  // Categories hidden from the pixel planner's calendar (its category panel).
+  "symphony_planner_hidden_cats_v1",
   // Which grocery list is open, and the starter symptom bundles picked.
   "grocery_active_list_v1", "symphony_onboarding_bundles_chosen_v1",
 ];

@@ -24,6 +24,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronLeft, Music, ListMusic, Users, Upload, FolderOpen, Moon, Clock, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Row, StackedRow, Group, SwitchRow, ChoiceRow, SliderRow, LinkRow, Chips } from "@/components/shared/SettingRows";
@@ -141,9 +142,7 @@ function HomePage({ data, go }) {
 
   const saveEnabled = async (v) => {
     try {
-      if (row?.id) await base44.entities.SystemSettings.update(row.id, { profile_songs_enabled: !!v });
-      else await base44.entities.SystemSettings.create({ profile_songs_enabled: !!v });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ profile_songs_enabled: !!v }, { create: true, queryClient: qc });
     } catch { toast.error("Couldn't save"); }
   };
 

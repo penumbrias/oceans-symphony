@@ -1,0 +1,78 @@
+/* Today's shared pickers' own pop-ups, in the house's look (step 1.3).
+
+   AlterSearchSelect, SearchableSelect, ColorPicker, IconPicker and
+   AssetPickerModal portal their pop-ups to <body>. Inside the house they
+   are wrapped in <HousePopups> (KitLayer.jsx), and each pop-up root then
+   carries [data-house] + [data-shared-pop="…"] and the person's paint as
+   variables (src/components/shared/popupTheme.js). Only those roots match
+   here, so the old house never sees a rule of this file.
+
+   The pop-ups are drawn with Tailwind utilities (one class each); every
+   rule below starts with two attributes, which outranks them without a
+   forced override. Tokens only. */
+
+[data-house][data-shared-pop] {
+  background: var(--house-panel);
+  color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-border);
+  border-radius: var(--house-corner);
+  box-shadow: var(--house-surface-shadow), var(--house-raise);
+  font-family: var(--house-font-body);
+  font-size: var(--house-text-md);
+  line-height: var(--house-lh-md);
+}
+[data-house][data-house-look="pixel"][data-shared-pop] { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
+
+/* Words: nothing under 12 px (the shared lists use 9–11 px captions), no
+   tiny uppercase labels, muted and accent words in the house's readable
+   roles. */
+[data-house][data-shared-pop] :is(.text-xs, [class*="text-[0."]) { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
+[data-house][data-shared-pop] .text-sm { font-size: var(--house-text-md); line-height: var(--house-lh-md); }
+[data-house][data-shared-pop] .uppercase { text-transform: none; letter-spacing: normal; }
+[data-house][data-shared-pop] .text-muted-foreground { color: var(--house-muted); }
+[data-house][data-shared-pop] .text-primary { color: var(--house-accent-text); }
+[data-house][data-shared-pop] .text-foreground { color: var(--house-text); }
+[data-house][data-shared-pop] :is(h1, h2, h3, [id$="-title"]) { font-family: var(--house-font-label); font-size: var(--house-text-lg); line-height: var(--house-lh-lg); }
+[data-house][data-shared-pop] .opacity-50 { opacity: 1; color: var(--house-muted); }
+
+/* Surfaces inside: lines are the divider role; inner cards sit on panel. */
+[data-house][data-shared-pop] :is(.border-border, [class*="border-border/"], .border-input) { border-color: var(--house-divider); }
+[data-house][data-shared-pop] :is(.bg-card, .bg-popover, .bg-background, .bg-muted, [class*="bg-muted/"]):not(input) { background: var(--house-panel); }
+
+/* Typing boxes: the house's field. */
+[data-house][data-shared-pop] input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  min-height: var(--house-h-control);
+  background: var(--house-sunken); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-border); border-radius: var(--house-corner-sm);
+  box-shadow: var(--house-sink);
+  font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
+  padding: 0 var(--house-space-3);
+}
+[data-house][data-shared-pop] input::placeholder { color: var(--house-muted); opacity: 1; }
+[data-house][data-house-look="pixel"][data-shared-pop] input:not([type="range"]) { border-color: var(--house-outline); }
+/* The colour picker's hex box holds a value: the value font, tabular. */
+[data-house][data-shared-pop="colour"] input { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; text-align: center; }
+
+/* Every row and button is a 44 px target; hover and focus change shape. */
+[data-house][data-shared-pop] :is(button, [role="option"]) {
+  min-height: var(--house-target);
+  min-width: var(--house-target);
+  color: inherit;
+}
+[data-house][data-shared-pop] [role="option"],
+[data-house][data-shared-pop] [role="listbox"] > div > button { display: flex; align-items: center; }
+@media (hover: hover) {
+  [data-house][data-shared-pop] :is(button, [role="option"]):hover { background: transparent; box-shadow: inset 0 0 0 1px var(--house-border); }
+}
+[data-house][data-shared-pop] :is(button, [role="option"], input):focus-visible {
+  outline: var(--house-focus-w) solid var(--house-focus);
+  outline-offset: calc(var(--house-focus-w) * -1);
+}
+/* Chosen: bold and the accent-text words, plus the list's own ✓. */
+[data-house][data-shared-pop] :is([aria-selected="true"], [class*="bg-primary/"]) { background: transparent; font-weight: 700; color: var(--house-accent-text); box-shadow: inset 3px 0 0 var(--house-accent); }
+/* The row the keyboard is on. */
+[data-house][data-shared-pop] [class*="bg-muted/30"] { box-shadow: inset 0 0 0 2px currentColor; }
+
+/* Icons in the pop-ups follow the house's icon sizes and caps. */
+[data-house][data-shared-pop] svg.lucide { width: var(--house-icon-control); height: var(--house-icon-control); stroke-width: var(--house-icon-stroke); }
+[data-house][data-house-look="pixel"][data-shared-pop] svg.lucide { stroke-linecap: square; stroke-linejoin: miter; }

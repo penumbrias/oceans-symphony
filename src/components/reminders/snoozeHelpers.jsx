@@ -1,15 +1,6 @@
-export const DEFAULT_SNOOZE_OPTIONS = [10, 60, 240, "tomorrow"];
-
-export function formatSnoozeLabel(opt) {
-  if (opt === "tomorrow") return "Tomorrow";
-  if (opt === "next_week") return "Next week";
-  if (typeof opt !== "number") return String(opt);
-  if (opt < 60) return `${opt} min`;
-  const h = Math.floor(opt / 60);
-  const m = opt % 60;
-  if (m === 0) return h === 1 ? "1 hour" : `${h} hours`;
-  return `${h}h ${m}m`;
-}
+// The snooze words and lengths live with the reminder form
+// (src/lib/reminderForm.js), so both houses say the same thing.
+export { DEFAULT_SNOOZE_OPTIONS, formatSnoozeLabel } from "@/lib/reminderForm";
 
 export function snoozeUntilDate(opt) {
   if (opt === "tomorrow") {

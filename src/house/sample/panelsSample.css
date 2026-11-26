@@ -1,0 +1,7 @@
+/* The step 1.3 story sheet's layout. Uses only the house tokens. */
+[data-house] .ps-p { margin: 0; }
+[data-house] .ps-scroll { max-height: 26rem; overflow-y: auto; overscroll-behavior: contain; }
+[data-house] .ps-insp { height: 30rem; display: flex; flex-direction: column; border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner); overflow: hidden; }
+[data-house] .ps-row { display: flex; flex-wrap: wrap; gap: var(--house-space-2); align-items: center; }
+[data-house] .ps-open { padding-top: var(--house-space-3); }
+[data-house] .ps-grid-wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }

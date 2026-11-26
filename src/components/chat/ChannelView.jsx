@@ -8,15 +8,14 @@ import React, { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, Lock, Eraser } from "lucide-react";
 import { toast } from "sonner";
-import { base44, localEntities } from "@/api/base44Client";
+import { localEntities } from "@/api/base44Client";
 import ChatSurface from "@/components/chat/ChatSurface";
 import { useTerms } from "@/lib/useTerms";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
-import { WHISPER_PREVIEW } from "@/lib/whisperRedact";
+import { sendChatMessage, editChatMessage, deleteChatMessage } from "@/lib/chatEntry";
 import { purgeChatMessage, purgeDeletedChatMessages } from "@/lib/chatCleanup";
 
-export default function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], focusMessageId, onMessageFocused }) {
+export default function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], focusMessageId, onMessageFocused, look }) {
   const qc = useQueryClient();
   const terms = useTerms();
 
@@ -39,92 +38,12 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
   // logs. ChatSurface has already parsed signposts / whispers / mentions; this
   // host only writes. Returns nothing (defaults to "clear composer").
   const handleSend = async ({ cleanText, authorAlterIds, replyToId, mentionedIds, isWhisper, whisperRecipientIds, replyAuthorIds }) => {
-    const created = await localEntities.SystemChatMessage.create({
-      channel_id: channel.id,
-      author_alter_id: authorAlterIds[0] || null,
-      author_alter_ids: authorAlterIds,
-      content: cleanText,
-      timestamp: new Date().toISOString(),
-      edited_at: null,
-      deleted_at: null,
-      reply_to_id: replyToId || null,
-      mentioned_alter_ids: mentionedIds,
-      is_whisper: !!isWhisper,
-      whisper_to_ids: isWhisper ? (whisperRecipientIds || []) : [],
-      reactions: {},
-      thread_parent_id: null,
-      is_pinned: false,
-    });
+    await sendChatMessage({ channel, alters, cleanText, authorAlterIds, replyToId, mentionedIds, isWhisper, whisperRecipientIds, replyAuthorIds });
     qc.invalidateQueries({ queryKey: ["systemChatMessages", channel.id] });
-    const label = isWhisper ? `#${channel.name} (whisper)` : `#${channel.name}`;
-    try {
-      // Log an authored row for each speaker so all of them show up in the
-      // per-alter mention log; "system" co-speakers have no alter id and skip.
-      for (const id of (authorAlterIds.length > 0 ? authorAlterIds : [null])) {
-        await saveAuthoredLog({
-          authorAlterId: id,
-          sourceType: "chat",
-          sourceId: created.id,
-          sourceLabel: label,
-          navigatePath: `/chat?channel=${channel.id}&message=${created.id}`,
-          previewText: isWhisper ? WHISPER_PREVIEW : cleanText,
-        });
-      }
-      if (isWhisper) {
-        for (const id of mentionedIds) {
-          await base44.entities.MentionLog.create({
-            mentioned_alter_id: id,
-            author_alter_id: authorAlterIds[0] || null,
-            log_type: "mention",
-            source_type: "chat",
-            source_id: created.id,
-            source_label: label,
-            source_date: new Date().toISOString(),
-            preview_text: WHISPER_PREVIEW,
-            navigate_path: `/chat?channel=${channel.id}&message=${created.id}`,
-          });
-        }
-      } else {
-        await saveMentions({
-          content: cleanText,
-          alters,
-          sourceType: "chat",
-          sourceId: created.id,
-          sourceLabel: label,
-          navigatePath: `/chat?channel=${channel.id}&message=${created.id}`,
-          authorAlterId: authorAlterIds[0] || null,
-        });
-        // Reply-notify rows: when "@ ON" was set on the reply chip, log a
-        // mention for each replied-to alter not already @mentioned in the body.
-        const bodyMentionIds = extractMentionedIds(cleanText, alters);
-        for (const id of (replyAuthorIds || [])) {
-          if (bodyMentionIds.includes(id)) continue;
-          try {
-            await base44.entities.MentionLog.create({
-              mentioned_alter_id: id,
-              author_alter_id: authorAlterIds[0] || null,
-              log_type: "mention",
-              source_type: "chat",
-              source_id: created.id,
-              source_label: label,
-              source_date: new Date().toISOString(),
-              preview_text: cleanText.slice(0, 120),
-              navigate_path: `/chat?channel=${channel.id}&message=${created.id}`,
-            });
-          } catch { /* non-fatal */ }
-        }
-      }
-    } catch { /* mention log is best-effort; don't block send */ }
   };
 
   const handleEdit = async (msg, { cleanText, authorAlterIds, mentionedIds }) => {
-    await localEntities.SystemChatMessage.update(msg.id, {
-      content: cleanText,
-      author_alter_id: authorAlterIds[0] || null,
-      author_alter_ids: authorAlterIds,
-      edited_at: new Date().toISOString(),
-      mentioned_alter_ids: mentionedIds,
-    });
+    await editChatMessage(msg.id, { cleanText, authorAlterIds, mentionedIds });
     qc.invalidateQueries({ queryKey: ["systemChatMessages", channel.id] });
   };
 
@@ -132,10 +51,7 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
   // ("[message deleted]") instead of breaking the layout.
   const handleDelete = async (msg) => {
     if (!(await confirm("Delete this message?"))) return;
-    await localEntities.SystemChatMessage.update(msg.id, {
-      content: "",
-      deleted_at: new Date().toISOString(),
-    });
+    await deleteChatMessage(msg.id);
     qc.invalidateQueries({ queryKey: ["systemChatMessages", channel.id] });
   };
 
@@ -186,8 +102,9 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
       channelLabel={`#${channel.name}`}
       focusMessageId={focusMessageId}
       onMessageFocused={onMessageFocused}
+      composerLook={look}
       headerSlot={(
-        <div className="px-4 py-2 border-b border-border/40 flex items-center gap-2 flex-shrink-0">
+        <div className="px-chat-chhead px-4 py-2 border-b border-border/40 flex items-center gap-2 flex-shrink-0" data-purge={deletedCount > 0 ? "true" : undefined}>
           {isPrivate ? <Lock className="w-4 h-4 text-muted-foreground" /> : <Hash className="w-4 h-4 text-muted-foreground" />}
           <p className="text-sm font-medium truncate">{channel.name}</p>
           {(isPrivate ? memberNames : channel.description) && (
@@ -200,7 +117,7 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
             <button
               type="button"
               onClick={handlePurgeAll}
-              className="ml-auto relative flex-shrink-0 h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-red-500 rounded-md border border-border/50"
+              className="px-chat-purge ml-auto relative flex-shrink-0 h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-red-500 rounded-md border border-border/50"
               title={`Clean up ${deletedCount} deleted message${deletedCount === 1 ? "" : "s"} in this channel`}
               aria-label={`Clean up ${deletedCount} deleted messages`}
             >

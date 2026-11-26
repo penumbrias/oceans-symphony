@@ -25,6 +25,9 @@
 //   - fixed full-screen overlays (`fixed inset-0`) — a sheet or an existing
 //     modal component is usually the right home.
 // A line (or the line above it) marked `ui-ok` is skipped — say why beside it.
+// Then runs the house guard (scripts/check-house-guard.mjs) over every file
+// in src/house/: px text, controls made outside the kit, native date/time/
+// colour/select, !important, an "x" as a tick, retired verbs, the pixel font.
 
 import { execSync } from "node:child_process";
 
@@ -141,6 +144,13 @@ function firstLineMatters(w, text) {
   return starts[w.id].test(text);
 }
 
-console.log(`\n${added.length} added lines checked against ${base}: ${failures} failure${failures === 1 ? "" : "s"}, ${warned.size} to look at.`);
+// The house guard (building code §9): whole files under src/house/, so the
+// new house stays clean from its first line. See check-house-guard.mjs.
+const { runHouseGuard, HOUSE_DIR } = await import("./check-house-guard.mjs");
+const house = runHouseGuard();
+for (const f of house.findings) console.log(`FAIL ${f.file}:${f.line}  ${f.msg}\n     ${f.text}`);
+failures += house.findings.length;
+
+console.log(`\n${added.length} added lines checked against ${base}, plus ${house.files} files in ${HOUSE_DIR}/ by the house guard: ${failures} failure${failures === 1 ? "" : "s"}, ${warned.size} to look at.`);
 console.log("The rest of the review is the read-through in docs/ui-review-guide.md.");
 process.exit(failures ? 1 : 0);

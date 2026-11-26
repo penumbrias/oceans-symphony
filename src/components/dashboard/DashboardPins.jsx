@@ -80,7 +80,7 @@ export default function DashboardPins() {
 
   return (
     <div className="mb-3 space-y-2" data-tour="dashboard-pins">
-      <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+      <p className="os-head-row os-head-label flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
         <Pin className="w-3 h-3" /> Pinned
       </p>
 

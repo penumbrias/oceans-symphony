@@ -8,6 +8,9 @@ import RemindersInbox from "@/components/reminders/RemindersInbox";
 import RemindersManage from "@/components/reminders/RemindersManage";
 import RemindersOnboarding from "@/components/reminders/RemindersOnboarding";
 import NotificationStatusCard from "@/components/shared/NotificationStatusCard";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import { reminderDeepLink } from "@/lib/reminderForm";
+import { applyReminderDeepLink } from "@/lib/reminderInstanceActions";
 
 export default function Reminders() {
   const [tab, setTab] = useState("inbox");
@@ -16,17 +19,15 @@ export default function Reminders() {
   });
   const [autoTriggerAction, setAutoTriggerAction] = useState(null);
   const queryClient = useQueryClient();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
 
   // Handle notification click deep-link: /reminders?act=<id>&action=<type>
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const instanceId = params.get("act");
-    const actionType = params.get("action");
-    if (instanceId && actionType) {
-      // Update the instance status
-      const statusMap = { dismiss: "dismissed" };
-      const status = statusMap[actionType] || "acted";
-      base44.entities.ReminderInstance.update(instanceId, { status, acted_action: actionType })
+    const link = reminderDeepLink(window.location.search);
+    if (link) {
+      const { instanceId, actionType } = link;
+      // Update the instance status (shared with the new house's room)
+      applyReminderDeepLink(link)
         .then(() => queryClient.invalidateQueries({ queryKey: ["reminderInstances"] }));
       // Clean URL and switch to inbox tab
       window.history.replaceState({}, "", "/reminders");
@@ -50,6 +51,28 @@ export default function Reminders() {
 
   const showOnboarding = !isLoading && allReminders.length === 0;
 
+  // Pixel look: the Reminders board. The frame already names the page, so
+  // there's no big header; "Due now" sits above "Your reminders" on the
+  // Inbox tab, and the editor opens beside the list on a computer.
+  if (pixel) {
+    return (
+      <div data-tour="reminders-list" className="prm-page">
+        <NotificationStatusCard onlyWhenIssues />
+        {showOnboarding ? (
+          <RemindersOnboarding onDone={() => queryClient.invalidateQueries({ queryKey: ["reminders"] })} />
+        ) : (
+          <>
+            <PageStrip subtabs label="Reminder views" value={tab} onChange={setTab} items={[
+              { id: "inbox", label: "Inbox", tour: "reminders-inbox-tab" },
+              { id: "manage", label: "Manage", tour: "reminders-manage-tab" },
+            ]} />
+            <RemindersManage before={tab === "inbox" ? <RemindersInbox autoTriggerAction={autoTriggerAction} /> : null} />
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <motion.div data-tour="reminders-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -72,7 +95,7 @@ export default function Reminders() {
       ) : (
         <>
           {/* Tabs */}
-          <PageStrip label="Reminder views" value={tab} onChange={setTab} items={[
+          <PageStrip subtabs label="Reminder views" value={tab} onChange={setTab} items={[
             { id: "inbox", label: "Inbox", tour: "reminders-inbox-tab" },
             { id: "manage", label: "Manage", tour: "reminders-manage-tab" },
           ]} />

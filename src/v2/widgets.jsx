@@ -22,6 +22,7 @@ import { useFrontLook } from "@/lib/frontLook";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 import MentionTextarea from "@/components/shared/MentionTextarea";
@@ -52,7 +53,8 @@ import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import { extractHashtags } from "@/lib/journalTags";
 import { journalEntryDate, sortJournalsNewestFirst } from "@/lib/journalDate";
-import { saveMentions, htmlToPlainText } from "@/lib/mentionUtils";
+import { htmlToPlainText } from "@/lib/mentionUtils";
+import { createJournalEntry, journalAuthorFields, journalTitleOrNow, notifyJournalMentions } from "@/lib/journalEntry";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS, BREATHING_PACE_OPTIONS } from "@/utils/groundingDefaults";
@@ -76,10 +78,11 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SCOPE_FIELD, useWidgetScope } from "@/lib/boardSubject";
+import { TIMELINE_LAYERS } from "@/lib/timelineLayers";
 import { useScopeAlterIds } from "@/v2/subjectScope";
 import { journalAuthorIds } from "@/lib/journalAuthors";
 import { endSymptomSessions } from "@/lib/symptomSessions";
-import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard, defaultAttributionIds } from "@/lib/checkinEntry";
+import { logEmotionCheckIn, logSymptomCheckIn, logSymptomCheckIns, saveStatusNote, logDiaryCard, defaultAttributionIds, deleteSymptomCheckIns } from "@/lib/checkinEntry";
 import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { songDisplayTitle, GENERIC_SONG_TITLE } from "@/lib/songTitle";
@@ -163,7 +166,7 @@ import { isOpenReminderInstance, markReminderDone, dismissReminder, snoozeRemind
 import ReminderInstanceCard from "@/components/reminders/ReminderInstanceCard";
 import { DEFAULT_SNOOZE_OPTIONS, formatSnoozeLabel } from "@/components/reminders/snoozeHelpers";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { castPollVote, pollCounts, currentFrontVoterIds } from "@/lib/pollVote";
+import { castPollVote, pollCounts, currentFrontVoterIds } from "@/lib/pollEntry";
 import { createActivityEntry, ENTRY_MODES } from "@/lib/activityEntry";
 import { foldWidget } from "@/lib/widgetFold";
 
@@ -887,8 +890,7 @@ function SystemIdentityWidget({ mode = "normal", api }) {
   // updates too.
   const setAvatar = async (url) => {
     if (!settings?.id) return;
-    await base44.entities.SystemSettings.update(settings.id, { system_avatar_url: url });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettings({ system_avatar_url: url }, { queryClient: qc });
   };
   const alters = useList("alters", "Alter");
   const avatar = useResolvedAvatarUrl(settings?.system_avatar_url || settings?.system_avatar || "");
@@ -1854,13 +1856,12 @@ function NotebookWidget({ settings, updateSettings, instanceId, mode = "normal" 
       // Signed like every other new journal: the first person in front is
       // the author, the others co-authors.
       const who = await defaultAttributionIds();
-      const created = await base44.entities.JournalEntry.create({
-        author_alter_id: who[0] || null,
-        co_author_alter_ids: who.slice(1),
+      const created = await createJournalEntry({
+        ...journalAuthorFields(who),
         // Untitled entries match the Journals page editor exactly (it falls
         // back to the date-time string) so the entry lists read the same no
         // matter where the entry was written.
-        title: title.trim() || new Date().toLocaleString(),
+        title: journalTitleOrNow(title),
         content,
         // Typed hashtags become tags, same as the Journals page editor.
         tags: extractHashtags(`${title} ${content}`),
@@ -1869,16 +1870,7 @@ function NotebookWidget({ settings, updateSettings, instanceId, mode = "normal" 
       });
       // Body @mentions notify, same as the Journals page editor. New
       // entries only ever fire once — the widget always creates.
-      try {
-        await saveMentions({
-          content: htmlToPlainText(content),
-          alters: notebookAlters,
-          sourceType: "journal",
-          sourceId: created?.id,
-          sourceLabel: title.trim() || "Journal Entry",
-          navigatePath: created?.id ? `/journals?id=${created.id}` : "/journals",
-        });
-      } catch { /* notifications are best-effort */ }
+      await notifyJournalMentions({ entry: created, text: htmlToPlainText(content), alters: notebookAlters, label: title.trim() });
       qc.invalidateQueries({ queryKey: ["journalEntries"] });
       clearDraft();
       setTitle("");
@@ -2771,7 +2763,7 @@ function LogSymptomFullWidget({ api }) {
   const undo = async () => {
     if (!lastSaved) return;
     try {
-      for (const id of lastSaved.ids) await base44.entities.SymptomCheckIn.delete(id);
+      await deleteSymptomCheckIns(lastSaved.ids);
       qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       setLastSaved(null);
       toast.success(tr("widget.logSymptom.undone"));
@@ -2850,7 +2842,7 @@ function LogSymptomWidget({ settings }) {
     const entry = recent[symptom.id];
     if (!entry) return;
     try {
-      await base44.entities.SymptomCheckIn.delete(entry.id);
+      await deleteSymptomCheckIns([entry.id]);
       setRecent((prev) => { const n = { ...prev }; delete n[symptom.id]; return n; });
       qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success(tr("widget.logSymptom.undone"));
@@ -3082,6 +3074,9 @@ export const V2_WIDGETS = {
     configFields: [
       SCOPE_FIELD,
       { key: "days", type: "number", label: "Days to start with", min: 1, max: 30, default: 3 },
+      // Which kinds of record it draws; saved as the ones switched off.
+      { key: "hiddenLayers", type: "layers", label: "Layers", default: [], options: TIMELINE_LAYERS,
+        help: "Tap a layer to show or hide it here. Nothing is deleted." },
     ],
     defaultSpan: { cols: 12, rows: 6 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },

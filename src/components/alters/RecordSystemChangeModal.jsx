@@ -1,18 +1,19 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { localEntities, base44 } from "@/api/base44Client";
+import { localEntities } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { prepareAuthoredText, recordAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { prepareAuthoredText, isLogCommandError } from "@/lib/authoredText";
+import { recordLineageEvent } from "@/lib/lineageEvents";
 import { toast } from "sonner";
 import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search, Sparkles, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import ColorPicker from "@/components/shared/ColorPicker";
 import { useTerms } from "@/lib/useTerms";
-import { withNewAlterDefaults } from "@/lib/newAlterDefaults";
 
 // ─── AlterChip ────────────────────────────────────────────────────────────────
 
@@ -276,12 +277,10 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
         <div>
           <p className="text-xs text-muted-foreground mb-1">Color (optional)</p>
           <div className="flex items-center gap-2">
-            <input type="color" value={newAlterColor || "#9333ea"} onChange={e => onNewAlterColor(e.target.value)}
-              className="w-9 h-9 rounded cursor-pointer border border-border" />
-            <span className="text-xs text-muted-foreground">{newAlterColor || "#9333ea"}</span>
+            <ColorPicker value={newAlterColor || "#9333ea"} onChange={onNewAlterColor} />
           </div>
         </div>
-        {!newAlterName.trim() && <p className="text-xs text-destructive">Enter a name for the new alter.</p>}
+        {!newAlterName.trim() && <p className="text-xs text-destructive">Enter a name for the new {terms.alter}.</p>}
       </div>
     );
   }
@@ -734,114 +733,23 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
     }
     setSaving(true);
     try {
-      let resultAlterIds = [];
-      const reformOldName = (alters.find(a => a.id === sourceAlterIds[0])?.name || "").trim();
-      const reformRename = type === "reformation" && sourceAlterIds.length === 1 && hasNewName && !!newName.trim();
-
-      if (type === "fusion" && fusionType === "absorption") {
-        resultAlterIds = [absorptionTarget];
-      } else if (type === "fusion" && fusionType === "new_formation") {
-        const created = await localEntities.Alter.create(withNewAlterDefaults({
-          name: newAlterName.trim(),
-          color: newAlterColor,
-          pronouns: "",
-          description: "",
-          is_archived: false,
-        }));
-        resultAlterIds = [created.id];
-      } else if (type === "split") {
-        const existing = splitResults.filter(r => r.type === "existing").map(r => r.id);
-        const created = await Promise.all(
-          splitResults.filter(r => r.type === "new").map(r =>
-            localEntities.Alter.create(withNewAlterDefaults({ name: r.name, color: r.color || "#9333ea", is_archived: false }))
-          )
-        );
-        resultAlterIds = [...existing, ...created.map(c => c.id)];
-      } else {
-        // dormancy / return / reformation — result = same as source (same alter, no new one created)
-        resultAlterIds = [...sourceAlterIds];
-      }
-
-      const yearNum = parseInt(year, 10) || new Date().getFullYear();
-      const event = await localEntities.SystemChangeEvent.create({
-        type,
-        date: new Date(yearNum, 0, 1).toISOString(),
-        year_only: true,
-        source_alter_ids: sourceAlterIds,
-        result_alter_ids: resultAlterIds,
-        fusion_type: type === "fusion" ? fusionType : null,
-        absorbed_into_alter_id: (type === "fusion" && fusionType === "absorption") ? absorptionTarget : null,
-        cause: (type === "reformation" ? (hasTrigger ? trigger.trim() : "") : cause.trim()),
-        notes: prepared.content,
-        author_alter_ids: prepared.authorIds,
-        ...(type === "reformation" ? {
-          what_changed: preparedChange?.content || null,
-          renamed: reformRename,
-          previous_name: reformRename ? reformOldName : null,
-          new_name: reformRename ? newName.trim() : null,
-        } : {}),
+      // The event, any new alters, the authored trail, split relationships
+      // and the chosen profile changes (recordLineageEvent, lineageEvents.js).
+      await recordLineageEvent({
+        type, sourceAlterIds, year, cause, fusionType, absorptionTarget,
+        newAlter: { name: newAlterName, color: newAlterColor },
+        splitResults,
+        reformation: {
+          trigger: hasTrigger ? trigger : "",
+          rename: hasNewName,
+          oldName: (alters.find(a => a.id === sourceAlterIds[0])?.name || "").trim(),
+          newName,
+          applyRename,
+        },
+        archiveAbsorbed, archiveSource, mergeSelections,
+        prepared, preparedChange, alters,
       });
-      await recordAuthoredText({ ...prepared, alters, sourceType: "lineage", sourceId: event.id, sourceLabel: "Lineage event note", navigatePath: "/system-history" });
-      if (preparedChange) await recordAuthoredText({ ...preparedChange, alters, sourceType: "lineage", sourceId: event.id, sourceLabel: "Reformation change", navigatePath: "/system-history" });
-
-      // Reformation: the alter stays the same person — only optionally take the new name.
-      if (reformRename && applyRename) {
-        await localEntities.Alter.update(sourceAlterIds[0], { name: newName.trim() });
-      }
-
-      // Auto-create "Split from" relationships when a split event is recorded
-      if (type === "split") {
-        for (const resultId of resultAlterIds) {
-          for (const sourceId of sourceAlterIds) {
-            if (resultId !== sourceId) {
-              await base44.entities.AlterRelationship.create({
-                alter_id_a: resultId,
-                alter_id_b: sourceId,
-                relationship_type: "Split from",
-                direction: "a_to_b",
-                color: "#a855f7",
-                notes: `Auto-created from split event (${yearNum})`,
-                strength: 3,
-              });
-            }
-          }
-        }
-        queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
-      }
-
-      // Apply profile changes from Apply step
-      if (type === "fusion" && fusionType === "absorption") {
-        if (archiveAbsorbed) {
-          for (const id of sourceAlterIds.filter(id => id !== absorptionTarget)) {
-            await localEntities.Alter.update(id, { is_archived: true });
-          }
-        }
-        const hasSelections = Object.values(mergeSelections).some(arr => arr?.length > 0);
-        if (hasSelections) {
-          const persistentAlter = alters.find(a => a.id === absorptionTarget);
-          const mergeData = {};
-          for (const [key, selections] of Object.entries(mergeSelections)) {
-            if (!Array.isArray(selections) || selections.length === 0) continue;
-            const existingVal = persistentAlter?.[key]?.trim() || "";
-            const appended = selections.map(s => `From ${s.name}: ${s.value}`).join("\n\n");
-            mergeData[key] = existingVal ? `${existingVal}\n\n${appended}` : appended;
-          }
-          if (Object.keys(mergeData).length > 0) {
-            await localEntities.Alter.update(absorptionTarget, mergeData);
-          }
-        }
-      }
-      if (type === "fusion" && fusionType === "new_formation") {
-        for (const id of sourceAlterIds) {
-          await localEntities.Alter.update(id, { is_archived: true });
-        }
-      }
-      if (type === "split" && archiveSource) {
-        for (const id of sourceAlterIds) {
-          await localEntities.Alter.update(id, { is_archived: true });
-        }
-      }
-
+      if (type === "split") queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
       queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       onClose();

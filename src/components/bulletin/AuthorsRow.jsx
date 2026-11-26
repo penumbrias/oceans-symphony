@@ -5,8 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SystemAvatar from "@/components/shared/SystemAvatar";
+import { alterNameColorVar } from "@/lib/useFrontPresence";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import SharedAlterAvatar from "@/components/shared/AlterAvatar";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -17,6 +20,11 @@ function getContrastColor(hex) {
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return lum > 0.5 ? "#1a1a2e" : "#ffffff";
 }
+
+// The alter's own colour for their name, nudged only as far as it needs to
+// be readable on a card. The pixel look shows names in it (os-alter-name in
+// pixel-look.css); the smooth look keeps the usual text colour.
+const nameColorVar = alterNameColorVar;
 
 function AlterAvatar({ alter, size = "md" }) {
   const sz = size === "sm" ? "w-5 h-5" : "w-7 h-7";
@@ -43,13 +51,50 @@ function AlterAvatar({ alter, size = "md" }) {
 // record). If empty, the post renders as "System" rather than falling
 // back to the current front — authors are fixed to whoever wrote the
 // post, never the live front state.
-export default function AuthorsRow({ authorIds = [], alters = [], timestamp, showNames = true }) {
+// `pixel`: the pixel board's byline — square marks (the avatar, else the
+// colour), the names together in each one's own colour, then the time.
+export default function AuthorsRow({ authorIds = [], alters = [], timestamp, showNames = true, pixel = false }) {
   const systemIdentity = useSystemIdentity();
+  const formatAlter = useAlterLabel();
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   // Group config: members of a group flagged "hide_from_authorship" are
   // dropped from the byline (if that leaves none, it renders as the system).
   const hidden = useMemo(() => getAlterIdsByGroupFlag(groups, alters, "hide_from_authorship"), [groups, alters]);
   const ids = authorIds.filter((id) => !hidden.has(id));
+  if (pixel) {
+    const shown = ids.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+    return (
+      <div className="pxb-by">
+        {shown.length === 0 ? (
+          <>
+            <SystemAvatar size="sm" className="pxb-mark" />
+            <b className="pxb-by-names">{systemIdentity.name}</b>
+          </>
+        ) : (
+          <>
+            <span className="pxb-marks">
+              {shown.slice(0, 5).map((a) => (
+                <Link key={a.id} to={`/alter/${a.id}`} title={formatAlter(a)} onClick={(e) => e.stopPropagation()}>
+                  <SharedAlterAvatar alter={a} size="w-[22px] h-[22px]" rounded="none" className="pxb-mark" />
+                </Link>
+              ))}
+              {shown.length > 5 && <span className="pxb-more">+{shown.length - 5}</span>}
+            </span>
+            <b className="pxb-by-names">
+              {shown.map((a, i) => (
+                <React.Fragment key={a.id}>
+                  {i > 0 && ", "}
+                  <span className="os-alter-name" style={nameColorVar(a)}>{formatAlter(a)}</span>
+                </React.Fragment>
+              ))}
+            </b>
+          </>
+        )}
+        {timestamp && <span className="pxb-when">{timestamp}</span>}
+      </div>
+    );
+  }
+
   if (ids.length === 0) {
     return (
       <div className="flex items-center gap-2">
@@ -84,7 +129,12 @@ export default function AuthorsRow({ authorIds = [], alters = [], timestamp, sho
         </div>
         <div>
           <p className="text-sm font-medium text-foreground leading-tight">
-            {altersToShow.map(a => a.alias || a.name).join(", ")}
+            {altersToShow.map((a, i) => (
+              <React.Fragment key={a.id}>
+                {i > 0 && ", "}
+                <span className="os-alter-name" style={nameColorVar(a)}>{a.alias || a.name}</span>
+              </React.Fragment>
+            ))}
           </p>
           {timestamp && <p className="text-xs text-muted-foreground">{timestamp}</p>}
         </div>
@@ -98,7 +148,7 @@ export default function AuthorsRow({ authorIds = [], alters = [], timestamp, sho
         <Link key={alter.id} to={`/alter/${alter.id}`} className="flex items-center gap-1.5">
           <AlterAvatar alter={alter} />
           <div>
-            <p className="text-sm font-medium text-foreground leading-tight">{alter.alias || alter.name}</p>
+            <p className="os-alter-name text-sm font-medium text-foreground leading-tight" style={nameColorVar(alter)}>{alter.alias || alter.name}</p>
             {timestamp && altersToShow.indexOf(alter) === 0 && (
               <p className="text-xs text-muted-foreground">{timestamp}</p>
             )}

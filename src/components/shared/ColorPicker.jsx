@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { HexColorPicker } from 'react-colorful';
 import { normalizeHexInput } from '@/lib/colorUtils';
 import { DropdownLayer } from '@/components/shared/SearchableSelect';
+import { usePopupTheme } from '@/components/shared/popupTheme';
 
 // compact: show ONLY the swatch in the row — the name, the hex field and any
 // actions (Clear, "use the app colour") live inside the popover, which is
@@ -13,6 +14,7 @@ import { DropdownLayer } from '@/components/shared/SearchableSelect';
 // the rest of the widget stays solid. Shape: { value, onChange }.
 export default function ColorPicker({ value, onChange, label, compact = false, caption = true, onClear, extraAction, opacity, swatchBadge = null }) {
   const [open, setOpen] = useState(false);
+  const popTheme = usePopupTheme('colour');
   const [hex, setHex] = useState(value || '#6366f1');
   const containerRef = useRef(null);
   const popRef = useRef(null);
@@ -183,7 +185,7 @@ export default function ColorPicker({ value, onChange, label, compact = false, c
       </div>
       {open && (() => {
         const pop = (
-          <div ref={popRef} data-color-picker-popover
+          <div ref={popRef} {...popTheme.attrs} data-color-picker-popover
             className={inModal
               ? 'absolute z-[90] mt-2 p-3 bg-card border border-border rounded-xl shadow-xl'
               : 'fixed z-[90] p-3 bg-card border border-border rounded-xl shadow-xl'}
@@ -191,8 +193,8 @@ export default function ColorPicker({ value, onChange, label, compact = false, c
             // machinery) must never contest a drag that starts in the
             // picker — contested drags stuttered and froze mid-slide.
             style={inModal
-              ? { width: popWidth, left: 0, touchAction: "none" }
-              : { top: pos.top, left: pos.left, width: popWidth, touchAction: "none" }}>
+              ? { ...popTheme.style, width: popWidth, left: 0, touchAction: "none" }
+              : { ...popTheme.style, top: pos.top, left: pos.left, width: popWidth, touchAction: "none" }}>
             {compact && label && (
               <p className='text-xs font-medium mb-2'>{label}</p>
             )}
@@ -206,6 +208,7 @@ export default function ColorPicker({ value, onChange, label, compact = false, c
               onBlur={handleHexBlur}
               onFocus={handleHexFocus}
               className='mt-2 w-full h-7 px-2 rounded border border-border bg-background text-xs font-mono text-center'
+              aria-label={`${label || 'Colour'}: hex code`}
               maxLength={9}
             />
             {opacity && (

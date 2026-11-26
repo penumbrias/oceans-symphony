@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { PS } from "@/lib/profileStyle";
 import { readSoundManager, hasAnySong, clampVol, SOUND_MANAGER_FIELD } from "@/lib/soundSchedule";
@@ -41,13 +42,12 @@ export function useSoundManager() {
 // `changes` is { songs?, quiet?, quietMode?, quietVolume?, windows? }; a
 // function gets the current value and returns the changes.
 export async function patchSoundManager(changes) {
-  const rows = await base44.entities.SystemSettings.list();
-  const row = pickPrimarySystemSettings(rows);
-  const current = row?.[SOUND_MANAGER_FIELD] && typeof row[SOUND_MANAGER_FIELD] === "object" ? row[SOUND_MANAGER_FIELD] : {};
-  const delta = typeof changes === "function" ? changes(readSoundManager(row)) : changes;
-  const next = { ...current, ...(delta || {}) };
-  if (row?.id) return base44.entities.SystemSettings.update(row.id, { [SOUND_MANAGER_FIELD]: next });
-  return base44.entities.SystemSettings.create({ [SOUND_MANAGER_FIELD]: next });
+  // Through the one settings writer: built on the fresh row in its queue.
+  return writeSettings((row) => {
+    const current = row?.[SOUND_MANAGER_FIELD] && typeof row[SOUND_MANAGER_FIELD] === "object" ? row[SOUND_MANAGER_FIELD] : {};
+    const delta = typeof changes === "function" ? changes(readSoundManager(row?.id ? row : null)) : changes;
+    return { [SOUND_MANAGER_FIELD]: { ...current, ...(delta || {}) } };
+  }, { create: true, invalidate: false });
 }
 
 export async function setSongDefaultVolume(key, volume) {

@@ -19,8 +19,8 @@ export default function SoundscapeMiniBar({ onOpen }) {
     recording && recording.title,
   ].filter(Boolean);
   return (
-    <div className="max-w-lg mx-auto px-4 pt-3">
-      <div className="flex items-center gap-1 rounded-xl border border-primary/30 bg-primary/5 pl-3 pr-1 py-1">
+    <div className="os-sound-mini max-w-lg mx-auto px-4 pt-3">
+      <div className="os-sound-mini-bar flex items-center gap-1 rounded-xl border border-primary/30 bg-primary/5 pl-3 pr-1 py-1">
         <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-left text-xs text-foreground truncate py-1.5">
           🎧 {parts.join(" + ")}
           <span className="text-primary ml-1">Open</span>

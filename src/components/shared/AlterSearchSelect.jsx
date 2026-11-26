@@ -9,6 +9,7 @@ import { ChevronDown, Check, FolderTree } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { groupedAlterSections } from "@/lib/alterSections";
 import { DropdownLayer } from "@/components/shared/SearchableSelect";
+import { usePopupTheme } from "@/components/shared/popupTheme";
 
 const GROUPED_KEY = "symphony_alterSearchSelect_grouped";
 
@@ -29,8 +30,11 @@ export default function AlterSearchSelect({
   buttonClassName = "",
   zIndex = 60,               // raise when nested inside another overlay
   frontingFirst = true,      // float current fronters to the top
+  triggerId,                 // optional: id + aria-labelledby for the trigger,
+  triggerLabelledBy,         // so a field label names it (the house kit's AlterPicker)
 }) {
   const [open, setOpen] = useState(false);
+  const popTheme = usePopupTheme("alter-select");
   const [search, setSearch] = useState("");
   const triggerRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
@@ -117,6 +121,9 @@ export default function AlterSearchSelect({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        id={triggerId}
+        aria-labelledby={triggerLabelledBy}
+        aria-expanded={open}
         className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-input bg-background text-sm text-left ${buttonClassName}`}
       >
         {selected ? (
@@ -142,9 +149,11 @@ export default function AlterSearchSelect({
               treating taps here as an "outside" dismiss / focus escape. */}
           <div className="fixed inset-0 pointer-events-auto" style={{ zIndex }} onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} />
           <div
+            {...popTheme.attrs}
             data-searchable-dropdown=""
             className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden pointer-events-auto"
             style={{
+              ...popTheme.style,
               position: "fixed", zIndex: zIndex + 1, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)",
               ...(pos.up ? { bottom: pos.bottom } : { top: pos.top }),
             }}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createDreamJournal, DREAM_JOURNAL_FOLDER } from "@/lib/journalEntry";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -176,20 +177,14 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       // record — the journal is a side-effect, not a precondition.
       let journalEntryId = null;
       if (saveAsDream && cleanNotes.trim()) {
-        const DREAM_FOLDER = "Dreams";
+        const DREAM_FOLDER = DREAM_JOURNAL_FOLDER;
         const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
         if (!saved.includes(DREAM_FOLDER)) {
           localStorage.setItem("os_journal_folders", JSON.stringify([...saved, DREAM_FOLDER]));
         }
         const title = `Dream — ${format(new Date(dateStr), "MMMM d, yyyy")}`;
         try {
-          const journal = await base44.entities.JournalEntry.create({
-            title,
-            content: cleanNotes.trim(),
-            folder: DREAM_FOLDER,
-            tags: [hadNightmare ? "nightmare" : "dream"],
-            entry_type: "dream",
-          });
+          const journal = await createDreamJournal({ title, content: cleanNotes.trim(), nightmare: hadNightmare });
           journalEntryId = journal?.id || null;
         } catch (journalErr) {
           // Don't block the sleep record on a journal-create failure —

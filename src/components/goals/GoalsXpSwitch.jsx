@@ -4,7 +4,7 @@
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { SwitchRow } from "@/components/shared/SettingRows";
 import { useGoalXp } from "@/lib/useGoalXp";
 import { GOAL_XP } from "@/lib/goalXp";
@@ -15,8 +15,7 @@ export default function GoalsXpSwitch() {
   if (!available || !settings?.id) return null;
   const set = async (next) => {
     try {
-      await base44.entities.SystemSettings.update(settings.id, { goals_earn_xp: !!next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ goals_earn_xp: !!next }, { queryClient: qc });
     } catch (e) {
       toast.error(e?.message || "Couldn't save that.");
     }

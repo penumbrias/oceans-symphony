@@ -23,7 +23,7 @@ register(`data:text/javascript,${encodeURIComponent(`
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
 
-const { parseNameList, isListPaste, lineKind, spreadPaste, newLine, saveQuickPeople } = await import("../src/lib/quickPeople.js");
+const { parseNameList, isListPaste, lineKind, spreadPaste, newLine, saveQuickPeople, countToSave } = await import("../src/lib/quickPeople.js");
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed += 1; console.log(`ok  ${name}`); };
@@ -79,6 +79,18 @@ await test("saving sends each line to the right writer and keeps failures", asyn
   assert.equal(res.presences.length, 2);
   assert.equal(res.failed.length, 1);
   assert.equal(res.failed[0].line.name, "Boom");
+});
+
+await test("a typed comma list saves one record per name", async () => {
+  const made = [];
+  const create = { alter: async (f) => { made.push(f); return { id: `a${made.length}`, ...f }; }, presence: async () => ({}) };
+  const lines = [newLine({ name: "mark, amy; susan, carol", color: "#123456" })];
+  assert.equal(countToSave(lines), 4);
+  const res = await saveQuickPeople(lines, { create });
+  assert.deepEqual(made.map((f) => f.name), ["mark", "amy", "susan", "carol"]);
+  assert.equal(made[0].color, "#123456");
+  assert.equal(made[1].color, undefined);
+  assert.equal(res.alters.length, 4);
 });
 
 console.log(`${passed} quick list checks passed.`);

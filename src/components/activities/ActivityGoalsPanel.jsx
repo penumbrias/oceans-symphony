@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { createActivityGoal, setActivityGoalTarget, trashActivityGoal } from "@/lib/activityGoalEntry";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -133,29 +134,12 @@ export default function ActivityGoalsPanel({ weekStart }) {
   const createGoalMutation = useMutation({
     mutationFn: async () => {
       if (!targetMinutes) return;
-      if (sourceType === "habit") {
-        if (!selectedHabit) return;
-        await base44.entities.ActivityGoal.create({
-          source_type: "habit",
-          source_id: selectedHabit.id,
-          habit_id: selectedHabit.id,
-          category_name: selectedHabit.label,
-          weekly_minutes: parseInt(targetMinutes),
-          color: selectedHabit.color || "#8b5cf6",
-          week_start_date: weekDate,
-        });
-      } else {
-        if (!selectedCategory) return;
-        await base44.entities.ActivityGoal.create({
-          source_type: "category",
-          source_id: selectedCategory.id,
-          activity_category_id: selectedCategory.id,
-          category_name: selectedCategory.name,
-          weekly_minutes: parseInt(targetMinutes),
-          color: selectedCategory.color || "#8b5cf6",
-          week_start_date: weekDate,
-        });
-      }
+      await createActivityGoal({
+        sourceType,
+        source: sourceType === "habit" ? selectedHabit : selectedCategory,
+        weeklyMinutes: targetMinutes,
+        weekStartDate: weekDate,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["activityGoals", weekDate] });
@@ -170,7 +154,7 @@ export default function ActivityGoalsPanel({ weekStart }) {
   // Delete goal mutation
   const deleteGoalMutation = useMutation({
     mutationFn: async (goalId) => {
-      await base44.entities.ActivityGoal.delete(goalId);
+      await trashActivityGoal(goalId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["activityGoals", weekDate] });
@@ -180,7 +164,7 @@ export default function ActivityGoalsPanel({ weekStart }) {
   // Update goal target mutation
   const updateGoalMutation = useMutation({
     mutationFn: async ({ goalId, weeklyMinutes }) => {
-      await base44.entities.ActivityGoal.update(goalId, { weekly_minutes: weeklyMinutes });
+      await setActivityGoalTarget(goalId, weeklyMinutes);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["activityGoals", weekDate] });

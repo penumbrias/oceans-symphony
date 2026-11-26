@@ -46,6 +46,8 @@ export const APP_FONT_OPTIONS = [
   // bottoms help some readers keep letters from flipping or swimming.
   { label: "OpenDyslexic (dyslexia-friendly)", value: "OpenDyslexic, 'Atkinson Hyperlegible', sans-serif", legacy: "opendyslexic", category: "ui" },
   { label: "Nunito",                 value: "'Nunito', sans-serif",                         legacy: "nunito",   category: "ui" },
+  // Bundled (SIL OFL) — the pixel look's heading font, for anyone.
+  { label: "Pixelify Sans (pixel)",  value: "'Pixelify Sans', ui-monospace, monospace",                     category: "ui" },
   { label: "Poppins",                value: "Poppins, sans-serif",                                              category: "ui" },
   { label: "Raleway",                value: "Raleway, sans-serif",                                              category: "ui" },
   { label: "Noto Sans",              value: "'Noto Sans', sans-serif",                                          category: "ui" },
@@ -166,10 +168,24 @@ function applyNavHeight(value) {
   document.documentElement.style.setProperty("--bottom-nav-extra", `${extra}px`);
 }
 
+// The pixel look's body font, used only while the person hasn't picked one.
+export const PIXEL_BODY_FONT = "'Pixelify Sans', 'Atkinson Hyperlegible', sans-serif";
+
 function applyFontFamily(value) {
-  // Accepts either a legacy short key ("inter") or a CSS font-family string
-  const css = LEGACY_FONT_MAP[value] || value || "'Inter', sans-serif";
-  document.documentElement.style.setProperty("--font-sans", css);
+  // Accepts either a legacy short key ("inter") or a CSS font-family string.
+  // With nothing chosen, the pixel look (html[data-ui-look="pixel"]) uses its
+  // own pixel font; a font the person picked always wins.
+  const root = document.documentElement;
+  const fallback = root.getAttribute("data-ui-look") === "pixel" && root.getAttribute("data-px-type") !== "plain" ? PIXEL_BODY_FONT : "'Inter', sans-serif";
+  const css = LEGACY_FONT_MAP[value] || value || fallback;
+  root.style.setProperty("--font-sans", css);
+}
+
+/** Re-apply the saved body font (after the app look changes). */
+export function reapplyFontFamily() {
+  let saved = null;
+  try { saved = localStorage.getItem(LS_FONT_FAMILY); } catch { /* storage off */ }
+  applyFontFamily(saved);
 }
 
 // 10 heading-font choices spanning sans / serif / handwriting / display.
@@ -239,11 +255,18 @@ export function initAccessibility() {
   applyA11yMode(localStorage.getItem(LS_A11Y_MODE) === "true");
   applyLargeTouch(localStorage.getItem(LS_LARGE_TOUCH) || "default");
   applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
-  applyFontFamily(localStorage.getItem(LS_FONT_FAMILY) || "inter");
+  applyFontFamily(localStorage.getItem(LS_FONT_FAMILY));
   applyHeadingFont(localStorage.getItem(LS_HEADING_FONT) || "default");
   // If the user previously opted into the optional extra-font pack, re-inject
   // its stylesheet so their chosen extra font keeps rendering after launch.
   loadExtraFontsIfInstalled();
+}
+
+function pixelLookOn() {
+  try {
+    const root = document.documentElement;
+    return root.getAttribute("data-ui-look") === "pixel" && root.getAttribute("data-px-type") !== "plain";
+  } catch { return false; }
 }
 
 export function getAccessibilitySettings() {
@@ -254,7 +277,9 @@ export function getAccessibilitySettings() {
     a11yMode:    localStorage.getItem(LS_A11Y_MODE)     === "true",
     largeTouch:  localStorage.getItem(LS_LARGE_TOUCH)  || "default",
     navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
-    fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || "inter",
+    // Nothing chosen: the font on screen is the pixel look's (applyFontFamily),
+    // so the font list shows Pixelify Sans as current, else Inter.
+    fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || (pixelLookOn() ? "'Pixelify Sans', ui-monospace, monospace" : "inter"),
     headingFont: localStorage.getItem(LS_HEADING_FONT) || "default",
     playInsideOnly: localStorage.getItem(LS_PLAY_INSIDE) === "true",
   };

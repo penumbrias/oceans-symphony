@@ -7,13 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { base44 } from "@/api/base44Client";
+import { saveEditedJournal, notifyJournalMentions } from "@/lib/journalEntry";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
 import { toast } from "sonner";
 import { Lock, AlertCircle, Loader2, Folder, PenLine, ChevronDown, X, CalendarClock } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { saveMentions, extractMentionedIds, htmlToPlainText } from "@/lib/mentionUtils";
+import { htmlToPlainText } from "@/lib/mentionUtils";
 import { extractHashtags, mergeTags } from "@/lib/journalTags";
 import { journalEntryDate } from "@/lib/journalDate";
 import { toLocalDatetimeValue, fromLocalDatetimeValue } from "@/lib/dateTimeInput";
@@ -32,10 +32,15 @@ import SystemAvatar from "@/components/shared/SystemAvatar";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
 
+// The inline editor's frame pieces (outside a Dialog, Radix's title and
+// footer can't be used).
+const InlineHead = ({ children }) => <div>{children}</div>;
+const InlineTitle = ({ children }) => <h2 className="text-lg font-semibold leading-none tracking-tight">{children}</h2>;
+const InlineFoot = ({ children }) => <div className="flex flex-row justify-end gap-2">{children}</div>;
 
 export default function JournalEditorModal({
   isOpen, open, onClose, editingEntry, entry, alters,
-  defaultFolder, currentAlterId,
+  defaultFolder, currentAlterId, inline = false,
 }) {
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
@@ -292,44 +297,19 @@ useEffect(() => {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (data) => {
-      if (editingEntryFinal) {
-        return base44.entities.JournalEntry.update(editingEntryFinal.id, data);
-      } else {
-        return base44.entities.JournalEntry.create(data);
-      }
-    },
+    mutationFn: (data) => saveEditedJournal(editingEntryFinal, data),
     onSuccess: async (savedEntry) => {
       // @mentions typed in the entry BODY notify too (owner request) — same
       // MentionLog pipeline as the dedicated field. Only NEW mentions fire on
       // an edit (diffed against the previous version of this entry), and
       // encrypted bodies are never scanned.
-      if (!isEncrypted && alters?.length > 0) {
-        try {
-          const prevPlain = editingEntryFinal && !editingEntryFinal.is_encrypted
-            ? htmlToPlainText(editingEntryFinal.content || "") : "";
-          await saveMentions({
-            content: htmlToPlainText(content),
-            alters,
-            sourceType: "journal",
-            sourceId: savedEntry.id,
-            sourceLabel: title || "Journal Entry",
-            navigatePath: `/journals?id=${savedEntry.id}`,
-            authorAlterId: authorAlterId || null,
-            excludeIds: extractMentionedIds(prevPlain, alters),
-          });
-        } catch { /* notifications are best-effort */ }
+      if (!isEncrypted) {
+        const prevPlain = editingEntryFinal && !editingEntryFinal.is_encrypted
+          ? htmlToPlainText(editingEntryFinal.content || "") : "";
+        await notifyJournalMentions({ entry: savedEntry, text: htmlToPlainText(content), alters, authorAlterId, label: title, previousText: prevPlain });
       }
-      if (mentionNote.trim() && alters?.length > 0) {
-        await saveMentions({
-          content: mentionNote,
-          alters,
-          sourceType: "journal",
-          sourceId: savedEntry.id,
-          sourceLabel: title || "Journal Entry",
-          navigatePath: `/journals?id=${savedEntry.id}`,
-          authorAlterId: authorAlterId || null,
-        });
+      if (mentionNote.trim()) {
+        await notifyJournalMentions({ entry: savedEntry, text: mentionNote, alters, authorAlterId, label: title });
       }
       queryClient.invalidateQueries({ queryKey: ["journals"] });
       queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
@@ -475,15 +455,22 @@ useEffect(() => {
     });
   };
 
-  return (
-    <Dialog open={isOpenFinal} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+  // `inline`: the same editor drawn in place (the new house's Journals room
+  // writes on its page instead of in a dialog). Every field, check and the
+  // save path are the same; only the frame around them changes.
+  const editorTitle = editingEntryFinal ? "Edit Entry" : "New Journal Entry";
+  const Head = inline ? InlineHead : DialogHeader;
+  const HeadTitle = inline ? InlineTitle : DialogTitle;
+  const Foot = inline ? InlineFoot : DialogFooter;
+
+  const inner = (
+    <>
 
         {/* ── Fixed header: modal title + entry title + author ── */}
         <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50 space-y-3">
-          <DialogHeader>
-            <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
-          </DialogHeader>
+          <Head>
+            <HeadTitle>{editorTitle}</HeadTitle>
+          </Head>
 
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
@@ -742,15 +729,30 @@ useEffect(() => {
 
         {/* ── Fixed footer ── */}
         <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
-          <DialogFooter>
+          <Foot>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={(isEncrypted && (editingEntryFinal?.is_encrypted ? (showPasswordField || !decryptionPassword) : !encryptionPassword)) || saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Entry
             </Button>
-          </DialogFooter>
+          </Foot>
         </div>
+    </>
+  );
 
+  if (inline) {
+    if (!isOpenFinal) return null;
+    return (
+      <div className="journal-editor-inline flex flex-col gap-0 min-h-0" data-journal-editor="inline">
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={isOpenFinal} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+        {inner}
       </DialogContent>
     </Dialog>
   );

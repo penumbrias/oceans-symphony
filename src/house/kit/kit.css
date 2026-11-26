@@ -1,0 +1,407 @@
+/* The kit's controls (new house step 1.2). Tokens only: every colour,
+   size, corner and duration comes from src/house/tokens/. Scoped to
+   [data-house], so the old house never sees a rule of it.
+
+   Three things every control here keeps (building code §3, §7, plan §4):
+   - a 44 px target (var(--house-target)), even where the look is smaller
+     (ticks, chips, swatches);
+   - hover, pressed and selected each change SHAPE as well as colour
+     (an inner ring, a 1 px press, a tick or bold text), so none of them is
+     colour only;
+   - the focus ring is the house's own (tokens.css): 2 px, the focus role.
+   Text is rem through the type tokens; nothing here sets px text. */
+
+/* ── Shared bits ─────────────────────────────────────────────────── */
+[data-house] .hk-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+[data-house] .hk-spin { animation: hk-spin calc(var(--house-dur-slow) * 3) linear infinite; }
+@keyframes hk-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { [data-house] .hk-spin { animation: none; } }
+html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
+
+/* ── Buttons: primary, secondary, quiet, danger ──────────────────── */
+[data-house] .hk-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--house-space-2);
+  min-height: var(--house-h-control); min-width: var(--house-target);
+  /* Side padding gives way in a narrow container (a phone at large text)
+     so the words keep the room, never under 12 px. */
+  padding: var(--house-space-2) min(var(--house-space-4), max(12px, 4cqi));
+  font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 600;
+  text-align: center; overflow-wrap: break-word;
+  border: var(--house-border-w) solid var(--house-border);
+  border-radius: var(--house-corner-sm);
+  background: var(--house-raised); color: var(--house-text);
+  box-shadow: var(--house-raise);
+  cursor: pointer;
+  transition: box-shadow var(--house-dur-fast) var(--house-ease-out), transform var(--house-dur-fast) var(--house-ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+[data-house][data-house-look="pixel"] .hk-btn:not(.hk-btn--quiet) { border-color: var(--house-outline); }
+[data-house] .hk-btn--primary { background: var(--house-accent); color: var(--house-on-accent); border-color: var(--house-accent); }
+[data-house] .hk-btn--danger { background: var(--house-danger); color: var(--house-on-danger); border-color: var(--house-danger); }
+[data-house][data-house-look="pixel"] .hk-btn--primary,
+[data-house][data-house-look="pixel"] .hk-btn--danger { border-color: var(--house-outline); }
+[data-house] .hk-btn--quiet { background: transparent; color: var(--house-accent-text); border-color: transparent; box-shadow: none; }
+[data-house] .hk-btn--block { width: 100%; }
+[data-house] .hk-linkbtn { text-decoration: none; }
+[data-house] .hk-linkbtn:visited { color: inherit; }
+/* Hover: an inner ring in the button's own text colour (a shape, not a tint). */
+@media (hover: hover) {
+  [data-house] .hk-btn:hover:not([aria-disabled="true"]) { box-shadow: inset 0 0 0 3px currentColor, var(--house-raise); }
+  [data-house] .hk-btn--quiet:hover:not([aria-disabled="true"]) { box-shadow: none; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.2em; }
+}
+/* Pressed: moves down 1 px and sinks. */
+[data-house] .hk-btn:active:not([aria-disabled="true"]),
+[data-house] .hk-btn[data-pressed="true"] { transform: translateY(1px); box-shadow: var(--house-sink); }
+/* Disabled keeps its words readable, goes dashed, and says why beside it. */
+[data-house] .hk-btn[aria-disabled="true"] { cursor: not-allowed; border-style: dashed; border-color: var(--house-border); background: transparent; color: var(--house-muted); box-shadow: none; }
+[data-house] .hk-btn[aria-busy="true"] { cursor: progress; }
+[data-house] .hk-btn-wrap { display: inline-flex; flex-direction: column; align-items: flex-start; gap: var(--house-space-1); max-width: 100%; }
+[data-house] .hk-btn { max-width: 100%; }
+[data-house] .hk-btn-wrap--block { display: flex; align-items: stretch; }
+[data-house] .hk-reason { display: flex; gap: var(--house-space-1); align-items: flex-start; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); }
+
+/* Icon button: a 44 × 44 square. */
+[data-house] .hk-iconbtn { padding: 0; width: var(--house-target); height: var(--house-target); min-height: var(--house-target); flex-shrink: 0; }
+[data-house] .hk-iconbtn.hk-btn--quiet { color: var(--house-text); }
+@media (hover: hover) {
+  [data-house] .hk-iconbtn.hk-btn--quiet:hover:not([aria-disabled="true"]) { text-decoration: none; box-shadow: inset 0 0 0 2px currentColor; }
+}
+
+/* ── Fields ──────────────────────────────────────────────────────── */
+[data-house] .hk-field { display: flex; flex-direction: column; gap: var(--house-space-1); min-width: 0; }
+/* Value fields (number, date, time, duration) are size containers, so a
+   narrow one stacks its parts (below). Only these: a container has no
+   width of its own, so a field sitting in a row would collapse to nothing. */
+[data-house] .hk-field--sized { container-type: inline-size; width: 100%; }
+[data-house] .hk-field-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--house-space-1) var(--house-space-3); }
+[data-house] .hk-label { font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 600; color: var(--house-text); }
+[data-house] .hk-hint { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); margin: 0; }
+[data-house] .hk-error { display: flex; gap: var(--house-space-1); align-items: flex-start; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-danger-text); font-weight: 600; margin: 0; }
+[data-house] .hk-input,
+[data-house] .hk-inputwrap {
+  min-height: var(--house-h-control); width: 100%; min-width: 0;
+  background: var(--house-sunken); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-border);
+  border-radius: var(--house-corner-sm);
+  box-shadow: var(--house-sink);
+  font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
+}
+[data-house][data-house-look="pixel"] .hk-input,
+[data-house][data-house-look="pixel"] .hk-inputwrap { border-color: var(--house-outline); }
+[data-house] .hk-input { padding: var(--house-space-2) var(--house-space-3); }
+[data-house] .hk-input::placeholder { color: var(--house-muted); opacity: 1; }
+[data-house] .hk-inputwrap { display: flex; align-items: stretch; padding: 0; }
+[data-house] .hk-inputwrap .hk-bare {
+  /* At least as wide as the words in it (--hk-chars, set by the field), so
+     a value is never cut ("1 h 30 min" shows whole); never wider than the box. */
+  flex: 1 1 auto; width: 0; min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + min(var(--house-space-3), max(8px, 3cqi)) * 2));
+  border: 0; background: transparent; color: inherit; font: inherit;
+  /* Side padding gives way in a narrow field (cqi: the field's width), so
+     "Today, Tue Nov 24" still fits a phone at 200% in a wide font. */
+  padding: var(--house-space-2) min(var(--house-space-3), max(8px, 3cqi)); border-radius: var(--house-corner-sm);
+}
+/* The value and its unit, kept together (number and duration). */
+[data-house] .hk-stepval { flex: 1 1 auto; display: flex; align-items: stretch; min-width: 0; }
+[data-house] .hk-stepval > .hk-bare { min-width: min(100%, calc((var(--hk-chars, 2) + 2) * 1ch + min(var(--house-space-3), max(8px, 3cqi)) * 2)); }
+[data-house] .hk-inputwrap .hk-bare::placeholder { color: var(--house-muted); opacity: 1; }
+[data-house] .hk-inputwrap .hk-bare:focus-visible { outline: none; }
+[data-house] .hk-inputwrap:focus-within { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }
+[data-house] .hk-inputwrap > .hk-btn { border-radius: 0; border-width: 0; border-left: var(--house-border-w) solid var(--house-divider); box-shadow: none; background: transparent; color: var(--house-text); }
+[data-house] .hk-inputwrap > .hk-btn:last-child { border-top-right-radius: var(--house-corner-sm); border-bottom-right-radius: var(--house-corner-sm); }
+/* Focus inside a filled or sunken part: an inset ring in the part's own
+   text colour (text on sunken, on-accent on accent, both ≥ 4.5:1), since
+   the focus role is only promised against page and panel. */
+[data-house] .hk-inputwrap > .hk-btn:focus-visible,
+[data-house] .hk-seg-opt:focus-visible,
+[data-house] .hk-menuitem:focus-visible,
+[data-house] .hk-option:focus-visible,
+[data-house] .hk-cal-day:focus-visible { outline: var(--house-focus-w) solid currentColor; outline-offset: calc(var(--house-focus-w) * -2); }
+[data-house] .hk-inputwrap .hk-value { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; }
+/* Invalid: a 2 px border (shape) in the danger colour, plus the words. */
+[data-house] .hk-input[aria-invalid="true"],
+[data-house] .hk-inputwrap[data-invalid="true"] { border-width: 2px; border-color: var(--house-danger); }
+[data-house] .hk-input:disabled,
+[data-house] .hk-inputwrap[data-disabled="true"] { border-style: dashed; color: var(--house-muted); cursor: not-allowed; box-shadow: none; }
+[data-house] .hk-unit { display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap; padding-right: var(--house-space-3); color: var(--house-muted); font-size: var(--house-text-sm); }
+/* Narrow (a phone at large text): the parts of a field stack instead of
+   squeezing the value. − value + becomes the value on its own line with −
+   and + under it; a date or time box puts its calendar/list button under
+   the words. The thresholds are rem, so they grow with text size. */
+@container (max-width: 18rem) {
+  [data-house] .hk-inputwrap--stepper { flex-wrap: wrap; }
+  [data-house] .hk-inputwrap--stepper > .hk-stepval { order: -1; flex: 1 0 100%; border-bottom: var(--house-border-w) solid var(--house-divider); }
+  [data-house] .hk-inputwrap--stepper > .hk-btn { flex: 1 1 0; width: auto; }
+  [data-house] .hk-inputwrap--stepper > .hk-btn:first-child { border-left: 0; border-bottom-left-radius: var(--house-corner-sm); }
+}
+@container (max-width: 16rem) {
+  [data-house] .hk-inputwrap--picker { flex-wrap: wrap; }
+  [data-house] .hk-inputwrap--picker > .hk-bare { flex: 1 0 100%; }
+  [data-house] .hk-inputwrap--picker > .hk-btn { flex: 1 1 100%; width: auto; border-left: 0; border-top: var(--house-border-w) solid var(--house-divider); border-radius: 0 0 var(--house-corner-sm) var(--house-corner-sm); }
+}
+/* The words a typed date, time or duration was read as. */
+[data-house] .hk-readback { font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); margin: 0; }
+
+/* Authored text (MentionTextarea): the house's field look on the shared box. */
+[data-house] .hk-authored textarea.hk-textarea {
+  min-height: calc(var(--house-h-control) * 2); width: 100%;
+  background: var(--house-sunken); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-border); border-radius: var(--house-corner-sm);
+  box-shadow: var(--house-sink);
+  font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
+  padding: var(--house-space-2) var(--house-space-3);
+}
+[data-house][data-house-look="pixel"] .hk-authored textarea.hk-textarea { border-color: var(--house-outline); }
+[data-house] .hk-authored textarea.hk-textarea::placeholder { color: var(--house-muted); opacity: 1; }
+[data-house] .hk-authored textarea.hk-textarea:focus-visible { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); box-shadow: var(--house-sink); }
+[data-house] .hk-authored textarea.hk-textarea[aria-invalid="true"] { border-width: 2px; border-color: var(--house-danger); }
+
+/* The save-state slot under a field: saving / saved / failed. */
+[data-house] .hk-save { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1) var(--house-space-2); min-height: 1.5rem; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); color: var(--house-muted); }
+[data-house] .hk-save[data-state="failed"] { color: var(--house-danger-text); font-weight: 600; }
+[data-house] .hk-save > span { flex: 1 1 8rem; min-width: 0; }
+[data-house] .hk-save:empty { min-height: 0; }
+
+/* ── The form row: label · value · edit (editing a record looks like its Info) ── */
+[data-house] .hk-formrow {
+  display: grid; grid-template-columns: minmax(6rem, 12rem) minmax(0, 1fr) auto; align-items: center;
+  gap: var(--house-space-1) var(--house-space-3);
+  min-height: var(--house-h-row); padding: var(--house-space-1) 0;
+  border-bottom: var(--house-border-w) solid var(--house-divider);
+}
+[data-house] .hk-formrow-label { font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); font-weight: 600; color: var(--house-muted); }
+[data-house] .hk-formrow-value { min-width: 0; overflow-wrap: break-word; }
+[data-house] .hk-formrow-value[data-empty="true"] { color: var(--house-muted); font-style: italic; }
+[data-house] .hk-formrow[data-editing="true"] { grid-template-columns: minmax(0, 1fr); padding: var(--house-space-3) 0; }
+[data-house] .hk-formrow-actions { display: flex; flex-wrap: wrap; gap: var(--house-space-2); justify-content: flex-end; }
+@container (max-width: 30rem) {
+  [data-house] .hk-formrow { grid-template-columns: minmax(0, 1fr) auto; }
+  [data-house] .hk-formrow-label { grid-column: 1 / -1; }
+}
+/* Narrower still: label, value and Edit each on their own line. */
+@container (max-width: 18rem) {
+  [data-house] .hk-formrow { grid-template-columns: minmax(0, 1fr); }
+  [data-house] .hk-formrow > :last-child:not(.hk-formrow-actions) { justify-self: start; }
+}
+[data-house] .hk-form { container-type: inline-size; display: flex; flex-direction: column; }
+
+/* ── Checkbox and radio: the whole row is the target ─────────────── */
+[data-house] .hk-check,
+[data-house] .hk-radio {
+  position: relative; display: flex; align-items: flex-start; gap: var(--house-space-3);
+  min-height: var(--house-target); padding: calc((var(--house-target) - var(--house-tick)) / 2) 0;
+  cursor: pointer;
+}
+[data-house] .hk-check-input,
+[data-house] .hk-radio-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: inherit; }
+[data-house] .hk-check-box,
+[data-house] .hk-radio-dot {
+  flex-shrink: 0; width: var(--house-tick); height: var(--house-tick);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--house-border); background: var(--house-sunken); color: var(--house-on-accent);
+  transition: box-shadow var(--house-dur-fast) var(--house-ease-out);
+}
+[data-house] .hk-check-box { border-radius: calc(var(--house-corner-sm) / 2); }
+[data-house][data-house-look="pixel"] .hk-check-box { border-radius: 0; border-color: var(--house-outline); }
+[data-house] .hk-radio-dot { border-radius: 50%; }
+[data-house] .hk-radio-dot::after { content: ""; width: var(--house-radio-dot); height: var(--house-radio-dot); border-radius: 50%; background: var(--house-text); transform: scale(0); transition: transform var(--house-dur-fast) var(--house-ease-out); }
+[data-house] .hk-check-input:checked + .hk-check-box,
+[data-house] .hk-check-input:indeterminate + .hk-check-box { background: var(--house-accent); border-color: var(--house-accent); }
+[data-house] .hk-radio-input:checked + .hk-radio-dot { border-color: var(--house-accent); }
+[data-house] .hk-radio-input:checked + .hk-radio-dot::after { transform: scale(1); background: var(--house-accent); }
+[data-house] .hk-check-input:focus-visible + .hk-check-box,
+[data-house] .hk-radio-input:focus-visible + .hk-radio-dot { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }
+[data-house] .hk-check-input:focus-visible,
+[data-house] .hk-radio-input:focus-visible { outline: none; }
+@media (hover: hover) {
+  [data-house] .hk-check:hover .hk-check-box,
+  [data-house] .hk-radio:hover .hk-radio-dot { box-shadow: 0 0 0 3px var(--house-divider); }
+}
+[data-house] .hk-check:active .hk-check-box,
+[data-house] .hk-radio:active .hk-radio-dot { transform: scale(0.92); }
+[data-house] .hk-check-text { display: flex; flex-direction: column; min-width: 0; line-height: var(--house-lh-md); overflow-wrap: break-word; }
+[data-house] .hk-check[data-disabled="true"],
+[data-house] .hk-radio[data-disabled="true"] { cursor: not-allowed; color: var(--house-muted); }
+[data-house] .hk-check[data-disabled="true"] .hk-check-box,
+[data-house] .hk-radio[data-disabled="true"] .hk-radio-dot { border-style: dashed; }
+[data-house] .hk-check[data-done="true"] .hk-check-label { text-decoration: line-through; }
+[data-house] .hk-group { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; }
+[data-house] .hk-group > legend { padding: 0; margin-bottom: var(--house-space-1); }
+
+/* ── Switch: a track, a thumb and the word On / Off ──────────────── */
+[data-house] .hk-switch {
+  /* Wraps when narrow: the words take the first line, the track and
+     On / Off go under them (never words a letter wide beside the track). */
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-1) var(--house-space-3); width: 100%;
+  min-height: var(--house-target); padding: var(--house-space-1) 0;
+  background: transparent; border: 0; color: var(--house-text); text-align: left; cursor: pointer;
+  font: inherit;
+}
+[data-house] .hk-switch-text { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; overflow-wrap: break-word; }
+[data-house] .hk-switch-track {
+  position: relative; flex-shrink: 0; width: 2.75rem; height: 1.5rem; border-radius: 999px;
+  background: var(--house-sunken); border: 2px solid var(--house-border);
+  transition: background var(--house-dur-fast) var(--house-ease-out);
+}
+[data-house][data-house-look="pixel"] .hk-switch-track { border-radius: 0; border-color: var(--house-outline); }
+[data-house] .hk-switch-thumb {
+  position: absolute; top: 50%; left: 0.125rem; width: 1rem; height: 1rem; border-radius: 50%;
+  background: var(--house-muted); transform: translateY(-50%);
+  transition: left var(--house-dur-base) var(--house-ease-out), background var(--house-dur-fast);
+}
+[data-house][data-house-look="pixel"] .hk-switch-thumb { border-radius: 0; }
+[data-house] .hk-switch[aria-checked="true"] .hk-switch-track { background: var(--house-accent); border-color: var(--house-accent); }
+[data-house] .hk-switch[aria-checked="true"] .hk-switch-thumb { left: calc(100% - 1.125rem); background: var(--house-on-accent); }
+[data-house] .hk-switch-word { flex-shrink: 0; min-width: 2rem; font-size: var(--house-text-sm); font-weight: 600; }
+[data-house] .hk-switch:focus-visible { outline: none; }
+[data-house] .hk-switch:focus-visible .hk-switch-track { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }
+@media (hover: hover) { [data-house] .hk-switch:hover:not([aria-disabled="true"]) .hk-switch-track { box-shadow: 0 0 0 3px var(--house-divider); } }
+[data-house] .hk-switch:active:not([aria-disabled="true"]) .hk-switch-thumb { width: 1.25rem; }
+[data-house] .hk-switch[aria-disabled="true"] { cursor: not-allowed; color: var(--house-muted); }
+[data-house] .hk-switch[aria-disabled="true"] .hk-switch-track { border-style: dashed; }
+
+/* ── Segmented control: joined buttons, the chosen one filled + bold ── */
+[data-house] .hk-seg {
+  display: inline-flex; max-width: 100%; flex-wrap: wrap;
+  border: var(--house-border-w) solid var(--house-border); border-radius: var(--house-corner-sm);
+  background: var(--house-sunken); padding: 0; gap: 0; overflow: hidden;
+}
+[data-house][data-house-look="pixel"] .hk-seg { border-color: var(--house-outline); }
+[data-house] .hk-seg-opt:first-child { border-left: 0; }
+[data-house] .hk-seg-opt {
+  /* Never narrower than its words: options wrap to a new line instead. */
+  flex: 1 0 auto; max-width: 100%; overflow-wrap: break-word; display: inline-flex; align-items: center; justify-content: center; gap: var(--house-space-1);
+  min-height: var(--house-target); min-width: var(--house-target); padding: 0 var(--house-space-3);
+  border: 0; border-left: var(--house-border-w) solid var(--house-divider); border-radius: 0; background: transparent; color: var(--house-text);
+  font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); cursor: pointer;
+}
+[data-house] .hk-seg-opt[aria-checked="true"] { background: var(--house-accent); color: var(--house-on-accent); font-weight: 700; box-shadow: var(--house-raise); }
+@media (hover: hover) { [data-house] .hk-seg-opt:hover:not([aria-checked="true"]) { box-shadow: inset 0 0 0 2px var(--house-border); } }
+[data-house] .hk-seg-opt:active { transform: translateY(1px); }
+
+/* ── Filter chips: one row, scrolls sideways, on = filled with a ✓ ── */
+[data-house] .hk-chips-wrap { display: flex; flex-direction: column; gap: var(--house-space-1); min-width: 0; }
+[data-house] .hk-chips {
+  display: flex; flex-wrap: nowrap; gap: var(--house-space-2); overflow-x: auto; overscroll-behavior-x: contain;
+  scrollbar-width: thin; padding: 2px 0; min-width: 0;
+}
+[data-house] .hk-chips[data-more="true"] { mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent); }
+[data-house] .hk-chip {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-height: var(--house-target); min-width: var(--house-target); padding: 0;
+  background: transparent; border: 0; color: var(--house-text); cursor: pointer; font: inherit;
+}
+[data-house] .hk-chip-face {
+  display: inline-flex; align-items: center; gap: var(--house-space-1); min-height: var(--house-chip); padding: 0 var(--house-space-3);
+  border: var(--house-border-w) solid var(--house-border); border-radius: 999px;
+  font-family: var(--house-font-label); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); white-space: nowrap;
+}
+[data-house][data-house-look="pixel"] .hk-chip-face { border-radius: var(--house-corner-sm); border-color: var(--house-outline); }
+[data-house] .hk-chip[aria-pressed="true"] .hk-chip-face { background: var(--house-accent); color: var(--house-on-accent); border-color: var(--house-accent); font-weight: 700; }
+@media (hover: hover) { [data-house] .hk-chip:hover .hk-chip-face { box-shadow: inset 0 0 0 1px currentColor; } }
+[data-house] .hk-chip:active .hk-chip-face { transform: translateY(1px); }
+[data-house] .hk-chip:focus-visible { outline: none; }
+[data-house] .hk-chip:focus-visible .hk-chip-face { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }
+[data-house] .hk-chips-count { font-size: var(--house-text-sm); color: var(--house-muted); }
+
+/* ── Slider row: name, the number beside it, the slider under ─────── */
+[data-house] .hk-slider { display: flex; flex-direction: column; gap: var(--house-space-1); padding: var(--house-space-2) 0; border-bottom: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-slider-top { display: flex; align-items: center; gap: var(--house-space-2); flex-wrap: wrap; }
+[data-house] .hk-slider-top > .hk-field-name { flex: 1 1 8rem; min-width: 0; display: flex; flex-direction: column; }
+[data-house] .hk-numbox { width: 5.5rem; flex: 0 0 auto; }
+[data-house] .hk-numbox .hk-bare { text-align: center; padding-left: var(--house-space-1); padding-right: 0; }
+[data-house] .hk-numbox[data-inherited="true"] { border-style: dashed; color: var(--house-muted); background: transparent; box-shadow: none; }
+[data-house] .hk-range { width: 100%; min-height: var(--house-target); margin: 0; accent-color: var(--house-accent); background: transparent; touch-action: pan-y; cursor: pointer; }
+[data-house] .hk-range[data-inherited="true"] { opacity: 0.6; }
+[data-house] .hk-slider-track { padding: 0 var(--house-space-3); }
+
+/* ── Menus and pop-ups (portaled into a [data-house] layer) ────────── */
+[data-house] .hk-pop {
+  position: fixed; min-width: min(12rem, calc(100vw - 1rem)); max-width: min(22rem, calc(100vw - 1rem)); max-height: min(24rem, 70vh); overflow-y: auto; overscroll-behavior: contain;
+  /* Panel, not raised: every text role is promised on panel. */
+  background: var(--house-panel); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-border); border-radius: var(--house-corner);
+  box-shadow: var(--house-surface-shadow), var(--house-raise);
+  padding: var(--house-space-1);
+  font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
+}
+[data-house][data-house-look="pixel"] .hk-pop { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
+[data-house] .hk-menuitem,
+[data-house] .hk-option {
+  display: flex; align-items: center; gap: var(--house-space-2); width: 100%; min-height: var(--house-target);
+  padding: 0 var(--house-space-3); border: 0; border-radius: var(--house-corner-sm); background: transparent; color: var(--house-text);
+  text-align: left; font: inherit; cursor: pointer;
+}
+[data-house] .hk-menuitem:focus,
+[data-house] .hk-option[data-active="true"] { box-shadow: inset 0 0 0 2px currentColor; font-weight: 600; }
+@media (hover: hover) { [data-house] .hk-menuitem:hover, [data-house] .hk-option:hover { box-shadow: inset 0 0 0 1px var(--house-border); } }
+[data-house] .hk-menuitem--danger { color: var(--house-danger-text); font-weight: 600; }
+[data-house] .hk-menuitem[aria-disabled="true"] { color: var(--house-muted); cursor: not-allowed; }
+[data-house] .hk-menuitem-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; overflow-wrap: break-word; }
+[data-house] .hk-menusep { height: 0; margin: var(--house-space-1) var(--house-space-2); border-top: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hk-option { white-space: nowrap; }
+[data-house] .hk-option[aria-selected="true"] { font-weight: 700; }
+
+/* Calendar */
+[data-house] .hk-cal { padding: var(--house-space-1); }
+[data-house] .hk-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); margin-bottom: var(--house-space-1); }
+[data-house] .hk-cal-title { font-family: var(--house-font-label); font-weight: 600; font-size: var(--house-text-md); text-align: center; flex: 1 1 auto; }
+/* Seven columns that never go under the 44 px target, but don't grow with
+   text size either (seven 88 px columns won't fit a phone at 200%). */
+[data-house] .hk-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); }
+[data-house] .hk-cal-dow { text-align: center; font-size: var(--house-text-xs); color: var(--house-muted); padding: var(--house-space-1) 0; }
+[data-house] .hk-cal-day {
+  min-height: var(--house-target); min-width: 0; border: 0; border-radius: var(--house-corner-sm);
+  background: transparent; color: var(--house-text); font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-md); cursor: pointer;
+}
+[data-house] .hk-cal-day[data-out="true"] { color: var(--house-muted); }
+[data-house] .hk-cal-day[data-today="true"] { box-shadow: inset 0 0 0 2px var(--house-border); font-weight: 700; }
+[data-house] .hk-cal-day[aria-selected="true"] { background: var(--house-accent); color: var(--house-on-accent); font-weight: 700; text-decoration: underline; text-underline-offset: 0.2em; }
+@media (hover: hover) { [data-house] .hk-cal-day:hover:not([aria-selected="true"]) { box-shadow: inset 0 0 0 1px var(--house-text); } }
+[data-house] .hk-cal-foot { display: flex; justify-content: space-between; gap: var(--house-space-2); margin-top: var(--house-space-1); flex-wrap: wrap; }
+
+/* ── Picker wrappers: the house's look on today's shared pickers ──── */
+[data-house] .hk-picker button[aria-haspopup="listbox"],
+[data-house] .hk-picker .hk-picker-trigger {
+  min-height: var(--house-h-control); height: auto;
+  background: var(--house-sunken); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-border); border-radius: var(--house-corner-sm);
+  box-shadow: var(--house-sink);
+  font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
+  padding: var(--house-space-2) var(--house-space-3);
+}
+[data-house][data-house-look="pixel"] .hk-picker button[aria-haspopup="listbox"],
+[data-house][data-house-look="pixel"] .hk-picker .hk-picker-trigger { border-color: var(--house-outline); }
+[data-house] .hk-picker button[aria-haspopup="listbox"] span,
+[data-house] .hk-picker .hk-picker-trigger span { color: inherit; }
+[data-house] .hk-picker button[aria-haspopup="listbox"]:focus-visible,
+[data-house] .hk-picker .hk-picker-trigger:focus-visible { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); box-shadow: var(--house-sink); }
+@media (hover: hover) {
+  [data-house] .hk-picker button[aria-haspopup="listbox"]:hover,
+  [data-house] .hk-picker .hk-picker-trigger:hover { box-shadow: var(--house-sink), inset 0 0 0 1px var(--house-text); }
+}
+/* The shared colour picker's swatch, made a 44 px target. */
+[data-house] .hk-colour { display: flex; align-items: center; gap: var(--house-space-3); flex-wrap: wrap; }
+[data-house] .hk-colour button[aria-label] { width: var(--house-target); height: var(--house-target); border-radius: var(--house-corner-sm); border-color: var(--house-border); }
+[data-house] .hk-colour-value { font-family: var(--house-font-value); font-variant-numeric: tabular-nums; font-size: var(--house-text-sm); color: var(--house-muted); }
+[data-house] .hk-iconpick-preview { display: inline-flex; align-items: center; justify-content: center; width: var(--house-target); height: var(--house-target); border-radius: var(--house-corner-sm); background: var(--house-sunken); border: var(--house-border-w) solid var(--house-border); overflow: hidden; }
+[data-house] .hk-iconpick-preview img { width: 100%; height: 100%; object-fit: cover; }
+[data-house] .hk-pickrow { display: flex; align-items: center; gap: var(--house-space-3); flex-wrap: wrap; }
+
+/* An open pop-up drawn in the page flow (story sheets): no height cap. */
+[data-house] .hk-pop--inline { max-height: none; max-width: 100%; min-width: 0; overflow-x: auto; }
+
+/* Swatches (Pickers.jsx): a grid of colours to pick one from. The picked
+   one gets a thick ring in the text colour and a ✓, never colour alone. */
+[data-house] .hk-swpick-grid { display: grid; grid-template-columns: repeat(var(--hk-sw-cols, 4), minmax(0, 1fr)); gap: var(--house-space-2); }
+[data-house] .hk-swpick {
+  position: relative; min-height: max(var(--house-target), 2.5rem); padding: 0; cursor: pointer;
+  background: var(--hk-sw); background-color: var(--hk-sw); width: 100%; border: var(--house-border-w) solid var(--house-outline); border-radius: var(--house-corner-sm);
+}
+[data-house][data-house-look="pixel"] .hk-swpick { border-width: 2px; border-radius: 0; }
+[data-house] .hk-swpick[aria-checked="true"] { outline: 3px solid var(--house-text); outline-offset: 0; }
+[data-house] .hk-swpick-tick {
+  position: absolute; right: 0.25rem; top: 0.25rem; width: 1.125rem; height: 1.125rem;
+  display: grid; place-items: center; background: var(--house-text); color: var(--house-page);
+  font-size: var(--house-text-xs); line-height: 1;
+}
+[data-house] .hk-swpick:focus-visible { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: var(--house-focus-gap); }

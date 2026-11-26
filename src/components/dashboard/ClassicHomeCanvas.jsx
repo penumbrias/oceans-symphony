@@ -12,7 +12,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { V2_WIDGETS } from "@/v2/widgets";
@@ -389,10 +389,7 @@ export default function ClassicHomeCanvas({ settingsRow, api, onOpenBoard = null
         catalogue: V2_COMMAND_KEYS,
         setKeys: async (keys) => {
           if (!settingsRow?.id) return;
-          await base44.entities.SystemSettings.update(settingsRow.id, {
-            ui_v2: { ...(settingsRow.ui_v2 || {}), commandKeys: keys },
-          });
-          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+          await writeSettings({ ui_v2: { commandKeys: keys } }, { queryClient: qc });
         },
       }}
     />

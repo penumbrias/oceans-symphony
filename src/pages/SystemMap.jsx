@@ -30,17 +30,11 @@ const db = localMode ? localEntities : base44.entities;
 // bounded number of nodes. The error boundary below stays as
 // defense-in-depth for genuine render crashes.
 
-export default function SystemMapPage() {
-  const terms = useTerms();
-  // Deep-link support: a location's "open on map" / layer-link from its profile
-  // navigates here with ?view=inner&map=…&layer=…&solo=1 so it opens on the
-  // Inner World tab focused on that map/layer (instead of the Analytics tab).
-  const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.get("view") === "inner" ? "inner" : "analytics");
-  const initialMapId = searchParams.get("map") || null;
-  const initialLayerId = searchParams.get("layer") || null;
-  const initialSolo = searchParams.get("solo") === "1";
-
+// The map's records, read once for both houses (the new house's System map
+// room, src/house/map/, reads them through this same hook). Reads only.
+// Group config: members of a group flagged "hide_from_system_maps" don't
+// appear on any of the map tabs.
+export function useSystemMapData() {
   const { data: allAlters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => db.Alter.list(),
@@ -49,8 +43,6 @@ export default function SystemMapPage() {
     queryKey: ["groups"],
     queryFn: () => db.Group.list(),
   });
-  // Group config: members of a group flagged "hide_from_system_maps" don't
-  // appear on any of the map tabs.
   const alters = useMemo(() => {
     const hidden = getAlterIdsByGroupFlag(mapGroups, allAlters, "hide_from_system_maps");
     return hidden.size ? allAlters.filter((a) => !hidden.has(a.id)) : allAlters;
@@ -73,6 +65,21 @@ export default function SystemMapPage() {
     queryKey: ["innerWorldLayers"],
     queryFn: () => base44.entities.InnerWorldLayer.list(),
   });
+  return { alters, relationships, refetchRelationships, locations, maps, layers };
+}
+
+export default function SystemMapPage() {
+  const terms = useTerms();
+  // Deep-link support: a location's "open on map" / layer-link from its profile
+  // navigates here with ?view=inner&map=…&layer=…&solo=1 so it opens on the
+  // Inner World tab focused on that map/layer (instead of the Analytics tab).
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("view") === "inner" ? "inner" : "analytics");
+  const initialMapId = searchParams.get("map") || null;
+  const initialLayerId = searchParams.get("layer") || null;
+  const initialSolo = searchParams.get("solo") === "1";
+
+  const { alters, relationships, refetchRelationships, locations, maps, layers } = useSystemMapData();
 
   // Canvas vs accessible List view for the Inner World tab. Defaults to the
   // list when Accessibility mode is on (the SVG canvas is hard to use with a
@@ -80,8 +87,8 @@ export default function SystemMapPage() {
   const [innerView, setInnerView] = useState(() => (getAccessibilitySettings().a11yMode ? "list" : "canvas"));
 
   return (
-    <div data-tour="system-map-canvas" className="flex flex-col gap-3 pb-6">
-      <div>
+    <div data-tour="system-map-canvas" className="px-sysmap flex flex-col gap-3 pb-6">
+      <div className="px-sysmap-head">
         <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Structure Map</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           {tab === "analytics"
@@ -91,7 +98,7 @@ export default function SystemMapPage() {
       </div>
 
       {/* Tabs */}
-      <PageStrip label="Map views" value={tab} onChange={setTab} items={[
+      <PageStrip subtabs label="Map views" value={tab} onChange={setTab} items={[
         { id: "analytics", label: "Analytics Map", icon: Map },
         { id: "inner", label: "Inner World", icon: Globe },
       ]} />
@@ -99,17 +106,19 @@ export default function SystemMapPage() {
       {/* Inner World: canvas vs accessible list toggle */}
       {tab === "inner" && (
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit" role="group" aria-label="Inner world view">
+          <div className="os-tabs flex gap-1 bg-muted/40 rounded-xl p-1 w-fit" role="group" aria-label="Inner world view">
             <button
               onClick={() => setInnerView("canvas")}
               aria-pressed={innerView === "canvas"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "canvas" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              data-state={innerView === "canvas" ? "active" : "inactive"}
+              className={`os-tabs-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "canvas" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <LayoutGrid className="w-3.5 h-3.5" /> Canvas
             </button>
             <button
               onClick={() => setInnerView("list")}
               aria-pressed={innerView === "list"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "list" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              data-state={innerView === "list" ? "active" : "inactive"}
+              className={`os-tabs-tab flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "list" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <List className="w-3.5 h-3.5" /> List
             </button>
           </div>
@@ -140,7 +149,7 @@ export default function SystemMapPage() {
         innerView === "list" ? (
           <InnerWorldListView maps={maps} layers={layers} locations={locations} alters={alters} />
         ) : (
-          <div className="h-[calc(100vh-280px)] min-h-[400px]">
+          <div className="px-sysmap-inner h-[calc(100vh-280px)] min-h-[400px]">
             <InnerWorldMap
               alters={alters}
               relationships={relationships}
@@ -169,7 +178,7 @@ export default function SystemMapPage() {
 // Inner World tab needs to stay reachable for users whose analytics
 // map can't render. Errors are logged so we can find the root cause
 // later; the user just sees the friendly fallback.
-class AnalyticsMapErrorBoundary extends React.Component {
+export class AnalyticsMapErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false };
@@ -188,7 +197,7 @@ class AnalyticsMapErrorBoundary extends React.Component {
   }
 }
 
-function AnalyticsMapTooLargeFallback({ systemTerm, altersTerm, alterCount, onUseInnerWorld }) {
+export function AnalyticsMapTooLargeFallback({ systemTerm, altersTerm, alterCount, onUseInnerWorld }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12 rounded-xl border border-dashed border-border/60 bg-muted/15">
       <Map className="w-10 h-10 text-muted-foreground/50 mb-3" />

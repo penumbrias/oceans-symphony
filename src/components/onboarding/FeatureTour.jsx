@@ -1,3 +1,4 @@
+import Penumblob from "@/components/shared/Penumblob";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { isDesktop } from "@/lib/platform";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
@@ -57,8 +58,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("welcome", {
       emoji: "♿", title: "Accessibility, any time",
-      body: `The Accessibility button in the corner stays with you through the whole tour. Tap it for bigger text, high contrast or low-vision mode. It's all in Settings → Accessibility too.`,
-      route: "/", look: `the floating "Accessibility" button in the corner of the screen`,
+      body: `The Accessibility button on this card stays with you through the whole tour. Tap it for bigger text, high contrast or low-vision mode. It's all in Settings → Accessibility too.`,
+      route: "/", look: `the Accessibility button beside the × on this card`,
     }),
 
     // ─── ABOUT THE APP (v0.370.4) ───────────────────────────────────────────
@@ -91,7 +92,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("about", {
       emoji: "🫧", title: "Support & Learn",
-      body: `Grounding, breathing, sounds and a course of coping skills. The 🫧 bubble on every screen opens Support. The app isn't a substitute for professional care.`,
+      body: `Grounding, breathing, sounds and a course of coping skills. Support is in the menu on every screen. The app isn't a substitute for professional care.`,
       route: "/", fullTourOnly: true,
     }),
     s("about", {
@@ -255,24 +256,66 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
 
     // ─── HOME ───────────────────────────────────────────────────────────────
     s("dashboard", {
-      emoji: "🔄", title: "Pull down to refresh",
-      body: `On a phone, pull down from the top of any page and let go to refresh it. Handy after restoring a backup, or when a friend's ${t.front} feels a beat behind.`,
-      route: "/", look: `nothing to find — just drag down from the top of the page and release`,
-    }),
-    s("dashboard", {
       emoji: "📥", title: "Notifications inbox",
       body: `The 📥 inbox in the header holds @ mentions, messages and reminders that have fired. A dot means something's unread. Tap a notification to jump straight to it.`,
       route: "/", look: `the 📥 inbox icon in the top-right of the header`,
     }),
     s("dashboard", {
-      emoji: "☰", title: "The sidebar", classicOnly: true,
+      emoji: "☰", title: "The sidebar", classicOnly: true, notPixelDesk: true,
       body: `Tap the logo in the top-left to open the sidebar. Every page is there, grouped by what it does. It closes by itself when you pick a page.`,
       route: "/", look: `the Oceans Symphony logo in the top-left of the header`,
     }),
     s("dashboard", {
-      emoji: "🔲", title: "Sidebar or app grid", classicOnly: true,
+      emoji: "🔲", title: "Sidebar or app grid", classicOnly: true, notPixelDesk: true,
       body: `The grid icon in the sidebar's header switches to an app grid; the list icon switches back. Choose which pages it lists in Settings → Appearance → Layout → Sidebar.`,
       route: "/", look: `the grid icon at the top of the open sidebar`,
+    }),
+    // The pixel look's frame on a computer (PixelChrome.jsx) replaces the
+    // sidebar with area menus, page tabs and a side help panel.
+    s("dashboard", {
+      emoji: "🗂️", title: "Area menus", pixelDeskOnly: true,
+      body: `Every page sits in one of the menus along the top: Today, ${t.System}, Plan & do, Write, Support, Look back and More. Ctrl-click a page, or its +, to open it in a new tab.`,
+      route: "/", target: "px-area-menus",
+    }),
+    s("dashboard", {
+      emoji: "📑", title: "Page tabs", pixelDeskOnly: true,
+      body: `Pages you open sit in tabs under the header, like a drawing app's files. + opens a new tab and × closes one. Your tabs are still there next time.`,
+      route: "/", target: "px-page-tabs",
+    }),
+    s("dashboard", {
+      emoji: "🔎", title: "Search everything", pixelDeskOnly: true,
+      body: `Search everything (or Ctrl+K) finds anything you've saved: ${t.alters}, journals, check-ins, plans, notes and more.`,
+      route: "/", target: "px-search",
+    }),
+    s("dashboard", {
+      emoji: "🧭", title: "Your header", pixelDeskOnly: true,
+      body: `The header can show your ${t.system}'s name, who's ${t.fronting}, the time and what's running now. Pick and order them in Display options → Bars → Top bar.`,
+      route: "/", target: ["px-header-items", "px-area-menus"],
+    }),
+    s("dashboard", {
+      emoji: "🧰", title: "Tool rail", pixelDeskOnly: true,
+      body: `The rail down the side holds your quick actions on top and this page's tools at the bottom, like editing the page. Hold a key for your saved quick actions.`,
+      route: "/", target: "px-tool-rail",
+    }),
+    s("dashboard", {
+      emoji: "🗂️", title: "Subtabs", pixelDeskOnly: true,
+      body: `A page with its own tabs, like Home's pages, shows them right beside its tab at the top. Click one to switch.`,
+      route: "/", target: "px-subtabs",
+    }),
+    s("dashboard", {
+      emoji: "🎞️", title: "Timeline dock", pixelDeskOnly: true,
+      body: `Turn on the timeline dock with the calendar key in the rail. It shows the day as layers; click anything on it to see its details on the right.`,
+      route: "/", target: ["px-timeline-dock", "px-tool-rail"],
+    }),
+    s("dashboard", {
+      emoji: "📟", title: "Status bar", pixelDeskOnly: true,
+      body: `The bar along the bottom says whether everything is saved, when you last synced, and what's next. Choose its items in Display options → Bars → Status bar.`,
+      route: "/", target: "px-status",
+    }),
+    s("dashboard", {
+      emoji: "❔", title: "How this page works", pixelDeskOnly: true,
+      body: `How this page works opens a panel on the right with this page's tips and Show me around. It opens by itself on pages you haven't seen yet.`,
+      route: "/", target: "px-help-toggle",
     }),
     s("dashboard", {
       emoji: "📝", title: "Notes & lists",
@@ -285,10 +328,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/goals?notes=1", target: ["notes-layout-btn", "notes-page"],
     }),
     s("dashboard", {
-      emoji: "🛒", title: "The grocery list",
+      emoji: "🛒", title: "The grocery list", notPixelDesk: true,
       body: `The cart icon opens your notes and lists. A few quick taps anywhere jump there instantly; change the taps, or pick a page or picture instead, in Settings → Data & privacy → Quick jump.`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the logo top-left to see it)`,
+    }),
+    s("dashboard", {
+      emoji: "🛒", title: "Grocery list in More", pixelDeskOnly: true,
+      body: `Grocery list, at the bottom of the More menu, opens your notes and lists. A few quick taps anywhere jump there instantly; change the taps, or pick a page or picture instead, in Settings → Data & privacy → Quick jump.`,
+      route: "/", target: "px-area-menus",
+      look: `Grocery list in the More menu along the top`,
     }),
     s("dashboard", {
       emoji: "📝", title: "More than groceries",
@@ -345,6 +394,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/Home", target: "alters-grid", look: `the highlighted cards below the search bar`,
     }),
     s("alters", {
+      emoji: "🗂️", title: "Groups panel", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, your groups sit in a panel on the left. Click one to show just its ${t.alters}; the arrow opens the group.`,
+      route: "/Home", target: "alters-groups-panel",
+    }),
+    s("alters", {
+      emoji: "🪪", title: `Info beside the ${t.alters}`,
+      body: `In the new house on a computer, click a card to see that ${t.alter} in Info on the right: their facts, this week's ${t.fronting} and buttons to open the profile or add them to ${t.front}. Shift-click picks several.`,
+      route: "/Home", target: ["alters-info-panel", "alters-grid"],
+    }),
+    s("alters", {
       emoji: "📌", title: `Pinned ${t.alters}`,
       body: `Pin ${an(t.alter)} from their profile and they show here and in the pinned bar. Tap a chip for their menu; hold it for the level rail. The ⚙ picks who's pinned and how they look.`,
       route: "/Home", target: "pinned-alters", look: `the Pinned row — it shows once you've pinned someone`,
@@ -356,7 +415,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "🔲", title: "View",
-      body: `View picks a list or a 2–5 column grid, hides grouped ${t.alters}, and turns on screenshot mode, which blurs names or pictures.`,
+      body: `View (⋯ beside the views in the new house) picks a 2–5 column grid, hides grouped ${t.alters}, and turns on screenshot mode, which blurs names or pictures.`,
       route: "/Home", target: "alter-view-toggle", look: `the highlighted View button`,
     }),
     s("alters", {
@@ -386,7 +445,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "🪪", title: `The new ${t.alter} sheet`,
-      body: `Info, Custom fields and Links tabs, the same as ${t.Alter} info, and a Profile style row for the look. Nothing about the ${t.alter} is saved until you tap Add.`,
+      body: `It asks for the basics first: name, pronouns, colour and picture. Add opens their profile, where Info holds the rest. "More details now" fills everything in before adding.`,
       route: "/Home", target: ["new-alter-sheet", "alter-add-btn"], look: `the "New ${t.alter}" sheet (open it with Add)`,
     }),
     s("alters", {
@@ -396,7 +455,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "📝", title: "Add several at once",
-      body: `"Add several at once" opens a quick list: one line each, or paste a whole list of names. A colour or emoji is enough on its own.`,
+      body: `"Add several at once" opens a quick list. Type names with commas between them, like "mark, amy, susan", or one per line. A colour or emoji is enough on its own.`,
       route: "/Home", target: ["alters-add-several", "alter-add-btn"], look: `the "Add several at once" button below the ${t.alters}`,
     }),
     s("alters", {
@@ -469,6 +528,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `Edit page (the pencil) is the only way into editing; reading a profile never moves anything. While editing, hold a widget to move it, drag its edges to resize, and tap its corner button for options.`,
       route: profile(), target: onProfile("alter-profile-layout-btn"),
       look: ai ? `the highlighted Edit page button` : `open a profile and look for Edit page at the top-right`,
+    }),
+    s("profile", {
+      emoji: "📱", title: "The profile's buttons on a phone",
+      body: `In the new house on a phone, the bar at the bottom of a profile holds Edit page, Profile style and Write note. Info sits at the top, and ⋯ has the rest.`,
+      route: profile(), target: onProfile(["alter-profile-actions", "alter-profile-edit-btn"]),
     }),
     s("profile", {
       emoji: "🗂️", title: "Prefer the older form?",
@@ -559,28 +623,38 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── TIMELINE ───────────────────────────────────────────────────────────
     s("timeline", {
       emoji: "📅", title: "The timeline",
-      body: `The timeline shows your ${t.system}'s history day by day: ${t.fronting}, check-ins, feelings, activities, symptoms, places, journals and statuses. Scroll down for earlier days; it never runs out.`,
-      route: "/timeline", target: "timeline-container", look: `the highlighted day-by-day timeline`,
+      body: `The timeline shows your ${t.system}'s history: ${t.fronting}, check-ins, feelings, plans, symptoms, sleep, places and statuses. In the new house each kind has its own lane; tap anything to see it in Info.`,
+      route: "/timeline", target: "timeline-container", look: `the highlighted timeline`,
     }),
     s("timeline", {
-      emoji: "🔦", title: "Filters",
-      body: `These buttons show or hide each kind of entry: activities, journals, feelings, ${t.fronting}, symptoms and places. Turn the others off to see just one.`,
-      route: "/timeline", target: "timeline-filters", look: `the highlighted row of filter buttons under the heading`,
+      emoji: "🔦", title: "Layers",
+      body: `Show or hide each kind of entry. In the new house, Layers lists them all: hide one, move it up or down, or "+ add" one that's hidden, like meds taken.`,
+      route: "/timeline", target: "timeline-filters", look: `the highlighted layers (or filter buttons)`,
     }),
     s("timeline", {
-      emoji: "📆", title: "Jump to a date",
-      body: `Pick a date and tap Jump to go straight to that day. "Back to today" brings you home again.`,
-      route: "/timeline", target: "timeline-jump", look: `the highlighted date picker and Jump button`,
+      emoji: "📆", title: "Go to a day",
+      body: `Pick a date to go straight to that day; Now brings you back. In the new house, Day, 6 hours and Week change how much shows, and the arrows step through it.`,
+      route: "/timeline", target: "timeline-jump", look: `the highlighted date and Now`,
+    }),
+    s("timeline", {
+      emoji: "🎛️", title: "Timeline options",
+      body: `Options sets what the timeline shows: the range, Whose (one ${t.alter}'s records or everyone's), the layers and their colours. Reset puts it back.`,
+      route: "/timeline", target: ["timeline-options", "timeline-container"], look: `the highlighted Options button`,
     }),
     s("timeline", {
       emoji: "📊", title: "A day's tally",
-      body: `Each day's header has a "Tally" link. It opens a summary of that day: tasks, feelings, symptoms, activity time and more.`,
-      route: "/timeline", target: "timeline-container", look: `the "Tally" link on the right of any day header`,
+      body: `A summary of one day: tasks, feelings, symptoms, activity time and more. In the new house it's the Tally panel beside the timeline; on the old page, each day's "Tally" link.`,
+      route: "/timeline", target: ["timeline-tally", "timeline-container"], look: `the Tally panel or a day's "Tally" link`,
     }),
     s("timeline", {
       emoji: "⏮️", title: "Add something you missed",
-      body: `Press and hold any day to add what you didn't log then: ${an(t.fronting)} session (several ${t.alters}, each with a level), a check-in, a symptom or an activity.`,
-      route: "/timeline", target: "timeline-container", look: `press and hold on any day`,
+      body: `Add what you didn't log then: ${an(t.fronting)} session or a check-in. In the new house, tap + on the timeline; on the old page, press and hold any day.`,
+      route: "/timeline", target: ["timeline-add", "timeline-container"], look: `the + button, or press and hold a day`,
+    }),
+    s("timeline", {
+      emoji: "✂️", title: `Fix ${an(t.fronting)} record`,
+      body: `Tap ${an(t.fronting)} bar to see it in Info. Edit changes its times, Split cuts it in two, and the More menu fixes who it was or removes it (it goes to the trash).`,
+      route: "/timeline", target: "timeline-container", look: `tap any ${t.fronting} bar`,
     }),
 
     // ─── SYSTEM MEETINGS ────────────────────────────────────────────────────
@@ -610,6 +684,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "📖", title: "Journals",
       body: `Journals hold longer writing from any ${t.alter}, sorted into folders. Tap a folder to open it; the breadcrumb at the top shows where you are.`,
       route: "/journals", target: "journals-list", look: `the highlighted folders and entries`,
+    }),
+    s("journals", {
+      emoji: "🗂️", title: "Folder panel", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, every folder sits in a panel on the left. Click one to open it; All entries goes back to the top.`,
+      route: "/journals", target: "journals-folder-panel",
     }),
     s("journals", {
       emoji: "📁", title: "Folders",
@@ -653,13 +732,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("journals", {
       emoji: "🔄", title: `${t.Switch} logs`,
-      body: `The "${t.Switch} Logs" tab holds the entries written with "Journal this ${t.switch}?", each linked to its ${t.switch}.`,
-      route: "/journals", target: "journals-tabs", look: `the "${t.Switch} Logs" tab`,
+      body: `Entries written with "Journal this ${t.switch}?" are kept together, each linked to its ${t.switch}: the "${t.Switch} Logs" tab, or "${t.Switch} journals" in the folder list.`,
+      route: "/journals", target: ["journals-tabs", "px-subtabs"], look: `the "${t.Switch} Logs" tab`,
     }),
     s("journals", {
       emoji: "🔍", title: "Find an entry",
       body: `Search by title or text, filter by author, or tap a tag. The eye button shows only what's open to whoever is ${t.fronting}.`,
       route: "/journals", target: "journals-filters", look: `the highlighted search and filters`,
+    }),
+    s("journals", {
+      emoji: "ℹ️", title: "About this entry",
+      body: `Info shows the entry's folder, who wrote it and who was ${t.fronting} then. Move files it in another folder.`,
+      route: "/journals", target: "journal-info-panel", look: `the Info panel (Info in the header on a phone)`,
     }),
 
     // ─── BULLETIN BOARD ─────────────────────────────────────────────────────
@@ -738,19 +822,49 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/planner", target: "planner",
     }),
     s("activities", {
+      emoji: "🖐️", title: "Drag to move",
+      body: `In the new house, drag an entry to another time or day, and drag its bottom edge to change its length. On a touch screen, hold it first. Undo is on the note that follows.`,
+      route: "/planner", target: ["planner-sections", "planner"],
+    }),
+    s("activities", {
+      emoji: "🎛️", title: "Planner options",
+      body: `The sliders button sets what shows on the calendar (${t.fronting}, check-ins, places), 12- or 24-hour time, the first day of the week and the hour height. These are kept on this device.`,
+      route: "/planner", target: ["planner-options", "planner"],
+    }),
+    s("activities", {
+      emoji: "🗓️", title: "Go to a day", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, a month sits beside the planner. Click any day to jump the calendar there.`,
+      route: "/planner", target: "planner-month-panel",
+    }),
+    s("activities", {
+      emoji: "🏷️", title: "Categories", pixelDeskOnly: true,
+      body: `Under the month, every category is listed. Click one to hide it from the calendar on this computer, and again to bring it back. Nothing is deleted.`,
+      route: "/planner", target: "planner-px-categories",
+    }),
+    s("activities", {
+      emoji: "📊", title: "This week", pixelDeskOnly: true,
+      body: `On the right: how many plans got done this week and where the time went. Insights opens the full numbers, goals and the tally.`,
+      route: "/planner", target: "planner-px-week",
+    }),
+    s("activities", {
+      emoji: "✅", title: "Needs a decision", pixelDeskOnly: true,
+      body: `Plans whose time has passed wait here. Mark one Done, Partly or Skipped, or open it for more choices like moving it.`,
+      route: "/planner", target: "planner-px-decisions",
+    }),
+    s("activities", {
       emoji: "🧭", title: "Calendar",
-      body: `Calendar shows a Day, Week, Month or Year. Tap a day on the month or year to open it, or hold and drag across days to plan one entry over them all.`,
-      route: "/planner", target: "planner-sections", look: `the Calendar / Plans / Insights switch`,
+      body: `Calendar shows a Day, Week, Month or Year. In the new house they share one row with Plans list, and the arrows beside them step through. Tap a day on the month or year to open it.`,
+      route: "/planner", target: ["planner-sections", "px-subtabs"], look: `the Calendar / Plans / Insights switch`,
     }),
     s("activities", {
       emoji: "🎂", title: "Dates and colours",
       body: `Birthdays and other dates from ${t.alter} profiles show on the calendar; tap one to open the profile. A plan with a colour tag colours its day.`,
-      route: "/planner", target: "planner-sections",
+      route: "/planner", target: ["planner-sections", "px-subtabs"],
     }),
     s("activities", {
       emoji: "📋", title: "Plans",
-      body: `Plans lists everything scheduled: Overdue, Today, This week, This month and Later. A repeating series is one row, and the Resolved filter keeps past plans.`,
-      route: "/planner", target: "planner-sections",
+      body: `Plans lists everything scheduled, from what needs a decision to later. A repeating series is one row, and Resolved keeps past plans. "Select several…" changes many at once.`,
+      route: "/planner", target: ["planner-sections", "px-subtabs"],
     }),
     s("activities", {
       emoji: "💸", title: "Events",
@@ -770,11 +884,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("activities", {
       emoji: "📈", title: "Insights",
       body: `Insights has the week's totals per activity and per ${t.alter}, weekly goals, an all-time tally, and "Plan follow-through": how often plans really happen, hardest first.`,
-      route: "/planner", target: "planner-sections",
+      route: "/planner", target: ["planner-sections", "px-subtabs"],
     }),
     s("activities", {
       emoji: "🗓️", title: "Plans and logs",
-      body: `Plans have a dashed outline; logged activities are solid. Tap a plan to mark it done, partly, skipped or cancelled, or to move it.`,
+      body: `Plans have a dashed outline; logged activities are solid. A plan whose time passed without an answer is dashed in the warning colour. Tap a plan to mark how it went, or to move it.`,
       route: "/planner", target: "planner", look: `any plan on the grid`,
     }),
     s("activities", {
@@ -836,6 +950,36 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "📓", title: "Notebook",
       body: `Your Notebook holds goals, projects and stories. Start one, then fill its page with sections, and sections inside those, as deep as you like.`,
       route: "/goals", target: "goals-page", look: `the Notebook page`,
+    }),
+    s("activities", {
+      emoji: "📒", title: "Your pages, with their balances",
+      body: `In the new house, Pages lists every goal, note, list and flash-card deck with how far along it is. Drag a page onto another to nest it there.`,
+      route: "/goals", target: ["notebook-pages", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "📅", title: "This week to all time",
+      body: `The range row (This week, 1M, 6M, 1Y, All time) changes what the Notebook's numbers and its chart of time on pages cover.`,
+      route: "/goals", target: ["notebook-ranges", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "🧾", title: "The ledger",
+      body: `The ledger lists everything that moved a page: time, words and study sessions, newest first. Tap By on a row to change which ${t.alters} did it.`,
+      route: "/goals", target: ["notebook-ledger", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "🎯", title: "This week's targets",
+      body: `Every weekly point on your pages, with how far you've got. The white tick shows where an even pace would be by now. Behind is fine.`,
+      route: "/goals", target: ["notebook-targets", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "📈", title: "A page at a glance",
+      body: `In the new house, a page's top shows its status, day and tags, then the words or points so far against an even pace to its day.`,
+      route: "/goals", target: ["notebook-page-head", "goals-page"],
+    }),
+    s("activities", {
+      emoji: "➕", title: "Start something new",
+      body: `On a phone in the new house, + at the top of the Notebook starts a page, a story, a note or a flash-card deck.`,
+      route: "/goals", target: ["notebook-new", "goals-page"],
     }),
     s("activities", {
       emoji: "🧩", title: "Lay out the Notebook",
@@ -952,22 +1096,22 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── POLLS ──────────────────────────────────────────────────────────────
     s("polls", {
       emoji: "🗳️", title: "Polls",
-      body: `Polls let the whole ${t.system} decide together. Results show as bars, with the avatars of who voted for what. Closed polls stay for reference.`,
+      body: `Polls let the whole ${t.system} decide together. Each poll is a card you vote on right there: tap the box beside an option. Bars show the results, with who voted for what. Closed polls stay for reference.`,
       route: "/polls", target: "polls-list", look: `the highlighted list of polls`,
     }),
     s("polls", {
       emoji: "➕", title: "Make a poll",
-      body: `Tap Create, type a question and add 2 to 8 options. The pencil beside a poll's question edits it later.`,
-      route: "/polls", target: "polls-create", look: `the highlighted "Create" button`,
+      body: `Tap New poll (+ on a phone), type a question and add 2 to 8 options. "edit ..." on a poll changes it later.`,
+      route: "/polls", target: "polls-create", look: `the highlighted New poll button`,
     }),
     s("polls", {
       emoji: "🔢", title: "Two ways to vote",
-      body: `By ${t.alter}: each voter votes once, and tapping again takes it back. Anonymous tally: each tap adds one, with − to subtract. Switch modes when you create or on the poll.`,
+      body: `By ${t.alter}: each voter votes once, and tapping again takes it back. Anonymous tally: pick an option, then + adds one and − takes one off. Switch modes when you make or edit the poll.`,
       route: "/polls", target: "polls-create",
     }),
     s("polls", {
       emoji: "🙋", title: "Voting as",
-      body: `On a poll, "Voting As" picks who's voting: whoever is ${t.fronting}, or any mix. One tap then votes once for each of them. A poll posted to the board pins itself there.`,
+      body: `Votes count for whoever is ${t.fronting}. To vote as someone else, open "edit ..." and choose under Voting as. One tap then votes once for each of them.`,
       route: "/polls", target: "polls-list",
     }),
 
@@ -991,6 +1135,31 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "🩺", title: "If notifications are blocked",
       body: `If something is stopping notifications, like a switched-off permission or battery saver, this page shows it with a one-tap fix.`,
       route: "/reminders", target: "reminders-list",
+    }),
+    s("reminders", {
+      emoji: "⏰", title: "Due now",
+      body: `In the new house, Due now holds the reminders that have fired. Its own buttons come first, then Done, Snooze and Dismiss. Snoozed ones wait here too.`,
+      route: "/reminders", target: ["reminders-inbox", "reminders-list"], look: `the Due now panel`,
+    }),
+    s("reminders", {
+      emoji: "➕", title: "New reminder",
+      body: `New reminder (the + on a phone) opens the editor. On a computer it sits beside your list; tap a reminder in the list to change it.`,
+      route: "/reminders", target: ["reminders-new", "reminders-list"], look: `the New reminder button`,
+    }),
+    s("reminders", {
+      emoji: "🔎", title: "Show some",
+      body: `Show narrows the list to ${t.system}-wide reminders, per-${t.alter} ones, or the ones for one ${t.alter}.`,
+      route: "/reminders", target: ["reminders-filter", "reminders-list"], look: `the Show filter`,
+    }),
+    s("reminders", {
+      emoji: "🗓️", title: "When it fires",
+      body: `Pick when a reminder fires: set times, every so often, after a feeling, a symptom or sleep, when ${an(t.alter)} ${t.fronts}, no update for a while, or on a date. Its settings open just below.`,
+      route: "/reminders", target: ["reminders-when", "reminders-editor", "reminders-list"], look: `the "When should this fire?" grid`,
+    }),
+    s("reminders", {
+      emoji: "✏️", title: "The rest of a reminder",
+      body: `Under that: who it's for, up to three buttons, in the app or as a notification, quiet hours, clearing itself, and snooze lengths. Delete is under … at the foot.`,
+      route: "/reminders", target: ["reminders-editor", "reminders-list"], look: `the reminder editor`,
     }),
     s("reminders", {
       emoji: "📌", title: "Status bar",
@@ -1030,6 +1199,26 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/analytics", target: "analytics-charts",
     }),
     s("analytics", {
+      emoji: "🗓️", title: "Pick the stretch",
+      body: `In the new house, Week, Month and Year show one calendar stretch; the arrows step back or forward. Pick dates sets your own, with Last 90 days and All time one tap away.`,
+      route: "/analytics", target: ["analytics-range", "analytics-charts"], look: `the range row at the top`,
+    }),
+    s("analytics", {
+      emoji: "🫂", title: "Whose",
+      body: `Whose narrows feelings, symptoms, who ${t.fronts} with them and their ${t.switches} to one ${t.alter}: what they logged, or what was logged while they were in front. Sleep and plans stay everyone's.`,
+      route: "/analytics", target: ["analytics-whose", "analytics-range", "analytics-charts"], look: `the Whose picker`,
+    }),
+    s("analytics", {
+      emoji: "🧮", title: "The board",
+      body: `Six panels for the stretch: ${t.fronting} time, the most-felt feeling each day, who ${t.fronts} together, symptoms, sleep, and a few things noticed from your own records.`,
+      route: "/analytics", target: ["analytics-board", "analytics-charts"], look: `the panels`,
+    }),
+    s("analytics", {
+      emoji: "🔎", title: "Look closer",
+      body: `Under the board, Look closer opens the full views: your usual, ${t.Fronting}, Wellbeing, Life and each ${t.alter}'s footprint. The square back button returns to the board.`,
+      route: "/analytics", target: ["analytics-more", "analytics-charts"], look: `the Look closer panel`,
+    }),
+    s("analytics", {
       emoji: "🎛️", title: "Choose what the log shows",
       body: `The Show button picks which entry types the Check-In Log shows. Hiding one only hides it here; it's still saved and on the timeline.`,
       route: "/checkin-log", target: "checkin-log-display", look: `the highlighted Show button`,
@@ -1066,12 +1255,42 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `Below the map, the relationships panel lists how ${t.alters} are related. Add your own types in Settings → ${t.Alters} → Relationship types.`,
       route: "/system-map", target: "system-map-canvas", look: `scroll below the map`,
     }),
+    s("systemmap", {
+      emoji: "🧭", title: "Three ways to see it",
+      body: `In the new house, the switch beside the maps opens the inner world, who ${t.fronts} together, or a plain text list of every place and who's there.`,
+      route: "/system-map", target: ["system-map-views", "system-map-canvas"], look: `the Inner world / Who ${t.fronts} together / List switch`,
+    }),
+    s("systemmap", {
+      emoji: "🗂️", title: "Maps as tabs",
+      body: `Each map is a tab. New map adds one, and the ⋯ beside the tabs renames or deletes the one that's open.`,
+      route: "/system-map", target: ["system-map-maps", "system-map-views", "system-map-canvas"], look: `the map tabs above the canvas`,
+    }),
+    s("systemmap", {
+      emoji: "🛠️", title: "Map tools",
+      body: `Move, Place someone, add a Room, Link two ${t.alters}, add a picture, snap and zoom. On a computer each tool has a one-letter key; on a phone they sit in the bottom bar.`,
+      route: "/system-map", target: ["system-map-tools", "system-map-canvas"], look: `the tool column (or the phone's bottom bar)`,
+    }),
+    s("systemmap", {
+      emoji: "📚", title: "Layers",
+      body: `Layers stack on one map. The eye shows or hides a layer, the lock keeps it still, and ⋯ renames, moves or deletes it. Relationship lines can show everyone's, the picked one's, or none.`,
+      route: "/system-map", target: ["system-map-layers", "system-map-canvas"], look: `the Layers panel`,
+    }),
+    s("systemmap", {
+      emoji: "ℹ️", title: "Info",
+      body: `Pick a place, ${an(t.alter)}, a line or a picture and Info shows it: name, colour, size, who's here, notes and where it links. Changes save as you make them.`,
+      route: "/system-map", target: ["system-map-info", "system-map-canvas"], look: `the Info panel`,
+    }),
 
     // ─── SUPPORT ────────────────────────────────────────────────────────────
     s("grounding", {
       emoji: "🫧", title: "Support",
-      body: `This page has two tabs, Support and Learn. The ring at the top breathes with you; tap its pattern's name to change it. The 🫧 bubble on every screen brings you back here.`,
-      route: "/grounding", target: "grounding-tabs", look: `the highlighted Support / Learn tabs`,
+      body: `This page has two tabs, Support and Learn. The ring at the top breathes with you; tap its pattern's name to change it. Settings → Accessibility can add a 🫧 bubble that brings you back here from any screen.`,
+      route: "/grounding", target: ["grounding-tabs", "px-subtabs", "grounding-content"], look: `the highlighted Support / Learn tabs`,
+    }),
+    s("grounding", {
+      emoji: "🆘", title: "Need help now?",
+      body: `In the new house, the box at the top of Support opens your safety plan, or Call someone: your emergency contacts and the crisis lines for your country.`,
+      route: "/grounding", target: ["support-need-help", "grounding-content"], look: `the "Need help now?" box`,
     }),
     s("grounding", {
       emoji: "🌳", title: "Browse all techniques",
@@ -1146,7 +1365,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("grounding", {
       emoji: "📚", title: "Learn",
       body: `13 modules of short lessons, from Grounding to Building on Progress, each with reflection prompts. "Try Now" opens a technique right from the reading.`,
-      route: "/grounding", target: "grounding-tabs", look: `tap the "Learn" tab`,
+      route: "/grounding", target: ["support-learn", "grounding-tabs", "px-subtabs"], look: `tap the "Learn" tab, or the topics count`,
     }),
     s("grounding", {
       emoji: "📖", title: "Resources",
@@ -1156,7 +1375,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("grounding", {
       emoji: "🛡️", title: "Safety plan",
       body: `Your safety plan keeps warning signs, coping cards and your window of tolerance in one place. Fill it in a little at a time, in a calmer moment.`,
-      route: "/safety-plan", look: `the Safety Plan page`,
+      route: "/safety-plan", target: ["safety-plan-page"], look: `the Safety Plan page`,
+    }),
+    s("grounding", {
+      emoji: "🌡️", title: "Window of tolerance",
+      body: `Five zones, from shut down to overwhelmed. Tap where you are to see what you notice there and what helps. Nothing is saved when you tap.`,
+      route: "/safety-plan", target: ["safety-window", "safety-plan-page"],
     }),
 
     s("grounding", {
@@ -1170,9 +1394,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/emergency", target: ["emergency-show-btn", "emergency-page"],
     }),
     s("grounding", {
+      emoji: "🔠", title: "Bigger text",
+      body: `On the card, A+ and A- change the text size. Back or Escape closes it.`,
+      route: "/emergency?show=1", target: ["emergency-card", "emergency-page"],
+    }),
+    s("grounding", {
       emoji: "🔓", title: "Without your password, if you choose",
       body: `With a password set, Info → Lock screen can show parts you pick on the unlock screen. It's off until you turn it on, and the rest stays locked.`,
-      route: "/emergency", target: ["emergency-info-btn", "emergency-page"],
+      route: "/emergency", target: ["emergency-lock", "emergency-info-btn", "emergency-page"],
     }),
 
     // ─── CONTACTS ───────────────────────────────────────────────────────────
@@ -1239,6 +1468,31 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "⚙️", title: "Finding your way",
       body: `Settings is one list, grouped: You, General, Look, ${t.Alters}, Tracking, Notifications, Data & privacy, About. Type what you want to change in the search box to jump straight to it.`,
       route: "/settings", target: "settings-quick-nav", look: `the highlighted search box`,
+    }),
+    s("settings", {
+      emoji: "🗂️", title: "Settings panel", pixelDeskOnly: true,
+      body: `In the pixel look on a computer, every settings page is listed on the left, so you can hop between them without going back.`,
+      route: "/settings", target: "settings-side-panel",
+    }),
+    s("settings", {
+      emoji: "💾", title: "Your data, one tap away",
+      body: `In the new house, Settings opens on an overview: export a backup, import one, or back up now, beside the version testers quote.`,
+      route: "/settings", target: ["settings-backup-actions", "settings-data"], look: `Your data, on the Settings overview`,
+    }),
+    s("settings", {
+      emoji: "🪟", title: "Display options as a page",
+      body: `In the new house, Display options opens right inside Settings, with its tabs across the top: Look, Text, Shape, Bars, Colour and Styles. "Open the full options" still opens everything over any page.`,
+      route: "/settings#display", target: ["settings-display-inspector", "settings-display-options"], look: `the Display options page`,
+    }),
+    s("settings", {
+      emoji: "🎨", title: "The look, on one tab",
+      body: `Look holds the house's paint: tap any colour square to change it, pick heading and body fonts, set the border, bevel and corners, the header wave and how big Penumblob is. Each ${t.alter} keeps their own colour.`,
+      route: "/settings#display", target: ["settings-look", "settings-display-inspector"], look: `the Look tab`,
+    }),
+    s("settings", {
+      emoji: "👀", title: "Preview, live",
+      body: `On a computer, the look pages show a live Preview on the right: who's ${t.fronting}, buttons, text at your size and icons, so you see each change as you make it.`,
+      route: "/settings#display", target: ["settings-preview", "settings-display-options"], look: `the Preview panel on the right`,
     }),
     s("settings", {
       emoji: "✏️", title: `Name and words`,
@@ -1453,6 +1707,31 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/friends", target: "friends-code", look: `your friend code`,
     }),
     s("friends", {
+      emoji: "📇", title: "Your friends",
+      body: `Your friends are listed with who's ${t.fronting} for them. New requests wait here with Accept and Decline. Pick a friend to open them.`,
+      route: "/friends", target: ["friends-list", "friends-code"], look: `the Friends list`,
+    }),
+    s("friends", {
+      emoji: "👁️", title: "What they see of you",
+      body: `Choose a level for one friend: Hidden, Count only, or Names and colours. "Right now they would see" shows exactly what this friend gets.`,
+      route: "/friends", target: ["friends-what-they-see", "friends-code"], look: `"What they see of you"`,
+    }),
+    s("friends", {
+      emoji: "🎚️", title: "Your default level",
+      body: `Sharing levels shows the level every friend gets unless you set one for them, and what each ${t.fronter} shares. Manage changes it in your Friends profile.`,
+      route: "/friends", target: ["friends-levels", "friends-code"], look: `the Sharing levels panel`,
+    }),
+    s("friends", {
+      emoji: "✅", title: `Show when ${t.fronting}`,
+      body: `Tick the ${t.alters} that friends without sharing levels may see when they're ${t.fronting}. New ${t.alters} start unticked.`,
+      route: "/friends", target: ["friends-show-when", "friends-code"], look: `the Show when ${t.fronting} panel`,
+    }),
+    s("friends", {
+      emoji: "📖", title: "How it works",
+      body: `How it works says what the relay holds and how the encryption works, and starts this tour of the page.`,
+      route: "/friends", target: ["friends-how", "friends-code"], look: `the How it works panel`,
+    }),
+    s("friends", {
       emoji: "🔔", title: `${t.Front} updates`,
       body: `"Notify on change" sends a push when a friend's ${t.front} changes; their status also refreshes here every 30 seconds. Privacy levels choose how much you share.`,
       route: "/friends", look: `a friend's card`,
@@ -1460,12 +1739,12 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("friends", {
       emoji: "🔐", title: `Sharing ${t.alters}`,
       body: `Make privacy levels that choose what's shown (name, pronouns, bio…) and put ${t.alters} in them. Everyone stays private until you do.`,
-      route: "/friends", look: `any profile's Info → ⋯ → Sharing`,
+      route: "/friends", target: ["friends-member-levels"], look: `Member levels, or any profile's Info → ⋯ → Sharing`,
     }),
     s("friends", {
       emoji: "🗝️", title: "Only they can read it",
       body: `On a friend's card, grant the levels they may see. It's end-to-end encrypted, so only that friend can read it. Compare a safety number to be sure it's really them.`,
-      route: "/friends", look: `a friend's card → "Members this friend can see"`,
+      route: "/friends", target: ["friends-what-they-see"], look: `a friend's "What they see of you"`,
     }),
 
     // ─── SYSTEM CHAT ────────────────────────────────────────────────────────
@@ -1476,13 +1755,13 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("chat", {
       emoji: "📂", title: "Channels",
-      body: `On a phone, the panel button on the left of the header slides the channel list in. Sort channels into coloured categories; Edit lets you drag them around.`,
-      route: "/chat", look: `the panel button on the left of the header`,
+      body: `The channel list holds every channel, sorted into coloured categories. On a phone it opens from the header; Edit or Arrange lets you drag them around.`,
+      route: "/chat", target: ["chat-channels"], look: `the channel list (# in the header on a phone)`,
     }),
     s("chat", {
       emoji: "↩️", title: "Replies and mentions",
-      body: `Reply to a message to quote it. @mention ${an(t.alter)} and it shows in their mentions.`,
-      route: "/chat",
+      body: `Pick who's speaking on the left of the box, then write. Reply to a message to quote it; @mention ${an(t.alter)} and it shows in their mentions.`,
+      route: "/chat", target: ["chat-composer"],
     }),
     s("chat", {
       emoji: "🤫", title: "Whispers",
@@ -1492,7 +1771,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     s("chat", {
       emoji: "🔒", title: "Private channels",
       body: `A private channel is for chosen ${t.alters}. When none of them are ${t.fronting}, its name is hidden and opening it asks first.`,
-      route: "/chat",
+      route: "/chat", target: ["chat-channel-info", "chat-channels"],
     }),
     s("chat", {
       emoji: "📎", title: "Pictures and files",
@@ -1510,6 +1789,26 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       emoji: "➕", title: "New group",
       body: `New group makes one. Select lets you move or delete several groups at once, and deleted groups go to the trash first.`,
       route: "/groups", target: ["groups-new-btn", "groups-page"],
+    }),
+    s("groups", {
+      emoji: "🌳", title: "The group tree",
+      body: `In the new house every group is in the tree on the left. On a computer, drag a group onto another to nest it, or onto the empty list to bring it to the top.`,
+      route: "/groups", target: ["groups-tree", "groups-page"], look: `the group tree`,
+    }),
+    s("groups", {
+      emoji: "🪪", title: "A group's page",
+      body: `Info changes its name, picture and settings. Edit page arranges its own layout. The ⋯ menu renames, moves, recolours or deletes it.`,
+      route: "/groups", target: ["groups-info", "groups-page"], look: `the Info button`,
+    }),
+    s("groups", {
+      emoji: "👥", title: `Its ${t.alters} and notes`,
+      body: `Choose ${t.alters} picks who is in the group. Notes keeps a private notebook for it, with @mentions and ~commands like everywhere else.`,
+      route: "/groups", target: ["groups-members", "groups-notes", "groups-page"], look: `the ${t.Alters} panel`,
+    }),
+    s("groups", {
+      emoji: "🧰", title: "Manage",
+      body: `Manage opens the full manager: select several groups to move, recolour or delete, and put groups and their ${t.alters} in order.`,
+      route: "/groups", target: ["groups-manage", "groups-page"], look: `the Manage button`,
     }),
     s("sleep", {
       emoji: "😴", title: "Sleep",
@@ -1543,7 +1842,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("bulletin", {
       emoji: "📌", title: "The whole board",
-      body: `This page is the full bulletin board. New post writes one; pick which board it goes to inside the popup.`,
+      body: `This page is the full bulletin board. New post writes one and picks its board. In the Pixel look, pick a board on the left and write in the box at the top.`,
       route: "/bulletins", target: ["bulletins-new-post", "bulletins-page"],
     }),
     s("unblend", {
@@ -1552,8 +1851,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/unblend", target: "unblend-page",
     }),
     s("unblend", {
+      emoji: "📊", title: "Likely here",
+      body: `The bars show who is most likely here, and move with each answer. The big button puts the top one in ${t.front}; nobody already there is taken out.`,
+      route: "/unblend", target: ["unblend-likely", "unblend-page"],
+    }),
+    s("unblend", {
+      emoji: "❓", title: "One question at a time",
+      body: `Answer, Skip, or ask for a different question. Colour questions offer colours from your ${t.alters} and the app's colour picker.`,
+      route: "/unblend", target: ["unblend-question", "unblend-page"],
+    }),
+    s("unblend", {
       emoji: "⚙️", title: "Your own questions",
-      body: `The cog opens the question list, where you can add your own. The sparkle opens Get to know me.`,
+      body: `Manage questions (the cog on the older page) opens the question list, where you can add your own. Get to know me sits beside it.`,
       route: "/unblend", target: ["unblend-manage-btn", "unblend-page"],
     }),
     s("unblend", {
@@ -1619,6 +1928,36 @@ export function getRoutesWithTourSteps() {
   return set;
 }
 
+// Is the pixel look's computer frame on screen right now? (AppLayout marks
+// it data-px-chrome; it shows from 1024px wide.)
+function pixelDeskFrameOn() {
+  try {
+    return !!document.querySelector("[data-px-chrome]") && window.matchMedia("(min-width: 1024px)").matches;
+  } catch { return false; }
+}
+
+// The steps a tour plays: the whole tour, or (with restrictToRoute) one
+// page's tutorial. ONE copy, read by the tour itself and by the pixel look's
+// "How this page works" panel, so both always say the same thing.
+export function tourStepsFor(t, { restrictToRoute = null, alterId = null, tourAlterWasCreated = false, uiV2On = false, experimentalOn = false, pixelDesk = pixelDeskFrameOn() } = {}) {
+  const all = buildSteps(t, restrictToRoute ? (alterId || "_") : alterId, tourAlterWasCreated, uiV2On)
+    .filter((st) => !(uiV2On && st.classicOnly))
+    // The pixel frame on a computer has no sidebar, and its own parts.
+    .filter((st) => !(pixelDesk && st.notPixelDesk) && !(!pixelDesk && st.pixelDeskOnly))
+    // Desktop-only controls (the update button) aren't on screen elsewhere.
+    .filter((st) => !(st.desktopOnly && !isDesktop()))
+    // Mods stay out of the tour until experimental
+    // features are switched on.
+    .filter((st) => !(st.experimental && !experimentalOn));
+  if (!restrictToRoute) return all;
+  const key = tutorialRouteKey(restrictToRoute);
+  const own = all.filter(s => s.route && tutorialRouteKey(s.route) === key
+    && s.section !== "welcome" && s.section !== "done" && !s.fullTourOnly);
+  // Open on how the page is built, staying on this page (route null).
+  const intro = own.length ? pageIntroStep(t, key) : null;
+  return intro ? [intro, ...own] : own;
+}
+
 export default function FeatureTour({ onClose, restrictToRoute = null }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -1654,22 +1993,10 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
   }, [altersLoaded]);
 
   const experimentalOn = useExperimentalOn();
-  const steps = useMemo(() => {
-    const all = buildSteps(t, restrictToRoute ? (tourAlterId || "_") : tourAlterId, tourAlterWasCreated, uiV2On)
-      .filter((st) => !(uiV2On && st.classicOnly))
-      // Desktop-only controls (the update button) aren't on screen elsewhere.
-      .filter((st) => !(st.desktopOnly && !isDesktop()))
-      // Mods stay out of the tour until experimental
-      // features are switched on.
-      .filter((st) => !(st.experimental && !experimentalOn));
-    if (!restrictToRoute) return all;
-    const key = tutorialRouteKey(restrictToRoute);
-    const own = all.filter(s => s.route && tutorialRouteKey(s.route) === key
-      && s.section !== "welcome" && s.section !== "done" && !s.fullTourOnly);
-    // Open on how the page is built, staying on this page (route null).
-    const intro = own.length ? pageIntroStep(t, key) : null;
-    return intro ? [intro, ...own] : own;
-  }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On, experimentalOn]);
+  const steps = useMemo(
+    () => tourStepsFor(t, { restrictToRoute, alterId: tourAlterId, tourAlterWasCreated, uiV2On, experimentalOn }),
+    [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On, experimentalOn],
+  );
   const [step, setStep] = useState(0);
 
   // Safety: if a page-scoped tour ends up with no steps (bad route, or every
@@ -1747,7 +2074,10 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
     if (!target) return;
     // A target can list fallbacks: the exact control first, then what holds
     // it (a collapsed Settings section shows the section instead).
-    const el = [].concat(target).map((id) => document.querySelector(`[data-tour="${id}"]`)).find(Boolean);
+    // A target hidden on this screen (an in-page strip shown as subtabs in
+    // the pixel frame) gives way to the next one that is visible.
+    const found = [].concat(target).map((id) => document.querySelector(`[data-tour="${id}"]`)).filter(Boolean);
+    const el = found.find((n) => n.getClientRects().length > 0) || found[0];
     if (!el) {
       // Retry until the page finishes rendering — up to ~2 s
       if (attempt < 10) setTimeout(() => applyHighlight(target, attempt + 1, gen), 200);
@@ -1889,7 +2219,7 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
             {/* Header */}
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <div className="flex items-center gap-2">
-                <span className="text-xl">{current.emoji}</span>
+                <Penumblob size={48} cue={step === 0 ? "start" : null} />
                 <div>
                   <p className="font-semibold text-sm text-foreground leading-tight">{current.title}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
@@ -1910,9 +2240,14 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
                   </div>
                 </div>
               </div>
-              <button onClick={handleClose} className="text-muted-foreground hover:text-foreground p-1 flex-shrink-0">
-                <X className="w-4 h-4" />
-              </button>
+              {/* Accessibility lives on the card, so it never covers the page
+                  (the header's logo sat under the old floating button). */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <AccessibilityFab inline zIndex={101} />
+                <button onClick={handleClose} aria-label="Close the tour" className="text-muted-foreground hover:text-foreground p-1 flex-shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Body */}
@@ -1971,10 +2306,6 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
         </div>
       </div>
 
-      {/* Accessibility quick-access during the tour — sits on the opposite edge
-          from the tour card, and compact (icon-only) so it never covers tour
-          content. */}
-      <AccessibilityFab position={cardAtTop ? "bottom-left" : "top-left"} zIndex={101} compact />
     </>,
     document.body
   );

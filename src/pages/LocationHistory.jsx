@@ -15,13 +15,16 @@ import { Loader2, MapPin, Plus, Trash2, Pencil } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
-import { logLocation } from "@/lib/checkinEntry";
+import { logLocation, editLocation, deleteLocation } from "@/lib/checkinEntry";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 import RichText from "@/components/shared/RichText";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook } from "@/lib/uiLook";
+import RowMenu from "@/components/shared/RowMenu";
+import "@/styles/pixel/logs.css";
 
 
 function groupByDay(locations) {
@@ -41,7 +44,7 @@ function formatDayLabel(dateStr) {
   return format(d, "EEEE, MMMM d");
 }
 
-function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
+function LocationLogForm({ location, allLocations = [], onSave, onClose, pixel = false }) {
   const terms = useTerms();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => localEntities.Alter.list() });
   const [name, setName] = useState(location?.name || "");
@@ -92,7 +95,9 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
       };
       let rowId;
       if (location?.id) {
-        await localEntities.Location.update(location.id, data);
+        // Fresh read, only what changed since the form opened (editLocation).
+        const { name: _n, category: _c, latitude, longitude, source: _s, ...fields } = data;
+        await editLocation(location.id, { ...fields, baseline: location, name, category, lat: latitude, lng: longitude });
         rowId = location.id;
         toast.success("Location updated");
       } else {
@@ -109,6 +114,51 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
       setSaving(false);
     }
   };
+
+  // Pixel look: the "Log location" panel — GPS + name on one line, the
+  // categories as chips, Save; time and notes fold under "More".
+  if (pixel) {
+    return (
+      <div className="pxg-logloc">
+        <div className="pxg-gpsrow">
+          <button type="button" onClick={handleGPS} disabled={gpsLoading}
+            className={`pxg-btn pxg-gps${lat != null ? "" : " on"}`} aria-pressed={lat != null}>
+            {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : lat != null ? "GPS added" : "Use GPS"}
+          </button>
+          <input className="pxg-ins pxg-grow" value={name} onChange={e => setName(e.target.value)} aria-label="Place name"
+            placeholder={category ? getCategoryMeta(category).label : "Place name..."} />
+        </div>
+        {lat != null && (
+          <p className="pxg-small pxg-muted">
+            {lat.toFixed(5)}, {lng?.toFixed(5)} · <button type="button" className="pxg-link" onClick={() => { setLat(null); setLng(null); }}>clear</button>
+          </p>
+        )}
+        <div className="pxg-seg" role="group" aria-label="Category">
+          {LOCATION_CATEGORIES.map(cat => (
+            <button key={cat.id} type="button" aria-pressed={category === cat.id}
+              className={`pxg-chip${category === cat.id ? " sel" : ""}`}
+              onClick={() => setCategory(cat.id === category ? "" : cat.id)}>{cat.label}</button>
+          ))}
+        </div>
+        <details className="pxg-more" open={!!location?.id}>
+          <summary className="pxg-link">When and notes</summary>
+          <div className="pxg-stack pxg-mt">
+            <label className="pxg-when-row"><span className="pxg-muted">When</span>
+              <input type="datetime-local" className="pxg-ins pxg-grow" value={timestamp} onChange={e => setTimestamp(e.target.value)} />
+            </label>
+            <MentionTextarea value={notes} onChange={setNotes} alters={alters} signposts
+              placeholder="Any notes about this location..." className="h-16" />
+          </div>
+        </details>
+        <div className="pxg-saverow">
+          {onClose && <button type="button" className="pxg-btn" onClick={onClose}>Cancel</button>}
+          <button type="button" className="pxg-btn pxg-save" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : location?.id ? "Save changes" : "Save"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -204,6 +254,8 @@ export default function LocationHistory() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState(null);
+  const pixel = useUiLook() === "pixel";
+  const [formKey, setFormKey] = useState(0);
 
   const { data: locations = [] } = useQuery({
     ...sharedList("locations"),
@@ -218,7 +270,7 @@ export default function LocationHistory() {
   const handleDelete = async (id) => {
     if (!(await confirm({ title: "Delete this location record?", body: "It can be restored from Recent Changes.", confirmLabel: "Delete", destructive: true }))) return;
     try {
-      await localEntities.Location.delete(id);
+      await deleteLocation(id);
       queryClient.invalidateQueries({ queryKey: ["locations"] });
       toast.success("Location deleted");
     } catch (err) {
@@ -240,6 +292,77 @@ export default function LocationHistory() {
   for (const loc of locations) catCounts[loc.category] = (catCounts[loc.category] || 0) + 1;
   const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0];
   const topCatMeta = topCat ? getCategoryMeta(topCat[0]) : null;
+
+  if (pixel) {
+    const placeCount = new Set(locations.map((l) => (l.name || "").trim().toLowerCase()).filter(Boolean)).size;
+    const whenLabel = (ts) => {
+      const d = new Date(ts);
+      if (isToday(d)) return { day: "Today", time: format(d, clockPattern("h:mm")) };
+      if (isYesterday(d)) return { day: "Yesterday", time: format(d, clockPattern("h:mm")) };
+      return { day: format(d, "MMM d"), time: format(d, clockPattern("h:mm")) };
+    };
+    return (
+      <div className="pxg-loc" data-tour="location-history-page">
+        <section className="pxg-pn" aria-label="Log location" data-tour="location-history-add-btn">
+          <div className="pxg-ttl"><span>Log location</span><span className="pxg-ttl-sub">{format(new Date(), "EEE " + clockPattern("h:mm a"))}</span></div>
+          <div className="pxg-pad">
+            <LocationLogForm key={formKey} location={null} allLocations={locations} pixel
+              onSave={() => { queryClient.invalidateQueries({ queryKey: ["locations"] }); setFormKey((k) => k + 1); }} />
+          </div>
+        </section>
+        <section className="pxg-pn pxg-loc-hist" aria-label="History">
+          <div className="pxg-ttl">
+            <span>History</span>
+            <span className="pxg-ttl-sub">{total} record{total !== 1 ? "s" : ""}{placeCount ? ` · ${placeCount} place${placeCount !== 1 ? "s" : ""}` : ""}{topCatMeta ? ` · mostly ${topCatMeta.label}` : ""}</span>
+          </div>
+          {total === 0 ? (
+            <div className="pxg-empty">
+              <p className="pxg-f">No locations logged yet</p>
+              <p>Log one above to start seeing where you go.</p>
+            </div>
+          ) : (
+            <div>
+              {sorted.map((loc) => {
+                const cat = getCategoryMeta(loc.category);
+                const w = whenLabel(loc.timestamp);
+                const hasMap = loc.latitude != null && loc.longitude != null;
+                return (
+                  <div key={loc.id} data-highlight-id={loc.id} className="pxg-locrow">
+                    <button type="button" className="pxg-locmain" onClick={() => openEdit(loc)} aria-label={`Edit ${loc.name || cat.label}, ${w.day} ${w.time}`}>
+                      <span className="pxg-locwhen"><span>{w.day}</span><span>{w.time}</span></span>
+                      <span className="pxg-locname">
+                        <span className="pxg-locn">{loc.name || cat.label}</span>
+                        <span className="pxg-locsub">{cat.label}</span>
+                        {loc.notes && <span className="pxg-locnote"><RichText content={loc.notes} /></span>}
+                      </span>
+                    </button>
+                    {hasMap && (
+                      <a className="pxg-maplink" href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                        target="_blank" rel="noopener noreferrer" title={`${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}><span className="pxg-hide-phone">open in </span>Maps</a>
+                    )}
+                    {loc.source === "gps" && <span className="pxg-gpstag">GPS</span>}
+                    <span className="pxg-sq pxg-locsq" style={{ background: cat.color }} aria-hidden="true" />
+                    <RowMenu label="Location actions" items={[
+                      { label: "Edit", icon: Pencil, onSelect: () => openEdit(loc) },
+                      { label: "Delete", icon: Trash2, onSelect: () => handleDelete(loc.id), destructive: true },
+                    ]} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+        <Dialog open={showModal} onOpenChange={handleClose}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingLocation ? "Edit location" : "Log location"}</DialogTitle>
+            </DialogHeader>
+            <LocationLogForm location={editingLocation} allLocations={locations} onSave={handleSaved} onClose={handleClose} pixel />
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   return (
     <div className="py-6 os-page-shell" data-tour="location-history-page">

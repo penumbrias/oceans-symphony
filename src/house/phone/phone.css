@@ -1,0 +1,114 @@
+/* The new house's phone frame (step 2.2). House tokens only. The frame
+   itself is transparent so the person's wallpaper shows behind the page;
+   every piece of chrome is its own [data-house] root (HouseScope). Every
+   rule is scoped to the frame, because the stylesheet stays loaded after
+   "Use the old house" until the next reload. */
+
+[data-house-phone].hp {
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+  min-width: 0; overflow: hidden;
+}
+[data-house].hp-skips,
+[data-house].hp-sheet-host { display: contents; }
+[data-house] .hp-skip {
+  position: fixed; left: var(--house-space-2); top: var(--house-space-2); z-index: 80;
+  padding: var(--house-space-2) var(--house-space-3);
+  background: var(--house-raised); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-accent); border-radius: var(--house-corner-sm);
+  font-family: var(--house-font-label); font-weight: 700;
+  transform: translateY(-200%);
+}
+[data-house] .hp-skip:focus,
+[data-house] .hp-skip:focus-visible { transform: none; }
+[data-house-phone] .hp-sr,
+[data-house] .hp-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ── Zone 1: the header. Grows when the name wraps; never cuts it. ─ */
+[data-house].hp-head {
+  flex: 0 0 auto; position: relative; z-index: 3;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-1);
+  min-height: var(--house-h-row-2);
+  padding: min(env(safe-area-inset-top, 0px), 64px) max(var(--house-space-1), env(safe-area-inset-right, 0px)) 0 max(var(--house-space-1), env(safe-area-inset-left, 0px));
+  background: var(--house-panel); color: var(--house-text);
+  border-bottom: var(--house-border-w) solid var(--house-divider);
+}
+[data-house] .hp-titles {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: var(--house-space-1) var(--house-space-1);
+}
+[data-house] .hp-title {
+  font-size: var(--house-frame-text-lg); line-height: 1.25; font-weight: 700;
+  overflow-wrap: break-word; hyphens: auto;
+}
+/* Narrow for its text (a small phone at large text): the name gets a row of
+   its own under the buttons instead of breaking mid-word. The query is in em
+   (the header's own text size), so it follows the person's text size. */
+[data-house].hp-head { container-type: inline-size; container-name: hp-head; }
+@container hp-head (max-width: 20em) {
+  [data-house] .hp-titles { order: 9; flex: 1 0 100%; padding-top: 0; }
+  [data-house] .hp-titles + * { margin-left: auto; }
+}
+[data-house] .hp-sub {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--house-space-2);
+  font-size: var(--house-frame-text-xs); line-height: 1.35; color: var(--house-muted);
+}
+/* The example-data label: words, never only a dot, at text-sm (§7). */
+[data-house] .hp-example {
+  display: inline-flex; align-items: center;
+  padding: 0 var(--house-space-2);
+  font-size: var(--house-frame-text-sm); font-weight: 700; color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-accent); border-radius: var(--house-corner-sm);
+}
+[data-house][data-house-look="pixel"] .hp-example { border-radius: 0; border-width: 2px; }
+
+/* ── Zone 3: the page (the old room, outside any house root) ─────── */
+[data-house-phone] .hp-canvas { min-height: 0; }
+[data-house] .hp-lasttime { margin: var(--house-space-3) 0; }
+[data-house] .hp-lasttime-words { margin: 0 0 var(--house-space-2); overflow-wrap: break-word; }
+
+/* ── Attention line + Zone 4: the bottom bar ─────────────────────── */
+[data-house].hp-bottom {
+  flex: 0 0 auto; position: relative; z-index: 3;
+  background: var(--house-panel);
+  padding: 0 env(safe-area-inset-right, 0px) var(--os-sab, env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 0px);
+}
+[data-house].hp-bottom[data-keyboard] { padding-bottom: 0; }
+
+/* ── Sheets' insides ─────────────────────────────────────────────── */
+[data-house] .hp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-house] .hp-subhead { margin: var(--house-space-4) 0 var(--house-space-2); font-size: var(--house-frame-text-sm); color: var(--house-muted); }
+[data-house] .hp-ev-group:first-child .hp-subhead { margin-top: 0; }
+[data-house] .hp-lead { color: var(--house-muted); }
+[data-house] .hp-muted { color: var(--house-muted); }
+[data-house] .hp-old-room { margin-top: var(--house-space-2); }
+
+/* ── Old dialogs stop above the bottom zone (§14) ────────────────────
+   The old rooms' Radix dialogs, sheets, confirms and drawers carry
+   data-os-overlay / data-os-dialog / data-os-sheet. Inside the phone frame
+   their scrim ends at the top of the bottom zone and their content keeps
+   clear of it (--house-dialog-sab stands in for the bottom safe area they
+   already respect), so the bar, and Support on it, stay live with one
+   open. Radix sets pointer-events:none on <body> while a modal is open;
+   the bottom zone takes taps back. Scoped by :has() so nothing changes
+   once the frame is gone (this sheet stays loaded until a reload). */
+:root:has([data-house-phone]) [data-os-overlay] { bottom: var(--house-sheet-bottom, 0px); }
+:root:has([data-house-phone]) [data-os-dialog] { --os-sab: var(--house-dialog-sab); }
+:root:has([data-house-phone]) [data-os-sheet][data-side="bottom"] { bottom: var(--house-sheet-bottom, 0px); --os-sab: 0px; }
+:root:has([data-house-phone]) [data-os-sheet][data-side="left"],
+:root:has([data-house-phone]) [data-os-sheet][data-side="right"] { bottom: var(--house-sheet-bottom, 0px); height: auto; }
+[data-house].hp-bottom { pointer-events: auto; }
+
+/* Board 08-Phone: a pixel header over the wave (logo · page name · Search ·
+   ⋯ as bevelled buttons), and the Home room filling the middle. */
+[data-house].hp-head { position: relative; overflow: hidden; overflow: clip; } /* clip: a focused header button can never scroll the wide wave in sideways */
+[data-house].hp-head > :not(.hk-wave) { position: relative; z-index: 1; }
+[data-house] .hp-logo-link { display: inline-flex; align-items: center; justify-content: center; width: var(--house-target); height: var(--house-target); }
+[data-house] .hp-logo { width: 2rem; height: 2rem; object-fit: contain; image-rendering: pixelated; border: var(--house-px-line, 1px) solid var(--house-outline); }
+[data-house][data-house-look="pixel"].hp-head { border-bottom: var(--house-px-line, 1px) solid var(--house-outline); min-height: 3.5rem; }
+[data-house][data-house-look="pixel"].hp-head .hk-iconbtn.hk-btn--secondary { width: 2.75rem; height: 2.75rem; }
+[data-house-phone] .hp-canvas--room { padding: 0; }

@@ -6,7 +6,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { X, Clock } from "lucide-react";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
-import { endSymptomSessions } from "@/lib/symptomSessions";
+import { endSymptomSessions, editSymptomSession } from "@/lib/symptomSessions";
 import { rateSymptomSession } from "@/lib/checkinEntry";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
@@ -49,7 +49,7 @@ export function SymptomActionMenu({ sess, symptom, onClose }) {
     setSaving(true);
     try {
       const iso = new Date(startDraft).toISOString();
-      await base44.entities.SymptomSession.update(sess.id, { start_time: iso });
+      await editSymptomSession(sess.id, { start: iso });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       queryClient.invalidateQueries({ queryKey: ["timeline"] });
@@ -66,7 +66,7 @@ export function SymptomActionMenu({ sess, symptom, onClose }) {
     setSaving(true);
     try {
       const trimmed = prepared.content.trim();
-      await base44.entities.SymptomSession.update(sess.id, { notes: trimmed || null, author_alter_ids: prepared.authorIds });
+      await editSymptomSession(sess.id, { notes: trimmed, authorIds: prepared.authorIds });
       await recordAuthoredText({ ...prepared, alters, sourceType: "symptom", sourceId: sess.id, sourceLabel: "Symptom note", navigatePath: "/checkin-log" });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       setEditingNotes(false);

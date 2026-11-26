@@ -67,9 +67,26 @@ export default function NewFeaturesBar({ embedded = false }) {
       try { if (localStorage.getItem(STORAGE_KEY) === APP_VERSION) return undefined; } catch { /* storage off: load */ }
     }
     let live = true;
-    import("@/lib/changelog").then((m) => { if (live) setChangelog(m.CHANGELOG || []); }).catch(() => {});
+    // The bar starts from the newest few days only (a tiny module); the
+    // whole history loads when the person asks for older changes.
+    const load = embedded
+      ? import("@/lib/changelog").then((m) => { if (live) { setChangelog(m.CHANGELOG || []); setFull(true); } })
+      : import("virtual:changelog-latest").then((m) => {
+          if (!live) return;
+          setChangelog(m.LATEST || []);
+          setFull((m.TOTAL || 0) <= (m.LATEST || []).length);
+        });
+    load.catch(() => {});
     return () => { live = false; };
   }, [embedded]);
+  const [full, setFull] = useState(false);
+  const [wantFull, setWantFull] = useState(false);
+  useEffect(() => {
+    if (!wantFull || full) return undefined;
+    let live = true;
+    import("@/lib/changelog").then((m) => { if (live) { setChangelog(m.CHANGELOG || []); setFull(true); } }).catch(() => {});
+    return () => { live = false; };
+  }, [wantFull, full]);
   const filteredChangelog = useMemo(() => {
     if (!changelog) return null;
     return changelog
@@ -116,7 +133,7 @@ export default function NewFeaturesBar({ embedded = false }) {
   // starting at index 1 (the second-most-recent block) since index 0
   // is the headline rendered separately above.
   const olderBlocks = filteredChangelog.slice(1, 1 + extraBlocks);
-  const hasMoreOlder = extraBlocks + 1 < filteredChangelog.length;
+  const hasMoreOlder = !full || extraBlocks + 1 < filteredChangelog.length;
   const changeCount = block.changes.length;
 
   return (
@@ -221,7 +238,7 @@ export default function NewFeaturesBar({ embedded = false }) {
             {hasMoreOlder ? (
               <button
                 type="button"
-                onClick={() => setExtraBlocks((n) => n + 3)}
+                onClick={() => { setExtraBlocks((n) => n + 3); if (!full) setWantFull(true); }}
                 className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-primary hover:underline"
               >
                 <ChevronDown className="w-3 h-3" />

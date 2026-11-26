@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { base44 } from "@/api/base44Client";
+import { editSymptomSession, endSymptomSession, deleteSymptomSession } from "@/lib/symptomSessions";
 import { rateSymptomSession } from "@/lib/checkinEntry";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Trash2 } from "lucide-react";
@@ -32,7 +32,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
     }
     setSaving(true);
     try {
-      await base44.entities.SymptomSession.update(session.id, { start_time: iso });
+      await editSymptomSession(session.id, { start: iso });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       toast.success("Start time updated");
       onClose();
@@ -53,10 +53,9 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
     }
     setSaving(true);
     try {
-      // A session with an end time is ENDED — flip is_active off too, or it
-      // lingers as a ghost-active session (kept reading as active in the
-      // "active symptoms" notification + current-symptoms list).
-      await base44.entities.SymptomSession.update(session.id, { end_time: iso, is_active: false });
+      // A session with an end time is ENDED — editSymptomSession flips
+      // is_active off too, or it lingers as a ghost-active session.
+      await editSymptomSession(session.id, { end: iso });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       toast.success("End time updated");
       onClose();
@@ -88,7 +87,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
     if (!(await confirm(`Delete this symptom session? ${TRASH_HINT}`))) return;
     setSaving(true);
     try {
-      await base44.entities.SymptomSession.delete(session.id);
+      await deleteSymptomSession(session.id);
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success("Session deleted");
@@ -111,10 +110,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
     }
     setSaving(true);
     try {
-      await base44.entities.SymptomSession.update(session.id, {
-        end_time: iso,
-        is_active: false,
-      });
+      await endSymptomSession(session.id, { endTime: iso });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success("Session ended");

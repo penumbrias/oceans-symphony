@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { formatSnoozeLabel, snoozeUntilDate } from "./snoozeHelpers";
-import SetFrontSheet from "@/components/fronting/SetFrontSheet";
-import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
+const QuickCheckInModal = lazyWhenOpen(() => import("@/components/emotions/QuickCheckInModal"), (p) => p.isOpen);
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isFocusQuiet, subscribeFocusQuiet } from "@/lib/soundscape/focusMode";
 import { useAttentionSlot, ATTENTION } from "@/lib/attentionSlot";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import PixelReminderStrip from "./PixelReminderStrip";
+import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
+import { useHouseZoneItem, ZONE_PRIORITY } from "@/lib/houseZones";
 
 // How long a newly fired reminder shows in full before it folds into a
 // small pill (UI critique C1). The pill stays until the reminder is dealt
@@ -75,6 +79,7 @@ const DEFAULT_SNOOZE = [10, 60, 240, "tomorrow"];
 
 export default function ReminderToast() {
   const { data: pendingInstances = [] } = usePendingReminderInstances();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
   const [visible, setVisible] = useState([]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -242,14 +247,51 @@ export default function ReminderToast() {
     await updateInstance(instance.id, { status: "snoozed", snoozed_until: until });
   };
 
+  // The new house's phone frame: the reminder goes to the attention line
+  // (one item at a time; it waits on Support pages) instead of floating
+  // over the page. Same actions, same writes, all from here.
+  const zoneFirst = visible[0];
+  const inZone = useHouseZoneItem("reminder", zoneFirst && !focusQuiet ? (() => {
+    const { instance, reminder } = zoneFirst;
+    const snoozeOptions = reminder.snooze_options || DEFAULT_SNOOZE;
+    return {
+      priority: ZONE_PRIORITY.REMINDER, sig: `${instance.id}|${visible.length}`,
+      icon: CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom,
+      title: reminder.title, detail: reminder.body || null,
+      actions: [{ label: "Done", primary: true, onClick: () => updateInstance(instance.id, { status: "acted", acted_action: "done" }) }],
+      menu: [
+        ...(reminder.inline_actions || []).map((action, i) => ({ id: `act-${i}`, label: action.label, onSelect: () => handleAction({ instance, reminder }, action) })),
+        ...snoozeOptions.map((opt, i) => ({ id: `snooze-${i}`, label: `Snooze: ${formatSnoozeLabel(opt)}`, onSelect: () => handleSnooze({ instance, reminder }, opt) })),
+        ...(visible.length > 1 ? [{ id: "more", label: `${visible.length - 1} more waiting · open Reminders`, onSelect: () => navigate("/reminders") }] : []),
+        { id: "dismiss", label: "Dismiss", onSelect: () => updateInstance(instance.id, { status: "dismissed" }) },
+      ],
+      dismiss: { label: `Dismiss reminder: ${reminder.title}`, onClick: () => handleXClose(instance.id) },
+    };
+  })() : null);
+
   return (
     <>
-      {visible.length > 0 && !focusQuiet && !typing && !showExpanded && (() => {
+      {/* Pixel look: one slim strip instead of the card and the pill. */}
+      {pixel && !inZone && visible.length > 0 && !focusQuiet && !typing && (() => {
+        const { instance, reminder } = visible[0];
+        return (
+          <div role="status" aria-live="polite" className="px-rstrip-dock">
+            <PixelReminderStrip floating reminder={reminder}
+              onAction={(action) => handleAction({ instance, reminder }, action)}
+              onDone={() => updateInstance(instance.id, { status: "acted", acted_action: "done" })}
+              onSnooze={(opt) => handleSnooze({ instance, reminder }, opt)}
+              onDismiss={() => handleXClose(instance.id)}
+              moreCount={visible.length - 1}
+              onOpenMore={() => navigate("/reminders")} />
+          </div>
+        );
+      })()}
+      {!pixel && !inZone && visible.length > 0 && !focusQuiet && !typing && !showExpanded && (() => {
         const { instance, reminder } = visible[0];
         const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
         return (
           <div role="status" aria-live="polite" data-overlay-notification
-            className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[200] max-w-[calc(100vw-2rem)] sm:max-w-xs">
+            className="os-float-right fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[200] max-w-[calc(100vw-2rem)] sm:max-w-xs">
             <div className="flex items-center gap-1 bg-card border border-border shadow-lg rounded-full pl-1 pr-1 py-1 animate-in fade-in duration-200">
               <button type="button" onClick={() => setPinnedOpen(true)}
                 aria-label={`Reminder: ${reminder.title}. Show it`}
@@ -269,10 +311,10 @@ export default function ReminderToast() {
           </div>
         );
       })()}
-      {visible.length > 0 && !focusQuiet && !typing && showExpanded && (
+      {!pixel && !inZone && visible.length > 0 && !focusQuiet && !typing && showExpanded && (
         <div role="status" aria-live="polite" aria-atomic="false" data-overlay-notification
           onPointerDown={() => setPinnedOpen(true)}
-          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+          className="os-float-right fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
           {visible.slice(0, 1).map(({ instance, reminder }) => {
             const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
             const inlineActions = reminder.inline_actions || [];

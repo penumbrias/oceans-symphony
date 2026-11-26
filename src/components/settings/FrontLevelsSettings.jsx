@@ -10,7 +10,7 @@ import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowUp, ArrowDown, Plus, Trash2, RotateCcw } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -30,12 +30,7 @@ export default function FrontLevelsSettings() {
   const persist = async (next) => {
     setBusy(true);
     try {
-      if (cfg._settingsId) {
-        await base44.entities.SystemSettings.update(cfg._settingsId, { front_levels: next });
-      } else {
-        await base44.entities.SystemSettings.create({ front_levels: next });
-      }
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettings({ front_levels: next }, { create: true, queryClient: qc });
     } catch {
       toast.error("Couldn't save");
     } finally {

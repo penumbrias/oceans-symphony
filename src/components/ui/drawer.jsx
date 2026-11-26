@@ -4,13 +4,17 @@ import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
+import { useCloseOnSupportJump } from "@/lib/houseSwitch"
 
+// In the new house, arriving at Support closes it the way its own close
+// would (useCloseOnSupportJump; the old house never sends that).
 const Drawer = ({
   shouldScaleBackground = true,
   ...props
-}) => (
-  <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} {...props} />
-)
+}) => {
+  useCloseOnSupportJump(props.open, props.onOpenChange)
+  return <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} {...props} />
+}
 Drawer.displayName = "Drawer"
 
 const DrawerTrigger = DrawerPrimitive.Trigger
@@ -22,6 +26,7 @@ const DrawerClose = DrawerPrimitive.Close
 const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
     ref={ref}
+    data-os-overlay=""
     className={cn("fixed inset-0 z-50 bg-black/80", className)}
     {...props} />
 ))
@@ -34,13 +39,15 @@ const DrawerContent = React.forwardRef(({ className, children, direction = "bott
     <DrawerOverlay />
     <DrawerPrimitive.Content
       ref={ref}
+      data-os-sheet=""
+      data-side={direction}
       className={cn(
         // Top-docked drawers exist so a settings sheet can sit out of the
         // way of the thing being adjusted (pass direction="top" on the
         // Drawer root too — vaul handles the gesture side).
         direction === "top"
-          ? "fixed inset-x-0 top-0 z-50 mb-24 flex h-auto flex-col rounded-b-[10px] border bg-background"
-          : "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+          ? "os-sheet fixed inset-x-0 top-0 z-50 mb-24 flex h-auto flex-col rounded-b-[10px] border bg-background"
+          : "os-sheet fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className
       )}
       // Top-docked sheets start below the status bar / notch — without

@@ -5,11 +5,14 @@
 // platform and was hard to hit on a phone.
 
 import React, { useRef } from "react";
+import { useHouseSheet } from "@/lib/houseSwitch";
 
 const LEVELS = [5, 4, 3, 2, 1, 0];
 
 export default function RatingMeter({ value = null, onChange, color = "#F59E0B", label = "Rating" }) {
   const stackRef = useRef(null);
+  // The new house paints the lit steps from --rm (board 16's meter).
+  const house = !!useHouseSheet();
   const dragging = useRef(false);
   const startValue = useRef(null);
   const moved = useRef(false);
@@ -63,7 +66,7 @@ export default function RatingMeter({ value = null, onChange, color = "#F59E0B",
       onPointerUp={onPointerUp}
       onPointerCancel={() => { dragging.current = false; }}
       onKeyDown={onKeyDown}
-      className="flex flex-col gap-1 py-0.5 touch-none select-none cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="os-rating-meter flex flex-col gap-1 py-0.5 touch-none select-none cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       {LEVELS.map((n) => {
         const lit = value != null && n <= value;
@@ -71,11 +74,13 @@ export default function RatingMeter({ value = null, onChange, color = "#F59E0B",
         return (
           <span
             key={n}
+            data-n={n}
+            data-lit={lit ? "1" : undefined}
             aria-hidden
             className={`flex items-center justify-center rounded-md transition-colors text-[0.5625rem] font-semibold tabular-nums ${
               isZero ? "h-3.5 w-7" : "h-5 w-7"
             } ${lit ? "text-white" : "bg-muted/60 text-muted-foreground/60"}`}
-            style={lit ? { backgroundColor: color } : undefined}
+            style={lit ? (house ? { "--rm": color } : { backgroundColor: color }) : undefined}
           >
             {n === value ? n : ""}
           </span>

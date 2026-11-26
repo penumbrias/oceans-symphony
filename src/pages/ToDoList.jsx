@@ -12,6 +12,8 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import { sharedList } from "@/lib/sharedLists";
+import { usePixelDesk, useUiLook } from "@/lib/uiLook";
+import TodoPixel from "@/components/tasks/TodoPixel";
 
 export default function ToDoList() {
   const queryClient = useQueryClient();
@@ -24,6 +26,8 @@ export default function ToDoList() {
   const [expandedTasks, setExpandedTasks] = useState(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
+  const pixel = useUiLook() === "pixel";
+  const pixelDesk = usePixelDesk();
 
   // Handle deep link from search (?id=<task>) — the legacy hook.
   useDeepLinkHighlight("id", "item-");
@@ -116,7 +120,9 @@ export default function ToDoList() {
   };
 
   const handleDelete = async (taskId) => {
-    if ((await confirm("Delete this task and all subtasks?"))) deleteMutation.mutate(taskId);
+    if (!(await confirm("Delete this task and all subtasks?"))) return false;
+    deleteMutation.mutate(taskId);
+    return true;
   };
 
   const handleToggle = (taskId) => {
@@ -135,6 +141,45 @@ export default function ToDoList() {
     setEditingTask(null);
     setParentTaskId(null);
   };
+
+  if (pixel) {
+    return (
+      <>
+        <TodoPixel
+          desk={pixelDesk}
+          tasks={tasks}
+          tasksByParent={tasksByParent}
+          activityCategories={activityCategories}
+          highlightId={highlightId}
+          expandedTasks={expandedTasks}
+          onToggleExpand={handleToggleExpand}
+          setExpandedTasks={setExpandedTasks}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onEditDialog={handleEdit}
+          onNewDialog={(parentId) => (parentId ? handleCreateSubtask(parentId) : setShowForm(true))}
+        />
+        {showForm && !pixelDesk && (
+          <TaskFormModal open={showForm} onClose={handleCloseForm} editingTask={editingTask}
+            parentTaskId={parentTaskId} allTasks={tasks}
+            footer={editingTask ? (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                {!editingTask.parent_task_id && (
+                  <Button type="button" variant="outline" size="sm" className="gap-1"
+                    onClick={() => handleCreateSubtask(editingTask.id)}>
+                    <Plus className="w-3.5 h-3.5" /> Add a subtask
+                  </Button>
+                )}
+                <Button type="button" variant="outline" size="sm" className="ml-auto text-destructive"
+                  onClick={async () => { if (await handleDelete(editingTask.id)) handleCloseForm(); }}>
+                  Delete
+                </Button>
+              </div>
+            ) : null} />
+        )}
+      </>
+    );
+  }
 
   return (
     <div data-tour="tasks-list" className="space-y-6 max-w-4xl mx-auto">

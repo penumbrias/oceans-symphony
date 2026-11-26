@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { runAutoBackupNow } from "@/lib/autoBackup";
+import { usePixelDesk, useUiLook } from "@/lib/uiLook";
+import SettingsPixel, { InlineDisplayOptions } from "@/components/settings/SettingsPixel";
 import { Loader2, ChevronDown, ChevronLeft, Upload, Download, Globe, Database, Search, X as XIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,17 +26,11 @@ import DataRescuePanel from "@/components/settings/DataRescuePanel";
 import ImportDataSection from "@/components/settings/ImportDataSection";
 import BugReportModal from "@/components/settings/BugReportModal";
 import FeedbackSurveyModal from "@/components/feedback/FeedbackSurveyModal";
-import { Group, LinkRow, SwitchRow } from "@/components/shared/SettingRows";
+import { Group, LinkRow } from "@/components/shared/SettingRows";
 import {
   buildSettingsGroups, filterSettingsGroups, findSettingsPage, LEGACY_HASHES, EXPORT_FORMAT_EXTRAS,
 } from "@/components/settings/settingsPages";
-import {
-  arePageTutorialsEnabled,
-  setPageTutorialsEnabled,
-  clearAllSeen as clearAllPageTutorialsSeen,
-  openFullTour,
-  subscribePageTutorials,
-} from "@/lib/pageTutorials";
+import PageTutorialsControls from "@/components/settings/PageTutorialsControls";
 
 // Brand marks for the community links. lucide-react dropped brand icons, so
 // these inline SVGs keep the GitHub / Discord glyphs faithful and dependency-
@@ -65,6 +61,8 @@ export default function Settings() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const pixelDesk = usePixelDesk();
+  const pixel = useUiLook() === "pixel";
   const [backingUp, setBackingUp] = useState(false);
   // Backup dropdown → opens the import/export UI directly as a popup.
   const [backupModal, setBackupModal] = useState(null); // "import" | "export" | null
@@ -89,13 +87,22 @@ export default function Settings() {
     finally { setBackingUp(false); }
   };
 
-  const groups = useMemo(() => buildSettingsGroups({
+  const baseGroups = useMemo(() => buildSettingsGroups({
     terms, navigate, settings, refetch, queryClient,
     openRescue: () => setShowRescue(true),
     openBugReport: () => setShowBugReport(true),
     openFeedbackSurvey: () => setShowSurvey(true),
     renderTour: () => <PageTutorialsControls />,
   }), [terms, navigate, settings, refetch, queryClient]);
+  // Pixel look on a computer: Display options opens inline as a page (the
+  // mockup's centre panel) instead of only as the sheet; the sheet is one
+  // button away on that page.
+  const groups = useMemo(() => (!pixelDesk ? baseGroups : baseGroups.map((g) => ({
+    ...g,
+    pages: g.pages.map((p) => (p.id === "display" && p.action && !p.render
+      ? { ...p, render: () => <InlineDisplayOptions onOpenSheet={p.action} /> }
+      : p)),
+  }))), [baseGroups, pixelDesk]);
 
   // Which page is open comes from the hash, so links from anywhere in the
   // app (and the tour) land on the page, and Back is a real back.
@@ -163,8 +170,129 @@ export default function Settings() {
 
   const shownGroups = filterSettingsGroups(groups, query);
 
+  const backupMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" disabled={backingUp}
+          title="Back up or import your data" className="h-7 gap-1.5 text-xs">
+          {backingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+          Backup
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem onSelect={() => setBackupModal("export")} className="gap-2 cursor-pointer">
+          <Download className="w-4 h-4" /> Export a backup
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setBackupModal("import")} className="gap-2 cursor-pointer">
+          <Upload className="w-4 h-4" /> Import a backup…
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={handleBackupNow} className="gap-2 cursor-pointer">
+          <Database className="w-4 h-4" /> Back up now
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const dialogs = (
+    <>
+      <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
+      <FeedbackSurveyModal open={showSurvey} onClose={() => setShowSurvey(false)} />
+
+      {/* Backup dropdown → import/export UI directly, so it's one tap. */}
+      <Dialog open={backupModal === "export"} onOpenChange={(o) => { if (!o) setBackupModal(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Download className="w-4 h-4" /> Export a backup</DialogTitle>
+          </DialogHeader>
+          <DataBackupRestore section="export" exportExtras={EXPORT_FORMAT_EXTRAS} />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={backupModal === "import"} onOpenChange={(o) => { if (!o) setBackupModal(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Upload className="w-4 h-4" /> Import a backup</DialogTitle>
+          </DialogHeader>
+          <ImportDataSection
+            settings={settings}
+            onChanged={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["alters"] }); }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {showRescue && <DataRescuePanel onClose={() => setShowRescue(false)} />}
+    </>
+  );
+
+  // Pixel look: the mockup layout (SettingsPixel), same pages and actions.
+  if (pixel) {
+    const versionText = `v${APP_VERSION}${APP_RELEASE_STAGE ? `  ${APP_RELEASE_STAGE}` : ""}`;
+    const intro = (
+      <div className="flex flex-col gap-3 pb-2">
+        <div className="pxs-actions">
+          {backupMenu}
+          <span className="flex-1" />
+          <button type="button" className="pxs-icon-link" onClick={() => openExternalUrl("https://penumbrialecosystem.neocities.org/os")}
+            aria-label="Official website" title="Official website"><Globe /></button>
+          <button type="button" className="pxs-icon-link" onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
+            aria-label="Latest releases on GitHub" title="Latest releases on GitHub"><GithubIcon /></button>
+          <button type="button" className="pxs-icon-link" onClick={() => openExternalUrl("https://discord.gg/S5rFXjrfWG")}
+            aria-label="Discord support server" title="Discord support server"><DiscordIcon /></button>
+        </div>
+        <p className="pxs-muted">
+          Customize your {terms.system} and manage your data.{" "}
+          <span role="link" tabIndex={0} className="pxs-link"
+            onClick={() => openExternalUrl("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1")}
+            onKeyDown={(e) => { if (e.key === "Enter") openExternalUrl("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1"); }}>
+            Template gallery →
+          </span>
+        </p>
+        <DesktopUpdateButton />
+      </div>
+    );
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <SettingsPixel desk={pixelDesk} groups={groups} shownGroups={shownGroups}
+          openPage={openPage && openPage.render ? openPage : null} foundGroup={found?.group}
+          query={query} setQuery={setQuery} onOpenRow={openRow}
+          onHome={() => navigate("/settings")} onBack={goHome}
+          headerExtras={{ version: versionText }} intro={intro} />
+        {dialogs}
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      <div className={pixelDesk ? "px-ws" : undefined}>
+      {/* Pixel look on a computer: every settings page listed in a side
+          panel (like the mockup), the open one marked. */}
+      {pixelDesk && (
+        <aside className="px-ws-side" aria-label="Settings sections" data-tour="settings-side-panel">
+          <div className="px-ws-ttl"><span>Settings</span></div>
+          <nav className="px-ws-tree">
+            <button type="button" className={`px-ws-row${!openPage ? " sel" : ""}`} aria-current={!openPage ? "page" : undefined}
+              onClick={() => navigate("/settings")}>
+              <span className="px-ws-name">All settings</span>
+            </button>
+            {groups.map((g) => (
+              <React.Fragment key={g.id}>
+                <p className="px-ws-head">{g.label}</p>
+                {g.pages.map((p) => {
+                  const sel = openPage?.id === p.id;
+                  return (
+                    <button key={p.id} type="button" className={`px-ws-row${sel ? " sel" : ""}`} aria-current={sel ? "page" : undefined}
+                      onClick={() => openRow(p)}>
+                      <span className="px-ws-name">{p.label}</span>
+                    </button>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </nav>
+        </aside>
+      )}
+      <div className={pixelDesk ? "px-ws-main" : undefined}>
       {openPage && openPage.render ? (
         <div className="os-page-shell" data-tour="settings-content">
           <div className="flex items-center gap-2 mb-4">
@@ -274,6 +402,9 @@ export default function Settings() {
         </>
       )}
 
+      </div>
+      </div>
+
       <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
       <FeedbackSurveyModal open={showSurvey} onClose={() => setShowSurvey(false)} />
 
@@ -302,51 +433,3 @@ export default function Settings() {
     </motion.div>
   );
 }
-
-// Per-page tutorial banner controls — toggle the banner globally and
-// reset the per-route seen-set so prompts come back on every page.
-// Subscribes to pageTutorials state so a reset from elsewhere keeps
-// the toggle UI in sync.
-function PageTutorialsControls() {
-  const [enabled, setEnabled] = useState(() => arePageTutorialsEnabled());
-  useEffect(() => subscribePageTutorials(() => setEnabled(arePageTutorialsEnabled())), []);
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        The tour walks every page, starting with how the app fits together. Each page also has its own short walk-through: open the page's ⚙ menu → "Show me around this page" any time.
-      </p>
-      <Group title="Page tutorials" first>
-        <SwitchRow label="Show page-tutorial prompts" hint={'"New to this page? Show me around" banner on first visit.'}
-          checked={enabled}
-          onChange={(next) => { setPageTutorialsEnabled(next); setEnabled(next); }} />
-      </Group>
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => openFullTour()} data-tour="settings-full-tour">
-          Take the tour
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            clearAllPageTutorialsSeen();
-            toast.success("Page tutorials reset — banners will reappear on every page.");
-          }}
-        >
-          Replay all page tutorials
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          data-tour="rerun-setup"
-          onClick={() => { window.location.href = "/?onboarding=replay"; }}
-        >
-          Start setup over
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Start setup over runs the welcome steps again (backups, the notice, your words, a first feeling, who's here). It never deletes or overwrites anything.
-      </p>
-    </div>
-  );
-}
-

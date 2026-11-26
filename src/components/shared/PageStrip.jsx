@@ -10,10 +10,25 @@
 //   <PageStrip label="Analytics views" value={tab} onChange={setTab}
 //     items={[{ id: "overview", label: "Overview" }, { id: "life", label: "Life", icon: Leaf }]} />
 
-import React, { useRef } from "react";
+import React, { useEffect, useId, useRef } from "react";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
+import { publishSubtabs } from "@/lib/pageSubtabs";
 
-export default function PageStrip({ items = [], value, onChange, label = "Views", tour, className = "", sticky = false, children, ...rest }) {
+// `subtabs`: this is the page's own top-level strip. In the pixel look it
+// is shown as subtabs beside the page's tab in the frame (pageSubtabs.js)
+// and this in-page copy hides while those show.
+export default function PageStrip({ items = [], value, onChange, label = "Views", tour, className = "", sticky = false, subtabs = false, children, ...rest }) {
   const ref = useRef(null);
+  const owner = useId();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  const publish = subtabs && pixel;
+  useEffect(() => {
+    if (!publish) return undefined;
+    return publishSubtabs(owner, {
+      label, value, onChange,
+      items: items.map((it) => ({ id: it.id, label: it.count != null ? `${it.label} ${it.count}` : it.label })),
+    });
+  });
   const onKeyDown = (e) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     const i = items.findIndex((it) => it.id === value);
@@ -30,7 +45,7 @@ export default function PageStrip({ items = [], value, onChange, label = "Views"
       aria-label={label}
       data-tour={tour}
       onKeyDown={onKeyDown}
-      className={`os-page-strip flex items-stretch overflow-x-auto overflow-y-hidden scrollbar-none border-b border-border/60 ${sticky ? "sticky top-0 bg-background z-10" : ""} ${className}`}
+      className={`os-page-strip flex items-stretch overflow-x-auto overflow-y-hidden scrollbar-none border-b border-border/60 ${sticky ? "sticky top-0 bg-background z-10" : ""} ${publish ? "px-pages-sub" : ""} ${className}`}
       {...rest}
     >
       {items.map((it) => {

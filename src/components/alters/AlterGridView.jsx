@@ -18,6 +18,7 @@ import AlterHoldRail from "./AlterHoldRail";
 import { useFrontLook } from "@/lib/frontLook";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { alterPictureStyle } from "@/lib/imageFraming";
+import { alterRoles } from "@/lib/alterRoles";
 
 const EMPTY_SET = new Set();
 // Past this nesting depth the tinted-card-inside-tinted-card shrinks toward
@@ -27,7 +28,7 @@ const EMPTY_SET = new Set();
 // fresh top-level view you can back out of, no redirect to its profile.
 const MAX_GRID_INLINE_DEPTH = 3;
 
-function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
+function AlterCard({ alter, fronting, compact, onTap, onOpen, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [], pixel = false, selected = false, meta = null }) {
   const formatAlter = useAlterLabel();
   // Grid grammar: tap the avatar → profile; press-and-hold → a small rail
   // with the front button and the action list (the list view's two
@@ -62,6 +63,66 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
   const sizeClass = compact
     ? (fronting ? "w-16 h-16" : "w-14 h-14")
     : (fronting ? "w-20 h-20" : "w-16 h-16");
+
+  const roleList = pixel ? alterRoles(alter) : [];
+  const holdUi = (
+    <>
+      {railOpen && (
+        <AlterHoldRail alter={alter} anchorEl={avatarRef.current} activeSessions={activeSessions}
+          gesture={gesture} onOpenMenu={() => setMenuOpen(true)} onClose={closeRail} />
+      )}
+      {menuOpen && (
+        <AlterActionMenu alter={alter} activeSessions={activeSessions} session={mySession}
+          onClose={() => setMenuOpen(false)} />
+      )}
+    </>
+  );
+
+  // Pixel look on a computer (the alters directory workspace): a bevelled
+  // card — square picture, name, pronouns, role chip and when they were
+  // last in front. A click picks the card (its Info panel shows); a
+  // double-click or Enter opens the profile; holding still opens the rail.
+  if (pixel) {
+    return (
+      <div
+        ref={avatarRef}
+        role="button"
+        tabIndex={0}
+        aria-pressed={selected}
+        aria-label={formatAlter(alter)}
+        data-alter-card=""
+        className={`pxa-card select-none${selected ? " sel" : ""}`}
+        {...holdMenu.bind}
+        onClick={() => { if (!holdMenu.suppressed()) onTap?.(); }}
+        onDoubleClick={() => onOpen?.()}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onOpen?.(); } else if (e.key === " ") { e.preventDefault(); onTap?.(); } }}
+      >
+        {gesture.node}
+        <span className={`pxa-av${anonymizeBlurAvatars(anonymize) ? " blur-sm" : ""}`} style={{ background: alterColor }}>
+          {resolvedUrl && !imgError && (
+            <img src={resolvedUrl} alt="" style={alterPictureStyle(alter, rotatingAvatarUrl)} draggable={false} onError={() => setImgError(resolvedUrl)} />
+          )}
+        </span>
+        <span className={`pxa-name${anonymizeBlurNames(anonymize) ? " blur-sm" : ""}`} title={formatAlter(alter)}
+          style={{ ...(hl.textColor ? { color: hl.textColor } : {}), ...(hl.font ? { fontFamily: hl.font } : {}) }}>
+          {alter.emoji ? <span className="mr-0.5">{alter.emoji}</span> : null}{formatAlter(alter)}
+        </span>
+        {alter.pronouns && <span className="pxa-sub">{alter.pronouns}</span>}
+        {roleList.length > 0 && (
+          <span className="pxa-chips">{roleList.slice(0, 2).map((r, i) => <span key={`${r}-${i}`} className="pxa-chip">{r}</span>)}</span>
+        )}
+        {meta?.front && <span className={`pxa-front${fronting ? " on" : ""}`}>{meta.front}</span>}
+        {ownsSubsystem && (
+          <button type="button" className="pxa-members" aria-expanded={expanded}
+            onClick={(e) => { e.stopPropagation(); onToggleExpand?.(); }}
+            onDoubleClick={(e) => e.stopPropagation()}>
+            {expanded ? "Hide members" : "Members"}
+          </button>
+        )}
+        {holdUi}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-2 select-none">
@@ -130,7 +191,7 @@ function AlterCard({ alter, fronting, compact, onTap, anonymize = "off", ownsSub
   );
 }
 
-export default function AlterGridView({ alters, activeSessions = [], allAlters = [], allGroups = [], cols = 3, anonymize = "off", persistKey }) {
+export default function AlterGridView({ alters, activeSessions = [], allAlters = [], allGroups = [], cols = 3, anonymize = "off", persistKey, pixel = false, selectedId = null, onSelect, cardMeta }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const t = useTerms();
@@ -238,15 +299,22 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     4: "grid-cols-4 sm:grid-cols-5 md:grid-cols-6",
     5: "grid-cols-5 sm:grid-cols-6 md:grid-cols-7",
   }[cols] || "grid-cols-3 sm:grid-cols-4 md:grid-cols-5";
+  // The pixel cards are wider: up to `cols` a row, fewer when the room runs out.
+  const gridClass = pixel ? "pxa-grid" : `grid ${colsClass} gap-3`;
+  const gridStyle = pixel ? { "--pxa-cols": cols } : undefined;
 
   const surfaceBg = getSurfaceBackground();
 
   const cardProps = (alter) => ({
     fronting: isFronting(alter.id),
     compact,
-    onTap: () => navigate(`/alter/${alter.id}`),
+    onTap: pixel && onSelect ? () => onSelect(alter) : () => navigate(`/alter/${alter.id}`),
+    onOpen: () => navigate(`/alter/${alter.id}`),
     anonymize,
     activeSessions,
+    pixel,
+    selected: pixel && selectedId === alter.id,
+    meta: pixel && cardMeta ? cardMeta(alter) : null,
   });
 
   // Recursive node: a card, plus (when expanded) a full-width tinted
@@ -318,7 +386,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
                         {inlineExpandable && subOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
                       </button>
                       {subOpen && (
-                        <div className={`grid ${colsClass} gap-3 mt-2 pl-2`}>
+                        <div className={`${gridClass} mt-2 pl-2`} style={gridStyle}>
                           {subMembers.map((m) => renderNode(m, nextVisited, depth + 1, `${path}/${m.id}`))}
                           <button type="button" onClick={() => setSubsystemMenuGroup(sub)}
                             className="flex flex-col items-center gap-2 select-none" title={`Manage ${sub.name}`}>
@@ -340,7 +408,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
                 return (
                   <>
                     <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.name}</p>
-                    <div className={`grid ${colsClass} gap-3`}>
+                    <div className={gridClass} style={gridStyle}>
                       {subMembers.map((m) => renderNode(m, nextVisited, depth + 1, `${path}/${m.id}`))}
                       <button type="button" onClick={() => setSubsystemMenuGroup(sub)}
                         className="flex flex-col items-center gap-2 select-none" title={`Manage ${sub.name}`}>
@@ -384,7 +452,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           })}
         </div>
       )}
-      <div className={`grid ${colsClass} gap-3`}>
+      <div className={gridClass} style={gridStyle}>
         {displayAlters.map((alter) => renderNode(alter, baseVisited, 0, alter.id))}
         {current && (
           <button type="button" onClick={() => setSubsystemMenuGroup(current)}

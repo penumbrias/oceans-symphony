@@ -19,6 +19,7 @@ export function DropdownLayer({ children }) {
 import { ChevronDown, Check, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { usePopupTheme } from "@/components/shared/popupTheme";
 
 function AvatarImg({ url, label }) {
   const resolvedUrl = useResolvedAvatarUrl(url);
@@ -91,8 +92,11 @@ export function SearchableSelect({
   renderOption,
   disabled = false,
   className,
+  triggerId,          // optional: id + aria-labelledby for the trigger, so a
+  triggerLabelledBy,  // field label names it (the house kit's NestedPicker)
 }) {
   const [open, setOpen] = useState(false);
+  const popTheme = usePopupTheme("searchable-select");
   const [query, setQuery] = useState("");
   const [openAbove, setOpenAbove] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -235,6 +239,8 @@ export function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={open ? handleClose : handleOpen}
+        id={triggerId}
+        aria-labelledby={triggerLabelledBy}
         aria-expanded={open}
         aria-haspopup="listbox"
         className={cn(
@@ -279,9 +285,10 @@ export function SearchableSelect({
         <DropdownLayer>
         <div
           ref={panelRef}
+          {...popTheme.attrs}
           data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
+          style={{ ...popTheme.style, top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
@@ -311,6 +318,7 @@ export function SearchableSelect({
           <div
             ref={listRef}
             role="listbox"
+            aria-label={placeholder || "Options"}
             className="overflow-y-auto py-1 flex-1 min-h-0"
           >
            {filtered.length === 0 ? (
@@ -352,6 +360,7 @@ export function SearchableMultiSelect({
   className,
 }) {
   const [open, setOpen] = useState(false);
+  const popTheme = usePopupTheme("searchable-select");
   const [query, setQuery] = useState("");
   const [openAbove, setOpenAbove] = useState(false);
   const [panelPos, setPanelPos] = useState(null);
@@ -490,9 +499,10 @@ export function SearchableMultiSelect({
         <DropdownLayer>
         <div
           ref={panelRef}
+          {...popTheme.attrs}
           data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
+          style={{ ...popTheme.style, top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -516,7 +526,7 @@ export function SearchableMultiSelect({
               </button>
             )}
           </div>
-          <div role="listbox" aria-multiselectable="true" className="overflow-y-auto py-1 flex-1 min-h-0">
+          <div role="listbox" aria-multiselectable="true" aria-label={placeholder || "Options"} className="overflow-y-auto py-1 flex-1 min-h-0">
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">{emptyMessage}</p>
             ) : (

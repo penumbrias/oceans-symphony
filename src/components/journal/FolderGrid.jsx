@@ -2,6 +2,21 @@ import React, { useState, useRef, useEffect } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { Folder, FolderOpen, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
+// Ask before deleting a folder — entries inside move up, never deleted.
+// Shared with the pixel folder panel so both doors say the same thing.
+// `folder` = { name, path, count, hasChildren }.
+export async function confirmFolderDelete(folder) {
+  const inside = folder.count;
+  const subfolderNote = folder.hasChildren ? " Subfolders will also be removed." : "";
+  const destination = folder.path.includes("/")
+    ? "the parent folder"
+    : "the root";
+  const msg = inside > 0
+    ? `Delete "${folder.name}"? ${inside} ${inside === 1 ? "entry" : "entries"} inside will be moved to ${destination} — entries themselves will NOT be deleted.${subfolderNote}`
+    : `Delete the empty folder "${folder.name}"?${subfolderNote}`;
+  return !!(await confirm(msg));
+}
+
 export default function FolderGrid({ folders, onSelect, onRename, onDelete }) {
   const [menuFor, setMenuFor] = useState(null); // folder path
   const [renamingPath, setRenamingPath] = useState(null);
@@ -64,17 +79,7 @@ export default function FolderGrid({ folders, onSelect, onRename, onDelete }) {
   const handleDeleteClick = async (folder) => {
     setMenuFor(null);
     if (!onDelete) return;
-    const inside = folder.count;
-    const subfolderNote = folder.hasChildren ? " Subfolders will also be removed." : "";
-    const destination = folder.path.includes("/")
-      ? "the parent folder"
-      : "the root";
-    const msg = inside > 0
-      ? `Delete "${folder.name}"? ${inside} ${inside === 1 ? "entry" : "entries"} inside will be moved to ${destination} — entries themselves will NOT be deleted.${subfolderNote}`
-      : `Delete the empty folder "${folder.name}"?${subfolderNote}`;
-    if ((await confirm(msg))) {
-      onDelete(folder.path);
-    }
+    if (await confirmFolderDelete(folder)) onDelete(folder.path);
   };
 
   return (

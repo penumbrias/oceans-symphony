@@ -1,0 +1,141 @@
+/* The new house's desktop and tablet frame (step 2.1). House tokens only.
+   The frame itself is transparent so the person's wallpaper shows behind
+   the page; every piece of chrome is its own [data-house] root (HouseScope)
+   painted with the panel colour. */
+
+[data-house-frame].hf {
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+  min-width: 0; overflow: hidden;
+}
+
+/* Hosts that only carry the paint to what's inside (the skip link, the
+   sheet): no box of their own. Custom properties still inherit. */
+[data-house].hf-skips,
+[data-house].hf-sheet-host { display: contents; }
+
+/* ── Skip link and the screen-reader announcer ───────────────────── */
+[data-house] .hf-skip {
+  position: fixed; left: var(--house-space-2); top: var(--house-space-2); z-index: 80;
+  padding: var(--house-space-2) var(--house-space-3);
+  background: var(--house-raised); color: var(--house-text);
+  border: var(--house-border-w) solid var(--house-accent); border-radius: var(--house-corner-sm);
+  font-family: var(--house-font-label); font-weight: 700;
+  transform: translateY(-200%);
+}
+[data-house] .hf-skip:focus,
+[data-house] .hf-skip:focus-visible { transform: none; }
+[data-house-frame] .hf-sr,
+[data-house] .hf-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ── Top: the bar and the open-page tabs ─────────────────────────── */
+[data-house].hf-top { flex: 0 0 auto; background: var(--house-page); position: relative; z-index: 3; }
+/* Board 01-Main: a 3 rem bar over the header wave, the name in the label
+   font, the area menus, and Search as a sunken box on the right. */
+[data-house] .hf-topbar {
+  position: relative; display: flex; align-items: center; gap: var(--house-space-2);
+  min-width: 0; min-height: 3rem; padding: var(--house-space-1) var(--house-space-2);
+  background: var(--house-panel); border-bottom: var(--house-px-line, 1px) solid var(--house-outline);
+  overflow: hidden;
+}
+[data-house] .hf-topbar > :not(.hk-wave) { position: relative; z-index: 1; }
+[data-house] .hf-home { width: auto; gap: var(--house-space-2); padding-right: var(--house-space-2); color: var(--house-text); text-decoration: none; }
+[data-house] .hf-appname { font-size: var(--house-text-md); white-space: nowrap; }
+[data-house][data-house-size="compact"] .hf-appname { display: none; }
+[data-house] .hf-home {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  height: var(--house-target); border-radius: var(--house-corner-sm);
+}
+[data-house] .hf-logo { width: 1.75rem; height: 1.75rem; object-fit: contain; }
+[data-house] .hf-areas {
+  display: flex; align-items: center; gap: var(--house-space-1);
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+}
+[data-house] .hf-areas > * { flex: 0 0 auto; }
+[data-house] .hf-search-btn { flex: 0 0 auto; }
+[data-house][data-house-look="pixel"] .hf-search-btn:not(.hk-btn--quiet) {
+  background: var(--house-page); box-shadow: var(--house-px-sink); border-color: var(--house-outline);
+  min-width: 13rem; justify-content: space-between;
+}
+[data-house] .hf-kbd {
+  margin-left: var(--house-space-2); padding: 0 var(--house-space-1);
+  border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner-sm);
+  color: var(--house-muted); font-size: var(--house-frame-text-xs);
+}
+[data-house] .hf-search-pop { width: min(36rem, calc(100vw - 2rem)); max-width: min(36rem, calc(100vw - 2rem)); max-height: min(40rem, 85vh); padding: var(--house-space-3); }
+/* The search's results hang under its box on the old pages; inside the
+   popover they flow, so the popover scrolls instead of clipping them. */
+[data-house] .hf-search-pop .top-full,
+[data-house] .hf-search-pop .psh-gs-drop { position: static; margin-top: var(--house-space-2); max-height: none; }
+
+/* ── Body: rail · left panel · page · right dock ─────────────────── */
+[data-house-frame] .hf-body { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0; }
+/* Board 01-Main's rail: QUICK tools, then PAGE tools, bevelled. */
+[data-house].hf-rail {
+  display: flex; flex-direction: column; align-items: center; gap: var(--house-space-2);
+  flex: 0 0 3.5rem; width: 3.5rem; padding: var(--house-space-2) 0;
+  background: var(--house-panel);
+  border-right: var(--house-px-line, 1px) solid var(--house-outline);
+  overflow-y: auto; overflow-x: hidden;
+}
+[data-house] .hf-rail-label { color: var(--house-muted); font-size: var(--house-text-xs); letter-spacing: 0.04em; text-transform: uppercase; }
+[data-house][data-house-look="pixel"] .hf-rail .hk-iconbtn {
+  width: 2.5rem; height: 2.5rem; min-height: 2.5rem;
+  border: var(--house-px-line, 1px) solid var(--house-outline); border-radius: 0;
+  background: var(--house-title); box-shadow: var(--house-px-btn);
+}
+[data-house][data-house-look="pixel"] .hf-rail .hk-iconbtn.hk-btn--primary { background: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--house-px-on); }
+[data-house] .hf-rail-gap { flex: 1 1 auto; }
+[data-house].hf-left,
+[data-house].hf-right {
+  display: flex; flex: 0 0 auto; min-height: 0; min-width: 0;
+  background: var(--house-panel);
+}
+[data-house].hf-left { border-right: var(--house-border-w) solid var(--house-divider); }
+[data-house].hf-right { border-left: var(--house-border-w) solid var(--house-divider); }
+[data-house] .hf-dock-scroll { flex: 1 1 auto; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: var(--house-space-3); }
+
+/* The page: the old room, outside any house root, over the wallpaper. */
+[data-house-frame] .hf-canvas { min-height: 0; }
+/* The house's own Home room fills the middle edge to edge (HouseHome). */
+[data-house-frame] .hf-canvas--room { padding: 0; }
+
+/* ── Panels' insides ─────────────────────────────────────────────── */
+[data-house] .hf-panel-title { margin: 0 0 var(--house-space-2); font-size: var(--house-frame-text-sm); color: var(--house-muted); }
+[data-house] .hf-browse { display: flex; flex-direction: column; min-width: 0; }
+[data-house] .hf-dock { display: flex; flex-direction: column; gap: var(--house-space-3); min-width: 0; }
+[data-house] .hf-dock-body { min-width: 0; }
+[data-house] .hf-dock-list { display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hf-plain-list { list-style: none; margin: 0; padding: 0; }
+[data-house] .hf-help { display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hf-help-steps { margin: 0; padding-left: var(--house-space-5); display: flex; flex-direction: column; gap: var(--house-space-3); }
+[data-house] .hf-help-guide { display: flex; align-items: center; gap: var(--house-space-2); }
+[data-house] .hf-help-guide-line { margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
+[data-house] .hf-help-step-title { margin: 0; font-size: var(--house-text-md); }
+[data-house] .hf-help-step-body { margin: var(--house-space-1) 0 0; color: var(--house-muted); font-size: var(--house-text-sm); line-height: var(--house-lh-sm); }
+[data-house] .hf-muted { color: var(--house-muted); }
+
+/* The dock's four tabs all fit at the narrowest dock (the tabs are words
+   only, see DockPanels), so Help and its dot are never off the strip. */
+[data-house] .hf-dock .hk-tab { flex: 1 1 auto; justify-content: center; padding: 0 var(--house-space-2); }
+
+/* Floating cards from the old house (the reminder toast) sit above the
+   status bar, not on it. Scoped by :has() so the rule does nothing once
+   the frame is gone (the stylesheet stays loaded after "Use the old
+   house" until the next reload). */
+body:has([data-house-frame]) .os-float-right { bottom: calc(var(--house-h-control, 2.75rem) + 0.75rem); }
+
+/* Sheets stop at the top of the status bar, so it stays in sight. */
+[data-house].hf-sheet-host { --house-sheet-bottom: var(--house-h-status); }
+[data-house].hf-sheet-host[data-house-size="compact"] { --house-sheet-bottom: var(--house-h-control); }
+@media (pointer: coarse) { [data-house].hf-sheet-host { --house-sheet-bottom: var(--house-h-control); } }
+
+/* Support one tap away over the old dialogs (§14). The old rooms' dialogs
+   (data-os-overlay) dim the whole window, so the rail's Support button is
+   lifted over their scrim and takes taps back from Radix's
+   pointer-events:none on <body>. Tapping it goes to Support, and the frame
+   closes what's still open the way its own close would. */
+[data-house] .hf-rail-support { position: relative; z-index: 51; pointer-events: auto; }

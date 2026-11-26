@@ -14,24 +14,23 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
-import { castPollVote } from "@/lib/pollVote";
+import { castPollVote, decrementTallyVote, createPoll, editPoll, addPollOption, setPollTallyMode, closePoll, trashPoll, setPollPinned, defaultTallyMode, rememberTallyMode } from "@/lib/pollEntry";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import FronterPicker from "@/components/fronting/FronterPicker";
 import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
 import { sharedList } from "@/lib/sharedLists";
+import { useUiLook, usePixelDesk } from "@/lib/uiLook";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import AlterAvatar from "@/components/shared/AlterAvatar";
+import { format } from "date-fns";
+import "@/styles/pixel/social.css";
 
 // Per-user default for what voting mode a NEW poll should start in.
 // Persists in localStorage so the user's preferred mode carries forward.
 // Per-poll override is still possible from the poll's detail view.
-const TALLY_DEFAULT_KEY = "symphony_polls_default_tally_mode";
-function readTallyDefault() {
-  try { return localStorage.getItem(TALLY_DEFAULT_KEY) === "1"; }
-  catch { return false; }
-}
-function writeTallyDefault(on) {
-  try { localStorage.setItem(TALLY_DEFAULT_KEY, on ? "1" : "0"); }
-  catch { /* non-fatal */ }
-}
+// (defaultTallyMode / rememberTallyMode in pollEntry.js)
+const readTallyDefault = defaultTallyMode;
+const writeTallyDefault = rememberTallyMode;
 
 // "Created By" picker — compact signpost-style dropdown (single
 // trigger button → searchable popover). The previous FronterPicker
@@ -102,6 +101,14 @@ function MultiVoterPicker({ alters, value, onChange, defaultVoters }) {
     </div>
   );
 }
+
+// An option is normally its label; some older/imported polls hold
+// { label, votes } objects instead.
+const optionLabel = (o) => (typeof o === "string" ? o : (o?.label ?? ""));
+
+// Tally mode: take one anonymous mark off an option (the detail view's −
+// and the pixel card's − both call this). Pops the last anonymous ""
+// first, so alter-tagged votes from before a switch to tally mode stay.
 
 function PollListView({ polls, alters, onSelectPoll }) {
   const terms = useTerms();
@@ -211,22 +218,9 @@ export function CreatePollModal({ open, onClose, alters }) {
 
     setSaving(true);
     try {
-      // Initialize votes object
-      const votes = {};
-      filledOptions.forEach((_, idx) => {
-        votes[idx.toString()] = [];
-      });
-
-      await base44.entities.Poll.create({
-        question: question.trim(),
-        options: filledOptions,
-        // In tally mode there's no per-alter accounting, so the
-        // creator-alter concept is meaningless — store null.
-        created_by_alter_id: tallyMode ? null : (selectedAlter || null),
-        is_closed: false,
-        tally_mode: tallyMode,
-        votes,
-      });
+      // In tally mode there's no per-alter accounting, so the
+      // creator-alter concept is meaningless — createPoll stores null.
+      await createPoll({ question: question.trim(), options: filledOptions, tallyMode, createdByAlterId: selectedAlter || null });
       // Remember this mode as the default for future polls.
       writeTallyDefault(tallyMode);
 
@@ -385,22 +379,9 @@ function EditPollModal({ open, onClose, poll }) {
 
     setSaving(true);
     try {
-      // Migrate votes: each new index pulls from its origin's old key.
-      // Newly-added rows (origin null) start with [].
-      const newVotes = {};
-      filledOpts.forEach((_, newIdx) => {
-        const origin = filledOrigin[newIdx];
-        newVotes[String(newIdx)] = origin != null ? ((poll.votes || {})[String(origin)] || []) : [];
-      });
-      await base44.entities.Poll.update(poll.id, {
-        question: question.trim(),
-        options: filledOpts,
-        votes: newVotes,
-        tally_mode: tallyMode,
-        // If the user flipped to tally mode in the editor, drop the
-        // creator alter to match the create-flow's behaviour.
-        ...(tallyMode ? { created_by_alter_id: null } : {}),
-      });
+      // Votes follow their option to its new index; new rows start empty;
+      // flipping to tally mode drops the creator (editPoll, pollEntry.js).
+      await editPoll(poll, { question: question.trim(), options: filledOpts, optionOrigin: filledOrigin, tallyMode });
       writeTallyDefault(tallyMode);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       toast.success("Poll updated");
@@ -479,6 +460,95 @@ function EditPollModal({ open, onClose, poll }) {
   );
 }
 
+
+// One poll in the pixel look (the "Polls, phone" board): open/closed in the
+// title bar, each option a tick + its voters + count + bar, voted straight
+// from the card as whoever is in front (the detail view's default voters,
+// through the same castPollVote). "edit ..." opens the full poll view.
+function PixelPollCard({ poll, alters, currentFronterIds, onOpen }) {
+  const terms = useTerms();
+  const formatAlter = useAlterLabel();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const byId = (id) => alters.find((a) => a.id === id);
+  const voters = currentFronterIds.length > 0 ? currentFronterIds : [""];
+  const counts = (poll.options || []).map((_, i) => (Array.isArray(poll.votes?.[i]) ? poll.votes[i].length : 0));
+  const total = counts.reduce((a, b) => a + b, 0);
+  const meta = poll.is_closed
+    ? (poll.updated_date || poll.created_date ? format(new Date(poll.updated_date || poll.created_date), "MMM d") : "")
+    : poll.pinned_to_dashboard ? "pinned to the board"
+    : poll.bulletin_id ? "from the board"
+    : poll.created_date ? formatDistanceToNow(new Date(poll.created_date), { addSuffix: true }) : "";
+
+  const vote = async (idx) => {
+    if (poll.is_closed || busy) return;
+    setBusy(true);
+    try { await castPollVote(poll, idx, voters); queryClient.invalidateQueries({ queryKey: ["polls"] }); }
+    catch { toast.error("Failed to vote"); }
+    finally { setBusy(false); }
+  };
+  const decrement = async (idx) => {
+    if (busy) return;
+    setBusy(true);
+    try { if (await decrementTallyVote(poll, idx)) queryClient.invalidateQueries({ queryKey: ["polls"] }); }
+    catch { toast.error("Failed to decrement"); }
+    finally { setBusy(false); }
+  };
+
+  const allVoterIds = new Set(Object.values(poll.votes || {}).filter(Array.isArray).flat());
+  const notVoted = poll.tally_mode ? [] : currentFronterIds.filter((id) => !allVoterIds.has(id)).map(byId).filter(Boolean);
+  const names = (list) => list.map((a) => formatAlter(a)).join(", ");
+  const fronters = currentFronterIds.map(byId).filter(Boolean);
+  const foot = poll.is_closed ? "This poll is closed"
+    : poll.tally_mode ? "Anonymous tally: each tap adds one"
+    : notVoted.length > 0 && notVoted.length < fronters.length ? `Not voted yet: ${names(notVoted)}`
+    : fronters.length > 0 ? `Voting as ${names(fronters)}, in ${terms.front}`
+    : `Voting as the ${terms.system}`;
+
+  return (
+    <section className="pp-card" data-highlight-id={poll.id}>
+      <div className="pp-ttl"><span>{poll.is_closed ? "Closed" : "Open"}</span><span className="pp-ttl-dim">{meta}</span></div>
+      <div className="pp-body">
+        <b className="pp-q">{poll.question}</b>
+        {(poll.options || []).map((option, idx) => {
+          const label = optionLabel(option);
+          const optionVotes = Array.isArray(poll.votes?.[idx]) ? poll.votes[idx] : [];
+          const mine = !poll.tally_mode && voters.some((v) => optionVotes.includes(v));
+          const pct = total === 0 ? 0 : (optionVotes.length / total) * 100;
+          return (
+            <div key={idx} className="pp-opt">
+              <div className="pp-opt-row">
+                <button type="button" className={`pp-tick${mine ? " y" : ""}`} onClick={() => vote(idx)} disabled={poll.is_closed || busy}
+                  aria-pressed={mine} aria-label={`Vote ${label}`}>{mine ? "x" : poll.tally_mode && !poll.is_closed ? "+" : ""}</button>
+                <button type="button" className="pp-label" onClick={() => vote(idx)} disabled={poll.is_closed || busy}>{label}</button>
+                {!poll.tally_mode && (
+                  <span className="pp-who">
+                    {optionVotes.slice(0, 6).map((id, i) => {
+                      const a = id ? byId(id) : null;
+                      return a
+                        ? <AlterAvatar key={`${id}-${i}`} alter={a} size="w-3 h-3" rounded="none" className="pp-mark" />
+                        : <span key={`sys-${i}`} className="pp-sq pp-mark" title={terms.System} style={{ background: "var(--px-text-2)" }} />;
+                    })}
+                  </span>
+                )}
+                {poll.tally_mode && !poll.is_closed && (
+                  <button type="button" className="pp-chip" onClick={() => decrement(idx)} disabled={busy || optionVotes.length === 0} aria-label={`Decrement ${label} count`}>-</button>
+                )}
+                <span className="pp-num">{optionVotes.length}</span>
+              </div>
+              <span className="pp-bar"><span style={{ width: `${pct}%` }} /></span>
+            </div>
+          );
+        })}
+        <div className="pp-foot">
+          <span className="pp-dim">{foot}</span>
+          <button type="button" className="pp-textbtn" onClick={() => onOpen(poll)}>edit ...</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFronterIds = [] }) {
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
@@ -523,7 +593,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
 
     setSaving(true);
     try {
-      // One vote path for the page and the widgets (src/lib/pollVote.js):
+      // One vote path for the page and the widgets (src/lib/pollEntry.js):
       // tally polls add one anonymous mark; per-alter polls toggle each
       // selected voter, an empty selection being one system-wide vote.
       await castPollVote(poll, optionIdx, selectedVoters);
@@ -548,10 +618,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
       return;
     }
     try {
-      const newOptions = [...(poll.options || []), label];
-      const newVotes = { ...(poll.votes || {}) };
-      newVotes[String(newOptions.length - 1)] = [];
-      await base44.entities.Poll.update(poll.id, { options: newOptions, votes: newVotes });
+      await addPollOption(poll, label);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       setNewOptionText("");
       setAddingOption(false);
@@ -564,16 +631,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
     if (poll.is_closed) return;
     setSaving(true);
     try {
-      const key = optionIdx.toString();
-      const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
-      if (!newVotes[key] || newVotes[key].length === 0) return;
-      // Remove the last anonymous "" if there is one; otherwise pop the
-      // last entry regardless so the count goes down.
-      const lastAnon = newVotes[key].lastIndexOf("");
-      if (lastAnon >= 0) newVotes[key].splice(lastAnon, 1);
-      else newVotes[key].pop();
-      await base44.entities.Poll.update(poll.id, { votes: newVotes });
-      queryClient.invalidateQueries({ queryKey: ["polls"] });
+      if (await decrementTallyVote(poll, optionIdx)) queryClient.invalidateQueries({ queryKey: ["polls"] });
     } catch (e) {
       toast.error("Failed to decrement");
     } finally {
@@ -584,7 +642,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   const handleToggleTallyMode = async () => {
     const next = !poll.tally_mode;
     try {
-      await base44.entities.Poll.update(poll.id, { tally_mode: next });
+      await setPollTallyMode(poll.id, next);
       writeTallyDefault(next);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
     } catch (e) {
@@ -595,7 +653,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   const handleClosePoll = async () => {
     setSaving(true);
     try {
-      await base44.entities.Poll.update(poll.id, { is_closed: true });
+      await closePoll(poll.id);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       toast.success("Poll closed");
       onBack();
@@ -623,13 +681,9 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
     setDeleteArmed(false);
     setSaving(true);
     try {
-      if (poll.bulletin_id) {
-        try {
-          await base44.entities.Bulletin.update(poll.bulletin_id, { poll_id: null });
-          queryClient.invalidateQueries({ queryKey: ["bulletins"] });
-        } catch { /* non-fatal */ }
-      }
-      await base44.entities.Poll.delete(poll.id);
+      // A poll posted from a bulletin is unlinked from that post first.
+      await trashPoll(poll);
+      if (poll.bulletin_id) queryClient.invalidateQueries({ queryKey: ["bulletins"] });
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       toast.success("Poll deleted");
       onBack();
@@ -643,19 +697,12 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   const handleTogglePin = async () => {
     const next = !poll.pinned_to_dashboard;
     try {
-      await base44.entities.Poll.update(poll.id, { pinned_to_dashboard: next });
+      // A poll posted from a bulletin pins that post too, so it shows in the
+      // board's Pinned section (setPollPinned, pollEntry.js).
+      await setPollPinned(poll, next);
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       queryClient.invalidateQueries({ queryKey: ["polls", "pinned_in_board"] });
-      // Polls created from a bulletin are also pinned in-place via the
-      // bulletin's `is_pinned` flag so the bulletin (with the poll
-      // embedded) shows in the board's Pinned section. Standalone polls
-      // surface in the same section via PinnedPollCard.
-      if (poll.bulletin_id) {
-        try {
-          await base44.entities.Bulletin.update(poll.bulletin_id, { is_pinned: next });
-          queryClient.invalidateQueries({ queryKey: ["bulletins"] });
-        } catch { /* non-fatal: the poll pin still flips */ }
-      }
+      if (poll.bulletin_id) queryClient.invalidateQueries({ queryKey: ["bulletins"] });
       toast.success(next ? "Pinned to Bulletin Board" : "Unpinned from Bulletin Board");
     } catch (e) {
       toast.error(e.message || "Failed to update pin");
@@ -764,7 +811,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
                     : "border-border/50 bg-card hover:border-primary/50"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <p className="font-medium text-foreground mb-2">{option}</p>
+                <p className="font-medium text-foreground mb-2">{optionLabel(option)}</p>
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
                     <div
@@ -813,7 +860,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
                   type="button"
                   onClick={() => handleTallyDecrement(idx)}
                   disabled={saving || optionVotes.length === 0}
-                  aria-label={`Decrement ${option} count`}
+                  aria-label={`Decrement ${optionLabel(option)} count`}
                   title="Subtract one"
                   className="px-2.5 rounded-lg border-2 border-border/50 bg-card text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
                 >
@@ -910,6 +957,8 @@ export default function Polls() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const focusId = searchParams.get("id");
+  const pixel = useUiLook() === "pixel";
+  const pixelDesk = usePixelDesk();
 
   const { data: polls = [], isLoading: pollsLoading } = useQuery({
     ...sharedList("polls"),
@@ -964,6 +1013,46 @@ export default function Polls() {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // The pixel look: polls as cards you vote on in place (the "Polls, phone"
+  // board); "edit ..." opens the same full poll view as before.
+  if (pixel) {
+    return (
+      <div data-tour="polls-list" className={`pp-page${pixelDesk ? " pp-desk" : ""}`}>
+        <div className="pp-toolbar">
+          <h1 className="pp-title">Polls</h1>
+          <span className="pp-grow" />
+          <AlterLabelToggle size="xs" />
+          <button type="button" data-tour="polls-create" className="pp-btn pp-btn-on" onClick={() => setShowCreateModal(true)} aria-label="Create a poll">
+            <Plus className="w-4 h-4" /> New poll
+          </button>
+        </div>
+        {selectedPoll ? (
+          <section className="pp-card pp-detail">
+            <div className="pp-ttl"><span>{selectedPoll.is_closed ? "Closed" : "Open"} poll</span></div>
+            <div className="pp-body">
+              <PollDetailView
+                poll={selectedPoll}
+                alters={activeAlters}
+                currentFronterIds={currentFronterIds}
+                onBack={handleBackToList}
+                onClose={() => {}}
+              />
+            </div>
+          </section>
+        ) : polls.length === 0 ? (
+          <section className="pp-card"><div className="pp-body pp-empty">No polls yet. Make the first one with New poll.</div></section>
+        ) : (
+          <div className="pp-list">
+            {polls.map((poll) => (
+              <PixelPollCard key={poll.id} poll={poll} alters={activeAlters} currentFronterIds={currentFronterIds} onOpen={setSelectedPoll} />
+            ))}
+          </div>
+        )}
+        <CreatePollModal open={showCreateModal} onClose={() => setShowCreateModal(false)} alters={activeAlters} />
       </div>
     );
   }

@@ -1,0 +1,152 @@
+/* The house's Reminders room (HouseReminders.jsx, ReminderEditor.jsx):
+   board 23-RemindersPhone and 24-ReminderEditorPhone, and on a computer the
+   same panels with the desktop frame's toolbar, floor and status line.
+   House tokens only; every class is hrm-. Imported by the room itself, so
+   the phone (which does not load frameKit.css) has it too. Edges are the
+   thin pixel line (--house-px-line). The suggestions panel (.hrm-old:
+   RemindersOnboarding) keeps its old look until its own rebuild. */
+
+[data-house].hrm { color: var(--house-text); font-family: var(--house-font-body); background: var(--house-page); }
+[data-house] .hrm-grow { flex: 1 1 auto; }
+[data-house] .hrm-note { color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); white-space: nowrap; }
+[data-house] .hrm-empty { margin: 0; padding: 0.5rem 0.625rem; color: var(--house-muted); font-size: var(--house-text-sm); }
+[data-house] .hrm-hint { margin: 0; color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hrm-warn {
+  margin: 0; padding: 0.375rem 0.5rem; font-size: var(--house-text-xs);
+  background: color-mix(in srgb, var(--house-accent) 14%, var(--house-sunken));
+  box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-accent);
+}
+[data-house] .hrm-problem { margin: 0; padding: 0.375rem 0.5rem; color: var(--house-danger-text, var(--house-text)); font-size: var(--house-text-sm); box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-danger); }
+
+/* ── Studio: toolbar · the floor (scrolls) · status line ── */
+[data-house].hrm--studio { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; min-height: 0; }
+[data-house].hrm--studio .hrm-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+[data-house].hrm--phone { min-height: 100%; display: flex; flex-direction: column; }
+[data-house] .hrm-bar { flex: 0 0 auto; background: var(--house-panel); box-shadow: inset 0 calc(-1 * var(--house-px-line, 1px)) 0 var(--house-outline); }
+[data-house] .hrm-bar--inline { background: transparent; box-shadow: none; }
+[data-house] .hrm-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.375rem 0.5rem; padding: 0.375rem 0.625rem; min-width: 0; }
+[data-house] .hrm-title { margin: 0 0.5rem 0 0; font-family: var(--house-font-label); font-size: var(--house-text-md); font-weight: 400; }
+[data-house] .hrm-filter { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.375rem 0.5rem; min-width: 0; }
+[data-house] .hrm-filter .hk-field { margin: 0; }
+[data-house] .hrm-filter .hk-field:has(.hk-picker-trigger) { flex-direction: row; align-items: center; gap: 0.375rem; }
+[data-house] .hrm-filter .hk-label { font-family: var(--house-font-label); color: var(--house-muted); }
+[data-house] .hrm-filter .hk-picker-trigger { min-width: 8rem; }
+
+/* The checked floor: Due now · Your reminders · the Reminder panel. */
+[data-house] .hrm-floor {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(20rem, 1.2fr); align-items: start;
+  gap: 0.875rem; padding: 0.875rem; min-width: 0;
+  background-color: var(--house-page);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--house-panel) 40%, var(--house-page)) 0 25%, var(--house-page) 0 50%);
+  background-size: 16px 16px;
+}
+[data-house] .hrm-floor[data-house-size="compact"] { grid-template-columns: minmax(0, 1fr) minmax(18rem, 1fr); }
+[data-house] .hrm-floor[data-house-size="compact"] .hrm-col--ed { grid-column: 2; grid-row: 1 / span 2; }
+[data-house] .hrm-col { display: flex; flex-direction: column; gap: 0.875rem; min-width: 0; }
+[data-house] .hrm-pn { margin: 0; min-width: 0; }
+[data-house] .hrm-pn > .hk-panel-body { padding: 0; }
+[data-house] .hrm-old > .hk-panel-body { padding: 0.625rem; }
+
+/* ── Due now (board 23) ── */
+[data-house] .hrm-due { padding: 0.5rem 0.625rem; display: flex; flex-direction: column; gap: 0.375rem; box-shadow: inset 0 calc(-1 * var(--house-px-line, 1px)) 0 var(--house-divider); }
+[data-house] .hrm-due[data-done] { opacity: 0.7; }
+[data-house] .hrm-due-top { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+[data-house] .hrm-sq { width: 0.75rem; height: 0.75rem; flex: 0 0 auto; box-shadow: 0 0 0 var(--house-px-line, 1px) var(--house-outline); }
+[data-house] .hrm-due-title { flex: 1 1 auto; min-width: 0; font-family: var(--house-font-label); font-size: var(--house-text-md); overflow-wrap: anywhere; }
+[data-house] .hrm-due-when { flex: 0 0 auto; font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house] .hrm-due-for { font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hrm-due-body { font-size: var(--house-text-sm); }
+[data-house] .hrm-due-acts { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+[data-house] .hrm-fold { width: 100%; justify-content: flex-start; }
+
+/* ── Your reminders (board 23) ── */
+[data-house] .hrm-list { list-style: none; margin: 0; padding: 0; }
+[data-house] .hrm-rrow { display: flex; align-items: center; gap: 0.5rem; padding-right: 0.625rem; box-shadow: inset 0 calc(-1 * var(--house-px-line, 1px)) 0 var(--house-divider); }
+[data-house] .hrm-rrow[data-selected] { background: color-mix(in srgb, var(--house-accent) 14%, transparent); }
+[data-house] .hrm-rrow .hrm-rrow-main {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 0.5rem; justify-content: space-between;
+  min-height: 3.25rem; padding: 0.375rem 0.625rem; text-align: left; border: 0; box-shadow: none; background: transparent; border-radius: 0;
+}
+[data-house] .hrm-rrow .hrm-rrow-main > span { display: flex; flex: 1 1 auto; align-items: center; gap: 0.5rem; justify-content: space-between; min-width: 0; }
+[data-house] .hrm-rrow-text { display: flex; flex-direction: column; min-width: 0; gap: 0.125rem; }
+[data-house] .hrm-rrow-title { font-size: var(--house-text-md); font-weight: 400; white-space: normal; }
+[data-house] .hrm-rrow-title[data-off] { color: var(--house-muted); }
+[data-house] .hrm-rrow-how { font-size: var(--house-text-xs); color: var(--house-muted); white-space: normal; font-weight: 400; }
+[data-house] .hrm-rrow-warn { font-size: var(--house-text-xs); color: var(--house-danger-text, var(--house-danger)); white-space: normal; }
+[data-house] .hrm-rrow-who { flex: 0 1 auto; max-width: 45%; font-family: var(--house-font-label); font-size: var(--house-text-xs); font-weight: 400; color: var(--house-muted); text-align: right; white-space: normal; }
+/* The flat tick: a square with "on" in it (board 23). */
+[data-house] .hrm-rrow .hrm-tick {
+  flex: 0 0 auto; min-width: 1.5rem; width: 1.5rem; height: 1.5rem; min-height: 1.5rem; padding: 0;
+  font-family: var(--house-font-label); font-size: var(--house-text-xs);
+  border: var(--house-px-line, 1px) solid var(--house-outline); box-shadow: none; border-radius: 0;
+}
+[data-house] .hrm-rrow .hrm-tick[aria-pressed="true"] { width: auto; padding: 0 0.25rem; }
+[data-house] .hrm-rrow .hrm-tick[aria-pressed="false"] { background: var(--house-sunken); }
+[data-house] .hrm-foot { margin: 0; padding: 0.5rem 0.625rem; font-size: var(--house-text-xs); color: var(--house-muted); }
+
+/* ── The editor (board 24) ── */
+[data-house] .hrm-ed-name { overflow-wrap: anywhere; }
+[data-house] .hrm-ed-acts { display: inline-flex; gap: 0.375rem; }
+[data-house] .hrm-ed-body { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.625rem; }
+[data-house] .hrm-line { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); align-items: center; gap: 0.5rem; }
+[data-house] .hrm-line--top { align-items: start; }
+[data-house] .hrm-line--top > .hrm-line-label { padding-top: 0.375rem; }
+[data-house] .hrm-line-label { font-size: var(--house-text-sm); }
+[data-house] .hrm-line-field { display: flex; flex-wrap: wrap; gap: 0.375rem; min-width: 0; align-items: center; }
+[data-house] .hrm-line-field > .hk-field { flex: 1 1 100%; margin: 0; }
+/* The line already names the field; its own label stays for screen readers. */
+[data-house] .hrm-line-field > .hk-field > .hk-field-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+[data-house] .hrm-msg { width: 100%; min-height: 3.25rem; resize: vertical; font-family: inherit; }
+[data-house] .hrm-sub { margin: 0.25rem 0 0; font-family: var(--house-font-label); font-size: var(--house-text-sm); font-weight: 400; }
+[data-house] .hrm-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.375rem; }
+[data-house] .hrm-kinds .hrm-chip { width: 100%; justify-content: center; }
+[data-house] .hrm-chip { min-height: 2rem; padding: 0 0.5rem; font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+/* The kind's settings: a sunken box, label beside each field. */
+[data-house] .hrm-ins {
+  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem 0.625rem;
+  background: var(--house-sunken); box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-outline);
+}
+[data-house] .hrm-ins > .hk-field, [data-house] .hrm-pair > .hk-field, [data-house] .hrm-time > .hk-field {
+  display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); align-items: center; column-gap: 0.5rem; margin: 0;
+}
+[data-house] .hrm-ins > .hk-field > :not(.hk-field-head),
+[data-house] .hrm-pair > .hk-field > :not(.hk-field-head),
+[data-house] .hrm-time > .hk-field > :not(.hk-field-head) { grid-column: 2; }
+[data-house] .hrm-ins .hrm-line { grid-template-columns: 7.5rem minmax(0, 1fr); }
+[data-house] .hrm-ins .hrm-line.hrm-line--days, [data-house].hrm--phone .hrm-ins .hrm-line.hrm-line--days { grid-template-columns: minmax(0, 1fr); }
+[data-house] .hrm-line--days > .hrm-line-label { padding-top: 0; }
+[data-house] .hrm-line--days > .hrm-line-field { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.25rem; }
+[data-house] .hrm-ins .hrm-line--days .hrm-chip.hk-btn { width: 100%; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; justify-content: center; }
+[data-house] .hrm-times { display: flex; flex-direction: column; gap: 0.375rem; align-items: stretch; }
+[data-house] .hrm-time { display: flex; align-items: center; gap: 0.25rem; }
+[data-house] .hrm-time > .hk-field { flex: 1 1 auto; }
+[data-house] .hrm-times > .hk-btn { align-self: flex-start; }
+[data-house] .hrm-pair { display: flex; flex-direction: column; gap: 0.375rem; }
+[data-house] .hrm-row-acts { display: flex; justify-content: space-between; gap: 0.375rem; }
+[data-house] .hrm-snz {
+  display: inline-flex; align-items: center; gap: 0.125rem; padding-left: 0.5rem;
+  font-family: var(--house-font-label); font-size: var(--house-text-xs);
+  background: var(--house-sunken); box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-outline);
+}
+[data-house] .hrm-ed-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.625rem;
+  box-shadow: inset 0 var(--house-px-line, 1px) 0 var(--house-outline);
+}
+
+/* ── The status line (studio) ── */
+[data-house] .hrm-status {
+  flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 1rem; min-height: var(--house-h-status, 1.5rem); padding: 0.125rem 0.625rem;
+  color: var(--house-muted); background: var(--house-title, var(--house-raised)); box-shadow: inset 0 var(--house-px-line, 1px) 0 var(--house-outline);
+  font-family: var(--house-font-label); font-size: var(--house-text-xs);
+}
+
+/* ── Phone: one column, the slim gutter ── */
+[data-house].hrm--phone .hrm-tabs { padding: 0.375rem var(--house-space-2, 0.5rem) 0; background: var(--house-page); }
+[data-house].hrm--phone .hrm-floor { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; padding: 0.5rem var(--house-space-2, 0.5rem); flex: 1 1 auto; }
+[data-house].hrm--phone .hrm-bar--inline { padding: 0; }
+[data-house].hrm--phone .hrm-line { grid-template-columns: 5.5rem minmax(0, 1fr); }
+[data-house].hrm--phone .hrm-ins > .hk-field,
+[data-house].hrm--phone .hrm-pair > .hk-field,
+[data-house].hrm--phone .hrm-time > .hk-field,
+[data-house].hrm--phone .hrm-ins .hrm-line:not(.hrm-line--days) { grid-template-columns: 6.5rem minmax(0, 1fr); }
+[data-house].hrm--phone .hrm-ed-acts .hk-btn { min-width: 4.5rem; }

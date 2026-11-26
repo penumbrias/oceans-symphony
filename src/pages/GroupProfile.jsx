@@ -12,7 +12,7 @@ import ProfileLayoutSwitch from "@/components/profile/ProfileLayoutSwitch";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, User, Crown, Users, Pencil, Eye, EyeOff, Save,
@@ -134,6 +134,17 @@ function GroupProfileInner() {
   // the group loads. reset() (not setForm) means the initial load is not an
   // undo entry and undo can never revert past the loaded data back to null.
   const [form, setForm, formHistory] = useUndoRedo(null);
+  // The pixel Groups desk's Info / Edit page buttons land here and ask for
+  // the form or the layout editor straight away (once, via history state).
+  const location = useLocation();
+  const pxOpen = location.state?.pxOpen;
+  const pxOpened = useRef(false);
+  useEffect(() => {
+    if (!pxOpen || pxOpened.current || !group || !form) return;
+    pxOpened.current = true;
+    if (pxOpen === "info") setEditMode(true);
+    else if (pxOpen === "layout") setTimeout(openProfileLayoutEditor, 250);
+  }, [pxOpen, group, form]);
   useEffect(() => {
     if (!group) return;
     formHistory.reset({

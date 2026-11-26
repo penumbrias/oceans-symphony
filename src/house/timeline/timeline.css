@@ -1,0 +1,39 @@
+/* The house's Timeline room (HouseTimeline.jsx): the layered timeline of
+   boards 01-Main and 08-Phone with the whole canvas. House tokens only;
+   every class is ht-. The shared parts' looks live in day.css. */
+
+[data-house].ht {
+  color: var(--house-text); font-family: var(--house-font-body);
+  background: var(--house-page);
+}
+/* Studio: the room fills the frame's middle; the side column is board 01's
+   right dock (Info, Layers), drawn by the room itself. */
+[data-house].ht--studio {
+  position: absolute; inset: 0; z-index: 1;
+  display: grid; min-height: 0; min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+}
+[data-house] .ht-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: var(--house-space-3); }
+[data-house] .ht-canvas { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+[data-house] .ht-timeline { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+[data-house] .ht-timeline > .hk-panel-body,
+[data-house] .ht-timeline-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+[data-house] .ht-side {
+  display: flex; flex-direction: column; min-height: 0; overflow-y: auto;
+  background: var(--house-panel); border-left: var(--house-px-line, 1px) solid var(--house-outline);
+}
+/* Compact studio: one column, the side panels under the timeline. */
+[data-house].ht--studio[data-house-size="compact"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; overflow-y: auto; }
+[data-house].ht--studio[data-house-size="compact"] .ht-timeline-body { max-height: none; overflow: visible; }
+[data-house].ht--studio[data-house-size="compact"] .ht-side {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 0; overflow: visible;
+}
+
+/* Phone (board 08-Phone): the room paints its own page edge to edge with
+   the mockups' slim gutter; panels stack. */
+[data-house][data-house-size="phone"].ht { min-height: 100%; padding: 0 var(--house-space-2); overflow-x: hidden; }
+[data-house] .ht-stack { display: flex; flex-direction: column; gap: var(--house-space-3); padding: var(--house-space-3) 0; }
+[data-house][data-house-size="phone"] .ht-timeline-body { overflow-x: hidden; }
+
+[data-house] .ht-tally .hd-p { margin: 0; color: var(--house-muted); font-size: var(--house-text-sm); }
+[data-house] .ht-tally-body { min-width: 0; }

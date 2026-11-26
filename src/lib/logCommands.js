@@ -1107,7 +1107,9 @@ async function executePlan(plan, ctx) {
       // Signed like every other journal: the first person in front is the
       // author, the others co-authors (same "who" as the other commands).
       const who = ctx.fronting_alter_ids || [];
-      const r = await base44.entities.JournalEntry.create({
+      // Loaded on use, like templateNew: journalEntry.js is a write path.
+      const { createJournalEntry } = await import("@/lib/journalEntry");
+      const r = await createJournalEntry({
         title: plan.title || null,
         content: plan.body || "",
         folder: plan.folder || null,

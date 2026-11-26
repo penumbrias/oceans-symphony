@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import PageStrip from "@/components/shared/PageStrip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { trashJournalEntry, moveEntriesOutOfFolder, renameEntriesFolder } from "@/lib/journalEntry";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
@@ -20,6 +21,8 @@ import { useTerms } from "@/lib/useTerms";
 import { sortJournalsNewestFirst, normalizeTag } from "@/lib/journalDate";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
 import { sharedList } from "@/lib/sharedLists";
+import { usePixelDesk, useUiLook } from "@/lib/uiLook";
+import JournalPixel from "@/components/journal/JournalPixel";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -45,6 +48,10 @@ const getDepth = (path) => path.split("/").length - 1;
 export default function Journals() {
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const pixelDesk = usePixelDesk();
+  const pixel = useUiLook() === "pixel";
+  // Pixel look on a computer: the entry being read in the middle pane.
+  const [deskEntryId, setDeskEntryId] = useState(null);
   const TABS = [
     { id: "all", label: "All", icon: BookOpen },
     { id: "switch_log", label: `${terms.Switch} Logs`, icon: Shuffle },
@@ -198,14 +205,18 @@ export default function Journals() {
   const openEntry = (entry) => { setViewingEntry(entry); };
   const openEdit = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const pendingId = searchParams.get('id');
   const pendingFolder = searchParams.get('folder');
 
   useEffect(() => {
     if (pendingId && entries.length > 0) {
       const entry = entries.find(e => e.id === pendingId);
-      if (entry) setViewingEntry(entry);
+      if (!entry) return;
+      // Pixel look on a computer reads entries in place: open it in the
+      // middle pane (and its folder) instead of the view sheet.
+      if (pixelDesk) { setViewingFolder(entry.folder || null); setDeskEntryId(entry.id); }
+      else setViewingEntry(entry);
     }
   }, [pendingId, entries.length]);
 
@@ -223,28 +234,31 @@ export default function Journals() {
   }, [pendingAuthor]);
 
   // ?compose=1 — open the editor for a new entry straight away (used by
-  // the UI-v2 quick-note key; optionally combined with ?folder=). Param is
-  // stripped so back/refresh doesn't reopen the editor.
+  // the UI-v2 quick-note key and the new house's Do → Write; optionally
+  // combined with ?folder=). ?import=1 — open "Import files" straight away
+  // (the UI-v2 Journal widget's Import action). Both are stripped through
+  // the router (replace), so back/refresh doesn't reopen them AND the next
+  // ?compose=1 is a real change the effect sees again (stripping with
+  // history.replaceState left the router holding ?compose=1, so a second
+  // Write from Journals did nothing).
+  const composeParam = searchParams.get("compose");
+  const importParam = searchParams.get("import");
   useEffect(() => {
-    if (searchParams.get("compose") === "1") {
+    if (composeParam !== "1" && importParam !== "1") return;
+    if (composeParam === "1") {
       // ?author= with ?compose=1 (a profile's Journal widget): the new
       // entry starts signed by that member.
       if (pendingAuthor) setComposeAuthorId(pendingAuthor);
       openNew(pendingFolder || null);
-      const params = new URLSearchParams(window.location.search);
-      params.delete("compose");
-      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
     }
-    // ?import=1 — open "Import files" straight away (the UI-v2 Journal
-    // widget's Import action). Stripped the same way.
-    if (searchParams.get("import") === "1") {
-      setShowImport(true);
-      const params = new URLSearchParams(window.location.search);
-      params.delete("import");
-      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
-    }
-     
-  }, []);
+    if (importParam === "1") setShowImport(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("compose");
+      next.delete("import");
+      return next;
+    }, { replace: true });
+  }, [composeParam, importParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useMentionHighlight("id", entries.length > 0);
 
@@ -270,20 +284,9 @@ export default function Journals() {
     // entries at root (folder=null); subfolder deletes land them at the
     // parent path.
     const parent = getParent(path); // null for top-level
-    const isInside = (folder) => folder === path || (folder && folder.startsWith(`${path}/`));
-    const affected = entries.filter((e) => isInside(e.folder));
-    await Promise.all(
-      affected.map((e) => {
-        // For descendants, remove the deleted prefix; for direct children,
-        // collapse to the parent (or root).
-        let nextFolder = parent;
-        if (e.folder && e.folder.startsWith(`${path}/`)) {
-          const remainder = e.folder.slice(path.length + 1);
-          nextFolder = parent ? `${parent}/${remainder}` : remainder;
-        }
-        return base44.entities.JournalEntry.update(e.id, { folder: nextFolder });
-      })
-    );
+    // Direct children collapse to the parent (or root); descendants keep
+    // their sub-path under it (folderAfterDelete in journalEntry.js).
+    await moveEntriesOutOfFolder(entries, path);
     const updated = savedFolders.filter((f) => f !== path && !f.startsWith(`${path}/`));
     persistFolders(updated);
     setSavedFoldersState(updated);
@@ -299,7 +302,7 @@ export default function Journals() {
   const handleDeleteEntry = async (entry) => {
     if (!entry?.id) return;
     try {
-      await base44.entities.JournalEntry.delete(entry.id);
+      await trashJournalEntry(entry.id);
       queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
       queryClient.invalidateQueries({ queryKey: ["journals"] });
       toast.success("Entry deleted");
@@ -331,17 +334,7 @@ export default function Journals() {
     persistFolders(updated);
     setSavedFoldersState(updated);
     // Update any entry whose folder is the renamed path or a descendant
-    const affected = entries.filter(
-      (e) => e.folder === oldPath || (e.folder && e.folder.startsWith(`${oldPath}/`))
-    );
-    await Promise.all(
-      affected.map((e) => {
-        const nextFolder = e.folder === oldPath
-          ? newPath
-          : newPath + e.folder.slice(oldPath.length);
-        return base44.entities.JournalEntry.update(e.id, { folder: nextFolder });
-      })
-    );
+    await renameEntriesFolder(entries, oldPath, newPath);
     if (viewingFolder === oldPath) setViewingFolder(newPath);
     else if (viewingFolder && viewingFolder.startsWith(`${oldPath}/`)) {
       setViewingFolder(newPath + viewingFolder.slice(oldPath.length));
@@ -498,73 +491,9 @@ export default function Journals() {
     return false;
   }, [fronterFilterIds, currentAlterIds]);
 
-  // Breadcrumb path segments
-  const breadcrumbs = viewingFolder ? viewingFolder.split("/") : [];
-
-  return (
-    <motion.div data-tour="journals-list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          {viewingFolder && (
-            <Button variant="ghost" size="icon" onClick={() => setViewingFolder(getParent(viewingFolder))} className="h-8 w-8">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-          )}
-          <div>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1 flex-wrap">
-              <button onClick={() => setViewingFolder(null)}
-                className={`font-display text-2xl font-semibold transition-colors ${viewingFolder ? "text-muted-foreground hover:text-foreground" : "text-foreground"}`}>
-                Journals
-              </button>
-              {breadcrumbs.map((crumb, i) => {
-                const path = breadcrumbs.slice(0, i + 1).join("/");
-                const isLast = i === breadcrumbs.length - 1;
-                return (
-                  <React.Fragment key={path}>
-                    <span className="text-muted-foreground text-2xl font-light">/</span>
-                    <button onClick={() => setViewingFolder(path)}
-                      className={`font-display text-2xl font-semibold transition-colors ${isLast ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                      {crumb}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              {viewingFolder ? `${filtered.length} entries` : `${entries.length} entries`}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 flex-shrink-0">
-          <Button data-tour="journals-folder-btn" variant="outline" size="sm" onClick={() => setShowNewFolder(true)} className="gap-1.5 justify-start">
-            <FolderPlus className="w-4 h-4" />
-            {viewingFolder ? "New Subfolder" : "New Folder"}
-          </Button>
-          <Button data-tour="journals-new-entry" size="sm" onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5 justify-start">
-            <Plus className="w-4 h-4" />
-            New Entry
-          </Button>
-          <Button data-tour="journals-import" variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-1.5 justify-start">
-            <FileUp className="w-4 h-4" />
-            Import files
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <PageStrip tour="journals-tabs" label="Journal views" items={TABS} value={tab} onChange={setTab} className="mb-4" />
-
-      {/* Filters row */}
-      <div data-tour="journals-filters" className="flex flex-wrap gap-2 mb-4">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search entries..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
-
-        {/* Author filter */}
-        {authoredAlterIds.length > 0 && (
+  // The author and fronter filters are built once and placed by whichever
+  // layout is showing (the classic filter row, or the pixel toolbar).
+  const authorFilterEl = authoredAlterIds.length > 0 && (
           <div ref={authorMenuTriggerRef} className="relative">
             <Button
               variant={selectedAuthorId ? "default" : "outline"}
@@ -638,9 +567,9 @@ export default function Journals() {
               </>
             )}
           </div>
-        )}
+        );
 
-        {currentAlterIds.length > 0 && (
+  const fronterFilterEl = currentAlterIds.length > 0 && (
           <div ref={fronterMenuTriggerRef} className="relative inline-flex">
             <Button
               variant={fronterOnly ? "default" : "outline"}
@@ -723,7 +652,108 @@ export default function Journals() {
               </>
             )}
           </div>
-        )}
+        );
+
+  // Breadcrumb path segments
+  const breadcrumbs = viewingFolder ? viewingFolder.split("/") : [];
+
+  return (
+    <motion.div data-tour="journals-list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+      {pixel ? (
+        <JournalPixel
+          desk={pixelDesk}
+          terms={terms}
+          entries={entries}
+          filtered={filtered}
+          allFolderPaths={allFolderPaths}
+          viewingFolder={viewingFolder}
+          setViewingFolder={setViewingFolder}
+          altersById={altersById}
+          search={search}
+          setSearch={setSearch}
+          allTags={allTags}
+          selectedTag={selectedTag}
+          setSelectedTag={setSelectedTag}
+          authorFilterEl={authorFilterEl}
+          fronterFilterEl={fronterFilterEl}
+          tabsEl={<PageStrip subtabs tour="journals-tabs" label="Journal views" items={TABS} value={tab} onChange={setTab} />}
+          selectedId={deskEntryId}
+          setSelectedId={setDeskEntryId}
+          onNew={openNew}
+          onEdit={openEdit}
+          onOpen={openEntry}
+          onDelete={handleDeleteEntry}
+          onNewFolder={() => setShowNewFolder(true)}
+          onImport={() => setShowImport(true)}
+          onRenameFolder={handleRenameFolder}
+          onDeleteFolder={handleDeleteFolder}
+          fronterOnly={fronterOnly}
+          onClearFronter={() => { setFronterOnly(false); setFronterFilterIds(null); }}
+        />
+      ) : (
+      <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          {viewingFolder && (
+            <Button variant="ghost" size="icon" onClick={() => setViewingFolder(getParent(viewingFolder))} className="h-8 w-8">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+          )}
+          <div>
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1 flex-wrap">
+              <button onClick={() => setViewingFolder(null)}
+                className={`font-display text-2xl font-semibold transition-colors ${viewingFolder ? "text-muted-foreground hover:text-foreground" : "text-foreground"}`}>
+                Journals
+              </button>
+              {breadcrumbs.map((crumb, i) => {
+                const path = breadcrumbs.slice(0, i + 1).join("/");
+                const isLast = i === breadcrumbs.length - 1;
+                return (
+                  <React.Fragment key={path}>
+                    <span className="text-muted-foreground text-2xl font-light">/</span>
+                    <button onClick={() => setViewingFolder(path)}
+                      className={`font-display text-2xl font-semibold transition-colors ${isLast ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                      {crumb}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {viewingFolder ? `${filtered.length} entries` : `${entries.length} entries`}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          <Button data-tour="journals-folder-btn" variant="outline" size="sm" onClick={() => setShowNewFolder(true)} className="gap-1.5 justify-start">
+            <FolderPlus className="w-4 h-4" />
+            {viewingFolder ? "New Subfolder" : "New Folder"}
+          </Button>
+          <Button data-tour="journals-new-entry" size="sm" onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5 justify-start">
+            <Plus className="w-4 h-4" />
+            New Entry
+          </Button>
+          <Button data-tour="journals-import" variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-1.5 justify-start">
+            <FileUp className="w-4 h-4" />
+            Import files
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <PageStrip subtabs tour="journals-tabs" label="Journal views" items={TABS} value={tab} onChange={setTab} className="mb-4" />
+
+      {/* Filters row */}
+      <div data-tour="journals-filters" className="flex flex-wrap gap-2 mb-4">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search entries..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+
+        {authorFilterEl}
+        {fronterFilterEl}
       </div>
 
       {/* Tag filters */}
@@ -797,6 +827,9 @@ export default function Journals() {
           </div>
         </>
       ) : null}
+
+      </div>
+      )}
 
       <JournalViewModal
         open={!!viewingEntry}

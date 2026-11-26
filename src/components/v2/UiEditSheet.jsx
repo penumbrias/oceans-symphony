@@ -30,9 +30,10 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { installExtraFonts, uninstallExtraFonts } from "@/lib/fontPacks";
 import { refreshCustomFontFaces, customFontFamilyCss } from "@/lib/customFontFaces";
 import { CORNER_MODES } from "@/lib/useCornerMode";
+import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS, PIXEL_STATUS_ITEMS, PIXEL_DOCK_LAYERS } from "@/lib/uiLook";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, useInspectorPages } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, LinkRow, useInspectorPages, inspectorPages } from "@/components/shared/SettingRows";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -76,6 +77,8 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useIsWide } from "@/lib/useIsWide";
 import { readPinnedBar, pinnedBarLook, pinnedBarPatch, pinnedBarLookPatch } from "@/lib/barsModel";
+import { writeSettings as writeSettingsRow } from "@/lib/settingsWriter";
+import { resolveUiV2 } from "@/lib/uiV2";
 import BarShowSwitch, { useBarsChrome, useBarLabels } from "@/components/v2/BarShowSwitch";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { sharedList } from "@/lib/sharedLists";
@@ -335,9 +338,11 @@ function TextTab({ v2 }) {
         setAccessibilityFontSize("default");
         setAccessibilityFontFamily(APP_FONT_OPTIONS[0].value);
         setAccessibilityHeadingFont("default");
-        const next = { ...(v2.uiV2.tokens || {}) };
-        for (const id of ["headerScale", "bodyStyle", "headerStyle"]) delete next[id];
-        v2.write({ tokens: next });
+        v2.write((cur) => {
+          const next = { ...(resolveUiV2(cur).tokens || {}) };
+          for (const id of ["headerScale", "bodyStyle", "headerStyle"]) delete next[id];
+          return { tokens: next };
+        });
         refresh();
       }} />
     </div>
@@ -358,8 +363,14 @@ function ShapeTab({ v2 }) {
   const cornerMode = settingsRow?.corner_mode === CORNER_MODES.SHARP ? CORNER_MODES.SHARP : CORNER_MODES.ROUNDED;
   const writeCornerMode = async (mode) => {
     if (!settingsRow?.id || mode === cornerMode) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, { corner_mode: mode });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettingsRow({ corner_mode: mode }, { queryClient: qc });
+  };
+  // The app look (uiLook.js): Smooth or Pixel. Changes how every shared
+  // block is drawn, never what a page holds.
+  const uiLook = readUiLook(settingsRow);
+  const writeUiLook = async (look) => {
+    if (!settingsRow?.id || look === uiLook) return;
+    await writeSettingsRow({ ui_look: look }, { queryClient: qc });
   };
   const densityDef = tokenById.density;
   const [a11y, setA11y] = useState(() => getAccessibilitySettings());
@@ -373,16 +384,31 @@ function ShapeTab({ v2 }) {
   const alignDef = tokenById.alignX;
   // Opened on a home board: that board's space between widgets.
   const boardGap = useBoardGap();
+  // Pixel look on: its own corners, edge depth and lettering take the place
+  // of the corner rows below (the classic corner mode does nothing there).
+  const pixel = usePixelLook();
+  const pixelEdges = pixel.on && !v2Chrome;
   return (
     <div>
+      <Group title={tr("editSheet.groupAppLook")} first>
+        <ChoiceRow label={tr("editSheet.appLook")} hint={tr(uiLook === UI_LOOKS.PIXEL ? "editSheet.appLookPixelHint" : "editSheet.appLookHint")}
+          value={uiLook} onChange={writeUiLook}
+          options={[{ value: UI_LOOKS.SMOOTH, label: tr("editSheet.appLookSmooth") }, { value: UI_LOOKS.PIXEL, label: tr("editSheet.appLookPixel") }]} />
+        {pixelEdges && (
+          <ChoiceRow label={tr("editSheet.pixelType")} hint={tr("editSheet.pixelTypeHint")}
+            value={pixel.px.type || "pixel"} own={!!pixel.px.type} onClear={() => pixel.write({ type: "" })}
+            onChange={(v) => pixel.write({ type: v === "plain" ? "plain" : "" })}
+            options={[{ value: "pixel", label: tr("editSheet.pixelTypePixel") }, { value: "plain", label: tr("editSheet.pixelTypePlain") }]} />
+        )}
+      </Group>
       {boardGap && (
-        <Group title={tr("editSheet.groupWidgets")} first>
+        <Group title={tr("editSheet.groupWidgets")}>
           <div data-board-gap="">
             <WidgetGapRow value={boardGap.value} fallback={boardGap.fallback} onChange={boardGap.onChange} />
           </div>
         </Group>
       )}
-      <Group title={tr("editSheet.groupLayout")} first={!boardGap}>
+      <Group title={tr("editSheet.groupLayout")}>
         <TokenSliderRow v2={v2} id="contentW" hint={tr("editSheet.contentWidthHint")} />
         <ChoiceRow label={alignDef.label} value={v2.uiV2.tokens.alignX ?? "center"}
           onChange={(val) => v2.setToken("alignX", val)}
@@ -406,6 +432,15 @@ function ShapeTab({ v2 }) {
             <TokenSliderRow v2={v2} id="borderW" label={tr("editSheet.borderW")} />
             <TokenSliderRow v2={v2} id="radius" label={tr("editSheet.radius")} />
           </>
+        ) : pixelEdges ? (
+          <>
+            <SliderRow label={tr("editSheet.corners")} value={pixel.px.corners} fallback={PIXEL_LOOK_DEFAULTS.corners}
+              min={0} max={16} unit="px"
+              onChange={(v) => pixel.write({ corners: Math.round(v) })} onClear={() => pixel.write({ corners: "" })} />
+            <SliderRow label={tr("editSheet.pixelBevel")} hint={tr("editSheet.pixelBevelHint")} value={pixel.px.bevel} fallback={PIXEL_LOOK_DEFAULTS.bevel}
+              min={0} max={4} unit="px"
+              onChange={(v) => pixel.write({ bevel: Math.round(v) })} onClear={() => pixel.write({ bevel: "" })} />
+          </>
         ) : (
           <ChoiceRow label={tr("editSheet.corners")} value={cornerMode} onChange={writeCornerMode}
             options={[{ value: CORNER_MODES.ROUNDED, label: tr("editSheet.cornersRounded") }, { value: CORNER_MODES.SHARP, label: tr("editSheet.cornersSharp") }]} />
@@ -415,12 +450,15 @@ function ShapeTab({ v2 }) {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetShapeBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
         setAccessibilityLargeTouch("default");
-        const next = { ...(v2.uiV2.tokens || {}) };
         // Only this chrome's own keys: the new UI's tokens stay as they
         // are for a classic user, and the classic mode for a v2 user.
-        for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
-        await v2.write({ tokens: next });
-        if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
+        await v2.write((cur) => {
+          const next = { ...(resolveUiV2(cur).tokens || {}) };
+          for (const id of (v2Chrome ? ["contentW", "alignX", "alignY", "density", "borderW", "radius"] : ["contentW", "alignX", "alignY"])) delete next[id];
+          return { tokens: next };
+        });
+        if (pixelEdges) await pixel.write({ corners: "", bevel: "", type: "" });
+        else if (!v2Chrome) await writeCornerMode(CORNER_MODES.ROUNDED);
         if (boardGap?.value !== undefined) boardGap.onChange(undefined);
         refresh();
       }} />
@@ -441,12 +479,15 @@ function BarLookRows({ v2, barId, look: lookIn = null, write: writeIn = null, on
   // The pinned bar passes its own look/write (lib/barsModel.js owns where
   // that look lives); every other bar is ui_v2.barLooks[barId].
   const look = lookIn || v2.uiV2.barLooks?.[barId] || {};
-  const write = writeIn || ((patch) => v2.write({ barLooks: { ...(v2.uiV2.barLooks || {}), [barId]: { ...look, ...patch } } }));
-  const reset = onReset || (() => {
-    const rest = { ...(v2.uiV2.barLooks || {}) };
+  const write = writeIn || ((patch) => v2.write((cur) => {
+    const looks = resolveUiV2(cur).barLooks || {};
+    return { barLooks: { ...looks, [barId]: { ...(looks[barId] || {}), ...patch } } };
+  }));
+  const reset = onReset || (() => v2.write((cur) => {
+    const rest = { ...(resolveUiV2(cur).barLooks || {}) };
     delete rest[barId];
-    v2.write({ barLooks: rest });
-  });
+    return { barLooks: rest };
+  }));
   const hasLook = Object.values(look).some((v) => v !== undefined && v !== null && v !== "");
   // Inherited (unset) values show the app-wide number greyed and dashed;
   // the × puts a value back to inherited.
@@ -543,11 +584,14 @@ function BarsTab({ v2, alignX }) {
   const settingsRow = pickPrimarySystemSettings(settingsRows) || null;
   const { v2Chrome: v2ChromeNow } = useBarsChrome();
 
+  // `patch` is an object, or a function of the FRESH settings row (the one
+  // settings writer reads it inside its queue), so nothing here is built
+  // from a cached row.
   const writeSettings = async (patch) => {
     if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, patch);
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    await writeSettingsRow(patch, { queryClient: qc });
   };
+  const navOf = (row) => (row?.navigation_config && typeof row.navigation_config === "object" ? row.navigation_config : {});
 
   const tokenRow = (id, labelKey) => <TokenSliderRow v2={v2} id={id} label={tr(labelKey)} />;
 
@@ -569,12 +613,17 @@ function BarsTab({ v2, alignX }) {
   const navConfig = settingsRow?.navigation_config || {};
   const bottomIds = Array.isArray(navConfig.bottomBar) ? navConfig.bottomBar : DEFAULT_CONFIG.bottomBar;
   const pageName = (id) => pageLabel(id, terms);
-  const writeBottomBar = (next) => writeSettings({ navigation_config: { ...navConfig, bottomBar: next } });
+  const writeBottomBar = (next) => writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), bottomBar: next } }));
   // The classic top navigation bar (web only — phones never show it) is
   // the same kind of list: navigation_config.topBar, up to six pages.
   const topIds = Array.isArray(navConfig.topBar) ? navConfig.topBar : DEFAULT_CONFIG.topBar;
-  const writeClassicTopBar = (next) => writeSettings({ navigation_config: { ...navConfig, topBar: next } });
+  const writeClassicTopBar = (next) => writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), topBar: next } }));
   const classicTopBarShown = !v2ChromeNow && !isNative();
+  // Pixel look on: its header is always shown and draws the top bar's
+  // items in its own frame, so only the items list and the wave colour
+  // apply there (Penumbra: no rows that only change the other look).
+  const pixelLook = usePixelLook();
+  const pixelTop = pixelLook.on && !v2ChromeNow;
 
   // One page-list editor for both: icon (bottom tabs only) · name · ↑ ↓ · ×,
   // then "Add a tab…" while there is room.
@@ -631,7 +680,10 @@ function BarsTab({ v2, alignX }) {
   // navigation_config.sidebar, the same config SidebarNav reads.
   const sidebarGroups = orderSidebarGroups(buildSidebarGroups(terms.Alters, terms.System), navConfig.sidebar);
   const sidebarHidden = new Set(navConfig.sidebar?.hidden || []);
-  const writeSidebar = (patch) => writeSettings({ navigation_config: { ...navConfig, sidebar: { ...(navConfig.sidebar || {}), ...patch } } });
+  const writeSidebar = (patch) => writeSettings((fresh) => {
+    const nav = navOf(fresh);
+    return { navigation_config: { ...nav, sidebar: { ...(nav.sidebar || {}), ...patch } } };
+  });
   const toggleSidebar = (pageId) => {
     const hidden = new Set(sidebarHidden);
     if (hidden.has(pageId)) hidden.delete(pageId); else hidden.add(pageId);
@@ -659,12 +711,11 @@ function BarsTab({ v2, alignX }) {
   const wide = useIsWide();
   const pinnedBar = readPinnedBar(settingsRow);
   const pinnedLook = pinnedBarLook(settingsRow);
-  const writePinnedBar = (patch) => writeSettings(pinnedBarPatch(settingsRow, patch));
-  const writePinnedLook = (patch) => writeSettings(pinnedBarLookPatch(settingsRow, patch));
+  const writePinnedBar = (patch) => writeSettings((fresh) => pinnedBarPatch(fresh, patch));
+  const writePinnedLook = (patch) => writeSettings((fresh) => pinnedBarLookPatch(fresh, patch));
   const pinnedCfg = settingsRow?.pinned_alters_config || {};
-  const writePinnedCfg = (patch) => writeSettings({
-    pinned_alters_config: { ...pinnedCfg, ...patch },
-  });
+  // pinned_alters_config merges key by key in the settings writer.
+  const writePinnedCfg = (patch) => writeSettings({ pinned_alters_config: patch });
   const classicBars = v2.uiV2.classicBars;
 
   // One bar on screen at a time. Opened for one bar (openBarsEditor), that
@@ -672,14 +723,14 @@ function BarsTab({ v2, alignX }) {
   const [bar, setBar] = useState(() => {
     let id = null;
     try { id = sessionStorage.getItem("os_bars_focus"); sessionStorage.removeItem("os_bars_focus"); } catch { /* storage off */ }
-    return ["top", "tabs", "actions", "alters", "rail", "sidebar"].includes(id) ? id : "top";
+    return ["top", "tabs", "actions", "alters", "rail", "sidebar", "status", "pxrail", "pxdock"].includes(id) ? id : "top";
   });
 
   // Top-bar arrangement — order + per-item show/hide (the wireframe's
   // "arrangement / icon images, labels ... toggle display"). No on/off
   // for the whole bar: it carries the recovery paths, so it stays.
   const topBar = v2.uiV2.topBar;
-  const writeTopBar = (patch) => v2.write({ topBar: { ...topBar, ...patch } });
+  const writeTopBar = (patch) => v2.write((cur) => ({ topBar: { ...resolveUiV2(cur).topBar, ...patch } }));
   const moveTopItem = (idx, dir) => {
     const next = [...topBar.order];
     const to = idx + dir;
@@ -695,8 +746,10 @@ function BarsTab({ v2, alignX }) {
     { value: "top", label: labels.top }, { value: "tabs", label: labels.tabs },
     { value: "actions", label: labels.actions }, { value: "alters", label: labels.alters },
     ...(v2Chrome ? [{ value: "rail", label: labels.rail }] : [{ value: "sidebar", label: tr("editSheet.barSidebar") }]),
+    // The pixel look's status bar along the bottom (computer only).
+    ...(pixelTop ? [{ value: "status", label: tr("editSheet.barStatus") }, { value: "pxrail", label: tr("editSheet.barToolRail") }, { value: "pxdock", label: tr("editSheet.barTimelineDock") }] : []),
   ];
-  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) ? "top" : bar;
+  const shownBar = (bar === "rail" && !v2Chrome) || (bar === "sidebar" && v2Chrome) || ((bar === "status" || bar === "pxrail" || bar === "pxdock") && !pixelTop) ? "top" : bar;
 
   return (
     <div>
@@ -705,17 +758,19 @@ function BarsTab({ v2, alignX }) {
           along beside the sidebar at all. */}
       {!v2Chrome && wide && (
         <BarToggle label={tr("editSheet.wideBars")} on={classicBars.wide === true}
-          onChange={(on) => v2.write({ classicBars: { ...(settingsRow?.ui_v2?.classicBars || {}), wide: on } })} />
+          onChange={(on) => v2.write((cur) => ({ classicBars: { ...(cur.classicBars || {}), wide: on } }))} />
       )}
 
       {/* ── Top bar ── */}
       {shownBar === "top" && (<div data-bar-section="top">
-        {!v2Chrome && <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="top" /></BarPart>}
-        <BarPart label={tr("editSheet.partSize")}>
-          {tokenRow("statusH", "editSheet.barHeight")}
-        </BarPart>
-        <BarPart label={tr("editSheet.partLook")}>
-          <BarLookRows v2={v2} barId="top" alignX={alignX} />
+        {!v2Chrome && !pixelTop && <BarPart label={tr("editSheet.show")} first><BarShowSwitch barId="top" /></BarPart>}
+        {!pixelTop && (
+          <BarPart label={tr("editSheet.partSize")}>
+            {tokenRow("statusH", "editSheet.barHeight")}
+          </BarPart>
+        )}
+        <BarPart label={tr("editSheet.partLook")} first={pixelTop}>
+          {!pixelTop && <BarLookRows v2={v2} barId="top" alignX={alignX} />}
           {v2Chrome && <BarShowSwitch barId="wave" label={tr("editSheet.wave")} />}
           {/* The classic header has the wave too ("Off" = the Background
               key); it was only ever reachable from Settings → Appearance. */}
@@ -749,9 +804,9 @@ function BarsTab({ v2, alignX }) {
             </StackedRow>
           )}
         </BarPart>
-        {(v2Chrome || classicTopBarShown) && (
+        {(v2Chrome || pixelTop || classicTopBarShown) && (
           <BarPart label={tr("editSheet.partContent")}>
-            {v2Chrome ? (
+            {v2Chrome || pixelTop ? (
               <>
                 {topBar.order.map((id, idx) => {
                   const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
@@ -766,6 +821,7 @@ function BarsTab({ v2, alignX }) {
                   );
                 })}
                 {/* The apps button: what it opens and the picture on it. */}
+                {!pixelTop && (<>
                 <ChoiceRow label={tr("options.appsView")} value={v2.uiV2.appsView || "grid"}
                   onChange={(val) => v2.write({ appsView: val })}
                   options={[{ value: "grid", label: tr("options.appsViewGrid") }, { value: "sidebar", label: tr("options.appsViewSidebar") }]} />
@@ -777,11 +833,74 @@ function BarsTab({ v2, alignX }) {
                   </span>
                   <AssetButton onPick={(url) => v2.write({ appsIcon: url || "" })} title={tr("options.appsIconPick")} allowFolders />
                 </Row>
+                </>)}
               </>
             ) : (
               // The classic top navigation bar: its pages (web only).
               pageList(topIds, writeClassicTopBar, 6, false)
             )}
+          </BarPart>
+        )}
+      </div>)}
+
+      {/* ── Status bar (pixel look, computer) ── */}
+      {shownBar === "status" && (<div data-bar-section="status">
+        <BarPart label={tr("editSheet.show")} first>
+          <SwitchRow label={tr("editSheet.barStatus")} hint={tr("editSheet.barStatusHint")}
+            checked={pixelLook.px.statusBar} onChange={(on) => pixelLook.write({ statusBar: on ? "" : false })} />
+        </BarPart>
+        {pixelLook.px.statusBar && (
+          <BarPart label={tr("editSheet.partContent")}>
+            {PIXEL_STATUS_ITEMS.map((item) => {
+              const hidden = pixelLook.px.statusHidden;
+              return (
+                <SwitchRow key={item.id} label={item.label} checked={!hidden.includes(item.id)}
+                  onChange={(on) => {
+                    const next = on ? hidden.filter((x) => x !== item.id) : [...hidden, item.id];
+                    pixelLook.write({ statusHidden: next.length ? next : "" });
+                  }} />
+              );
+            })}
+          </BarPart>
+        )}
+      </div>)}
+
+      {/* ── Tool rail (pixel look, computer) ── */}
+      {shownBar === "pxrail" && (<div data-bar-section="pxrail">
+        <BarPart label={tr("editSheet.show")} first>
+          <SwitchRow label={tr("editSheet.barToolRail")} hint={tr("editSheet.barToolRailHint")}
+            checked={pixelLook.px.rail} onChange={(on) => pixelLook.write({ rail: on ? "" : false })} />
+        </BarPart>
+        {pixelLook.px.rail && (<>
+          <BarPart label={tr("editSheet.partPosition")}>
+            <ChoiceRow label={tr("editSheet.alignEdge")} value={pixelLook.px.railSide}
+              onChange={(val) => pixelLook.write({ railSide: val === "right" ? "right" : "" })}
+              options={[{ value: "left", label: tr("editSheet.left") }, { value: "right", label: tr("editSheet.right") }]} />
+          </BarPart>
+          <BarPart label={tr("editSheet.partContent")}>
+            <LinkRow label={tr("editSheet.toolRailKeys")} onClick={() => setBar("actions")} />
+          </BarPart>
+        </>)}
+      </div>)}
+
+      {/* ── Timeline dock (pixel look, computer, Home) ── */}
+      {shownBar === "pxdock" && (<div data-bar-section="pxdock">
+        <BarPart label={tr("editSheet.show")} first>
+          <SwitchRow label={tr("editSheet.barTimelineDock")} hint={tr("editSheet.barTimelineDockHint")}
+            checked={pixelLook.px.dock} onChange={(on) => pixelLook.write({ dock: on ? true : "" })} />
+        </BarPart>
+        {pixelLook.px.dock && (
+          <BarPart label={tr("editSheet.partContent")}>
+            {PIXEL_DOCK_LAYERS.map((layer) => {
+              const hidden = pixelLook.px.dockHidden;
+              return (
+                <SwitchRow key={layer.id} label={applyTerms(layer.label, terms)} checked={!hidden.includes(layer.id)}
+                  onChange={(on) => {
+                    const next = on ? hidden.filter((x) => x !== layer.id) : [...hidden, layer.id];
+                    pixelLook.write({ dockHidden: next.length ? next : "" });
+                  }} />
+              );
+            })}
           </BarPart>
         )}
       </div>)}
@@ -958,7 +1077,7 @@ function BarsTab({ v2, alignX }) {
         <BarPart label={tr("editSheet.partLook")}>
           <BarLookRows v2={v2} barId="alters" alignX={alignX}
             look={pinnedLook} write={writePinnedLook}
-            onReset={() => writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }))} />
+            onReset={() => writeSettings((fresh) => pinnedBarLookPatch(fresh, {}, { replace: true }))} />
         </BarPart>
         {/* Pins, order, names, fronting emphasis, front levels — the same
             panel the Alters page uses for its pinned row. */}
@@ -994,34 +1113,47 @@ function BarsTab({ v2, alignX }) {
       <ResetRow label={tr("editSheet.resetBar")} onReset={async () => {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetBarBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
-        const ui = settingsRow?.ui_v2 || {};
-        const looks = { ...(ui.barLooks || {}) };
-        const tokens = { ...(ui.tokens || {}) };
-        const bars = { ...(ui.bars || {}) };
+        // Which keys this bar's reset clears; applied to the FRESH ui_v2
+        // below, so a change made a moment ago elsewhere is kept.
+        const drop = { looks: [], tokens: [], bars: [] };
         const patch = {};
         if (shownBar === "top") {
-          delete looks.top; delete tokens.statusH;
+          drop.looks.push("top"); drop.tokens.push("statusH");
           patch.topBar = null; patch.appsView = "grid"; patch.appsIcon = "";
-          await writeSettings({ wave_color_key: null, wave_color_custom: null, ...(v2Chrome ? {} : { navigation_config: { ...navConfig, topBar: DEFAULT_CONFIG.topBar } }) });
+          await writeSettings((fresh) => ({ wave_color_key: null, wave_color_custom: null, ...(v2Chrome ? {} : { navigation_config: { ...navOf(fresh), topBar: DEFAULT_CONFIG.topBar } }) }));
         } else if (shownBar === "tabs") {
-          delete looks.tabs; delete tokens.stripH; delete bars.tabs;
+          drop.looks.push("tabs"); drop.tokens.push("stripH"); drop.bars.push("tabs");
           if (!v2Chrome) { setAccessibilityNavHeight("default"); refreshA11y(); }
-          await writeSettings({ navigation_config: { ...navConfig, bottomBar: DEFAULT_CONFIG.bottomBar } });
+          await writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), bottomBar: DEFAULT_CONFIG.bottomBar } }));
         } else if (shownBar === "actions") {
-          delete looks.actions; delete looks.active; delete bars.actions;
-          for (const id of ["cmdSize", "actionsMode", "actionsEdge", "actionsAttach", "barsSwap", "handleSides", "activeBubble"]) delete tokens[id];
+          drop.looks.push("actions", "active"); drop.bars.push("actions");
+          drop.tokens.push("cmdSize", "actionsMode", "actionsEdge", "actionsAttach", "barsSwap", "handleSides", "activeBubble");
           patch.commandKeys = null;
         } else if (shownBar === "alters") {
-          delete looks.alters;
-          await writeSettings(pinnedBarLookPatch(settingsRow, {}, { replace: true }));
+          drop.looks.push("alters");
+          await writeSettings((fresh) => pinnedBarLookPatch(fresh, {}, { replace: true }));
         } else if (shownBar === "rail") {
-          delete looks.rail; delete bars.rail; delete tokens.railW; delete tokens.railSide; delete tokens.railActions;
+          drop.looks.push("rail"); drop.bars.push("rail"); drop.tokens.push("railW", "railSide", "railActions");
+        } else if (shownBar === "status") {
+          await pixelLook.write({ statusBar: "", statusHidden: "" });
+        } else if (shownBar === "pxrail") {
+          await pixelLook.write({ rail: "", railSide: "" });
+        } else if (shownBar === "pxdock") {
+          await pixelLook.write({ dock: "", dockHidden: "" });
         } else if (shownBar === "sidebar") {
-          await writeSettings({ navigation_config: { ...navConfig, sidebar: {} } });
+          await writeSettings((fresh) => ({ navigation_config: { ...navOf(fresh), sidebar: {} } }));
         }
-        const next = { ...patch, barLooks: looks, tokens, bars };
-        for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
-        await v2.write(next);
+        await v2.write((ui) => {
+          const looks = { ...(ui.barLooks || {}) };
+          const tokens = { ...(ui.tokens || {}) };
+          const bars = { ...(ui.bars || {}) };
+          for (const k of drop.looks) delete looks[k];
+          for (const k of drop.tokens) delete tokens[k];
+          for (const k of drop.bars) delete bars[k];
+          const next = { ...patch, barLooks: looks, tokens, bars };
+          for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+          return next;
+        });
       }} />
       <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
         title={iconFor ? `Icon for ${iconFor.label}` : "Choose an icon"}
@@ -1039,7 +1171,23 @@ const COLOR_ROLES = [
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 
+// A pixel-look colour as drawn right now (hex), for the greyed swatch.
+function readPxLive(cssVar) {
+  try {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${cssVar})`;
+    probe.style.display = "none";
+    document.documentElement.appendChild(probe);
+    const rgb = getComputedStyle(probe).color;
+    probe.remove();
+    const m = rgb.match(/\d+(\.\d+)?/g);
+    if (!m || m.length < 3) return "#888888";
+    return "#" + m.slice(0, 3).map((n) => Math.round(Number(n)).toString(16).padStart(2, "0")).join("");
+  } catch { return "#888888"; }
+}
+
 function ColourTab({ children, v2, onResetBackground = null }) {
+  const pixel = usePixelLook();
   const tr = useT();
   const {
     themeMode, selectedTheme, customColors, updateCustomColorsFull, clearCustomColors,
@@ -1120,10 +1268,23 @@ function ColourTab({ children, v2, onResetBackground = null }) {
           );
         })()}
       </Group>
+      {/* Pixel look on: the colours it draws its frame with (outline, title
+          bars, the page floor). Unset = mixed from the app colours above. */}
+      {pixel.on && (
+        <Group title={tr("editSheet.groupPixelColours")}>
+          {[["outline", "editSheet.pixelOutline", "--px-line"], ["titleBar", "editSheet.pixelTitleBar", "--px-bar"],
+            ["floorTop", "editSheet.pixelFloorTop", "--px-floor-top-live"], ["floorBottom", "editSheet.pixelFloorBottom", "--px-sunk"]].map(([key, labelKey, liveVar]) => (
+            <ColourRow key={key} label={tr(labelKey)} value={pixel.px[key] || ""} live={readPxLive(liveVar)}
+              onChange={(h) => pixel.write({ [key]: splitHexAlpha(h).hex || h })}
+              onClear={() => pixel.write({ [key]: "" })} />
+          ))}
+        </Group>
+      )}
       {children}
       <ResetRow label={tr("editSheet.resetTab")} onReset={async () => {
         const ok = await confirm({ title: tr("editSheet.resetTabTitle"), body: tr("editSheet.resetColourBody"), confirmLabel: tr("editSheet.resetConfirm"), destructive: true });
         if (!ok) return;
+        if (pixel.on) await pixel.write({ outline: "", titleBar: "", floorTop: "", floorBottom: "" });
         clearCustomColors();
         if (v2) v2.setToken("accent", "");
         onResetBackground?.();
@@ -1403,10 +1564,9 @@ function StylesTab({ v2 }) {
   const deleteSavedPack = async (pk) => {
     if (!settingsRow?.id) return;
     try {
-      await base44.entities.SystemSettings.update(settingsRow.id, {
-        ui_v2_setup_packs: savedPacks.filter((x) => x.id !== pk.id),
-      });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await writeSettingsRow((fresh) => ({
+        ui_v2_setup_packs: (Array.isArray(fresh.ui_v2_setup_packs) ? fresh.ui_v2_setup_packs : savedPacks).filter((x) => x?.id !== pk.id),
+      }), { queryClient: qc });
     } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
 
@@ -1519,12 +1679,6 @@ function StylesTab({ v2 }) {
     setName(""); setLinkAlterId("");
   };
 
-  const writeSettings = async (patch) => {
-    if (!settingsRow?.id || Object.keys(patch).length === 0) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, patch);
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
-  };
-
   // Widget-look entries write the board's default style (styleMode).
   const applyWidgetStyle = async (st, { skipSnapshot = false } = {}) => {
     if (!settingsRow?.id) return;
@@ -1554,9 +1708,9 @@ function StylesTab({ v2 }) {
     if (preset.font !== undefined) setAccessibilityFontFamily(preset.font);
     if (preset.headingFont !== undefined) setAccessibilityHeadingFont(preset.headingFont);
     const patch = {};
-    if (preset.uiV2Tokens) {
-      patch.ui_v2 = { ...(settingsRow?.ui_v2 || {}), tokens: { ...(settingsRow?.ui_v2?.tokens || {}), ...preset.uiV2Tokens } };
-    }
+    // The preset's display tokens go onto the FRESH ui_v2 (below), so a
+    // change made a moment ago isn't undone.
+    const tokens = preset.uiV2Tokens && typeof preset.uiV2Tokens === "object" ? preset.uiV2Tokens : null;
     // The parts the old Appearance form saved — only the keys the preset
     // carries are touched, so a colours-only preset leaves the rest alone.
     if (preset.terms) {
@@ -1581,7 +1735,13 @@ function StylesTab({ v2 }) {
         if (preset.banner[k] !== undefined) patch[k] = preset.banner[k];
       }
     }
-    await writeSettings(patch);
+    if (settingsRow?.id && (tokens || Object.keys(patch).length)) {
+      await writeSettingsRow((fresh) => {
+        if (!tokens) return patch;
+        const ui = fresh.ui_v2 && typeof fresh.ui_v2 === "object" ? fresh.ui_v2 : {};
+        return { ...patch, ui_v2: { ...ui, tokens: { ...(ui.tokens || {}), ...tokens } } };
+      }, { queryClient: qc });
+    }
     // The board part goes through the shared writer: applied to the board
     // as it is now and stamped, so the next sync can't quietly undo it.
     if (settingsRow?.id && applyHomePresetToBoard(preset, settingsRow?.[homeField])) {
@@ -1953,7 +2113,14 @@ function PageLookTab({ settingsRow, page }) {
   );
 }
 
-export default function UiEditSheet() {
+// `renderTabs` (optional): the new house's Settings room draws the tab strip
+// itself (board 10's file tabs) with `({ tabs, value, onChange })`. Without
+// it (everywhere else) the strip is the shared TabBar, exactly as before.
+// `tab` (optional): the house's Display options page owns the tab (its own
+// strip has a Look tab this sheet doesn't), so the body shows that one tab,
+// never the stacked view. `scopeless`: only the app-wide look (the house
+// page offers the rest through "Open the full options").
+export default function UiEditSheet({ renderTabs, tab: tabProp = null, scopeless = false } = {}) {
   const v2 = useV2Display();
   const qc = useQueryClient();
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
@@ -1988,7 +2155,7 @@ export default function UiEditSheet() {
     hint: `The look every ${defaultsType === "alter" ? terms.alter : defaultsType} profile starts with, and what empty ones show. A profile's own Profile style always wins, setting by setting.`,
   } : null), [defaultsType, defaultsLabel, settingsRow, terms.alter]);
   const pageTitle = page ? pageLabel(page, terms) : "";
-  const scopes = [
+  const scopes = scopeless ? [{ value: "app", label: tr("editSheet.scopeApp") }] : [
     { value: "app", label: tr("editSheet.scopeApp") },
     ...(page ? [{ value: "page", label: pageTitle }] : []),
     ...(defaultsSubject ? [{ value: "defaults", label: defaultsLabel }] : []),
@@ -2001,9 +2168,10 @@ export default function UiEditSheet() {
     return "app";
   });
   const effectiveScope = scopes.some((s) => s.value === scope) ? scope : "app";
-  const [tab, setTab] = useState(() => {
+  const [tabState, setTab] = useState(() => {
     try { return sessionStorage.getItem("os_bars_focus") ? "bars" : "text"; } catch { return "text"; }
   });
+  const tab = tabProp || tabState;
   const tabs = [
     { id: "text", label: tr("editSheet.tabText"), icon: Type },
     { id: "shape", label: tr("editSheet.tabShape"), icon: Square },
@@ -2011,7 +2179,8 @@ export default function UiEditSheet() {
     { id: "colour", label: tr("editSheet.tabColour"), icon: Palette },
     { id: "styles", label: tr("editSheet.tabStyles"), icon: StarIcon },
   ];
-  const { stacked, show, head } = useInspectorPages(tabs, tab);
+  const ownPages = useInspectorPages(tabs, tab);
+  const { stacked, show, head } = tabProp ? inspectorPages(tabs, tab, false) : ownPages;
   // A tab change starts at the top of the panel — the host scrolls, so
   // this scrolls the nearest scrolling ancestor.
   const panelRef = useRef(null);
@@ -2051,11 +2220,11 @@ export default function UiEditSheet() {
         <>
           {/* The tab strip stays put while the panel scrolls (the hosts give it
               a scrolling container with 16px side padding, hence the -mx-4). */}
-          {!stacked && (
+          {!stacked && (renderTabs ? renderTabs({ tabs, value: tab, onChange: pickTab }) : (
             <div className="sticky -top-1 z-10 -mx-4 bg-background">
               <TabBar tabs={tabs} value={tab} onChange={pickTab} />
             </div>
-          )}
+          ))}
           <div role={stacked ? undefined : "tabpanel"} aria-labelledby={stacked ? undefined : `inspector-tab-${tab}`} className="pt-2">
             {head("text")}{show("text") && <TextTab v2={v2} />}
             {head("shape")}{show("shape") && <ShapeTab v2={v2} />}

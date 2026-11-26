@@ -36,9 +36,9 @@ export const PREVIEW_SYSTEMS_META = [
     name: "Preview Mode",
     blurb: "An example system where every profile is a walkthrough of a feature — and the whole app is filled with realistic example data so you can actually try things. Many profiles double as design showcases that flex what the alter bio editor can produce (animation, gradients, custom fields, per-alter themes); a few stay deliberately minimal to show the range. Your real data is hidden but never touched while Preview Mode is on.",
     termsLabel: "system / alter / fronting / switching",
-    theme: "cool",
-    font:  "'Atkinson Hyperlegible', sans-serif",
-    themeMode: null,
+    theme: "pixel", // the house default (Penumblob palette), so example pictures show it
+    font:  null, // keep the look's own font (pixel by default)
+    themeMode: "dark", // the boards are drawn dark
   },
 ];
 

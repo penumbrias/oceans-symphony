@@ -10,6 +10,7 @@ import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clear
 import { restoreLocalSettingsFromDb, installLocalSettingsMirror, MIRROR_KEY } from "@/lib/localSettingsMirror";
 import { isImportableSettingKey } from "@/lib/backupKeys";
 import { mirrorDbBlob, retireDbMirror } from "@/lib/nativeMirror";
+import { redactWhispers } from "@/lib/whisperRedact";
 
 // Reserved top-level keys inside the DB blob that are NOT entity
 // collections ({id: record}). Every generic walk over the blob must skip
@@ -513,7 +514,7 @@ const HISTORY_LAYOUT_FIELDS = [
   "navigation_config", "experimental_home",
 ];
 
-function historyLabelFor(entityName, record) {
+export function historyLabelFor(entityName, record) {
   const s = (v) => (typeof v === "string" ? v.trim() : "");
   if (entityName === "FrontingSession") {
     // "Name · 27 Sep 14:05" — a session has no text of its own worth showing
@@ -524,7 +525,8 @@ function historyLabelFor(entityName, record) {
   }
   const text = s(record?.name) || s(record?.title) || s(record?.activity_name)
     || s(record?.note) || s(record?.content) || s(record?.question) || "";
-  const plain = text.replace(/<[^>]*>/g, "").slice(0, 60);
+  // A whisper's secret never becomes a Recent changes label.
+  const plain = redactWhispers(text).replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, 60);
   return plain || record?.id || "";
 }
 
@@ -653,6 +655,22 @@ export function keepLayoutRestorePoint({ entity, record_id, field = null, label 
     category: "layout", action: "layout", entity, record_id, field, label,
     snapshot: JSON.parse(JSON.stringify(snapshot)),
   }, { coalesce: false });
+}
+
+// Keep a record as it was before a deliberate edit, so Recent changes can
+// put it back (the Day's edit writers, v0.383: check-ins, symptoms, nights,
+// places, diary cards, who a fronting session was). Coalesces like other
+// edits: repeated edits inside the window keep the EARLIER version.
+export function keepEditRestorePoint(entityName, record) {
+  if (!entityName || !record?.id || HISTORY_SKIP.has(entityName)) return;
+  recordHistoryEvent({
+    category: HISTORY_BUCKET_OF(entityName),
+    action: "edited",
+    entity: entityName,
+    record_id: record.id,
+    label: historyLabelFor(entityName, record),
+    snapshot: JSON.parse(JSON.stringify(record)),
+  });
 }
 
 // Put a deleted record back exactly as it was — same id, so every

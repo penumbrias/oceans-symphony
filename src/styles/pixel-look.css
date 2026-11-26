@@ -1,0 +1,733 @@
+/* ── The pixel look (Display options → Shape → App look → Pixel) ──
+   Every rule here is scoped to html[data-ui-look="pixel"] (set by
+   UiLookApplier in src/lib/uiLook.js), so the smooth look never sees it.
+
+   It restyles the SHARED blocks — panels, cards, sheets, buttons, fields,
+   tabs, headings, the wave — and so every page at once. It never hides,
+   moves or adds anything: a page keeps every control it had.
+
+   Colours come from the person's theme: the bevel's light and dark edges
+   and the outline are mixed from --color-surface / --color-bg, so any
+   colour preset (or their own colours) still works. Alters' colours are
+   never touched. A heading font the person chose (data-heading-font)
+   always wins over the pixel heading font. */
+
+html[data-ui-look="pixel"] {
+  --px-font: 'Pixelify Sans', ui-monospace, monospace;
+  --px-line: color-mix(in srgb, var(--color-bg, #1a1c2b) 45%, #000);
+  --px-hi: color-mix(in srgb, var(--color-surface, #26293e) 74%, #fff);
+  --px-lo: color-mix(in srgb, var(--color-surface, #26293e) 62%, #000);
+  /* Edge depth and corners: the person's own (Display options → Shape,
+     set inline on <html> by UiLookApplier), else the pixel defaults. */
+  --px-bevel: inset var(--px-bw, 2px) var(--px-bw, 2px) 0 var(--px-hi), inset calc(-1 * var(--px-bw, 2px)) calc(-1 * var(--px-bw, 2px)) 0 var(--px-lo);
+  --px-sunken: inset var(--px-bw, 2px) var(--px-bw, 2px) 0 var(--px-lo), inset calc(-1 * var(--px-bw, 2px)) calc(-1 * var(--px-bw, 2px)) 0 var(--px-hi);
+  --radius: var(--px-corner, 0px);
+}
+
+/* Square corners. Round things that are round on purpose (avatars,
+   switches, dots: .rounded-full) stay round. */
+html[data-ui-look="pixel"] :is(
+  .rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl,
+  [class*="rounded-t-"], [class*="rounded-b-"], [class*="rounded-l-"], [class*="rounded-r-"],
+  [class*="rounded-tl-"], [class*="rounded-tr-"], [class*="rounded-bl-"], [class*="rounded-br-"],
+  [class*="rounded-["], .os-sheet, .os-card
+) {
+  border-radius: var(--px-corner, 0px) !important;
+}
+
+/* Widget boxes are square by default too, but corners the person set on
+   the widget (Edges → Corners, or each corner) always win. */
+html[data-ui-look="pixel"] [data-widget-box] {
+  border-radius:
+    var(--v2-radius-tl, var(--v2-own-radius, var(--px-corner, 0px)))
+    var(--v2-radius-tr, var(--v2-own-radius, var(--px-corner, 0px)))
+    var(--v2-radius-br, var(--v2-own-radius, var(--px-corner, 0px)))
+    var(--v2-radius-bl, var(--v2-own-radius, var(--px-corner, 0px))) !important;
+}
+
+/* Panels: cards, sheets, dialogs, pop-overs — a bevelled box with a dark
+   outline, like a window in a pixel editor. */
+html[data-ui-look="pixel"] :is(.os-card, .os-sheet, .bg-card.border) {
+  border-color: var(--px-line) !important;
+  box-shadow: var(--px-bevel) !important;
+}
+html[data-ui-look="pixel"] .os-sheet { border-width: 2px; }
+
+/* Widget boxes take their border, shadow and radius from the person's
+   widget look (inline styles), so the bevel is drawn on top of the box
+   instead of replacing anything they set. */
+html[data-ui-look="pixel"] [data-widget-box] { position: relative; }
+html[data-ui-look="pixel"] [data-widget-box]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: var(--px-bevel);
+}
+
+/* Buttons: raised, with a dark outline; pressed = the bevel flips. */
+html[data-ui-look="pixel"] .os-btn {
+  border-radius: 0 !important;
+  font-family: var(--px-font);
+  letter-spacing: 0.01em;
+  outline: 2px solid var(--px-line);
+  outline-offset: 0;
+  box-shadow: inset 2px 2px 0 rgb(255 255 255 / 0.28), inset -2px -2px 0 rgb(0 0 0 / 0.32) !important;
+}
+html[data-ui-look="pixel"] .os-btn:active {
+  transform: none !important;
+  box-shadow: inset 2px 2px 0 rgb(0 0 0 / 0.32), inset -2px -2px 0 rgb(255 255 255 / 0.2) !important;
+}
+html[data-ui-look="pixel"] .os-btn:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Text fields: sunken. */
+html[data-ui-look="pixel"] .os-field {
+  border-radius: 0 !important;
+  border-color: var(--px-line);
+  box-shadow: var(--px-sunken) !important;
+}
+html[data-ui-look="pixel"] .os-field:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+/* Tabs (the options menus' fixed tab strip): file-folder tabs. */
+html[data-ui-look="pixel"] .os-tabbar {
+  gap: 3px;
+  padding: 4px 4px 0;
+  border-color: var(--px-line);
+  background: color-mix(in srgb, var(--color-surface, #26293e) 80%, #000);
+}
+html[data-ui-look="pixel"] .os-tab {
+  font-family: var(--px-font);
+  border-bottom-width: 0 !important;
+  outline: 2px solid var(--px-line);
+  background: color-mix(in srgb, var(--color-surface, #26293e) 90%, #000);
+}
+html[data-ui-look="pixel"] .os-tab[aria-selected="true"] {
+  background: var(--color-surface, #26293e);
+  box-shadow: inset 2px 2px 0 var(--px-hi);
+}
+
+/* Display-font titles (page names, the app name) use the pixel font too —
+   only while the person hasn't chosen a heading font, which sets its own
+   --font-display and data-heading-font. */
+html[data-ui-look="pixel"]:not([data-heading-font]) { --font-display: var(--px-font); }
+
+/* Headings and titles in the pixel font — unless the person picked their
+   own heading font. What people write (journal, bulletin text) keeps its
+   own fonts. */
+html[data-ui-look="pixel"]:not([data-heading-font]) :is(h1, h2, h3, .os-title, [data-widget-label]):not(.bulletin-prose *, .ProseMirror *) {
+  font-family: var(--px-font);
+  letter-spacing: 0;
+}
+html[data-ui-look="pixel"] [data-widget-label] { text-transform: none; }
+
+/* Square scroll thumbs where the browser draws them. */
+html[data-ui-look="pixel"] ::-webkit-scrollbar-thumb { border-radius: 0; }
+
+/* ── The pixel frame (PixelChrome.jsx) ───────────────────────────────
+   Mounted in place of the classic headers and desktop sidebar while the
+   pixel look is on (AppLayout sets data-px-chrome on its root). */
+[data-px-chrome] .os-classic-header,
+[data-px-chrome] aside.os-classic-chrome { display: none !important; }
+
+html[data-ui-look="pixel"] {
+  --px-panel: var(--color-surface, #26293e);
+  --px-bar: color-mix(in srgb, var(--color-surface, #26293e) 91%, var(--color-text-primary, #e9e7f5) 9%);
+  --px-sunk: var(--color-bg, #1a1c2b);
+  --px-text: var(--color-text-primary, #e9e7f5);
+  --px-text-2: var(--color-text-secondary, #cfd1ea);
+  --px-tab: color-mix(in srgb, var(--color-surface, #26293e) 85%, var(--color-bg, #1a1c2b));
+  /* The page floor's gradient top: the person's own, else a soft tint. */
+  --px-floor-top-live: var(--px-floor-top, color-mix(in srgb, var(--px-floor-bottom, var(--px-sunk)) 82%, var(--color-primary, #6366f1) 18%));
+}
+/* Plain lettering: the pixel look keeps its frame but uses the app's type. */
+html[data-ui-look="pixel"][data-px-type="plain"] { --px-font: var(--font-sans); }
+
+.px-chrome { font-family: var(--px-font); color: var(--px-text); }
+.px-headbar {
+  position: relative;
+  height: 48px;
+  background: var(--px-bar);
+  box-shadow: inset 0 -2px 0 var(--px-line);
+  padding-top: min(env(safe-area-inset-top, 0px), 64px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  box-sizing: content-box;
+}
+.px-headbar-phone { height: 56px; }
+.px-headrow {
+  position: relative; z-index: 1; height: 100%;
+  display: flex; align-items: center; gap: 4px; padding: 0 10px;
+}
+.px-brand { display: flex; align-items: center; gap: 8px; margin-right: 14px; color: var(--px-text); text-decoration: none; }
+.px-logo { width: 28px; height: 28px; object-fit: contain; outline: 2px solid var(--px-line); image-rendering: pixelated; }
+.px-appname { font-weight: 600; font-size: 17px; white-space: nowrap; }
+.px-brandbtn { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+.px-phone-title { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding-left: 6px; line-height: 1.15; }
+.px-phone-title-text { font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.px-phone-front { font-size: 12px; color: var(--px-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The header's own items (Bars → Top bar). */
+.px-hitem { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 8px; font-size: 13px; color: var(--px-text); white-space: nowrap; background: transparent; }
+button.px-hitem:hover { background: var(--px-bar); }
+.px-hitem-muted { color: var(--px-text-2); }
+.px-hitem { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+.px-sysname { font-weight: 600; max-width: 200px; display: block; line-height: 32px; text-overflow: ellipsis; }
+.px-front { max-width: 320px; }
+.px-front { gap: 10px; }
+.px-front-one { min-width: 0; }
+.px-front-name { min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.px-search, .px-iconbtn, .px-clock { flex: none; }
+/* Narrow computer screens: the menus come first; the name and who's
+   fronting give way (still in the switcher and on the home screen). */
+@media (max-width: 1365px) { .px-chrome-desktop .px-sysname { max-width: 120px; } .px-chrome-desktop .px-front { max-width: 180px; } }
+@media (max-width: 1199px) { .px-chrome-desktop .px-sysname, .px-chrome-desktop .px-clock { display: none; } }
+.px-front-one { display: inline-flex; align-items: center; gap: 5px; }
+.px-front-swatch { width: 10px; height: 10px; flex: none; box-shadow: 0 0 0 1px var(--px-line); }
+.px-clock { color: var(--px-text-2); font-variant-numeric: tabular-nums; }
+
+.px-areas { display: flex; align-items: center; gap: 2px; font-size: 14px; flex: none; }
+.px-area { padding: 4px 8px; color: var(--px-text); min-height: 30px; white-space: nowrap; }
+.px-area:hover { background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
+.px-area.sel { background: var(--px-panel); outline: 2px solid var(--px-line); }
+/* v0.382.3: the name opens the first page, the caret (or hovering) opens the list. */
+.px-area-wrap { position: relative; display: flex; align-items: center; }
+.px-area-wrap.sel { background: var(--px-panel); outline: 2px solid var(--px-line); }
+.px-area-caret { min-height: 30px; padding: 4px 4px 4px 0; color: var(--px-text); opacity: 0.7; display: flex; align-items: center; }
+.px-area-caret:hover { opacity: 1; background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
+.px-area-caret:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 0; }
+.px-area:focus-visible, .px-doctab button:focus-visible, .px-menu-item:focus-visible, .px-search:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 0; }
+
+.px-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 70; min-width: 220px; padding: 4px 0;
+  background: var(--px-panel); outline: 2px solid var(--px-line); box-shadow: var(--px-bevel);
+  font-family: var(--px-font); font-size: 14px; color: var(--px-text);
+}
+.px-menu-row { display: flex; align-items: center; }
+.px-menu-row.sel { background: color-mix(in srgb, var(--color-primary) 22%, transparent); }
+.px-menu-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 6px 12px; min-height: 34px; text-align: left; color: var(--px-text); width: 100%; }
+.px-menu-item:hover, .px-menu-newtab:hover { background: var(--px-bar); }
+.px-menu-newtab { width: 30px; min-height: 34px; display: flex; align-items: center; justify-content: center; color: var(--px-text-2); }
+.px-menu-sep { height: 2px; background: var(--px-line); margin: 4px 0; }
+.px-badge { min-width: 18px; height: 16px; padding: 0 3px; font-size: 11px; line-height: 16px; text-align: center; background: var(--color-primary); color: var(--color-bg); outline: 2px solid var(--px-line); }
+.px-badge-corner { position: absolute; top: 2px; right: 2px; }
+
+.px-search { display: flex; align-items: center; gap: 14px; padding: 5px 10px; min-height: 30px; color: var(--px-text-2); background: var(--px-sunk); box-shadow: var(--px-sunken); font-size: 13px; }
+.px-kbd { opacity: 0.8; }
+.px-search-panel { left: auto; right: 0; width: min(520px, 90vw); padding: 10px; font-family: var(--font-sans); }
+
+.px-iconbtn { display: inline-flex !important; align-items: center; justify-content: center; min-width: 32px !important; min-height: 32px !important; border-radius: 0 !important; color: var(--px-text) !important; background: transparent !important; }
+.px-iconbtn:hover { background: var(--px-panel) !important; }
+.px-iconbtn-lg { min-width: 44px !important; min-height: 44px !important; }
+
+.px-tabstrip {
+  height: 30px; display: flex; align-items: flex-end; gap: 4px; padding: 0 8px;
+  background: var(--px-sunk); font-size: 13px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.px-tabstrip::-webkit-scrollbar { display: none; }
+.px-doctab { display: flex; align-items: center; flex-shrink: 0; background: var(--px-tab); outline: 2px solid var(--px-line); color: var(--px-text-2); max-width: 220px; }
+.px-doctab.sel { background: var(--px-panel); color: var(--px-text); box-shadow: inset 2px 2px 0 var(--px-hi); }
+.px-doctab-name { padding: 5px 4px 5px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 26px; }
+.px-doctab.sel .px-doctab-name { padding-top: 6px; padding-bottom: 6px; }
+.px-doctab-x { padding: 0 8px 0 6px; align-self: stretch; display: flex; align-items: center; opacity: 0.8; }
+.px-doctab-x:hover { opacity: 1; }
+.px-doctab-new { padding: 5px 10px; min-height: 26px; }
+
+/* A page's own tabs, as subtabs beside the open page's tab. The page's
+   in-page strip hides while these show (the frame sets data-px-subtabs). */
+html[data-px-subtabs="1"] [data-px-chrome] .px-pages-sub { display: none !important; }
+.px-subtabs {
+  display: flex; align-items: center; gap: 3px; flex-shrink: 0; align-self: stretch;
+  margin: 2px 0 0 0; padding: 0 6px;
+  background: var(--px-panel); outline: 2px solid var(--px-line);
+  box-shadow: inset 2px 2px 0 var(--px-hi);
+}
+.px-subtab {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; min-height: 20px;
+  font-size: 12px; white-space: nowrap; color: var(--px-text-2);
+  background: var(--px-sunk); box-shadow: var(--px-sunken);
+}
+.px-subtab:hover { color: var(--px-text); }
+@media (pointer: coarse) { .px-subtab { min-height: 26px; padding: 2px 12px; } }
+.px-subtab.sel { color: var(--color-bg); background: var(--color-primary); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
+.px-subtab:focus-visible { outline: 2px solid var(--color-primary); }
+@media (min-width: 1024px) {
+  /* The frame already spaces the page from the tabs: a slim top gap, not 32px. */
+  [data-px-chrome] #main-content { padding-top: 10px; }
+}
+
+/* The phone's bottom bar, in the frame's style. */
+[data-px-chrome] .os-classic-bottom-nav {
+  background: var(--px-bar) !important; backdrop-filter: none !important;
+  border-top: 0 !important; box-shadow: inset 0 2px 0 var(--px-line);
+  font-family: var(--px-font);
+}
+[data-px-chrome] .os-classic-bottom-nav a[aria-current="page"] { background: var(--color-muted, #454b6c); color: var(--px-text) !important; }
+[data-px-chrome] .os-classic-bottom-nav a[aria-current="page"] svg { transform: none !important; }
+
+/* The page floor behind everything. */
+[data-px-chrome] #main-content {
+  /* A soft gradient from the theme's own colours (Penumbra: no grid). A
+     background the person set paints above this. */
+  background-color: var(--px-floor-bottom, var(--px-sunk));
+  background-image: linear-gradient(180deg, var(--px-floor-top-live) 0%, var(--px-floor-bottom, var(--px-sunk)) 70%);
+  background-attachment: fixed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-chrome .app-header-wave-slide { animation: none !important; }
+}
+
+/* ── Building blocks (the mockups' .ttl, .chip, .tick, .tab, menus) ──
+   Shape and outline only: a chip or tick keeps whatever colour its page
+   gives it (an alter's colour, a status colour), so nothing loses meaning. */
+
+/* A card's header is the panel's title bar. */
+html[data-ui-look="pixel"] .os-card > .os-card-head {
+  padding: 7px 12px !important;
+  margin-bottom: 12px;
+  background: var(--px-bar);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-card > .os-card-head :is(h1, h2, h3, h4, .os-title, div.font-semibold) {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+/* Chips and badges: square with a dark outline. */
+html[data-ui-look="pixel"] .os-chip {
+  border-radius: 0 !important;
+  border-color: transparent;
+  outline: 2px solid var(--px-line);
+  outline-offset: -1px;
+  font-family: var(--px-font);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Tick boxes: a square well. */
+html[data-ui-look="pixel"] .os-tick {
+  border-radius: 0 !important;
+  border-width: 1px;
+  border-color: var(--px-line);
+  box-shadow: inset 1px 1px 0 rgb(0 0 0 / 0.25);
+}
+html[data-ui-look="pixel"] .os-tick[data-state="checked"] { box-shadow: none; }
+
+/* Page tabs (Tabs): file-folder tabs on a sunken strip. */
+html[data-ui-look="pixel"] .os-tabs {
+  border-radius: 0 !important;
+  gap: 4px;
+  padding: 4px 4px 0;
+  align-items: flex-end;
+  background: var(--px-sunk);
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-tabs-tab {
+  border-radius: 0 !important;
+  font-family: var(--px-font);
+  font-weight: 500;
+  outline: 2px solid var(--px-line);
+  background: var(--px-tab);
+  color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .os-tabs-tab[data-state="active"] {
+  background: var(--px-panel);
+  color: var(--px-text);
+  box-shadow: inset 2px 2px 0 var(--px-hi) !important;
+}
+
+/* The shared page strip (PageStrip): the same folder tabs. */
+html[data-ui-look="pixel"] .os-page-strip {
+  gap: 4px; padding: 4px 4px 0; align-items: flex-end;
+  border-bottom: 0 !important; background: var(--px-sunk); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-page-strip > [role="tab"] {
+  flex: 0 0 auto; min-height: 34px; margin: 0; padding: 4px 12px;
+  border-bottom: 0 !important; border-radius: var(--px-corner, 0px) var(--px-corner, 0px) 0 0;
+  font-family: var(--px-font); font-weight: 500;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  background: var(--px-tab); color: var(--px-text-2);
+}
+html[data-ui-look="pixel"] .os-page-strip > [role="tab"][aria-selected="true"] {
+  background: var(--px-panel); color: var(--px-text); box-shadow: inset 2px 2px 0 var(--px-hi); padding-top: 6px;
+}
+html[data-ui-look="pixel"] .os-page-strip > [role="tab"]:focus-visible { outline: 2px solid var(--color-primary); }
+
+/* Drop-down menus and pick lists: a pixel panel, the picked row filled. */
+html[data-ui-look="pixel"] .os-menu {
+  border-radius: 0 !important;
+  border-color: var(--px-line);
+  box-shadow: var(--px-bevel), 0 0 0 2px var(--px-line) !important;
+}
+html[data-ui-look="pixel"] .os-menu [role="menuitem"],
+html[data-ui-look="pixel"] .os-menu [role="option"] { border-radius: 0 !important; }
+
+/* Pills (a rounded-full box with side padding — feeling chips, tags,
+   little buttons) become square chips. Real circles — avatars, dots,
+   switches, round icon buttons — have no side padding and stay round. */
+html[data-ui-look="pixel"] .rounded-full:is([class*=" px-"], [class^="px-"], [class*=" pl-"]):not(img, [role="switch"]) {
+  border-radius: 0 !important;
+  outline: 2px solid var(--px-line);
+  outline-offset: -1px;
+}
+
+/* Toasts follow the person's body font like everything else. */
+html[data-ui-look="pixel"] [data-sonner-toaster] { font-family: var(--font-sans) !important; }
+html[data-ui-look="pixel"] [data-sonner-toast] { border-radius: 0 !important; box-shadow: var(--px-bevel), 0 0 0 2px var(--px-line) !important; }
+
+/* "How this page works" (PixelHelpPanel.jsx): the page's help, docked on
+   the right at computer width. The first-visit banner lives here instead. */
+.px-help-toggle { gap: 6px; font-size: 12px; }
+.px-help-toggle.sel { background: var(--px-panel); color: var(--px-text); }
+.px-help {
+  position: fixed; right: 0; z-index: 40; width: 300px;
+  top: calc(78px + min(env(safe-area-inset-top, 0px), 64px)); bottom: 0;
+  display: flex; flex-direction: column;
+  background: var(--px-panel); box-shadow: var(--px-bevel), -2px 0 0 var(--px-line);
+  color: var(--px-text); font-family: var(--font-sans);
+}
+.px-help-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 30px; padding: 0 8px 0 12px; font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+.px-help-x { display: flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; }
+.px-help-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px; }
+.px-help-muted { font-size: 13px; color: var(--px-text-2); }
+.px-help-steps { display: flex; flex-direction: column; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.px-help-steps li { padding: 8px 10px; background: var(--px-sunk); box-shadow: var(--px-sunken); }
+.px-help-step-title { font-family: var(--px-font); font-size: 13px; margin-bottom: 4px; }
+.px-help-step-body { font-size: 12.5px; line-height: 1.45; color: var(--px-text-2); }
+.px-help-foot { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 14px; box-shadow: inset 0 2px 0 var(--px-line); }
+.px-help-btn {
+  font-family: var(--px-font); font-size: 13px; padding: 6px 10px; min-height: 34px; color: var(--px-text);
+  background: var(--px-bar); outline: 2px solid var(--px-line); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+.px-help-btn-main { background: var(--color-primary); color: var(--color-bg); }
+.px-help-btn:focus-visible, .px-help-x:focus-visible, .px-help-toggle:focus-visible { outline: 2px solid var(--color-primary); }
+.px-help-switch { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--px-text-2); }
+.px-help-switch input { width: 16px; height: 16px; accent-color: var(--color-primary); }
+@media (min-width: 1024px) {
+  [data-px-chrome] .os-page-tip { display: none !important; }
+  html[data-px-help="1"] [data-px-chrome] #main-content, html[data-px-info="1"] [data-px-chrome] #main-content { padding-right: 324px; }
+  html[data-px-help="1"] .os-float-right, html[data-px-info="1"] .os-float-right { right: 316px !important; }
+  html[data-px-help="1"] .os-float-btn[style*="right"], html[data-px-info="1"] .os-float-btn[style*="right"] { right: 316px !important; }
+  html[data-px-help="1"] [data-sonner-toaster][data-x-position="right"], html[data-px-info="1"] [data-sonner-toaster][data-x-position="right"] { right: 316px !important; }
+}
+
+/* An alter's name drawn in their own colour (readable-adjusted, set as
+   --alter-name by the component). */
+html[data-ui-look="pixel"] .os-alter-name[style*="--alter-name"] { color: var(--alter-name) !important; }
+
+/* Widgets: a solid panel with a title bar, like the mockups' windows. A
+   background or look the person set on the widget or board sits closer to
+   the widget and wins over this default. */
+html[data-ui-look="pixel"] { --v2-widget-bg: var(--color-surface, #26293e); }
+/* The title band: the app's title-bar colour (Display options → Colour),
+   or mixed from a widget's own fill and text colour when it has them. */
+html[data-ui-look="pixel"] :is(.os-widget-head, .os-head-row) {
+  --px-widget-bar: var(--px-band, var(--px-bar));
+}
+html[data-ui-look="pixel"] .os-widget-head {
+  align-items: center;
+  margin: calc(-1 * var(--os-pad-t, 0px)) calc(-1 * var(--os-pad-r, 0px)) 8px calc(-1 * var(--os-pad-l, 0px));
+  padding: 3px 8px;
+  min-height: 24px;
+  background: var(--px-widget-bar);
+  box-shadow: inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-widget-head [data-widget-label] {
+  font-family: var(--px-font);
+  font-size: 0.8125em;
+  font-weight: 500;
+  color: var(--v2-text, var(--px-text));
+  letter-spacing: 0;
+}
+
+/* A widget or card that draws its own heading row marks it os-head-row
+   (label: os-head-label): in the pixel look it becomes a title band. */
+html[data-ui-look="pixel"] .os-head-row {
+  padding: 3px 8px !important;
+  min-height: 26px;
+  margin-bottom: 8px;
+  background: var(--px-widget-bar);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset 0 -2px 0 var(--px-line);
+}
+html[data-ui-look="pixel"] .os-head-label {
+  font-family: var(--px-font);
+  font-size: 0.8125em; /* em, so a widget's own Text size still works */
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--v2-text, var(--px-text));
+}
+
+/* Page titles: compact, like a window's name (the page's tab already
+   names it). Profile and widget-board headers keep their own sizes. */
+@media (min-width: 1024px) {
+  html[data-ui-look="pixel"] [data-px-chrome] #main-content h1:not([data-widget-label], .ProseMirror *, .bulletin-prose *) {
+    font-size: 1.375rem !important;
+    line-height: 1.25 !important;
+  }
+}
+
+/* The phone's frame: search as a full-width sheet under the header, the
+   help panel as a sheet, a dot for unseen page tips. */
+.px-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: var(--color-primary); outline: 2px solid var(--px-line); }
+.px-iconbtn.sel { background: var(--px-panel) !important; }
+.px-search-panel-phone { position: fixed; left: 8px; right: 8px; width: auto; top: calc(56px + 8px + min(env(safe-area-inset-top, 0px), 64px)); }
+@media (max-width: 1023px) {
+  [data-px-chrome] .os-page-tip { display: none !important; }
+  .px-help { left: 0; width: auto; z-index: 210; /* over toasts while open */ top: calc(86px + min(env(safe-area-inset-top, 0px), 64px)); bottom: calc(var(--bottom-nav-height, 56px) + var(--os-sab, 0px)); }
+}
+
+/* ── Status bar (computer) ─────────────────────────────────────────── */
+.px-status {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  align-items: center; gap: 2px; height: 24px; padding: 0 6px;
+  background: var(--px-bar); box-shadow: inset 0 2px 0 var(--px-line);
+  font-family: var(--px-font); font-size: 12px; color: var(--px-text-2);
+}
+.px-status-item { padding: 0 8px; white-space: nowrap; line-height: 24px; color: inherit; text-decoration: none; background: transparent; }
+a.px-status-item:hover, button.px-status-item:hover { color: var(--px-text); background: color-mix(in srgb, var(--px-panel) 70%, transparent); }
+.px-status-warn { color: var(--color-warning, #f0b35a) !important; }
+@media (min-width: 1024px) {
+  html[data-px-status="1"] [data-px-chrome] #main-content { padding-bottom: 28px; }
+  html[data-px-status="1"] .px-help { bottom: 24px; }
+  html[data-px-status="1"] .os-float-right, html[data-px-status="1"] .os-float-btn { margin-bottom: 24px; }
+  html[data-px-status="1"] [data-sonner-toaster][data-y-position="bottom"] { bottom: 40px !important; }
+}
+
+/* ── Tool rail (computer) ──────────────────────────────────────────── */
+.px-rail {
+  position: fixed; z-index: 40; width: 48px; display: none;
+  top: calc(78px + min(env(safe-area-inset-top, 0px), 64px)); bottom: 0;
+  flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 8px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  background: var(--px-bar); color: var(--px-text);
+}
+.px-rail::-webkit-scrollbar { display: none; }
+.px-rail-left { left: 0; box-shadow: inset -2px 0 0 var(--px-line); }
+.px-rail-right { right: 0; box-shadow: inset 2px 0 0 var(--px-line); }
+.px-rail-lbl { font-family: var(--px-font); font-size: 10px; letter-spacing: .04em; color: var(--px-text-2); margin-top: 2px; text-transform: uppercase; }
+.px-rail-slot { display: block; }
+.px-rail-key {
+  position: relative; flex: none; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--px-text); background: var(--px-panel);
+  border-radius: var(--px-corner, 0px);
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+.px-rail-key:hover { background: color-mix(in srgb, var(--color-primary) 18%, var(--px-panel)); }
+.px-rail-key:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+.px-rail-key.sel { background: var(--color-primary); color: var(--color-bg); box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi); }
+.px-rail-key.accent { color: var(--color-primary); }
+.px-rail-key:focus-visible { outline: 2px solid var(--color-primary); }
+@media (min-width: 1024px) {
+  .px-rail { display: flex; }
+  html[data-px-status="1"] .px-rail { bottom: 24px; }
+  html[data-px-rail="left"] [data-px-chrome] #main-content { padding-left: 52px; }
+  html[data-px-rail="right"] [data-px-chrome] #main-content { padding-right: 52px; }
+  html[data-px-rail="right"][data-px-help="1"] [data-px-chrome] #main-content { padding-right: 372px; }
+  html[data-px-rail="right"] .px-help { right: 48px; }
+  html[data-px-rail="right"] .os-float-right, html[data-px-rail="right"] .os-float-btn[style*="right"] { margin-right: 48px; }
+  html[data-px-rail="left"] .os-float-btn[style*="left"] { margin-left: 48px; }
+}
+
+/* ── Pinned strip (computer) ───────────────────────────────────────── */
+.px-front-strip {
+  position: fixed; z-index: 39; display: none;
+  left: 0; right: 0; padding: 2px 6px;
+  background: var(--px-bar);
+}
+.px-front-strip [data-widget-box] { background: transparent !important; box-shadow: none !important; }
+.px-front-top { top: calc(78px + min(env(safe-area-inset-top, 0px), 64px)); box-shadow: inset 0 -2px 0 var(--px-line); }
+.px-front-bottom { bottom: 0; box-shadow: inset 0 2px 0 var(--px-line); }
+@media (min-width: 1024px) {
+  .px-front-strip { display: block; }
+  html[data-px-status="1"] .px-front-bottom { bottom: 24px; }
+  html[data-px-rail="left"] .px-front-strip { left: 48px; }
+  html[data-px-rail="right"] .px-front-strip { right: 48px; }
+  html[data-px-help="1"] .px-front-strip { right: 300px; }
+  html[data-px-help="1"][data-px-rail="right"] .px-front-strip { right: 348px; }
+  html[data-px-front="top"] [data-px-chrome] #main-content { padding-top: calc(var(--px-front-h, 0px) + 10px); }
+  html[data-px-front="bottom"] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-front-h, 0px) + 4px); }
+  html[data-px-front="bottom"][data-px-status="1"] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-front-h, 0px) + 28px); }
+}
+
+/* ── Phone: the bottom bar and the menu drawer ─────────────────────── */
+/* The bottom bar: square tabs like the mockup, the open one raised. */
+[data-px-chrome] .os-v2-bottom {
+  background: var(--px-bar) !important; backdrop-filter: none !important;
+  border-top: 0 !important; box-shadow: inset 0 2px 0 var(--px-line);
+}
+[data-px-chrome] .os-v2-bottom [data-os-chrome="tabs"] { gap: 4px; padding: 5px 6px 4px; height: auto !important; min-height: var(--v2-strip-h); }
+[data-px-chrome] .os-v2-tab {
+  font-family: var(--px-font); min-height: 44px;
+  background: var(--px-tab); color: var(--px-text-2) !important;
+  border-radius: var(--px-corner, 0px);
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo) !important;
+}
+[data-px-chrome] .os-v2-tab[aria-selected="true"] {
+  background: var(--px-panel); color: var(--v2-accent, var(--color-primary)) !important;
+  transform: translateY(-3px);
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo), 0 3px 0 var(--px-line) !important;
+}
+[data-px-chrome] .os-v2-tab:focus-visible { outline: 2px solid var(--color-primary); }
+[data-px-chrome] .os-v2-tab .os-tab-label { font-weight: 500; }
+/* Quick action keys: bevelled squares, like the tool rail. */
+[data-px-chrome] .os-qa-key {
+  background: var(--px-panel) !important; color: var(--px-text) !important;
+  border: 0 !important; border-radius: var(--px-corner, 0px) !important;
+  outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo) !important;
+}
+[data-px-chrome] .os-qa-key.os-qa-support { color: var(--color-primary) !important; }
+[data-px-chrome] .os-qa-key:active { box-shadow: inset 2px 2px 0 var(--px-lo), inset -2px -2px 0 var(--px-hi) !important; }
+
+/* The menu drawer: a pixel panel, each area under a title band. */
+html[data-ui-look="pixel"] .os-drawer {
+  background: var(--px-panel) !important; border-right: 0 !important;
+  box-shadow: 2px 0 0 var(--px-line), var(--px-bevel);
+}
+html[data-ui-look="pixel"] .os-drawer-head { background: var(--px-bar) !important; backdrop-filter: none !important; border-bottom: 0 !important; box-shadow: inset 0 -2px 0 var(--px-line); }
+html[data-ui-look="pixel"] .os-drawer-head .font-display { font-family: var(--px-font); }
+html[data-ui-look="pixel"] .os-drawer-sec { background: var(--px-sunk); box-shadow: var(--px-sunken); padding-bottom: 4px; }
+html[data-ui-look="pixel"] .os-drawer-group {
+  font-family: var(--px-font); font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important;
+  color: var(--px-text) !important; background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+  padding: 4px 10px !important; margin: 0 0 4px !important;
+}
+html[data-ui-look="pixel"] .os-drawer-item { border-radius: var(--px-corner, 0px) !important; margin: 0 4px; }
+html[data-ui-look="pixel"] .os-drawer-item[aria-current="page"] { background: var(--px-panel) !important; box-shadow: inset 2px 0 0 var(--color-primary), inset 0 0 0 2px var(--px-line); }
+
+
+/* ── Timeline dock + Info panel (computer, Home) ───────────────────── */
+/* PixelTimelineDock.jsx. The Info panel sits in the help panel's slot. */
+.px-info { z-index: 41; }
+html[data-px-info="1"] .px-help:not(.px-info) { visibility: hidden; }
+.px-info-rows { display: flex; flex-direction: column; gap: 7px; margin: 0; font-size: 13px; }
+.px-info-row { display: flex; justify-content: space-between; gap: 12px; }
+.px-info-row dt { color: var(--px-text-2); flex-shrink: 0; }
+.px-info-row dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.px-info-foot { flex-direction: row; flex-wrap: wrap; }
+.px-info-foot .px-help-btn { flex: 1 1 auto; }
+
+html { --px-below-dock: 0px; }
+html[data-px-status="1"] { --px-below-dock: 24px; }
+html[data-px-front="bottom"] { --px-below-dock: var(--px-front-h, 0px); }
+html[data-px-front="bottom"][data-px-status="1"] { --px-below-dock: calc(24px + var(--px-front-h, 0px)); }
+.px-dock {
+  position: fixed; z-index: 38; display: none; left: 0; right: 0; height: 232px;
+  bottom: var(--px-below-dock);
+  flex-direction: column; background: var(--px-panel); color: var(--px-text);
+  box-shadow: inset 0 2px 0 var(--px-line), inset 0 4px 0 var(--px-hi);
+  font-size: 12px;
+}
+.px-dock-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none;
+  height: 28px; margin-top: 2px; padding: 0 6px 0 10px; font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+.px-dock-name { display: inline-flex; align-items: center; gap: 6px; }
+.px-dock-nav { display: inline-flex; align-items: center; gap: 4px; }
+.px-dock-date { min-width: 92px; text-align: center; }
+.px-dock-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 22px; padding: 0 6px;
+  font-size: 12px; background: var(--px-tab); outline: 2px solid var(--px-line); outline-offset: -1px;
+  box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+.px-dock-btn:disabled { opacity: .5; }
+.px-dock-btn:focus-visible, .px-dock-eye:focus-visible, .px-dock-item:focus-visible { outline: 2px solid var(--color-primary); }
+.px-dock-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.px-dock-row { display: flex; height: 20px; }
+.px-dock-axis { position: sticky; top: 0; z-index: 2; background: var(--px-panel); box-shadow: inset 0 -2px 0 var(--px-line); }
+.px-dock-head {
+  width: 150px; flex: none; display: flex; align-items: center; gap: 5px; padding: 0 6px;
+  background: var(--px-bar); box-shadow: inset -2px 0 0 var(--px-line); white-space: nowrap; overflow: hidden;
+}
+.px-dock-layer .px-dock-head { font-family: var(--px-font); }
+.px-dock-layer.off .px-dock-head { color: var(--px-text-2); }
+.px-dock-sub { padding-left: 24px; }
+.px-dock-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.px-dock-none { margin-left: auto; color: var(--px-text-2); font-size: 11px; }
+.px-dock-eye { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; color: var(--px-text-2); }
+.px-dock-swatch { width: 8px; height: 8px; flex: none; background: var(--px-text-2); outline: 1px solid var(--px-line); }
+.px-dock-lane {
+  position: relative; flex: 1; min-width: 0;
+  background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--px-text) 10%, transparent) 0 1px, transparent 1px calc(100% / 24));
+}
+.px-dock-hour { position: absolute; top: 3px; font-family: var(--px-font); font-size: 11px; color: var(--px-text-2); transform: translateX(3px); }
+.px-dock-now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--color-primary); z-index: 1; pointer-events: none; }
+.px-dock-item {
+  position: absolute; top: 3px; height: 14px; --px-item: var(--color-primary);
+  background: var(--px-item); outline: 1px solid var(--px-line); color: #fff;
+}
+.px-dock-bar { overflow: hidden; text-align: left; padding: 0 3px; }
+.px-dock-dot { width: 10px; transform: translateX(-5px); top: 5px; height: 10px; }
+.px-dock-item-txt { display: block; font-size: 11px; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 1px 1px 0 rgba(0,0,0,.55); }
+.px-dock-item:hover { filter: brightness(1.15); z-index: 2; }
+@media (min-width: 1024px) {
+  .px-dock { display: flex; }
+  html[data-px-rail="left"] .px-dock { left: 48px; }
+  html[data-px-rail="right"] .px-dock { right: 48px; }
+  html[data-px-help="1"] .px-dock, html[data-px-info="1"] .px-dock { right: 300px; }
+  html[data-px-rail="right"][data-px-help="1"] .px-dock, html[data-px-rail="right"][data-px-info="1"] .px-dock { right: 348px; }
+  html[data-px-rail="right"] .px-info { right: 48px; }
+  html[data-px-dock="1"][data-ui-look] [data-px-chrome] #main-content { padding-bottom: calc(var(--px-below-dock) + 236px); }
+}
+
+/* ── Alters directory workspace (computer) ─────────────────────────── */
+/* AlterGrid's `workspace` layout: groups as a tree in a side panel. */
+.px-ws { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; align-items: start; }
+.px-ws-side {
+  position: sticky; top: 0; max-height: calc(100vh - 150px); display: flex; flex-direction: column;
+  background: var(--px-panel); color: var(--px-text);
+  outline: 2px solid var(--px-line); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo);
+}
+.px-ws-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; flex: none;
+  min-height: 30px; padding: 0 4px 0 10px; font-family: var(--px-font); font-size: 13px;
+  background: var(--px-bar); box-shadow: inset 0 -2px 0 var(--px-line);
+}
+.px-ws-tree { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.px-ws-row { display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 4px 0 6px; font-size: 13px; text-align: left; }
+.px-ws-row:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.px-ws-row.sel { background: var(--color-primary); color: var(--color-bg); box-shadow: inset 2px 2px 0 var(--px-hi), inset -2px -2px 0 var(--px-lo); }
+.px-ws-row.sel .px-ws-name { color: var(--color-bg) !important; }
+.px-ws-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; min-height: 30px; text-align: left; }
+.px-ws-swatch { width: 10px; height: 10px; flex: none; background: var(--px-text-2); outline: 2px solid var(--px-line); }
+.px-ws-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.px-ws-count { font-family: var(--px-font); font-size: 11px; opacity: .8; }
+.px-ws-open { min-width: 24px; min-height: 26px; font-size: 16px; opacity: .75; }
+.px-ws-open:hover { opacity: 1; }
+.px-ws-row:focus-visible, .px-ws-pick:focus-visible, .px-ws-open:focus-visible { outline: 2px solid var(--color-primary); }
+.px-ws-empty { padding: 8px; font-size: 12.5px; color: var(--px-text-2); }
+.px-ws-main { min-width: 0; }
+.px-ws-cal { padding: 8px; font-size: 12px; }
+.px-ws-cal button { border-radius: 0 !important; }
+.px-ws-head { margin: 8px 6px 2px; font-family: var(--px-font); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--px-text-2); }
+
+/* System map: the maps strip reads as folder tabs with a "Maps" label. */
+html[data-ui-look="pixel"] .px-maps { align-items: flex-end; gap: 4px; padding: 4px 6px 0; margin-bottom: 8px; background: var(--px-sunk); box-shadow: inset 0 -2px 0 var(--px-line); }
+html[data-ui-look="pixel"] .px-maps-label { display: inline; font-family: var(--px-font); color: var(--px-text-2); font-size: 13px; padding: 0 6px 6px 0; }
+html[data-ui-look="pixel"] .px-maps > button { border-radius: 0 !important; border: 0 !important; outline: 2px solid var(--px-line); background: var(--px-tab); color: var(--px-text-2); font-family: var(--px-font); }
+html[data-ui-look="pixel"] .px-maps > .px-maps-tab[aria-pressed="true"] { background: var(--px-panel); color: var(--px-text); box-shadow: inset 2px 2px 0 var(--px-hi); padding-bottom: 6px; }
+html[data-ui-look="pixel"] .os-tabs-tab[aria-pressed="true"] { background: var(--px-panel); color: var(--px-text); }
+
+/* Chat on a phone: who's speaking sits on its own row so the message box
+   keeps the full width (the pixel font is wide). */
+@media (max-width: 639px) {
+  html[data-ui-look="pixel"] .px-chat-composer { flex-wrap: wrap; }
+  html[data-ui-look="pixel"] .px-chat-composer > :first-child { flex-basis: 100%; max-width: 100%; }
+}
+/* Bridge the gap under an area so the mouse can travel into its list. */
+.px-area-wrap > .px-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }

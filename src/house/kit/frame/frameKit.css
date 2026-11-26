@@ -1,0 +1,167 @@
+/* The frame's own kit blocks (new house step 2.1): open-page tabs, the dock
+   resizer and the status bar. Tokens only, scoped to [data-house]. Frame
+   labels use the 1.3× frame text cap (building code §5). */
+
+/* ── Open-page tabs: file tabs joined to the page ────────────────── */
+[data-house] .hk-otabs {
+  display: flex; align-items: flex-end; gap: var(--house-space-1);
+  min-width: 0; padding: var(--house-space-1) var(--house-space-2) 0;
+  background: var(--house-panel);
+  border-bottom: var(--house-border-w) solid var(--house-divider);
+}
+[data-house] .hk-otabs-list { display: flex; align-items: flex-end; gap: 2px; list-style: none; margin: 0; padding: 0; min-width: 0; flex: 0 1 auto; overflow: hidden; }
+[data-house] .hk-otab {
+  display: flex; align-items: center; min-width: 0; max-width: 16rem;
+  border: var(--house-border-w) solid transparent; border-bottom: 0;
+  border-radius: var(--house-corner-sm) var(--house-corner-sm) 0 0;
+  background: var(--house-sunken);
+  color: var(--house-muted);
+}
+[data-house][data-house-look="pixel"] .hk-otab { border-radius: 0; }
+/* The current tab is raised and the page's colour, and joins the page:
+   it covers the strip's bottom line. Bold too, so it isn't colour alone. */
+[data-house] .hk-otab[data-current] {
+  background: var(--house-page); color: var(--house-text);
+  border-color: var(--house-divider);
+  margin-bottom: calc(-1 * var(--house-border-w));
+  padding-bottom: var(--house-border-w);
+}
+[data-house] .hk-otab-go,
+[data-house] .hk-otab-x {
+  display: inline-flex; align-items: center; gap: var(--house-space-2);
+  min-height: var(--house-h-control); min-width: var(--house-target);
+  border: 0; background: transparent; color: inherit; cursor: pointer;
+  font-family: var(--house-font-label); font-size: var(--house-frame-text-sm); line-height: 1.3;
+}
+[data-house] .hk-otab-go { padding: 0 var(--house-space-2) 0 var(--house-space-3); min-width: 0; flex: 1 1 auto; text-align: left; }
+[data-house] .hk-otab[data-current] .hk-otab-go { font-weight: 700; }
+[data-house] .hk-otab-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+[data-house] .hk-otab-x { justify-content: center; padding: 0; width: var(--house-target); flex-shrink: 0; color: var(--house-muted); }
+@media (hover: hover) {
+  [data-house] .hk-otab-go:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.2em; }
+  [data-house] .hk-otab-x:hover { box-shadow: inset 0 0 0 2px currentColor; border-radius: var(--house-corner-sm); color: var(--house-text); }
+}
+[data-house] .hk-otab-go:focus-visible,
+[data-house] .hk-otab-x:focus-visible { outline-offset: -3px; }
+
+/* ── Dock resizer: a 0.5rem edge with a grip; the hit area is wider ─ */
+[data-house] .hk-resizer {
+  position: relative; flex: 0 0 auto; z-index: 2;
+  width: 0.5rem; cursor: col-resize; touch-action: none;
+  background: var(--house-divider);
+}
+[data-house] .hk-resizer::before { content: ""; position: absolute; inset: 0 -0.5rem; }
+[data-house] .hk-resizer[data-side="bottom"] { width: auto; height: 0.5rem; cursor: row-resize; }
+[data-house] .hk-resizer[data-side="bottom"]::before { inset: -0.5rem 0; }
+[data-house] .hk-resizer-grip {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 2px; height: 2rem; border-radius: 1px; background: var(--house-border);
+}
+[data-house] .hk-resizer[data-side="bottom"] .hk-resizer-grip { width: 2rem; height: 2px; }
+[data-house] .hk-resizer:hover .hk-resizer-grip,
+[data-house] .hk-resizer:focus-visible .hk-resizer-grip { background: var(--house-accent); width: 4px; }
+[data-house] .hk-resizer[data-side="bottom"]:hover .hk-resizer-grip,
+[data-house] .hk-resizer[data-side="bottom"]:focus-visible .hk-resizer-grip { height: 4px; width: 2rem; }
+
+/* ── Status bar ──────────────────────────────────────────────────── */
+[data-house] .hk-status {
+  display: flex; align-items: stretch; gap: var(--house-space-1);
+  min-height: var(--house-h-status);
+  padding: 0 var(--house-space-2);
+  background: var(--house-panel); color: var(--house-muted);
+  border-top: var(--house-border-w) solid var(--house-divider);
+  font-size: var(--house-frame-text-xs); line-height: 1.35;
+}
+/* Touch screens, the compact studio, and a bar that holds a control that
+   must be pressed: the control height. */
+@media (pointer: coarse) { [data-house] .hk-status { min-height: var(--house-h-control); } }
+[data-house] .hk-status[data-tall] { min-height: var(--house-h-control); }
+[data-house][data-house-size="compact"] .hk-status { min-height: var(--house-h-control); }
+[data-house] .hk-status-item {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--house-space-1);
+  min-width: var(--house-target); padding: 0 var(--house-space-2);
+  color: inherit; text-decoration: none; white-space: nowrap;
+  border: 0; background: transparent; font: inherit;
+}
+[data-house] .hk-status-item[data-strong] { font-size: var(--house-frame-text-sm); font-weight: 600; color: var(--house-text); }
+[data-house] .hk-status-item[data-tone="warn"] { color: var(--house-danger-text); font-weight: 700; font-size: var(--house-frame-text-sm); }
+[data-house] .hk-status-item[data-tone="label"] {
+  color: var(--house-text); font-weight: 700; font-size: var(--house-frame-text-sm);
+  border: var(--house-border-w) solid var(--house-accent); border-radius: var(--house-corner-sm);
+  margin: 3px 0;
+}
+[data-house] .hk-status-press { cursor: pointer; border-radius: var(--house-corner-sm); }
+[data-house] .hk-status-press[aria-disabled="true"] { cursor: not-allowed; opacity: 0.75; }
+@media (hover: hover) {
+  [data-house] .hk-status-press:hover:not([aria-disabled="true"]) { box-shadow: inset 0 0 0 2px currentColor; color: var(--house-text); }
+}
+[data-house] .hk-status-press:focus-visible { outline-offset: -2px; }
+[data-house] .hk-status-spacer { flex: 1 1 auto; }
+
+/* ── Signing swatch (top of the tool rail) ───────────────────────── */
+[data-house] .hk-swatch {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: var(--house-target); height: var(--house-target); padding: 0;
+  border: var(--house-border-w) solid var(--house-border); border-radius: var(--house-corner-sm);
+  background: var(--house-raised); color: var(--house-text); cursor: pointer;
+}
+[data-house][data-house-look="pixel"] .hk-swatch { border-radius: 0; border-color: var(--house-outline); }
+@media (hover: hover) { [data-house] .hk-swatch:hover { box-shadow: inset 0 0 0 3px currentColor; } }
+[data-house] .hk-swatch-stack { display: grid; grid-auto-flow: column; gap: 2px; }
+[data-house] .hk-swatch-chip {
+  width: 0.625rem; height: 1.5rem; border-radius: 2px;
+  outline: 1px solid var(--house-text); outline-offset: 0;
+}
+[data-house] .hk-swatch-system { display: inline-flex; align-items: center; justify-content: center; }
+[data-house] .hk-swatch-initial { font-family: var(--house-font-label); font-weight: 700; font-size: var(--house-frame-text-sm); }
+[data-house] .hk-swatch-more {
+  position: absolute; right: -2px; bottom: -2px;
+  padding: 0 3px; border-radius: 6px;
+  background: var(--house-accent); color: var(--house-on-accent);
+  font-size: var(--house-frame-text-xs); font-weight: 700; line-height: 1.3;
+}
+
+/* ── Area menus (board 01-Main's header) ─────────────────────────── */
+[data-house] .hk-areas { display: flex; align-items: center; gap: 2px; min-width: 0; }
+[data-house] .hk-area { position: relative; display: flex; align-items: stretch; flex: 0 0 auto; }
+[data-house] .hk-area-name,
+[data-house] .hk-area-caret {
+  display: inline-flex; align-items: center; border: 0; background: transparent; color: var(--house-text);
+  font-family: var(--house-font-label); font-size: var(--house-frame-text-sm); line-height: 1.2; cursor: pointer;
+  min-height: var(--house-target);
+}
+[data-house] .hk-area-name { padding: 0 2px 0 var(--house-space-2); }
+[data-house] .hk-area-caret { padding: 0 var(--house-space-1) 0 0; color: var(--house-muted); }
+[data-house] .hk-area-caret svg { width: 0.75rem; height: 0.75rem; }
+[data-house] .hk-area[data-active] .hk-area-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.25em; }
+[data-house] .hk-area[data-open] { background: var(--house-panel); box-shadow: 0 0 0 2px var(--house-outline); }
+@media (hover: hover) { [data-house] .hk-area:hover { background: var(--house-panel); box-shadow: 0 0 0 2px var(--house-outline); } }
+[data-house] .hk-area-name:focus-visible,
+[data-house] .hk-area-caret:focus-visible { outline-offset: -2px; }
+[data-house] .hk-area-menu {
+  position: absolute; left: 0; top: 100%; z-index: 60; min-width: 13rem; padding: var(--house-space-1) 0;
+  background: var(--house-panel); color: var(--house-text);
+  border: var(--house-px-line, 1px) solid var(--house-outline); box-shadow: var(--house-px-raise, none);
+}
+[data-house] .hk-area-row { display: flex; align-items: stretch; }
+[data-house] .hk-area-row[data-current] { background: var(--house-bevel-light); }
+[data-house] .hk-area-item {
+  flex: 1 1 auto; display: flex; align-items: center; gap: var(--house-space-2); min-width: 0;
+  min-height: var(--house-h-row); padding: 0 var(--house-space-3);
+  border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer;
+  font-family: var(--house-font-body); font-size: var(--house-text-sm);
+}
+[data-house] .hk-area-item-text { flex: 1 1 auto; overflow-wrap: break-word; }
+[data-house] .hk-area-key { font-family: var(--house-font-label); font-size: var(--house-frame-text-xs); color: var(--house-muted); background: transparent; border: 0; padding: 0; }
+[data-house] .hk-area-newtab { flex: 0 0 auto; width: var(--house-target); border: 0; background: transparent; color: var(--house-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+[data-house] .hk-area-newtab svg { width: 0.875rem; height: 0.875rem; }
+[data-house] .hk-area-item:focus,
+[data-house] .hk-area-item:focus-visible { background: var(--house-bevel-light); outline: none; box-shadow: inset 1px 0 0 var(--house-accent); }
+@media (hover: hover) {
+  [data-house] .hk-area-item:hover { background: var(--house-bevel-light); }
+  [data-house] .hk-area-newtab:hover { color: var(--house-text); box-shadow: inset 0 0 0 2px currentColor; }
+}
+[data-house] .hk-area-sep { height: 2px; margin: var(--house-space-1) 0; background: var(--house-outline); }
+[data-house] .hk-area-more { color: var(--house-muted); }
+[data-house] .hk-area-more[aria-checked="true"] { color: var(--house-accent-text); font-weight: 700; }
+

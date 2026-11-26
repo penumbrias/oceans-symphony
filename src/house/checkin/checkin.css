@@ -1,0 +1,407 @@
+/* The house's check-in sheets: boards 16-CheckInPhone (Quick check-in),
+   17-CheckInWhoPhone ("Who feels …?") and 47-SetFrontPhone (Set front).
+   The sheets are the old QuickCheckInModal, AlterAssignPopup and
+   SetFrontSheet drawn in the boards' layout while the new house is on; this
+   file paints them with house tokens only. Every rule sits under one of the
+   three sheet roots (.hcs-ci, .hcs-who, .hcs-sf), each a [data-house] root
+   carrying the person's paint, so nothing outside the sheets changes and
+   the house off never sees it. The hcs- prefix is these sheets' own.
+   Imported by HouseSheets.jsx, which both frames load. */
+
+/* ── Shared: the sheet roots ─────────────────────────────────────── */
+[data-house].hcs-ci, [data-house].hcs-who, [data-house].hcs-sf {
+  --hcs-raise: var(--house-px-raise, 0 0 0 0 transparent);
+  --hcs-btn: var(--house-px-btn, 0 0 0 0 transparent);
+  --hcs-on: var(--house-px-on, 0 0 0 0 transparent);
+  --hcs-sink: var(--house-px-sink, inset 0 0 0 var(--house-border-w, 1px) var(--house-outline));
+  --hcs-sink-thin: var(--house-px-sink-thin, none);
+  --hcs-on-thin: var(--house-px-on-thin, none);
+  --hcs-label: var(--house-px-label, var(--house-text-sm));
+  --hcs-line: 1px;
+  color: var(--house-text); font-family: var(--house-font-body);
+  border-radius: 0;
+}
+[data-house][data-house-look="smooth"].hcs-ci, [data-house][data-house-look="smooth"].hcs-who, [data-house][data-house-look="smooth"].hcs-sf { --hcs-line: var(--house-border-w, 1px); }
+
+/* A board button (the old px-p3-btn / psh-btn hooks inside the sheets). */
+[data-house].hcs-ci .px-p3-btn, [data-house].hcs-who .px-p3-btn, [data-house].hcs-sf .psh-btn,
+[data-house].hcs-ci .hcs-mine {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--house-space-1);
+  min-height: var(--house-target); padding: 0 var(--house-space-3);
+  font-family: var(--house-font-label); font-weight: 400; font-size: var(--hcs-label); color: var(--house-text);
+  background: var(--house-title); border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0);
+  outline: 0; box-shadow: var(--hcs-btn); cursor: pointer; white-space: nowrap;
+}
+[data-house].hcs-ci .px-p3-btn.on, [data-house].hcs-who .px-p3-btn.on, [data-house].hcs-sf .psh-btn.on {
+  background: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on);
+}
+[data-house].hcs-ci .px-p3-btn:active, [data-house].hcs-who .px-p3-btn:active, [data-house].hcs-sf .psh-btn:active { box-shadow: var(--hcs-sink); }
+[data-house].hcs-ci .px-p3-btn:disabled, [data-house].hcs-who .px-p3-btn:disabled, [data-house].hcs-sf .psh-btn:disabled {
+  background: transparent; color: var(--house-muted); border-style: dashed; box-shadow: none; cursor: default;
+}
+[data-house].hcs-ci :is(button, input, textarea, select, [role="slider"], [tabindex]):focus-visible,
+[data-house].hcs-who :is(button, input, [tabindex]):focus-visible,
+[data-house].hcs-sf :is(button, input, [tabindex]):focus-visible {
+  outline: var(--house-focus-w, 3px) solid var(--house-focus, var(--house-accent)); outline-offset: var(--house-focus-gap, 1px);
+}
+
+/* ── Board 16: Quick check-in ─────────────────────────────────────── */
+[data-house].hcs-ci {
+  display: flex; flex-direction: column; gap: 0; padding: 0;
+  background: var(--house-page); border: var(--hcs-line) solid var(--house-outline);
+  box-shadow: var(--hcs-raise);
+}
+[data-house][data-house-size="phone"].hcs-ci { position: fixed; border-left: 0; border-right: 0; }
+[data-house].hcs-ci .px-ci-top {
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--house-space-2);
+  padding: var(--house-space-2); background: var(--house-panel);
+  border-bottom: var(--hcs-line) solid var(--house-outline);
+}
+[data-house].hcs-ci .px-ci-toprow { display: flex; align-items: center; gap: var(--house-space-2); }
+[data-house].hcs-ci .px-ci-topbtn { min-height: max(var(--house-target), 2.5rem); padding: 0 var(--house-space-3); font-size: var(--house-text-md); }
+[data-house].hcs-ci .px-ci-title {
+  flex: 1 1 auto; min-width: 0; margin: 0; text-align: center; line-height: 1.2;
+  font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-text-lg); color: var(--house-text);
+}
+[data-house].hcs-ci .px-ci-subrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-2); font-size: var(--house-text-sm); color: var(--house-text); }
+[data-house].hcs-ci .px-ci-manage { width: 2.25rem; padding: 0; min-height: 2rem; }
+[data-house].hcs-ci .px-ci-when {
+  min-height: 2rem; max-width: 100%; padding: 0 var(--house-space-2);
+  font-family: var(--house-font-label); font-size: var(--house-text-sm); color: var(--house-text);
+  background: var(--house-page); border: 0; border-radius: var(--house-corner-sm, 0); box-shadow: var(--hcs-sink);
+  color-scheme: inherit;
+}
+[data-house].hcs-ci .px-ci-last { font-size: var(--house-text-xs); color: var(--house-muted); }
+
+/* The body: one list of sections, the only thing that scrolls. */
+[data-house].hcs-ci .hcs-ci-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--house-space-2); background: var(--house-page);
+  display: flex; flex-direction: column; gap: var(--house-space-2);
+}
+[data-house].hcs-ci .hcs-ci-body > * { margin: 0; }
+/* A section head: a title bar with what's inside on the right. */
+[data-house].hcs-ci .px-ci-head {
+  width: 100%; min-height: max(var(--house-target), 2.75rem); padding: 0 var(--house-space-3);
+  display: flex; align-items: center; gap: var(--house-space-3); text-align: left;
+  font-family: var(--house-font-label); font-weight: 400; font-size: var(--hcs-label); color: var(--house-text);
+  background: var(--house-title); border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0);
+  box-shadow: var(--hcs-btn); cursor: pointer;
+}
+[data-house].hcs-ci .px-ci-head[aria-expanded="true"] { min-height: var(--house-px-title-h, var(--house-target)); box-shadow: none; border-bottom-width: 0; }
+[data-house].hcs-ci .px-ci-chev { width: 0.75rem; color: var(--house-muted); }
+[data-house].hcs-ci .px-ci-label { flex: 1 1 auto; min-width: 0; }
+[data-house].hcs-ci .px-ci-sum { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; color: var(--house-muted); font-size: var(--house-text-xs); }
+/* Board 16's Feeling head: "3 picked" then Wheel | List. */
+[data-house].hcs-ci .hcs-headrow {
+  position: relative; display: flex; align-items: stretch;
+  background: var(--house-title); border: var(--hcs-line) solid var(--house-outline); border-bottom-width: 0; border-radius: var(--house-corner-sm, 0) var(--house-corner-sm, 0) 0 0;
+}
+[data-house].hcs-ci .hcs-headrow > .px-ci-head { flex: 1 1 auto; border: 0; border-radius: 0; background: transparent; }
+[data-house].hcs-ci .hcs-mode {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.125rem; padding: 0 var(--house-space-2) 0 0;
+  font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted);
+}
+[data-house].hcs-ci .hcs-mode > button {
+  min-height: var(--house-target); padding: 0 0.25rem; background: transparent; border: 0; cursor: pointer;
+  font: inherit; color: var(--house-muted);
+}
+[data-house].hcs-ci .hcs-mode > button[aria-pressed="true"] { color: var(--house-text); text-decoration: underline; text-underline-offset: 0.2em; }
+/* The open section's body joins its head into one panel. */
+[data-house].hcs-ci .hcs-ci-body > :is(.px-ci-head[aria-expanded="true"], .hcs-headrow) + div {
+  margin-top: calc(-1 * var(--house-space-2));
+  padding: var(--house-space-3); background: var(--house-panel); color: var(--house-text);
+  border: var(--hcs-line) solid var(--house-outline); border-radius: 0 0 var(--house-corner-sm, 0) var(--house-corner-sm, 0);
+  box-shadow: var(--hcs-raise);
+}
+/* The section's own heading repeats the head; the head says it. */
+[data-house].hcs-ci .hcs-ci-body > :is(.px-ci-head[aria-expanded="true"], .hcs-headrow) + div > p.text-sm.font-medium:first-child,
+[data-house].hcs-ci .os-feeling-row > div > p.text-sm.font-medium:first-child { display: none; }
+[data-house].hcs-ci .px-ci-foot { margin: 0; padding: var(--house-space-1) 0 var(--house-space-2); text-align: center; font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house].hcs-ci .px-ci-accent { color: var(--house-accent); }
+/* Fields inside the sections are sunken, as board 16 draws them. */
+[data-house].hcs-ci .hcs-ci-body :is(input:is([type="text"], [type="search"], [type="number"], :not([type])), textarea, select) {
+  background: var(--house-page); color: var(--house-text); border-color: transparent; border-radius: var(--house-corner-sm, 0);
+  box-shadow: var(--hcs-sink);
+}
+[data-house].hcs-ci .hcs-ci-body :is(input, textarea)::placeholder { color: var(--house-muted); }
+
+/* The side rating (board 16's Energy column): square steps, every number. */
+[data-house].hcs-ci .os-side-rating { border-left: 0; padding-left: var(--house-space-2); box-shadow: inset var(--hcs-line) 0 0 var(--house-outline); }
+[data-house].hcs-ci .os-side-rating > button { font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); min-height: var(--house-target); }
+[data-house].hcs-ci .os-rating-meter { gap: 0.25rem; border-radius: 0; }
+[data-house].hcs-ci .os-rating-meter > span {
+  width: 1.875rem; height: 1.625rem; border-radius: 0; font-size: 0;
+  background: var(--house-page); color: var(--house-muted);
+  border: var(--hcs-line) solid var(--house-outline); box-shadow: var(--hcs-sink);
+}
+[data-house].hcs-ci .os-rating-meter > span::before { content: attr(data-n); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house].hcs-ci .os-rating-meter > span[data-lit] { background: var(--rm, var(--house-accent)); color: var(--house-on-accent); box-shadow: var(--hcs-btn); }
+
+/* The feelings picker (EmotionWheelPicker): picked, hint, the four roots,
+   the crumb and the feelings inside, then Search and + my own. */
+[data-house].hcs-ci .os-ewp { display: flex; flex-direction: column; gap: var(--house-space-2); }
+[data-house].hcs-ci .os-ewp > * { margin: 0; }
+[data-house].hcs-ci .os-ewp > .os-ewp-picked { order: 1; gap: var(--house-space-1); }
+[data-house].hcs-ci .os-ewp > .os-ewp-hint { order: 2; margin: 0; font-size: var(--house-text-xs); line-height: 1.4; color: var(--house-muted); }
+[data-house].hcs-ci .os-ewp > :is(.os-ewp-guided, .os-ewp-classic) { order: 3; display: flex; flex-direction: column; gap: var(--house-space-2); }
+[data-house].hcs-ci .os-ewp > :is(.os-ewp-guided, .os-ewp-classic) > * { margin: 0; }
+[data-house].hcs-ci .os-ewp > .os-ewp-search { order: 4; }
+[data-house].hcs-ci .os-ewp > .os-ewp-results { order: 5; }
+[data-house].hcs-ci .os-ewp > .os-ewp-add { order: 6; border-top: 0; padding-top: 0; }
+[data-house].hcs-ci .os-ewp > .os-ewp-add + div { order: 7; }
+[data-house].hcs-ci .os-ewp-classic p.uppercase { font-family: var(--house-font-label); text-transform: none; letter-spacing: 0; font-weight: 400; font-size: var(--house-text-xs); }
+/* Every feeling is a tinted square chip in its own colour (--emo). */
+[data-house].hcs-ci .os-ewp :is(.os-ewp-pill, .os-ewp-chip, .os-ewp-root, .os-ewp-core) {
+  min-height: max(1.875rem, var(--house-h-control)); padding: 0 var(--house-space-2);
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-family: var(--house-font-body); font-weight: 400; font-size: var(--house-text-sm); color: var(--house-text);
+  background: color-mix(in srgb, var(--emo, var(--house-accent)) 38%, var(--house-panel));
+  border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0);
+  box-shadow: var(--hcs-btn);
+}
+[data-house].hcs-ci .os-ewp :is(.os-ewp-pill, .os-ewp-root, .os-ewp-core)[data-sel],
+[data-house].hcs-ci .os-ewp .os-ewp-chip {
+  background: color-mix(in srgb, var(--emo, var(--house-accent)) 72%, #fff); color: #1a1c2b;
+}
+[data-house].hcs-ci .os-ewp :is(.os-ewp-pill, .os-ewp-root, .os-ewp-core)[data-sel] { outline: var(--hcs-line) solid color-mix(in srgb, var(--house-accent) 40%, #fff); outline-offset: 1px; }
+[data-house].hcs-ci .os-ewp .os-ewp-roots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--house-space-2); }
+[data-house].hcs-ci .os-ewp .os-ewp-root {
+  justify-content: center; text-align: center; min-height: 2.75rem; font-size: var(--house-text-md); line-height: 1.2;
+  background: color-mix(in srgb, var(--emo) 70%, #fff); color: #1a1c2b;
+}
+[data-house].hcs-ci .os-ewp :is(.os-ewp-panel, .os-ewp-mine) { border: 0; border-radius: 0; background: transparent; padding: 0; }
+[data-house].hcs-ci .os-ewp :is(.os-ewp-panel, .os-ewp-mine) > * + * { margin-top: var(--house-space-2); }
+[data-house].hcs-ci .os-ewp .os-ewp-mine > p { font-family: var(--house-font-label); text-transform: none; letter-spacing: 0; font-weight: 400; font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house].hcs-ci .os-ewp-panel p.text-xs { color: var(--house-muted); }
+[data-house].hcs-ci .os-ewp-crumb {
+  display: flex; align-items: center; gap: var(--house-space-2);
+  font-family: var(--house-font-label); font-size: var(--house-text-sm); color: var(--house-text);
+}
+[data-house].hcs-ci .os-ewp-crumb > button { min-height: var(--house-target); background: transparent; border: 0; color: var(--house-text); cursor: pointer; font: inherit; }
+[data-house].hcs-ci .os-ewp-crumb > button:last-child { color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house].hcs-ci .os-ewp-crumb > button:disabled { opacity: 1; cursor: default; }
+[data-house].hcs-ci .os-ewp-crumb > span[aria-hidden] { color: var(--house-muted); }
+/* Search feelings… and + my own, on one row. */
+[data-house].hcs-ci .hcs-ewp-searchrow { display: flex; align-items: stretch; gap: var(--house-space-2); }
+[data-house].hcs-ci .hcs-ewp-searchrow > svg { display: none; }
+[data-house].hcs-ci .hcs-ewp-searchrow > input { flex: 1 1 auto; min-width: 0; height: auto; min-height: max(2.25rem, var(--house-target)); padding-left: var(--house-space-2); font-size: var(--house-text-sm); }
+[data-house].hcs-ci .hcs-ewp-searchrow > button:not(.hcs-mine) { position: static; transform: none; }
+[data-house].hcs-ci .hcs-mine { flex: 0 0 auto; }
+[data-house].hcs-ci .hcs-mine[aria-expanded="true"] { box-shadow: var(--hcs-sink); }
+[data-house].hcs-ci .os-ewp-add :is(input, select) { height: auto; min-height: max(2.25rem, var(--house-target)); font-size: var(--house-text-sm); }
+[data-house].hcs-ci .os-ewp-add > button {
+  min-width: max(2.25rem, var(--house-target)); display: flex; align-items: center; justify-content: center;
+  color: var(--house-text); background: var(--house-title);
+  border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0); box-shadow: var(--hcs-btn);
+}
+
+/* ── Board 17: Who feels …? ───────────────────────────────────────── */
+[data-house].hcs-who {
+  position: fixed; display: flex; flex-direction: column;
+  background: var(--house-panel); color: var(--house-text);
+  border: var(--hcs-line) solid var(--house-outline); box-shadow: var(--hcs-raise);
+}
+[data-house][data-house-size="phone"].hcs-who { left: 0; right: 0; width: auto; max-width: none; transform: none; border-left: 0; border-right: 0; border-bottom: 0; }
+[data-house]:not([data-house-size="phone"]).hcs-who { left: 50%; top: 50%; transform: translate(-50%, -50%); height: min(36rem, calc(100dvh - 3rem)); }
+[data-house].hcs-who:focus { outline: 0; }
+[data-house].hcs-who .px-who-head {
+  display: flex; align-items: center; gap: var(--house-space-2); padding: var(--house-space-2) var(--house-space-3);
+  background: var(--house-title); border-bottom: var(--hcs-line) solid var(--house-outline);
+}
+[data-house].hcs-who .px-who-title { flex: 1 1 auto; min-width: 0; margin: 0; font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-text-md); }
+[data-house].hcs-who .px-ci-accent { color: color-mix(in srgb, var(--house-accent) 45%, #c9b8ff); }
+[data-house].hcs-who .px-who-sort { color: var(--house-muted); min-height: var(--house-target); }
+[data-house].hcs-who .px-who-done { min-height: max(var(--house-target), 2.25rem); }
+[data-house].hcs-who .px-who-tools { display: flex; flex-direction: column; gap: var(--house-space-2); padding: var(--house-space-3); }
+[data-house].hcs-who .px-who-search {
+  width: 100%; min-height: max(2.25rem, var(--house-target)); padding: 0 var(--house-space-3);
+  font: inherit; font-size: var(--house-text-sm); color: var(--house-text);
+  background: var(--house-page); border: 0; border-radius: var(--house-corner-sm, 0); box-shadow: var(--hcs-sink);
+}
+[data-house].hcs-who .px-who-search::placeholder { color: var(--house-muted); }
+[data-house].hcs-who .px-who-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--house-space-2); }
+[data-house].hcs-who .px-who-two .px-p3-btn { min-height: max(2.5rem, var(--house-target)); padding: 0 var(--house-space-1); white-space: normal; }
+[data-house].hcs-who .px-who-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0 var(--house-space-1); }
+[data-house].hcs-who .px-who-row {
+  width: 100%; min-height: 3rem; padding: 0 var(--house-space-3);
+  display: flex; align-items: center; gap: var(--house-space-3); text-align: left;
+  color: var(--house-text); background: transparent; border: 0; cursor: pointer;
+}
+[data-house].hcs-who .px-who-row.sel { background: color-mix(in srgb, var(--house-title) 75%, var(--house-accent) 10%); }
+[data-house].hcs-who .px-who-box {
+  width: 1.625rem; height: 1.625rem; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  font-size: var(--house-text-sm); background: var(--house-page); box-shadow: var(--hcs-sink-thin); border: 1px solid var(--house-outline);
+}
+[data-house].hcs-who .px-who-row.sel .px-who-box { background: var(--house-accent); border-color: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on-thin); }
+[data-house].hcs-who .px-who-sw { width: 1.75rem; height: 1.75rem; flex: 0 0 auto; border: 1px solid var(--house-outline); box-shadow: none; }
+[data-house].hcs-who .px-who-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--house-text-md); }
+[data-house].hcs-who .px-who-note { flex: 0 0 auto; font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house].hcs-who .px-who-empty { padding: var(--house-space-4); text-align: center; font-size: var(--house-text-sm); color: var(--house-muted); }
+[data-house].hcs-who .px-who-foot {
+  margin: 0; padding: var(--house-space-3) var(--house-space-3) calc(var(--house-space-3) + env(safe-area-inset-bottom, 0px));
+  font-size: var(--house-text-xs); line-height: 1.4; color: var(--house-muted); border-top: var(--hcs-line) solid var(--house-outline);
+}
+[data-house][data-house-size="phone"].hcs-who .px-who-foot { padding-bottom: var(--house-space-3); }
+
+/* ── Board 47: Set front ──────────────────────────────────────────── */
+[data-house].hcs-sf {
+  display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden;
+  background: transparent; border: 0; box-shadow: none;
+}
+[data-house][data-house-size="phone"].hcs-sf { position: fixed; background: var(--house-page); }
+/* Board 47's header: the phone frame's own (wave, Back, the name). */
+[data-house].hcs-head { flex: 0 0 auto; }
+[data-house][data-house-size="phone"].hcs-sf > .psh-sf { margin: var(--house-space-3); }
+[data-house].hcs-sf .psh-pn {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  background: var(--house-panel); color: var(--house-text);
+  border: var(--hcs-line) solid var(--house-outline); box-shadow: var(--hcs-raise); outline: 0;
+}
+[data-house].hcs-sf .psh-ttl {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2);
+  min-height: 2.75rem; padding: 0 var(--house-space-1) 0 var(--house-space-3);
+  font-family: var(--house-font-label); font-size: var(--house-text-md); color: var(--house-text);
+  background: var(--house-title); border-bottom: var(--hcs-line) solid var(--house-outline); box-shadow: none;
+}
+[data-house].hcs-sf .psh-ttl-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-text-md); }
+[data-house].hcs-sf .psh-ttl-acts { display: inline-flex; gap: var(--house-space-1); flex: 0 0 auto; }
+[data-house].hcs-sf .psh-ttl-acts .psh-btn { min-height: 2.5rem; font-size: var(--house-text-sm); }
+[data-house].hcs-sf .psh-mut { color: var(--house-muted); }
+[data-house].hcs-sf .psh-small { font-size: var(--house-text-xs); }
+[data-house].hcs-sf .psh-tabs { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: var(--house-space-1); padding: var(--house-space-2) var(--house-space-3) 0; }
+[data-house].hcs-sf .psh-tab {
+  min-height: max(2rem, var(--house-target)); padding: 0 var(--house-space-3);
+  font-family: var(--house-font-label); font-size: var(--hcs-label); color: var(--house-muted);
+  background: var(--house-page); border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0); cursor: pointer;
+}
+[data-house].hcs-sf .psh-tab.sel { background: var(--house-title); color: var(--house-text); box-shadow: inset 1px 1px 0 var(--house-bevel-raised, transparent); }
+[data-house].hcs-sf .psh-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: var(--house-space-2); padding: var(--house-space-2) var(--house-space-3);
+}
+[data-house].hcs-sf .psh-ins { background: var(--house-page); color: var(--house-text); box-shadow: var(--hcs-sink); }
+[data-house].hcs-sf .psh-searchrow { display: flex; align-items: stretch; gap: var(--house-space-1); }
+[data-house].hcs-sf .psh-search { flex: 1 1 auto; min-width: 0; min-height: max(2.25rem, var(--house-target)); display: flex; align-items: center; gap: var(--house-space-1); padding: 0 var(--house-space-2); }
+[data-house].hcs-sf .psh-search > input { flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--house-text); font: inherit; font-size: var(--house-text-sm); }
+[data-house].hcs-sf .psh-search > input::placeholder { color: var(--house-muted); }
+[data-house].hcs-sf .psh-iconbtn {
+  min-width: max(2.25rem, var(--house-target)); min-height: max(2.25rem, var(--house-target)); padding: 0 var(--house-space-1);
+  display: inline-flex; align-items: center; justify-content: center; color: var(--house-text);
+  background: var(--house-title); border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0); box-shadow: var(--hcs-btn);
+}
+[data-house].hcs-sf .psh-sub {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--house-space-2); margin-top: var(--house-space-1);
+  font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-text);
+}
+[data-house].hcs-sf .psh-count { margin-left: 0.25rem; }
+[data-house].hcs-sf .psh-note { padding: var(--house-space-2); font-size: var(--house-text-sm); }
+[data-house].hcs-sf .psh-list { display: flex; flex-direction: column; gap: var(--house-space-2); }
+[data-house].hcs-sf .psh-list-flat { gap: 0; }
+[data-house].hcs-sf .psh-row { display: flex; align-items: center; gap: var(--house-space-3); }
+[data-house].hcs-sf .psh-line { box-shadow: inset 0 calc(-1 * var(--hcs-line)) 0 var(--house-outline); }
+[data-house].hcs-sf .psh-av {
+  width: 1.75rem; height: 1.75rem; flex: 0 0 auto; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--house-text);
+  border: 1px solid var(--house-outline); box-shadow: none;
+}
+[data-house].hcs-sf .psh-av > img { width: 100%; height: 100%; object-fit: cover; }
+[data-house].hcs-sf .psh-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+[data-house].hcs-sf .psh-who-inline { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house].hcs-sf .psh-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--house-text-md); }
+[data-house].hcs-sf .psh-pro { font-size: var(--house-text-xs); }
+[data-house].hcs-sf .psh-now { min-height: 3.25rem; padding: var(--house-space-1) var(--house-space-2); border: var(--hcs-line) solid var(--house-outline); }
+[data-house].hcs-sf .psh-rest { width: 100%; min-height: 3.25rem; padding: var(--house-space-1) var(--house-space-2); text-align: left; color: var(--house-text); background: transparent; border: 0; cursor: pointer; }
+@media (hover: hover) { [data-house].hcs-sf .psh-rest:hover { background: color-mix(in srgb, var(--house-title) 60%, transparent); } }
+[data-house].hcs-sf .psh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: var(--house-space-2); padding: var(--house-space-1) 0; }
+/* The level chip, the trigger category: a SearchableSelect drawn as a chip. */
+[data-house].hcs-sf .psh-chip {
+  min-height: max(1.75rem, var(--house-h-control)); padding: 0 var(--house-space-2); flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; cursor: pointer;
+  font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-text);
+  background: var(--house-title); border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0); box-shadow: var(--hcs-btn);
+}
+[data-house].hcs-sf .psh-chip.sel { background: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on); }
+[data-house].hcs-sf .psh-sel { flex: 0 0 auto; max-width: 46%; }
+[data-house].hcs-sf .psh-sel-grow { flex: 1 1 auto; max-width: none; min-width: 0; }
+[data-house].hcs-sf .psh-sel > button {
+  height: auto; min-height: max(1.75rem, var(--house-h-control)); padding: 0 var(--house-space-2); gap: 0.25rem;
+  font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-text);
+  background: var(--house-title); border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0); box-shadow: var(--hcs-btn);
+}
+/* Tick boxes: sunken squares; ticked is the accent with ✓. The remove box
+   on a row in front is the same square in the accent (board 47's ×). */
+[data-house].hcs-sf .psh-tick {
+  width: 1.375rem; height: 1.375rem; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  font-size: var(--house-text-sm); color: var(--house-text);
+  background: var(--house-page); border: 1px solid var(--house-outline); outline: 0; border-radius: 0; box-shadow: var(--hcs-sink-thin);
+}
+[data-house].hcs-sf .psh-tick.y { background: var(--house-accent); border-color: var(--house-accent); color: var(--house-on-accent); box-shadow: var(--hcs-on-thin); }
+[data-house].hcs-sf .psh-now .psh-tick { width: 1.75rem; height: 1.75rem; cursor: pointer; }
+[data-house].hcs-sf .psh-tickrow {
+  display: flex; align-items: center; gap: var(--house-space-3); min-height: max(2rem, var(--house-target)); padding: 0 0.125rem;
+  text-align: left; color: var(--house-text); background: transparent; border: 0; cursor: pointer; font-size: var(--house-text-sm);
+}
+[data-house].hcs-sf .psh-tickrow:disabled { opacity: 0.55; cursor: default; }
+[data-house].hcs-sf .psh-field {
+  width: 100%; min-height: max(2.25rem, var(--house-target)); padding: 0 var(--house-space-2);
+  font: inherit; font-size: var(--house-text-sm); border: 0; border-radius: var(--house-corner-sm, 0);
+}
+[data-house].hcs-sf .psh-field::placeholder { color: var(--house-muted); }
+[data-house].hcs-sf .psh-field:disabled { opacity: 0.55; }
+/* The trigger, unsure and journal options, pinned under the list. */
+[data-house].hcs-sf .psh-foot {
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--house-space-2);
+  padding: var(--house-space-2) var(--house-space-3) var(--house-space-3); font-size: var(--house-text-sm);
+  border-top: var(--hcs-line) solid var(--house-outline);
+}
+[data-house].hcs-sf .psh-trig { gap: var(--house-space-2); }
+[data-house].hcs-sf .psh-trig > .psh-tickrow { flex: 0 0 auto; gap: var(--house-space-2); }
+[data-house].hcs-sf .psh-trig > .psh-tickrow .psh-tick { width: 1.125rem; height: 1.125rem; font-size: var(--house-text-xs); }
+/* The unsure path (New presence with "how does it feel?"): the old
+   presence picker inside, its intro and buttons in the house's paint. */
+[data-house].hcs-sf [data-unsure-intro] {
+  border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0);
+  background: var(--house-page); color: var(--house-text); box-shadow: var(--hcs-sink);
+}
+[data-house].hcs-sf .psh-body :is(button.inline-flex, a.inline-flex) {
+  border-radius: var(--house-corner-sm, 0); font-family: var(--house-font-label); font-weight: 400;
+}
+[data-house].hcs-sf [data-unsure-intro] button {
+  color: var(--house-text); background: var(--house-title);
+  border: var(--hcs-line) solid var(--house-outline); box-shadow: var(--hcs-btn);
+}
+
+/* The older pixel sheet styles (src/styles/pixel/sheets.css) draw a 2px
+   outline round every part; inside the house the parts' own 1px borders are
+   the edge (Penumbra 2026-11-25: "more elegant", like the boards). Focus rings
+   still come from the :focus-visible rules. */
+[data-house].hcs-sf [class*="psh-"]:not(:focus-visible),
+[data-house].hcs-ci [class*="px-"]:not(:focus-visible),
+[data-house].hcs-who [class*="px-"]:not(:focus-visible) { outline: 0; }
+
+/* Board 47's footer is compact: Trigger · category · Unsure on one row,
+   Details, then the journal tick snug beside its words, even ~6px gaps
+   (Penumbra 2026-11-25). The tick rows keep a full-size touch target with an
+   invisible hit area, so the look can be small. */
+[data-house].hcs-sf .psh-foot { gap: 0.375rem; padding: 0.5rem 0.625rem 0.625rem; }
+[data-house].hcs-sf .psh-foot .psh-tickrow { position: relative; min-height: 1.75rem; gap: 0.5rem; }
+[data-house].hcs-sf .psh-foot .psh-tickrow::after { content: ""; position: absolute; left: -0.25rem; right: -0.25rem; top: 50%; height: max(100%, var(--house-target)); transform: translateY(-50%); }
+[data-house].hcs-sf .psh-foot .psh-tick { width: 1rem; height: 1rem; font-size: var(--house-text-xs); }
+[data-house].hcs-sf .psh-trig > .psh-tickrow, [data-house].hcs-sf .psh-trig > .psh-tickrow .psh-mut { color: var(--house-text); }
+[data-house].hcs-sf .psh-foot .psh-field { min-height: 2rem; }
+[data-house].hcs-sf .psh-foot :is(.psh-chip, .psh-sel) { min-height: 1.75rem; }
+
+/* "In front now" as slim one-line rows (Penumbra 2026-11-25: the cards took
+   too much room in real use). Name, then how long, on one line; the mark,
+   level and remove box shrink to the row. */
+[data-house].hcs-sf .psh-now { min-height: 2.25rem; padding: 0.125rem 0.375rem; gap: 0.5rem; }
+[data-house].hcs-sf .psh-now .psh-av { width: 1.25rem; height: 1.25rem; }
+[data-house].hcs-sf .psh-now .psh-who { display: flex; flex-direction: row; align-items: baseline; gap: 0.375rem; min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
+[data-house].hcs-sf .psh-now .psh-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+[data-house].hcs-sf .psh-now .psh-small { flex: 0 0 auto; font-size: var(--house-text-xs); }
+[data-house].hcs-sf .psh-now .psh-pro { display: none; }
+[data-house].hcs-sf .psh-now .psh-sel, [data-house].hcs-sf .psh-now .psh-chip { min-height: 1.625rem; }
+[data-house].hcs-sf .psh-now .psh-tick { position: relative; width: 1.375rem; height: 1.375rem; }
+[data-house].hcs-sf .psh-now .psh-tick::after { content: ""; position: absolute; inset: 50% auto auto 50%; width: var(--house-target); height: var(--house-target); transform: translate(-50%, -50%); }
+[data-house].hcs-sf .psh-now + .psh-now { margin-top: -0.125rem; }

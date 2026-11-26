@@ -42,6 +42,7 @@ import { HOME_MODES, effectiveMode, layerOf } from "@/lib/experimentalHome";
 import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
+import { useUiLook } from "@/lib/uiLook";
 import { useTheme } from "@/lib/ThemeContext";
 import AlterArrangementEditor from "@/components/shared/AlterArrangementEditor";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -69,6 +70,7 @@ import { foldedSettings } from "@/lib/widgetFold";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import LayersField from "@/components/dashboard/LayersField";
 import { resolveQuickButtons, QUICK_BUTTON_DEFS } from "@/components/dashboard/QuickCheckinButtons";
 import LucideByName from "@/components/shared/LucideByName";
 import { sharedList } from "@/lib/sharedLists";
@@ -638,7 +640,7 @@ function FontStyleToggles({ value = [], onChange }) {
 
 // The four per-side rows under Inner spacing / Outline, opened from a
 // small link under the uniform row and kept open while any side is set.
-function SideRows({ sides, settings, fallback, min, max, set, setHere }) {
+function SideRows({ sides, settings, fallback, min, max, set, setHere, link = "Each side" }) {
   const anySet = setHere(sides.map(([k]) => k));
   const [open, setOpen] = React.useState(false);
   const shown = open || anySet;
@@ -646,7 +648,7 @@ function SideRows({ sides, settings, fallback, min, max, set, setHere }) {
     <>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={shown}
         className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 py-1">
-        <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> Each side{anySet ? " (set)" : ""}
+        <ChevronDown className={`w-3 h-3 transition-transform ${shown ? "rotate-180" : ""}`} /> {link}{anySet ? " (set)" : ""}
       </button>
       {shown && (
         <div className="pl-3 border-l border-border/40">
@@ -705,6 +707,7 @@ export default function WidgetConfigSheet({
   onLayer = null,    // (instanceId, "front" | "forward" | "backward" | "back") → layer order; null where widgets can't overlap
   boardSnap = true,  // the app-wide "snap to grid" choice this widget follows unless it has its own
 }) {
+  const pixel = useUiLook() === "pixel";
   const open = !!widget && !!def;
   // Everything in this sheet applies live and is saved as it happens, so
   // closing it always KEEPS the edits — however it's closed. (v0.293.1:
@@ -997,6 +1000,13 @@ export default function WidgetConfigSheet({
           options={(f.options || []).map((o) => ({ value: o.value, label: applyTerms(String(o.label), t) }))} />
       );
     }
+    if (f.type === "layers") {
+      return (
+        <StackedRow key={f.key} label={label} hint={f.help}>
+          <LayersField label={label} options={f.options || []} value={val} onChange={commit} terms={t} />
+        </StackedRow>
+      );
+    }
     if (f.type === "multi") {
       return (
         <StackedRow key={f.key} label={label} hint={f.help}>
@@ -1067,7 +1077,7 @@ export default function WidgetConfigSheet({
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) requestClose(); }}>
-      <DrawerContent direction={dock} hideHandle
+      <DrawerContent direction={dock} hideHandle className="os-insp"
         style={{ maxHeight: `${peekH}vh`, height: `${peekH}vh` }} {...sheetPortalGuards}>
         {/* The grab bar IS the resize handle — every sheet is always
             drag-resizable (no separate Peek mode). */}
@@ -1101,7 +1111,7 @@ export default function WidgetConfigSheet({
             </div>
           </div>
         )}
-        <DrawerHeader className="pb-1.5 pt-1">
+        <DrawerHeader className="os-insp-head pb-1.5 pt-1">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 min-w-0 flex-1">
               {/* The standard close chevron — points the way the sheet leaves. */}
@@ -1109,7 +1119,7 @@ export default function WidgetConfigSheet({
                 className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
                 {dock === "top" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
-              <DrawerTitle className="text-base truncate">{settings.label || defLabel}</DrawerTitle>
+              <DrawerTitle className="text-base truncate">{pixel ? `Widget options: ${settings.label || defLabel}` : (settings.label || defLabel)}</DrawerTitle>
               <DrawerDescription className="sr-only">Widget options</DrawerDescription>
             </span>
             <span className="flex items-center gap-1.5 flex-shrink-0">
@@ -1174,7 +1184,7 @@ export default function WidgetConfigSheet({
 
         <div
           ref={panelRef} role={stacked ? undefined : "tabpanel"} aria-labelledby={stacked ? undefined : `inspector-tab-${tab}`}
-          className="px-4 pt-1 overflow-y-auto overscroll-contain flex-1 min-h-0"
+          className="os-insp-body px-4 pt-1 overflow-y-auto overscroll-contain flex-1 min-h-0"
           // Bottom-nav height included: on pages where the classic bottom
           // bar is up, the sheet's last rows were hidden behind it.
           style={{ paddingBottom: "calc(var(--os-sab) + var(--bottom-nav-height, 0px) + 24px)" }}
@@ -1350,6 +1360,9 @@ export default function WidgetConfigSheet({
                   <SideRows sides={[["padTop", "Top"], ["padRight", "Right"], ["padBottom", "Bottom"], ["padLeft", "Left"]]}
                     settings={settings} fallback={num(settings.padding, fb("padding", "padding", 12))} min={0} max={48} set={set} setHere={setHere} />
                 </div>
+                <SliderRow label="Space between items" hint="Rows, buttons and chips inside" value={settings.itemGap} fallback={100}
+                  min={0} max={300} step={10} unit="%"
+                  onChange={(v) => set({ itemGap: v })} onClear={() => set({ itemGap: "" })} />
                 {/* Left / Right mirror the layout, not just the text. */}
                 <ChoiceRow label="Across" value={settings.halign || "stretch"} onChange={(v) => set({ halign: v })}
                   own={own("halign")} onClear={() => set({ halign: "" })}
@@ -1369,6 +1382,8 @@ export default function WidgetConfigSheet({
                 <SliderRow label="Corners" value={settings.radius} fallback={fb("radius", "radius", 12)}
                   min={0} max={32} unit="px"
                   onChange={(v) => set({ radius: v })} onClear={() => set({ radius: "" })} />
+                <SideRows link="Each corner" sides={[["radiusTL", "Top left"], ["radiusTR", "Top right"], ["radiusBR", "Bottom right"], ["radiusBL", "Bottom left"]]}
+                  settings={settings} fallback={num(settings.radius, fb("radius", "radius", 12))} min={0} max={32} set={set} setHere={setHere} />
                 <div className="border-b border-border/30">
                   <SliderRow label="Outline" hint="The box's own edge" value={settings.outlineW} fallback={fb("outlineW", "outlineW", 1)}
                     min={0} max={8} unit="px"

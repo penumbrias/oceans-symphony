@@ -7,6 +7,7 @@ import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { writeSettings } from "@/lib/settingsWriter";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import InterruptCheckNote from "@/components/needs/InterruptCheckNote";
@@ -20,6 +21,8 @@ import QuickActionsHost from "@/components/dashboard/QuickActionsHost";
 import { useAutoDeviceSync } from "@/hooks/useAutoDeviceSync";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
+import { PixelDesktopHeader, PixelPhoneHeader, PixelStatusBar, PixelToolRail, PixelDock, PixelFrontStrip } from "@/components/layout/PixelChrome";
+import { useUiLook, UI_LOOKS } from "@/lib/uiLook";
 import { OPEN_PAGE_TOUR_EVENT, OPEN_FULL_TOUR_EVENT } from "@/lib/pageTutorials";
 import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
@@ -39,13 +42,41 @@ import { onColorVars } from "@/lib/contrast";
 // installs with legacy data-URI images). Fresh installs never load it.
 // The tour is big and opens only on request (v0.357.0).
 const FeatureTour = React.lazy(() => import("@/components/onboarding/FeatureTour"));
+// The new house's desktop/tablet frame (step 2.1). Lazy: with "Try the new
+// house" off, nothing under src/house is downloaded.
+const loadHouseFrame = () => import("@/house/frame/HouseFrame");
+const HouseFrame = React.lazy(loadHouseFrame);
+// The phone frame (step 2.2): its own lazy chunk, loaded only at phone size.
+const loadHousePhoneFrame = () => import("@/house/phone/HousePhoneFrame");
+const HousePhoneFrame = React.lazy(loadHousePhoneFrame);
+import { useHouseSwitch, useHouseSizeClass, readHouseSwitch, readHouseSize } from "@/lib/houseSwitch";
+// With the switch on, start fetching the frame while the app boots (unlock,
+// the database), instead of after it: on a slow link the frame's chunks
+// were a waterfall behind the first render. Same import sites as the lazy
+// frames above, so the old house's entry doesn't grow; switch off, nothing
+// is fetched.
+if (readHouseSwitch()) {
+  (readHouseSize() === "phone" ? loadHousePhoneFrame : loadHouseFrame)().catch(() => { /* the lazy frame retries on render */ });
+}
 const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, normalizeNavConfig, applySidebarConfig, pageLabel } from "@/utils/navigationConfig";
 import { ModNavSync, useModPagesVersion } from "@/lib/mods/registry";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
-import SoundscapeGlobalBar from "@/components/grounding/soundscape/SoundscapeGlobalBar";
+import { isSoundLoaded, onSoundLoaded } from "@/lib/soundPresence";
+const SoundscapeGlobalBarLazy = React.lazy(() => import("@/components/grounding/soundscape/SoundscapeGlobalBar"));
+// The "now playing" pill and its sound code load only once a sound has.
+function SoundscapeGlobalBar() {
+  const [ready, setReady] = React.useState(isSoundLoaded);
+  React.useEffect(() => {
+    if (ready) return undefined;
+    if (isSoundLoaded()) { setReady(true); return undefined; }
+    return onSoundLoaded(() => setReady(true));
+  }, [ready]);
+  if (!ready) return null;
+  return <React.Suspense fallback={null}><SoundscapeGlobalBarLazy /></React.Suspense>;
+}
 import ActiveActivityBubble from "@/components/activities/ActiveActivityBubble";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
@@ -384,6 +415,10 @@ const settings0 = pickPrimarySystemSettings(systemSettings);
 // release can ship with zero UI changes by flipping the flag alone.
 const uiV2 = useMemo(() => resolveUiV2(settings0?.ui_v2), [settings0?.ui_v2]);
 const uiV2On = UI_V2_ENABLED && uiV2.enabled;
+// The pixel look brings its own frame (PixelChrome) in place of the classic
+// headers and desktop sidebar. The v2 frame keeps its own chrome.
+const uiLook = useUiLook();
+const pixelChrome = uiLook === UI_LOOKS.PIXEL && !uiV2On;
 // v2 bars hosted in CLASSIC chrome (ui_v2 off): the quick-action bar and
 // pinned alters bar are default-on; the v2 top bar replaces the classic
 // header only when chosen. Wait for settings to load (settings0 defined)
@@ -692,8 +727,8 @@ useEffect(() => {
   const settings = pickPrimarySystemSettings(systemSettings);
   (async () => {
     if (Object.keys(settingsPatch).length > 0) {
-      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, settingsPatch);
-      else await base44.entities.SystemSettings.create(settingsPatch);
+      // One settings writer: fresh row, one queue, never a second row.
+      await writeSettings(settingsPatch, { create: true });
     }
     if (hasBoardPart && settings?.id) {
       await writeBoard(settings, boardField, (cur) => applyHomePresetToBoard(preset, cur));
@@ -737,6 +772,10 @@ const handleNotifClick = (mentionLog) => {
   // it; an unseen route defaults to the top. Skipped when a ?highlight=… deep
   // link is present — useHighlightScroll positions the page itself.
   const mainScrollRef = useRef(null);
+  // The new house's <main> arrives after its lazy chunk loads, so it reports
+  // itself here and the scroll memory below attaches to it then.
+  const [houseMain, setHouseMain] = useState(null);
+  const houseMainRef = React.useCallback((el) => { mainScrollRef.current = el; setHouseMain(el); }, []);
   const scrollMemory = useRef(new Map()).current;
   useLayoutEffect(() => {
     const el = mainScrollRef.current;
@@ -774,7 +813,7 @@ const handleNotifClick = (mentionLog) => {
       if (raf) cancelAnimationFrame(raf);
       clearTimeout(guard);
     };
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, houseMain]);
 
   const canGoBack = historyIdx > 0 && !isTabRoot(location.pathname);
 
@@ -791,6 +830,111 @@ const handleNotifClick = (mentionLog) => {
   };
   const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
+  // The new house: on when the person turned it on for this device. The
+  // studio frame (step 2.1) for studio-sized windows, the phone frame
+  // (step 2.2) for phones; each is its own lazy chunk.
+  const houseSwitchOn = useHouseSwitch();
+  const houseSize = useHouseSizeClass(houseSwitchOn);
+  const houseOn = houseSwitchOn;
+  const Frame = houseSize === "phone" ? HousePhoneFrame : HouseFrame;
+
+  // The app-wide hosts after the page (players, sheets, toasts, the tour).
+  // One list for both houses; `house` leaves out what the new frame
+  // replaces (the classic drawer, the floating Support bubble: Support is
+  // on the frame's rail).
+  const renderTailHosts = (house) => (
+    <>
+      {/* The Song widget's "play on every page" track. */}
+      <GlobalSongHost />
+      {!house && <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+      {/* System switcher sheet — ONE host for every chrome trigger (top-bar
+          name, sidebar app icon). */}
+      <SystemSwitcherSheetHost />
+      {/* "Try it" safety net — offers Keep / Put it back after a pack
+          is trialled, from anywhere in the app. */}
+      <PackRestoreBar />
+      {/* The floating support bubble is the always-there crisis path in the
+          classic UI. In v2 the quick actions carry a Support anchor in every
+          placement (handle row, floating bar, bubble, rail), so showing both
+          is redundant — but if the user hides quick actions entirely, the
+          bubble comes back rather than leaving no support entry at all. */}
+      {!house && !(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
+      <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>
+      <GroceryListPanel />
+      <QuietBoundary name="QuickJumpHost"><QuickJumpHost /></QuietBoundary>
+      <QuietBoundary name="ActivityPromptsHost"><ActivityPromptsHost /></QuietBoundary>
+      {/* Devices that disagree about who's fronting — the person picks. */}
+      <QuietBoundary name="FrontConflictCard"><FrontConflictCard variant="floating" /></QuietBoundary>
+      {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
+      <QuickActionsHost />
+      {!v2HomeNotices && <ReminderToast />}
+      <SoundscapeGlobalBar />
+      {/* Running activity timers stay in sight. Steps aside when the v2
+          Active-now bubble is switched on, which already shows them. */}
+      <QuietBoundary name="ActiveActivityBubble">
+        <ActiveActivityBubble hidden={uiV2On && (uiV2.tokens.activeBubble || "off") !== "off"} />
+      </QuietBoundary>
+      <Suspense fallback={null}>
+        {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
+        {pageScopedTourRoute && !showFeatureTour && (
+          <FeatureTour
+            restrictToRoute={pageScopedTourRoute}
+            onClose={() => setPageScopedTourRoute(null)}
+          />
+        )}
+      </Suspense>
+      {!v2HomeNotices && (
+        <NotificationPopups
+          mentionLogs={mentionLogs}
+          alters={alters}
+          frontingAlterIds={frontingAlterIds}
+          onNotifClick={handleNotifClick}
+        />
+      )}
+    </>
+  );
+
+  if (houseOn) {
+    return (
+      <>
+        <GlobalPullToRefresh />
+        {UI_V2_ENABLED && <DisplayOptionsHost />}
+        <ProfileLookHost />
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-screen" role="status" aria-live="polite">
+            <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading the new house" />
+          </div>
+        }>
+          {/* The tail hosts ride inside the frame (outside its layout), so a
+              check-in or Set front they open gets the house's sheet look. */}
+          <Frame mainRef={houseMainRef} tail={renderTailHosts(true)}>
+            {bannerVisible && (
+              <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} framing={bannerFraming} />
+            )}
+            <PageLookHost />
+            <div className="relative z-10">
+              {!v2HomeNotices && <AnnouncementBanner />}
+              <A11yModeBanner />
+            </div>
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-24" role="status" aria-live="polite" data-launch-pending="">
+                <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
+              </div>
+            }>
+              <QuietBoundary name="ModNavSync"><ModNavSync /></QuietBoundary>
+              <Outlet context={{ setShowFeatureTour }} />
+            </Suspense>
+          </Frame>
+        </Suspense>
+        {showBlobMigration && (
+          <React.Suspense fallback={null}>
+            <LazyBlobStorageMigrationModal onClose={() => setShowBlobMigration(false)} />
+          </React.Suspense>
+        )}
+      </>
+    );
+  }
+
   return (
     // Root is pinned to EXACTLY viewport height (h-screen) and clips
     // overflow. This forces the document body to be unscrollable —
@@ -804,6 +948,7 @@ const handleNotifClick = (mentionLog) => {
     <div
       className="flex flex-col h-screen bg-background overflow-hidden"
       data-ui-v2={uiV2On ? "1" : undefined}
+      data-px-chrome={pixelChrome ? "1" : undefined}
       data-rail-side={uiV2On && uiV2.tokens.railSide === "right" ? "right" : undefined}
       data-v2-bstyle={uiV2On && uiV2.tokens.bodyStyle?.length ? uiV2.tokens.bodyStyle.join(" ") : undefined}
       data-v2-hstyle={uiV2On && uiV2.tokens.headerStyle?.length ? uiV2.tokens.headerStyle.join(" ") : undefined}
@@ -842,8 +987,30 @@ const handleNotifClick = (mentionLog) => {
       {uiV2On && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
       {/* v2 top bar hosted in CLASSIC chrome — replaces the classic
           headers (hidden via [data-classic-v2-top] in index.css). */}
-      {!uiV2On && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} classicHost />}
+      {/* Not in the pixel look: its own header already shows the top bar's
+          items, and both together stacked two header bars. */}
+      {!uiV2On && !pixelChrome && classicBars?.top && <V2StatusLine settingsRow={settings0} uiV2={uiV2} classicHost />}
 
+      {pixelChrome && (
+        <>
+          <PixelDesktopHeader
+            pendingCount={pendingCount}
+            todoAlertCount={todoAlertCount}
+            onHome={goHomeClean}
+            onAppGrid={openAppGrid}
+          />
+          <PixelPhoneHeader
+            pendingCount={pendingCount}
+            canGoBack={canGoBack}
+            onBack={handleBack}
+            onOpenMenu={() => setSidebarOpen(true)}
+          />
+          <PixelStatusBar />
+          <PixelToolRail />
+          <PixelDock />
+          {!wideBars && <PixelFrontStrip answerToggle={!classicBars?.bottom} />}
+        </>
+      )}
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
@@ -1257,53 +1424,7 @@ const handleNotifClick = (mentionLog) => {
         </div>
       )}
 
-      {/* The Song widget's "play on every page" track. */}
-      <GlobalSongHost />
-      <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      {/* System switcher sheet — ONE host for every chrome trigger (top-bar
-          name, sidebar app icon). */}
-      <SystemSwitcherSheetHost />
-      {/* "Try it" safety net — offers Keep / Put it back after a pack
-          is trialled, from anywhere in the app. */}
-      <PackRestoreBar />
-      {/* The floating support bubble is the always-there crisis path in the
-          classic UI. In v2 the quick actions carry a Support anchor in every
-          placement (handle row, floating bar, bubble, rail), so showing both
-          is redundant — but if the user hides quick actions entirely, the
-          bubble comes back rather than leaving no support entry at all. */}
-      {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
-      <QuietBoundary name="InterruptCheckNote"><InterruptCheckNote /></QuietBoundary>
-      <GroceryListPanel />
-      <QuietBoundary name="QuickJumpHost"><QuickJumpHost /></QuietBoundary>
-      <QuietBoundary name="ActivityPromptsHost"><ActivityPromptsHost /></QuietBoundary>
-      {/* Devices that disagree about who's fronting — the person picks. */}
-      <QuietBoundary name="FrontConflictCard"><FrontConflictCard variant="floating" /></QuietBoundary>
-      {/* Saved Quick Actions (Shortcuts) — opens in place on any page. */}
-      <QuickActionsHost />
-      {!v2HomeNotices && <ReminderToast />}
-      <SoundscapeGlobalBar />
-      {/* Running activity timers stay in sight. Steps aside when the v2
-          Active-now bubble is switched on, which already shows them. */}
-      <QuietBoundary name="ActiveActivityBubble">
-        <ActiveActivityBubble hidden={uiV2On && (uiV2.tokens.activeBubble || "off") !== "off"} />
-      </QuietBoundary>
-      <Suspense fallback={null}>
-        {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
-        {pageScopedTourRoute && !showFeatureTour && (
-          <FeatureTour
-            restrictToRoute={pageScopedTourRoute}
-            onClose={() => setPageScopedTourRoute(null)}
-          />
-        )}
-      </Suspense>
-      {!v2HomeNotices && (
-        <NotificationPopups
-          mentionLogs={mentionLogs}
-          alters={alters}
-          frontingAlterIds={frontingAlterIds}
-          onNotifClick={handleNotifClick}
-        />
-      )}
+      {renderTailHosts(false)}
     </div>);
 
 }

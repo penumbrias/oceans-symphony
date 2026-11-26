@@ -27,8 +27,9 @@ import AlterFilterPopup from "./AlterFilterPopup";
 import MassArchiveModal from "./MassArchiveModal";
 import { getAltersInsideSubsystems, getMemberAlters, getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { rootGroups as topLevelGroups } from "@/lib/groupTree";
+import AlterDirectoryDesk from "./AlterDirectoryDesk";
 
-export default function AlterGrid({ alters }) {
+export default function AlterGrid({ alters, workspace = false, onAddAlter, onImport, menuExtras = [], systemCard = null, archivedCount = 0 }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const isDemo = alters.length === 0 && !!window.__tourActive;
@@ -135,7 +136,9 @@ export default function AlterGrid({ alters }) {
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
     queryFn: () => base44.entities.FrontingSession.filter({}),
-    enabled: sortMode === "most" || sortMode === "least",
+    // The pixel workspace shows when each card was last in front and the
+    // Info panel's week, so it reads every session too.
+    enabled: workspace || sortMode === "most" || sortMode === "least",
     staleTime: 60000,
   });
 
@@ -329,8 +332,36 @@ export default function AlterGrid({ alters }) {
   const currentSort = SORT_OPTIONS.find((o) => o.id === sortMode) || SORT_OPTIONS[0];
   const ANON_LABELS = { off: "Off", names: "Blur names", avatars: "Blur pictures", all: "Blur names and pictures" };
 
+  // Pixel look on a computer: the mockup's workspace (src/components/
+  // alters/AlterDirectoryDesk.jsx) — groups tree, toolbar, cards and an Info
+  // panel — over the same state, filters and menus as the stacked page.
+  if (workspace) {
+    return (
+      <AlterDirectoryDesk
+        {...{
+          effectiveAlters, allGroups, activeSessions, allSessions, frontingRank, anonymize, setAnonymize,
+          search, setSearch, sortMode, setSortMode, SORT_OPTIONS, currentSort,
+          filters, setFilters, selectedFilterIds, hasMembershipFilter, filterActive, activeFilterCount,
+          regularGroups, subsystemGroups, allRoles, hideGrouped, setHideGrouped, groupedAlterIds,
+          displayMode, pickDisplayMode, DISPLAY_CYCLE, LAYOUT_LABELS, headerBg, setHeaderBg, ANON_LABELS,
+          visibleAlters, topLevelAlters, showFlat, isExplicitFilter, isDemo,
+          groupControls, setCreateGroupOpen, setFilterOpen, setMassArchiveOpen,
+          onAddAlter, onImport, menuExtras, systemCard, archivedCount,
+        }}
+      >
+        <CreateGroupModal open={createGroupOpen} onClose={() => setCreateGroupOpen(false)} />
+        <MassArchiveModal open={massArchiveOpen} onClose={() => setMassArchiveOpen(false)} />
+        {filterOpen && (
+          <AlterFilterPopup filters={filters} onChange={setFilters} regularGroups={regularGroups}
+            subsystemGroups={subsystemGroups} roles={allRoles} terms={terms} onClose={() => setFilterOpen(false)} />
+        )}
+      </AlterDirectoryDesk>
+    );
+  }
+
   return (
     <div>
+      <div>
       {isDemo && (
         <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[0.625rem] text-primary/80 text-center">
           Tour Preview — sample {terms.alters}
@@ -513,6 +544,7 @@ export default function AlterGrid({ alters }) {
           onClose={() => setFilterOpen(false)}
         />
       )}
+      </div>
     </div>);
 
 }

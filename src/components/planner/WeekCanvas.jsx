@@ -37,6 +37,7 @@ import { datesForDay } from "@/lib/importantDates";
 import EventChips from "@/components/planner/EventChips";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { checkInIsDistress } from "@/lib/emotionDistress";
+import { useUiLook } from "@/lib/uiLook";
 
 // Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
 // got a draft"); 550ms reads as deliberate without feeling sluggish. An
@@ -86,6 +87,9 @@ function DayColumn({
   // this day's own minutes — so the range the finger is drawing paints as
   // one continuous block across the week instead of stopping at midnight.
   onDraftSpan = null, spillDraft = null,
+  // Pixel look: the all-day strip moves up into the header row and blocks
+  // take the mockup's grammar (filled = happened, dashed = planned).
+  px = false,
 }) {
   const tr = useT();
   const ref = useRef(null);
@@ -365,8 +369,9 @@ function DayColumn({
 
   return (
     <div className="flex-1 border-l border-border/40 first:border-l-0" style={{ minWidth }}>
-      {/* Untimed strip — today's intentions, draggable down into the hours. */}
-      <div data-own-hold
+      {/* Untimed strip — today's intentions, draggable down into the hours.
+          (Pixel look: drawn in the header's "all day" row instead.) */}
+      {!px && <div data-own-hold
         className="border-b border-border/40 p-0.5 space-y-0.5 overflow-y-auto relative group/strip"
         style={{ height: UNTIMED_STRIP_PX }}>
         {untimed.map((u) => (
@@ -383,7 +388,7 @@ function DayColumn({
           className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-60">
           <span className="text-[0.75em] leading-none">+</span>
         </button>
-      </div>
+      </div>}
 
       <div
         ref={(n) => { ref.current = n; registerNode?.(n); }}
@@ -424,7 +429,7 @@ function DayColumn({
       >
         {/* hour rules */}
         {Array.from({ length: 24 }, (_, h) => (
-          <div key={h} className="absolute left-0 right-0 border-t border-border/20"
+          <div key={h} className={px ? "absolute left-0 right-0 pxp-hr" : "absolute left-0 right-0 border-t border-border/20"}
             style={{ top: h * hourPx }} />
         ))}
 
@@ -438,8 +443,8 @@ function DayColumn({
         {nowMin != null && (
           <div className="absolute left-0 right-0 z-10 pointer-events-none"
             style={{ top: pct(nowMin), borderTop: "2px solid var(--v2-accent, #ef4444)" }}>
-            <span className="absolute -left-0.5 -top-1 w-2 h-2 rounded-full"
-              style={{ background: "var(--v2-accent, #ef4444)" }} />
+            {!px && <span className="absolute -left-0.5 -top-1 w-2 h-2 rounded-full"
+              style={{ background: "var(--v2-accent, #ef4444)" }} />}
           </div>
         )}
 
@@ -514,12 +519,32 @@ function DayColumn({
           const pm = b._live ? { mark: "", faded: false, struck: false, labelKey: null } : planMark(b);
           const blockDim = (blk, live_, bot, mark) => (live_ || (blk._live && blk.status !== "scheduled") ? 1
             : (blk.status === "scheduled" ? 0.72 : 1) * (bot <= pastMin ? 0.78 : 1) * (mark.faded ? 0.55 : 1));
+          // Pixel grammar (mockup): happened = filled in its colour; still
+          // planned = dark with a dashed edge in its colour; planned and
+          // already over = dashed in the "needs a decision" red; skipped /
+          // cancelled = grey and struck; a to-do = dotted.
+          const pxKind = b._isTask ? "task"
+            : pm.faded ? "faded"
+            : b.status === "scheduled" ? (!b._live && bottom <= pastMin ? "open" : "plan")
+            : "done";
+          const pxStyle = px ? {
+            borderRadius: "var(--px-corner, 0px)",
+            top: pct(top), height: pct(bottom - top),
+            left: `calc(${b.left * 100}% + 3px)`, width: `calc(${b.width * 100}% - 6px)`,
+            ...(pxKind === "done" ? { background: colorFor(b), color: "var(--color-bg, #1a1c2b)", outline: "2px solid var(--px-line)" }
+              : pxKind === "faded" ? { background: "var(--px-lo)", color: "var(--px-text-2)", outline: "2px solid var(--px-line)", textDecoration: "line-through" }
+              : pxKind === "open" ? { background: "var(--px-sunk)", color: "var(--pxp-open, #e3897c)", outline: "2px dashed var(--pxp-open, #e3897c)", outlineOffset: -2 }
+              : { background: "var(--px-sunk)", color: colorFor(b), outline: `2px ${pxKind === "task" ? "dotted" : "dashed"} ${colorFor(b)}`, outlineOffset: -2 }),
+            ...(isLive ? { boxShadow: "0 0 0 3px var(--v2-accent, hsl(var(--primary)))", zIndex: 6 }
+              : isArming ? { boxShadow: "0 0 0 3px color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 45%, transparent)" } : null),
+          } : null;
           return (
             <div
               key={b.id}
               data-block
-              className="absolute overflow-hidden text-[0.625em] leading-tight"
-              style={{
+              data-px-kind={px ? pxKind : undefined}
+              className={px ? "absolute overflow-hidden leading-tight pxp-block" : "absolute overflow-hidden text-[0.625em] leading-tight"}
+              style={pxStyle || {
                 borderRadius: spansDays
                   ? `${b.continuesBefore ? 0 : r} ${b.continuesBefore ? 0 : r} ${b.continuesAfter ? 0 : r} ${b.continuesAfter ? 0 : r}`
                   : r,
@@ -599,14 +624,25 @@ function DayColumn({
                 onClick={() => (b._live
                   ? (b._planRecord ? onOpenBlock(b._planRecord) : onOpenLive?.(b._session))
                   : onOpenBlock(b))}
-                className="w-full h-full text-left px-1 py-0.5"
+                className={px ? "w-full h-full text-left pxp-block-btn" : "w-full h-full text-left px-1 py-0.5"}
                 style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}>
-                <span className="block truncate font-medium" style={{ color: `color-mix(in srgb, ${colorFor(b)} 50%, var(--color-text-primary))`, textDecoration: pm.struck ? "line-through" : undefined }}
+                {px && !isLive && (
+                  <span className="block truncate pxp-block-time">
+                    {spansDays && realEnd ? `${clockLabel(realStart)}–${clockLabel(realEnd)}` : minutesToLabel(b.startMin)}
+                  </span>
+                )}
+                {px ? (
+                  <span className="block truncate pxp-block-name" title={pm.labelKey ? tr(pm.labelKey) : undefined}>
+                    {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b._isTask ? "☐ " : ""}
+                    {pm.mark && <span aria-label={tr(pm.labelKey)}>{pm.mark} </span>}
+                    {b.activity_name || tr("planner.untitled")}
+                  </span>
+                ) : <span className="block truncate font-medium" style={{ color: `color-mix(in srgb, ${colorFor(b)} 50%, var(--color-text-primary))`, textDecoration: pm.struck ? "line-through" : undefined }}
                   title={pm.labelKey ? tr(pm.labelKey) : undefined}>
                   {b.continuesBefore ? "↰ " : ""}{b._live && b.status !== "scheduled" ? "▶ " : ""}{b._isTask ? "☐ " : ""}
                   {pm.mark && <span aria-label={tr(pm.labelKey)}>{pm.mark} </span>}
                   {b.activity_name || tr("planner.untitled")}
-                </span>
+                </span>}
                 {isLive && (live.spans ? (
                   // Whole-block times with weekdays: the ends may be on
                   // other days than this column.
@@ -625,7 +661,7 @@ function DayColumn({
                     {liveExtraDays > 0 && ` +${liveExtraDays}d`}
                   </span>
                 ))}
-                {bottom - top >= 40 && !isLive && (
+                {!px && bottom - top >= 40 && !isLive && (
                   <span className="block truncate opacity-70">
                     {/* Real clock times, so the piece on day 2 still says
                         "23:00–07:00", not "00:00–07:00". */}
@@ -723,7 +759,15 @@ export default function WeekCanvas({
   // day's header; tapping one opens that profile.
   importantDates = [],
   onOpenDate = null,
+  // Scroll the hours to this one on first draw (the pixel planner opens at
+  // the working day, like its mockup, instead of at midnight).
+  initialScrollHour = null,
+  // Fit the week into the host's width (the pixel desk): day columns never
+  // force a sideways scroll wider than this many px each.
+  fitDayPx = null,
 }) {  const terms = useTerms();
+  const tr = useT();
+  const px = useUiLook() === "pixel";
 
   // Display prefs: row height (pinch or popover), clock format, week start.
   // Read live so a change anywhere re-renders every planner instance; a
@@ -1012,7 +1056,43 @@ export default function WeekCanvas({
   // A day column narrower than this can't hold a readable block, so on a
   // phone the week scrolls sideways rather than shrinking to slivers. The
   // Mon–Sun shape is kept either way.
-  const MIN_DAY_PX = dayCount === 1 ? 0 : dayPx;
+  const MIN_DAY_PX = dayCount === 1 ? 0 : (fitDayPx != null ? Math.min(dayPx, fitDayPx) : dayPx);
+
+  const gridRef = useRef(null);
+  const scrolledOnce = useRef(false);
+  // Runs after each draw until the grid can actually scroll (its host may
+  // size it a frame later), then never again.
+  useEffect(() => {
+    const el = gridRef.current;
+    if (scrolledOnce.current || initialScrollHour == null || !el) return;
+    if (el.scrollHeight <= el.clientHeight + 1) return;
+    scrolledOnce.current = true;
+    el.scrollTop = Math.max(0, initialScrollHour * hourPx - 4);
+  });
+
+  // The day's annual dates (birthdays…) as chips — shared by both looks.
+  const dateChips = (day) => {
+    const dayDates = datesForDay(importantDates, day);
+    if (!dayDates.length) return null;
+    return (
+      <div className={px ? "flex flex-wrap gap-0.5" : "flex flex-wrap justify-center gap-0.5 mt-0.5"}>
+        {dayDates.map((x, i) => (
+          <button key={`${x.alterId}-${x.fieldName}-${i}`} type="button"
+            onClick={() => onOpenDate?.(x)}
+            title={`${x.alterName} · ${x.fieldName}`}
+            className={px ? "pxp-chip" : "inline-flex items-center gap-0.5 max-w-full text-[0.625em] leading-tight px-1 py-px rounded-full border truncate"}
+            style={{
+              borderColor: x.color ? `${x.color}66` : "var(--v2-accent)",
+              color: x.color || "var(--v2-accent)",
+            }}>
+            <span aria-hidden>{/birth/i.test(x.fieldName) ? "🎂" : "📅"}</span>
+            <span className="font-medium truncate">{x.alterName}</span>
+            {dayCount === 1 && <span className="opacity-70 truncate">· {x.fieldName}</span>}
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className={`flex flex-col min-h-0 ${fill ? "h-full" : ""}`}>
@@ -1021,6 +1101,45 @@ export default function WeekCanvas({
       <div ref={scrollerRef} className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}
         onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd} onTouchCancel={onPinchEnd}>
         <div className={`min-w-max ${fill ? "flex-1 flex flex-col min-h-0" : ""}`}>
+          {px ? (
+            <>
+              <div className="flex pxp-head" role="row">
+                <div className="pxp-gutter flex-shrink-0 sticky left-0 z-20" />
+                {perDay.map(({ day, total }) => {
+                  const today = isSameDay(day, new Date());
+                  return (
+                    <div key={day.toISOString()} className={`pxp-dayname flex-1 ${today ? "today" : ""}`}
+                      style={{ minWidth: MIN_DAY_PX }}>
+                      <span className="truncate">{format(day, "EEE")} {format(day, "d")}</span>
+                      {total ? <span className="pxp-daytotal">{formatDuration(total)}</span> : null}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* The "all day" row: events, annual dates, untimed plans and
+                  the day's + (the strip that sits above the hours otherwise). */}
+              <div className="flex pxp-allday">
+                <div className="pxp-gutter flex-shrink-0 sticky left-0 z-20 pxp-allday-label">{tr("planner.pxAllDay")}</div>
+                {perDay.map(({ day, untimed }) => (
+                  <div key={day.toISOString()} data-own-hold className="flex-1 pxp-allday-cell relative group/strip"
+                    style={{ minWidth: MIN_DAY_PX }}>
+                    <EventChips day={day} compact={dayCount !== 1} className="pxp-events" />
+                    {dateChips(day)}
+                    {untimed.map((u) => (
+                      <button key={u.id} type="button" onClick={() => onOpenUntimed?.(u, day)}
+                        className="pxp-chip pxp-untimed"
+                        style={{ color: colorFor(u), borderColor: colorFor(u) }}>
+                        {u._isTask ? "☐ " : ""}{u.activity_name || tr("planner.untitled")}
+                      </button>
+                    ))}
+                    <button type="button" onClick={() => onAddToDay?.(day)}
+                      aria-label={tr("planner.addToDay")} title={tr("planner.addToDay")}
+                      className="pxp-allday-add">+</button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
           <div className="flex border-b border-border/60 pb-1 mb-0.5">
             <div className="w-10 flex-shrink-0 sticky left-0 z-20"
               style={{ background: "var(--v2-widget-bg, var(--color-bg))" }} />
@@ -1035,34 +1154,14 @@ export default function WeekCanvas({
                   <div className="text-[0.625em] text-muted-foreground tabular-nums leading-tight">
                     {total ? formatDuration(total) : "·"}
                   </div>
-                  {(() => {
-                    const dayDates = datesForDay(importantDates, day);
-                    if (!dayDates.length) return null;
-                    return (
-                      <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
-                        {dayDates.map((x, i) => (
-                          <button key={`${x.alterId}-${x.fieldName}-${i}`} type="button"
-                            onClick={() => onOpenDate?.(x)}
-                            title={`${x.alterName} · ${x.fieldName}`}
-                            className="inline-flex items-center gap-0.5 max-w-full text-[0.625em] leading-tight px-1 py-px rounded-full border truncate"
-                            style={{
-                              borderColor: x.color ? `${x.color}66` : "var(--v2-accent)",
-                              color: x.color || "var(--v2-accent)",
-                            }}>
-                            <span aria-hidden>{/birth/i.test(x.fieldName) ? "🎂" : "📅"}</span>
-                            <span className="font-medium truncate">{x.alterName}</span>
-                            {dayCount === 1 && <span className="opacity-70 truncate">· {x.fieldName}</span>}
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                  {dateChips(day)}
                   {/* Events (payday, birthdays): a date, never a block. */}
                   <EventChips day={day} compact={dayCount !== 1} className="justify-center mt-0.5" />
                 </div>
               );
             })}
           </div>
+          )}
 
           {/* Height is what's actually left on screen: the viewport minus this
               page's chrome above and the bottom nav below. A flat 70vh left
@@ -1077,20 +1176,20 @@ export default function WeekCanvas({
               to find a gap beside the widget to keep scrolling home). The
               x axis stays contained above so a sideways swipe never turns
               into browser back-navigation. */}
-          <div className={`flex items-start min-h-0 ${fill ? "flex-1 overflow-y-auto" : ""}`}
+          <div ref={gridRef} className={`flex items-start min-h-0 ${fill ? "flex-1 overflow-y-auto" : ""} ${px ? "pxp-grid" : ""}`}
             style={{
-              paddingTop: 8,
+              paddingTop: px ? 0 : 8,
               // `fill` = inside a widget box: take the box's height and
               // scroll within it. On the PAGE there is no inner cap at all —
               // the grid runs its full 24h and the page scrolls it, so the
               // planner isn't a small window onto itself.
               ...(fill && maxHeight ? { maxHeight } : {}),
             }}>
-            <div className="w-10 flex-shrink-0 relative sticky left-0 z-20"
-              style={{ marginTop: UNTIMED_STRIP_PX, background: "var(--v2-widget-bg, var(--color-bg))" }}>
+            <div className={px ? "pxp-gutter flex-shrink-0 relative sticky left-0 z-20" : "w-10 flex-shrink-0 relative sticky left-0 z-20"}
+              style={px ? undefined : { marginTop: UNTIMED_STRIP_PX, background: "var(--v2-widget-bg, var(--color-bg))" }}>
               {Array.from({ length: 24 }, (_, h) => (
-                <div key={h} className="absolute right-1 text-[0.5625em] text-muted-foreground tabular-nums whitespace-nowrap"
-                  style={{ top: h * hourPx, transform: "translateY(-50%)" }}>
+                <div key={h} className={px ? "absolute pxp-hour" : "absolute right-1 text-[0.5625em] text-muted-foreground tabular-nums whitespace-nowrap"}
+                  style={{ top: h * hourPx, transform: px ? (h === 0 ? "none" : "translateY(-50%)") : "translateY(-50%)" }}>
                   {formatHourLabel(h, prefs.timeFmt)}
                 </div>
               ))}
@@ -1129,6 +1228,7 @@ export default function WeekCanvas({
                 onOpenPage={onOpenPage}
                 onTapEmpty={onTapEmpty}
                 laneOpacity={prefs.laneOpacity}
+                px={px}
               />
             ))}
           </div>

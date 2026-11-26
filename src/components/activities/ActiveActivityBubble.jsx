@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Square, Timer } from "lucide-react";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 import { ActiveNowPopover } from "@/components/v2/ActiveNow";
 import { useSoundscapeState } from "@/components/grounding/soundscape/soundscapeHooks";
+import { useHouseZoneItem, ZONE_PRIORITY } from "@/lib/houseZones";
 
 const fmtElapsed = (start) => {
   const t = new Date(start).getTime();
@@ -52,10 +53,21 @@ export default function ActiveActivityBubble({ hidden = false }) {
     const fresh = getActiveActivities().find((a) => a.id === first.id);
     if (fresh) setMenu(fresh);
   };
+  const navigate = useNavigate();
+  // The new house's phone frame: the attention line, not a floating pill.
+  // More than one running: their list is the Activities page.
+  const inZone = useHouseZoneItem("active-activity", first && !hidden ? {
+    priority: ZONE_PRIORITY.TIMER, sig: `${first.id}|${more}|${elapsed}`,
+    icon: Timer,
+    title: more > 0 ? `${activities.length} activities running` : `${first.name || "Activity"} running`,
+    detail: elapsed ? `${elapsed} so far` : null, ticking: true,
+    onOpen: more > 0 ? () => navigate("/activities") : open,
+    actions: [{ label: more > 0 ? "End one" : "End", onClick: more > 0 ? () => navigate("/activities") : open }],
+  } : null);
 
   return (
     <>
-      {first && !hidden && (
+      {first && !hidden && !inZone && (
         <div ref={ref}
           className="fixed left-1/2 -translate-x-1/2 z-40 w-max flex items-center gap-1 rounded-full border bg-card/95 backdrop-blur pl-3 pr-1 py-1 shadow-lg max-w-[calc(100vw-32px)]"
           style={{
@@ -77,7 +89,7 @@ export default function ActiveActivityBubble({ hidden = false }) {
           </button>
         </div>
       )}
-      <ActiveNowPopover anchorRef={ref} open={listOpen && !hidden} onClose={() => setListOpen(false)} />
+      <ActiveNowPopover anchorRef={ref} open={listOpen && !hidden && !inZone} onClose={() => setListOpen(false)} />
       {menu && <ActivityActionMenu activity={menu} onClose={() => setMenu(null)} />}
     </>
   );
