@@ -147,7 +147,7 @@ function Room({ size, tokens, ws, newOpen, setNewOpen }) {
   const missing = view.kind === "page" && !page;
   let main;
   if (view.kind === "page" && page && view.layout) {
-    main = <OwnLayout key={page.id} page={page} phone={phone} onBack={() => setView(null, { page: page.id })} />;
+    main = <OwnLayout key={page.id} page={page} phone={phone} edit={editBoard} onBack={() => setView(null, { page: page.id })} />;
   } else if (view.kind === "page" && page) {
     main = <PageRoom key={page.id} page={page} phone={phone} onWho={setWhoFor}
       onLayout={(edit) => { setEditBoard(edit); setView("layout", { page: page.id }); }} />;
@@ -465,8 +465,9 @@ function FrontBoard({ phone, edit, onBack }) {
   );
 }
 
-function OwnLayout({ page, phone, onBack }) {
+function OwnLayout({ page, phone, edit, onBack }) {
   const boardPage = useProfilePageState(GOAL_PAGE_PAGES);
+  useEditWhenShown(boardPage.layoutEditing, edit);
   return (
     <section className="hn-boardwrap" aria-label={`${page.title || "Page"}: your own layout`} data-highlight-id={page.id}>
       <Panel className="hn-boardpanel" headingLevel={1} title={`${page.title || "Untitled"}: your own layout`}
