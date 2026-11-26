@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "feature", text: "New house: Journals and System chat are redrawn as the approved design, with folders, the entry and its info side by side, and chat tabs above a tidy message box on phones." },
       { type: "feature", text: "New house: the Alters page and profiles are redrawn as the approved design, with groups, cards and Info side by side, and your own profile layout still one tap away." },
       { type: "feature", text: "New house: the Planner is rebuilt as the approved design: one row of views, a week grid where you drag to plan, move or resize, and This week, Goals and Needs a decision beside it." },
     ],
