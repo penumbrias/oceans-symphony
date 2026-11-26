@@ -43,6 +43,7 @@ import MapImageNode from "./MapImageNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 import { useInnerWorldMaps, useInnerWorld } from "@/hooks/useInnerWorld";
 import { TRASH_HINT_MANY } from "@/lib/trashSettings";
+import { deleteWithUndo } from "@/lib/undoDelete";
 import { useUiLook, usePixelDesk } from "@/lib/uiLook";
 import "@/styles/pixel/systemmap.css";
 import RichText from "@/components/shared/RichText";
@@ -1408,7 +1409,13 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       setLocationFields: (fields) => { if (!pxCanEditLoc || !editingLocation) return; setEditingLocation((l) => ({ ...l, ...fields })); updateLocation(editingLocation, fields); },
       pickLocationColour: () => setShowLocColor(true),
       pickLocationPicture: () => setAssetPicker({ open: true, mode: "locationBg" }),
-      deleteLocation: async () => { const ed = editingLocation; if (!ed) return; if ((await confirm("Delete this location?"))) { iw.deleteLocation(ed.id); setEditingLocation(null); setSelectedLocation(null); } },
+      // One place goes to the trash at once with Undo (it's one batch with
+      // its profile layout); a whole map or layer still asks first.
+      deleteLocation: async () => {
+        const ed = editingLocation; if (!ed) return;
+        setEditingLocation(null); setSelectedLocation(null);
+        await deleteWithUndo({ label: `${ed.name || "Place"} deleted`, run: () => iw.deleteLocation(ed.id), refresh: () => queryClient.invalidateQueries() });
+      },
       linkOptions, linkValue,
       setLocationLink: (v) => {
         const ed = editingLocation; if (!ed) return;

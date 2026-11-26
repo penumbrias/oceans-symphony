@@ -1210,6 +1210,31 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `Below the map, the relationships panel lists how ${t.alters} are related. Add your own types in Settings → ${t.Alters} → Relationship types.`,
       route: "/system-map", target: "system-map-canvas", look: `scroll below the map`,
     }),
+    s("systemmap", {
+      emoji: "🧭", title: "Three ways to see it",
+      body: `In the new house, the switch beside the maps opens the inner world, who ${t.fronts} together, or a plain text list of every place and who's there.`,
+      route: "/system-map", target: ["system-map-views", "system-map-canvas"], look: `the Inner world / Who ${t.fronts} together / List switch`,
+    }),
+    s("systemmap", {
+      emoji: "🗂️", title: "Maps as tabs",
+      body: `Each map is a tab. New map adds one, and the ⋯ beside the tabs renames or deletes the one that's open.`,
+      route: "/system-map", target: ["system-map-maps", "system-map-views", "system-map-canvas"], look: `the map tabs above the canvas`,
+    }),
+    s("systemmap", {
+      emoji: "🛠️", title: "Map tools",
+      body: `Move, Place someone, add a Room, Link two ${t.alters}, add a picture, snap and zoom. On a computer each tool has a one-letter key; on a phone they sit in the bottom bar.`,
+      route: "/system-map", target: ["system-map-tools", "system-map-canvas"], look: `the tool column (or the phone's bottom bar)`,
+    }),
+    s("systemmap", {
+      emoji: "📚", title: "Layers",
+      body: `Layers stack on one map. The eye shows or hides a layer, the lock keeps it still, and ⋯ renames, moves or deletes it. Relationship lines can show everyone's, the picked one's, or none.`,
+      route: "/system-map", target: ["system-map-layers", "system-map-canvas"], look: `the Layers panel`,
+    }),
+    s("systemmap", {
+      emoji: "ℹ️", title: "Info",
+      body: `Pick a place, ${an(t.alter)}, a line or a picture and Info shows it: name, colour, size, who's here, notes and where it links. Changes save as you make them.`,
+      route: "/system-map", target: ["system-map-info", "system-map-canvas"], look: `the Info panel`,
+    }),
 
     // ─── SUPPORT ────────────────────────────────────────────────────────────
     s("grounding", {
