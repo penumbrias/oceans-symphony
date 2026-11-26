@@ -310,6 +310,7 @@ export function SliderRow({ label, hint, value, fallback = 0, min = 0, max = 100
           aria-valuetext={`${shown}${unit ? ` ${unit}` : ""}${inherited ? ", inherited" : ""}`}
           data-edge-safe=""
           data-inherited={inherited || undefined}
+          style={{ "--hk-fill": `${max > min ? Math.round(((shown - min) / (max - min)) * 100) : 0}%` }}
           onChange={(e) => onChange?.(parseFloat(e.target.value))}
         />
       </div>

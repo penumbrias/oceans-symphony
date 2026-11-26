@@ -33,7 +33,7 @@ import { CORNER_MODES } from "@/lib/useCornerMode";
 import { UI_LOOKS, readUiLook, usePixelLook, PIXEL_LOOK_DEFAULTS, PIXEL_STATUS_ITEMS, PIXEL_DOCK_LAYERS } from "@/lib/uiLook";
 import { isNative } from "@/lib/platform";
 import { buildSidebarGroups } from "@/components/layout/SidebarNav";
-import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, LinkRow, useInspectorPages } from "@/components/shared/SettingRows";
+import { Row, StackedRow, Group, SwitchRow, Segmented, ChoiceRow, SliderRow, ColourRow, TabBar, Chips, ResetRow, LinkRow, useInspectorPages, inspectorPages } from "@/components/shared/SettingRows";
 import { useEdgeSafeSliders } from "@/lib/gestureExclusion";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -2116,7 +2116,11 @@ function PageLookTab({ settingsRow, page }) {
 // `renderTabs` (optional): the new house's Settings room draws the tab strip
 // itself (board 10's file tabs) with `({ tabs, value, onChange })`. Without
 // it (everywhere else) the strip is the shared TabBar, exactly as before.
-export default function UiEditSheet({ renderTabs } = {}) {
+// `tab` (optional): the house's Display options page owns the tab (its own
+// strip has a Look tab this sheet doesn't), so the body shows that one tab,
+// never the stacked view. `scopeless`: only the app-wide look (the house
+// page offers the rest through "Open the full options").
+export default function UiEditSheet({ renderTabs, tab: tabProp = null, scopeless = false } = {}) {
   const v2 = useV2Display();
   const qc = useQueryClient();
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
@@ -2151,7 +2155,7 @@ export default function UiEditSheet({ renderTabs } = {}) {
     hint: `The look every ${defaultsType === "alter" ? terms.alter : defaultsType} profile starts with, and what empty ones show. A profile's own Profile style always wins, setting by setting.`,
   } : null), [defaultsType, defaultsLabel, settingsRow, terms.alter]);
   const pageTitle = page ? pageLabel(page, terms) : "";
-  const scopes = [
+  const scopes = scopeless ? [{ value: "app", label: tr("editSheet.scopeApp") }] : [
     { value: "app", label: tr("editSheet.scopeApp") },
     ...(page ? [{ value: "page", label: pageTitle }] : []),
     ...(defaultsSubject ? [{ value: "defaults", label: defaultsLabel }] : []),
@@ -2164,9 +2168,10 @@ export default function UiEditSheet({ renderTabs } = {}) {
     return "app";
   });
   const effectiveScope = scopes.some((s) => s.value === scope) ? scope : "app";
-  const [tab, setTab] = useState(() => {
+  const [tabState, setTab] = useState(() => {
     try { return sessionStorage.getItem("os_bars_focus") ? "bars" : "text"; } catch { return "text"; }
   });
+  const tab = tabProp || tabState;
   const tabs = [
     { id: "text", label: tr("editSheet.tabText"), icon: Type },
     { id: "shape", label: tr("editSheet.tabShape"), icon: Square },
@@ -2174,7 +2179,8 @@ export default function UiEditSheet({ renderTabs } = {}) {
     { id: "colour", label: tr("editSheet.tabColour"), icon: Palette },
     { id: "styles", label: tr("editSheet.tabStyles"), icon: StarIcon },
   ];
-  const { stacked, show, head } = useInspectorPages(tabs, tab);
+  const ownPages = useInspectorPages(tabs, tab);
+  const { stacked, show, head } = tabProp ? inspectorPages(tabs, tab, false) : ownPages;
   // A tab change starts at the top of the panel — the host scrolls, so
   // this scrolls the nearest scrolling ancestor.
   const panelRef = useRef(null);

@@ -21,26 +21,25 @@
 // `/settings#<page>`, LEGACY_HASHES, and `?section=` read as a hash), so
 // every link in the app lands in both houses. The pages' own contents are
 // the existing settings components inside house panels (they keep their
-// old styling until each is rebuilt); Display options is drawn in the
-// house's inspector shell (board 10's file tabs and rows) around the same
-// UiEditSheet body the sheet shows.
+// old styling until each is rebuilt); Display options is board 07's
+// "Appearance: the look" (DisplayLook.jsx): its own Look tab, then the same
+// UiEditSheet tabs the sheet shows, in board 10's row style.
 //
 // The room writes nothing by itself. Every setting is saved by the page
 // that shows it, through its existing writer (settingsWriter.js and the
 // pages' own save paths); the overview's backup buttons are the old ones
 // (runAutoBackupNow, DataBackupRestore, ImportDataSection).
 
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Upload, Database, Globe, ExternalLink, LayoutTemplate } from "lucide-react";
 import { HouseScope } from "@/house/tokens/HouseRoot";
 import { Button, IconButton } from "@/house/kit/Button";
-import { Panel, PageTabs } from "@/house/kit/Panel";
+import { Panel } from "@/house/kit/Panel";
 import { TextField } from "@/house/kit/Field";
 import { Row } from "@/house/kit/Content";
 import { Sheet } from "@/house/kit/Sheet";
-import { LoadingBlock } from "@/house/kit/States";
 import { showToast } from "@/house/kit/Toast";
 import { useRoomTools } from "@/house/frame/roomTools";
 import { useSettingsRow } from "@/house/frame/useFrameData";
@@ -66,11 +65,11 @@ import {
   settingsTarget, findPage, hrefFor, rowOpensPage, pageHeading, pageAside, isLookPage,
   versionWords, countPages, findWords, rememberList, takeList,
 } from "@/house/settings/settingsModel";
+import DisplayLookPage from "@/house/settings/DisplayLook";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 import "@/house/settings/settings.css";
 
-const UiEditSheet = React.lazy(() => import("@/components/v2/UiEditSheet"));
 
 const LINKS = [
   { id: "site", label: "Official website", icon: Globe, url: "https://penumbrialecosystem.neocities.org/os" },
@@ -111,10 +110,10 @@ export default function HouseSettings({ size = "full", tokens }) {
     return base.map((g) => ({
       ...g,
       pages: g.pages.map((p) => (p.id === "display" && p.action && !p.render
-        ? { ...p, render: () => <DisplayOptionsPage onOpenSheet={p.action} /> }
+        ? { ...p, render: () => <DisplayLookPage onOpenSheet={p.action} phone={phone} /> }
         : p)),
     }));
-  }, [terms, navigate, settings, qc]);
+  }, [terms, navigate, settings, qc, phone]);
 
   const target = settingsTarget({ hash: location.hash, search: location.search, legacy: LEGACY_HASHES });
   const found = target.kind === "page" ? findPage(groups, target.id) : null;
@@ -346,25 +345,6 @@ function PhonePage({ ctx, onBack }) {
       {page.hint && !isLookPage(page.id) ? <p className="hst-phint">{page.hint}</p> : null}
       <div data-tour="settings-content" className="hst-pbody">
         <div key={page.id} className="hst-old hst-page">{page.render()}</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Display options in the house's inspector shell (boards 07 and 10) ────
-function DisplayOptionsPage({ onOpenSheet }) {
-  return (
-    <div className="hst-insp" data-tour="settings-display-inspector">
-      <Suspense fallback={<LoadingBlock label="Loading Display options" />}>
-        <UiEditSheet renderTabs={({ tabs, value, onChange }) => (
-          <div className="hst-insp-tabs">
-            <PageTabs label="Display options" idPrefix="inspector" value={value} onChange={onChange}
-              tabs={tabs.map((t) => ({ id: t.id, label: t.label, dot: t.dot }))} />
-          </div>
-        )} />
-      </Suspense>
-      <div className="hst-insp-foot">
-        <Button onClick={onOpenSheet}>Open as a sheet</Button>
       </div>
     </div>
   );
