@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "feature", text: "New house: Display options opens on a Look tab like the mockup, where you can change any colour, the fonts, border, bevel, corners, icons, header wave and Penumblob's size." },
       { type: "feature", text: "New house: the System map is now a map editor, with tools down the side, your maps as tabs, and Layers and Info beside the map. Deleting a place can be undone." },
       { type: "improve", text: "The pixel look's default colours swap the bright teal for the mockups' warm amber and soft periwinkle." },
       { type: "feature", text: "New house: Settings is redrawn as the approved design, with every page listed beside it, Find, and a live preview of your look." },
