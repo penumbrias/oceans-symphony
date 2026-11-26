@@ -118,7 +118,7 @@
 [data-house].hcs-ci .px-ci-foot { margin: 0; padding: var(--house-space-1) 0 var(--house-space-2); text-align: center; font-size: var(--house-text-xs); color: var(--house-muted); }
 [data-house].hcs-ci .px-ci-accent { color: var(--house-accent); }
 /* Fields inside the sections are sunken, as board 16 draws them. */
-[data-house].hcs-ci .px-ci-body :is(input:is([type="text"], [type="search"], [type="number"], [type="datetime-local"], :not([type])), textarea, select) {
+[data-house].hcs-ci .px-ci-body :is(input:is([type="text"], [type="search"], [type="number"], :not([type])), textarea, select) {
   background: var(--house-page); color: var(--house-text); border-color: transparent; border-radius: var(--house-corner-sm, 0);
   box-shadow: var(--hcs-sink);
 }
