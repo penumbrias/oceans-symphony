@@ -15,7 +15,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { sendChatMessage, editChatMessage, deleteChatMessage } from "@/lib/chatEntry";
 import { purgeChatMessage, purgeDeletedChatMessages } from "@/lib/chatCleanup";
 
-export default function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], focusMessageId, onMessageFocused }) {
+export default function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], focusMessageId, onMessageFocused, look }) {
   const qc = useQueryClient();
   const terms = useTerms();
 
@@ -102,6 +102,7 @@ export default function ChannelView({ channel, alters, defaultAuthorId, fronting
       channelLabel={`#${channel.name}`}
       focusMessageId={focusMessageId}
       onMessageFocused={onMessageFocused}
+      composerLook={look}
       headerSlot={(
         <div className="px-chat-chhead px-4 py-2 border-b border-border/40 flex items-center gap-2 flex-shrink-0" data-purge={deletedCount > 0 ? "true" : undefined}>
           {isPrivate ? <Lock className="w-4 h-4 text-muted-foreground" /> : <Hash className="w-4 h-4 text-muted-foreground" />}

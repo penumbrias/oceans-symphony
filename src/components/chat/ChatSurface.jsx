@@ -490,10 +490,13 @@ export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, sel
 // The composer: SpeakerPicker + RichMentionInput + formatting/image toolbar.
 // Identical in chat and meeting. `onSubmit({ content, speakerIds, notifyOnReply })`
 // is called with the raw typed HTML; the host's send logic does the parsing.
-export function Composer({ channelLabel, alters, speakerAlters = alters, defaultAuthorId, replyTo, onCancelReply, onSubmit, terms, placeholderText }) {
+export function Composer({ channelLabel, alters, speakerAlters = alters, defaultAuthorId, replyTo, onCancelReply, onSubmit, terms, placeholderText, look }) {
   const kbInset = useKeyboardInset();
   const composerLift = useComposerLift(kbInset);
-  const pixel = useUiLook() === "pixel";
+  // `look="pixel"`: the new house draws board 14's composer (speaker chip,
+  // the grammar hint, field and Send) whatever the person's look is.
+  const uiLook = useUiLook();
+  const pixel = uiLook === "pixel" || look === "pixel";
   const formatAlter = useAlterLabel();
   const [speakerIds, setSpeakerIds] = useState(() => defaultAuthorId ? [defaultAuthorId] : [SYSTEM_AUTHOR.id]);
   useEffect(() => {
@@ -817,6 +820,7 @@ export default function ChatSurface({
   streamClassName,
   focusMessageId,
   onMessageFocused,
+  composerLook,
 }) {
   const terms = useTerms();
   const streamRef = useRef(null);
@@ -1019,6 +1023,7 @@ export default function ChatSurface({
         onSubmit={handleComposerSubmit}
         terms={terms}
         placeholderText={composerPlaceholder}
+        look={composerLook}
       />
     </>
   );

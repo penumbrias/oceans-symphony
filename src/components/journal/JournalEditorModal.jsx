@@ -32,10 +32,15 @@ import SystemAvatar from "@/components/shared/SystemAvatar";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { journalCoAuthorIds } from "@/lib/journalAuthors";
 
+// The inline editor's frame pieces (outside a Dialog, Radix's title and
+// footer can't be used).
+const InlineHead = ({ children }) => <div>{children}</div>;
+const InlineTitle = ({ children }) => <h2 className="text-lg font-semibold leading-none tracking-tight">{children}</h2>;
+const InlineFoot = ({ children }) => <div className="flex flex-row justify-end gap-2">{children}</div>;
 
 export default function JournalEditorModal({
   isOpen, open, onClose, editingEntry, entry, alters,
-  defaultFolder, currentAlterId,
+  defaultFolder, currentAlterId, inline = false,
 }) {
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
@@ -450,15 +455,22 @@ useEffect(() => {
     });
   };
 
-  return (
-    <Dialog open={isOpenFinal} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+  // `inline`: the same editor drawn in place (the new house's Journals room
+  // writes on its page instead of in a dialog). Every field, check and the
+  // save path are the same; only the frame around them changes.
+  const editorTitle = editingEntryFinal ? "Edit Entry" : "New Journal Entry";
+  const Head = inline ? InlineHead : DialogHeader;
+  const HeadTitle = inline ? InlineTitle : DialogTitle;
+  const Foot = inline ? InlineFoot : DialogFooter;
+
+  const inner = (
+    <>
 
         {/* ── Fixed header: modal title + entry title + author ── */}
         <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50 space-y-3">
-          <DialogHeader>
-            <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
-          </DialogHeader>
+          <Head>
+            <HeadTitle>{editorTitle}</HeadTitle>
+          </Head>
 
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
@@ -717,15 +729,30 @@ useEffect(() => {
 
         {/* ── Fixed footer ── */}
         <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
-          <DialogFooter>
+          <Foot>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={(isEncrypted && (editingEntryFinal?.is_encrypted ? (showPasswordField || !decryptionPassword) : !encryptionPassword)) || saveMutation.isPending}>
               {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Entry
             </Button>
-          </DialogFooter>
+          </Foot>
         </div>
+    </>
+  );
 
+  if (inline) {
+    if (!isOpenFinal) return null;
+    return (
+      <div className="journal-editor-inline flex flex-col gap-0 min-h-0" data-journal-editor="inline">
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={isOpenFinal} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+        {inner}
       </DialogContent>
     </Dialog>
   );

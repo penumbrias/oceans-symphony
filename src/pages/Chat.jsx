@@ -142,39 +142,6 @@ export default function Chat() {
     }
   };
 
-  // Drag-to-reorder (edit mode). A drag only reorders WITHIN a sibling list
-  // (categories among same-parent categories; channels among same-category
-  // channels) — cross-category moves are done via the channel's edit dialog.
-  const dndSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
-  );
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const orderOf = (arr) => [...arr].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((x) => x.id);
-    const activeCat = categories.find((c) => c.id === active.id);
-    if (activeCat) {
-      const siblings = categories.filter((c) => (c.parent_category_id || null) === (activeCat.parent_category_id || null));
-      const ids = orderOf(siblings);
-      const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
-      if (from === -1 || to === -1) return; // dropped onto a different list — ignore
-      try { await reorderChatCategories(arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatCategories"] }); }
-      catch (err) { toast.error(err?.message || "Couldn't reorder"); }
-      return;
-    }
-    const activeChan = channels.find((c) => c.id === active.id);
-    if (activeChan) {
-      const key = activeChan.category_id || null;
-      const siblings = channels.filter((c) => !c.is_archived && !c.is_private && (c.category_id || null) === key);
-      const ids = orderOf(siblings);
-      const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
-      if (from === -1 || to === -1) return;
-      try { await reorderChatChannels(arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatChannels"] }); }
-      catch (err) { toast.error(err?.message || "Couldn't reorder"); }
-    }
-  };
-
   const urlChannelId = searchParams.get("channel");
   const activeChannel = useMemo(() => {
     if (urlChannelId) {
@@ -376,42 +343,17 @@ export default function Chat() {
             </p>
           )}
           <div className="flex-1 overflow-y-auto p-1 min-h-[6rem]">
-            {(() => {
-              const onOpen = (c) => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); };
-              const rootCatIds = tree.rootNodes.map((n) => n.category.id);
-              const uncatIds = tree.uncategorized.map((c) => c.id);
-              return (
-                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={rootCatIds} strategy={verticalListSortingStrategy}>
-                    {tree.rootNodes.map((node) => (
-                      <ChatCategoryNode
-                        key={node.category.id}
-                        node={node}
-                        depth={0}
-                        activeId={activeChannel?.id}
-                        editMode={editMode}
-                        onOpen={onOpen}
-                        onEditChannel={setEditingChannel}
-                        onEditCategory={setEditingCategory}
-                        onToggleCollapse={toggleCollapse}
-                      />
-                    ))}
-                  </SortableContext>
-                  {tree.uncategorized.length > 0 && (
-                    <SortableContext items={uncatIds} strategy={verticalListSortingStrategy}>
-                      <ul className="mb-1.5">
-                        {tree.uncategorized.map((c) => (
-                          <li key={c.id}>
-                            <ChatChannelRow channel={c} activeId={activeChannel?.id} indent={0} editMode={editMode}
-                              onOpen={onOpen} onEdit={setEditingChannel} />
-                          </li>
-                        ))}
-                      </ul>
-                    </SortableContext>
-                  )}
-                </DndContext>
-              );
-            })()}
+            <ChatChannelTree
+              tree={tree}
+              categories={categories}
+              channels={channels}
+              activeId={activeChannel?.id}
+              editMode={editMode}
+              onOpen={(c) => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); }}
+              onEditChannel={setEditingChannel}
+              onEditCategory={setEditingCategory}
+              onToggleCollapse={toggleCollapse}
+            />
             {privateChannels.length > 0 && (
               <div className="px-chat-privgrp mb-1.5 last:mb-0">
                 <div className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1">
@@ -556,6 +498,79 @@ export default function Chat() {
   );
 }
 
+// The channel tree (categories, their sub-categories and channels, then the
+// loose channels), with drag-to-reorder in edit mode. One copy: this page's
+// side panel and the new house's Write room ("Edit channels") both draw it.
+export function ChatChannelTree({ tree, categories, channels, activeId, editMode, onOpen, onEditChannel, onEditCategory, onToggleCollapse }) {
+  const qc = useQueryClient();
+  // Drag-to-reorder (edit mode). A drag only reorders WITHIN a sibling list
+  // (categories among same-parent categories; channels among same-category
+  // channels) — cross-category moves are done via the channel's edit dialog.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+  );
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const orderOf = (arr) => [...arr].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((x) => x.id);
+    const activeCat = categories.find((c) => c.id === active.id);
+    if (activeCat) {
+      const siblings = categories.filter((c) => (c.parent_category_id || null) === (activeCat.parent_category_id || null));
+      const ids = orderOf(siblings);
+      const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
+      if (from === -1 || to === -1) return; // dropped onto a different list — ignore
+      try { await reorderChatCategories(arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatCategories"] }); }
+      catch (err) { toast.error(err?.message || "Couldn't reorder"); }
+      return;
+    }
+    const activeChan = channels.find((c) => c.id === active.id);
+    if (activeChan) {
+      const key = activeChan.category_id || null;
+      const siblings = channels.filter((c) => !c.is_archived && !c.is_private && (c.category_id || null) === key);
+      const ids = orderOf(siblings);
+      const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
+      if (from === -1 || to === -1) return;
+      try { await reorderChatChannels(arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatChannels"] }); }
+      catch (err) { toast.error(err?.message || "Couldn't reorder"); }
+    }
+  };
+
+  const rootCatIds = tree.rootNodes.map((n) => n.category.id);
+  const uncatIds = tree.uncategorized.map((c) => c.id);
+  return (
+    <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={rootCatIds} strategy={verticalListSortingStrategy}>
+        {tree.rootNodes.map((node) => (
+          <ChatCategoryNode
+            key={node.category.id}
+            node={node}
+            depth={0}
+            activeId={activeId}
+            editMode={editMode}
+            onOpen={onOpen}
+            onEditChannel={onEditChannel}
+            onEditCategory={onEditCategory}
+            onToggleCollapse={onToggleCollapse}
+          />
+        ))}
+      </SortableContext>
+      {tree.uncategorized.length > 0 && (
+        <SortableContext items={uncatIds} strategy={verticalListSortingStrategy}>
+          <ul className="mb-1.5">
+            {tree.uncategorized.map((c) => (
+              <li key={c.id}>
+                <ChatChannelRow channel={c} activeId={activeId} indent={0} editMode={editMode}
+                  onOpen={onOpen} onEdit={onEditChannel} />
+              </li>
+            ))}
+          </ul>
+        </SortableContext>
+      )}
+    </DndContext>
+  );
+}
+
 // One channel row in the sidebar tree. In edit mode it becomes draggable
 // (dnd-kit) and a tap edits it instead of opening it.
 function ChatChannelRow({ channel, activeId, indent = 0, editMode, onOpen, onEdit }) {
@@ -644,7 +659,7 @@ function ChatCategoryNode({ node, depth, activeId, editMode, onOpen, onEditChann
   );
 }
 
-function ChannelDialog({ editChannel = null, editCategory = null, alters = [], onClose, onSaved, onDeleted }) {
+export function ChannelDialog({ editChannel = null, editCategory = null, alters = [], onClose, onSaved, onDeleted }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const qc = useQueryClient();
