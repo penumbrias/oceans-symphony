@@ -160,7 +160,7 @@ test("both frames mount the room; the phone runs it edge to edge with its own to
     assert.ok(/<HouseNotebook /.test(t), `${f} mounts it`);
   }
   const phone = read("src/house/phone/HousePhoneFrame.jsx");
-  assert.ok(/notebookRoom \? "px-0"/.test(phone) || /\|\| notebookRoom\) \? "px-0"|\|\| notebookRoom \? "px-0"/.test(phone), "the phone runs it edge to edge");
+  assert.ok(/notebookRoom \? "px-0"/.test(phone) || /\|\| notebookRoom\) \? "px-0"|\|\| notebookRoom( \|\| settingsRoom)? \? "px-0"/.test(phone), "the phone runs it edge to edge");
   assert.ok(/ownDocks[^;]*notebookRoom/.test(read("src/house/frame/HouseFrame.jsx")), "the room draws its own side panels");
   const room = read("src/house/notebook/HouseNotebook.jsx");
   assert.ok(room.includes("useRoomTools"), "the phone's header tools come from the room (nothing floats over the page)");
