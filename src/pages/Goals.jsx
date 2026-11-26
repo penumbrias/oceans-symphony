@@ -11,46 +11,33 @@
 // (NotesView), ?list=<id> opens a note, list or deck in the list sheet on
 // top of whatever is showing. They stay stored in the lists panel's stores.
 
-import React, { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Target, Repeat, Menu } from "lucide-react";
+import React, { useState } from "react";
+import { Repeat, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { profilePageId } from "@/lib/profileBoard";
 import { useNotebookWorkspace } from "@/components/goals/workspace/useNotebookWorkspace";
+import {
+  NOTEBOOK_PAGES, NOTEBOOK_ICONS, GOAL_PAGE_REGISTRY, useHasOwnBoard, useEditWhenShown,
+} from "@/components/goals/workspace/notebookBoards";
 import { WorkspaceProvider, useWorkspace } from "@/components/goals/workspace/WorkspaceContext";
 import PageTree from "@/components/goals/workspace/PageTree";
 import BoardPageHeader from "@/components/profile/BoardPageHeader";
 import PageBoardCanvas, { openPageLayoutEditor } from "@/components/profile/PageBoardCanvas";
 import { useProfilePageState } from "@/components/profile/ProfileBoardCanvas";
-import { V2_WIDGETS } from "@/v2/widgets";
 import { GOAL_PAGE_PAGES, GoalPageContext } from "@/v2/goalPageWidgets";
-import { goalWidgetDefs } from "@/v2/goalWidgetDefs";
 import { goalBoardPageId } from "@/lib/goalTree";
 import PageView from "@/components/goals/workspace/PageView";
 import ListSheet from "@/components/notes/ListSheet";
 import { NotesView } from "@/pages/Notes";
 import { useUiLook, usePixelDesk, UI_LOOKS } from "@/lib/uiLook";
-import { profileBoardQueryKey, listProfileBoardRows } from "@/lib/boardStore";
-import { PAGE_BOARD_OWNER_TYPE } from "@/lib/profileBoard";
 import {
   PixelPages, PixelOverview, PixelPhoneHome, PixelPageDesk, Panel, useAddPage,
 } from "@/components/goals/workspace/NotebookPixel";
 import "@/styles/pixel/notebook.css";
 
-// The Notebook's front page (v0.358.0): a widget board like Needs — Add a
-// goal, then every goal as a card. Edit page moves, resizes and adds
-// widgets (pictures, notes, anything); the layout is saved on the first
-// edit, never before. The weekly-goals carry-over offer sits above it.
-export const NOTEBOOK_PAGES = [
-  { tab: "goals", label: "Goals", widgets: [
-    { widgetId: "goal_add" },
-    { widgetId: "goals", settings: { view: "cards" } },
-    // Notes & lists joined the Notebook (v0.376.0).
-    { widgetId: "notes_index" },
-  ] },
-];
-const NOTEBOOK_ICONS = { [profilePageId("goals")]: Target };
+// The front board, a goal page's registry and "Edit page" for a board not
+// on screen yet live in notebookBoards.js (shared with the house's room).
+export { NOTEBOOK_PAGES };
 
 function Home({ toCarry, onCarry, carrying }) {
   const [hideCarry, setHideCarry] = useState(false);
@@ -129,41 +116,9 @@ function PixelHome({ range, setRange, carry, phone = false, onOpenTree = null })
   return <PixelOverview range={range} setRange={setRange} onEditLayout={openPageLayoutEditor} carry={carry} board={board} />;
 }
 
-// A goal page: its header, then its widget board (v0.338.0). The board is
-// the standard four widgets until the first Edit page; Media, Text and the
-// rest can go beside them.
-const GOAL_PAGE_REGISTRY = { ...V2_WIDGETS, ...goalWidgetDefs({ onGoalPage: true }) };
-// Whether a board has its own saved layout (a ProfileBoard row): the
-// pixel desk shows the mockup's fixed panes until the person lays the page
-// out themselves, then their board.
-function useHasOwnBoard(boardId) {
-  const { data: rows = [] } = useQuery({
-    queryKey: profileBoardQueryKey(PAGE_BOARD_OWNER_TYPE, boardId),
-    queryFn: () => listProfileBoardRows(PAGE_BOARD_OWNER_TYPE, boardId),
-  });
-  return rows.length > 0;
-}
-
-// "Edit page" while the board isn't on screen: show it, then ask it into
-// edit mode once it has mounted (it listens for the editor event).
-function useEditWhenShown(layoutEditing) {
-  const [want, setWant] = useState(false);
-  const was = useRef(false);
-  useEffect(() => {
-    if (layoutEditing) { was.current = true; return undefined; }
-    if (was.current) { was.current = false; setWant(false); return undefined; }
-    if (!want) return undefined;
-    let tries = 0;
-    const t = setInterval(() => {
-      tries += 1;
-      openPageLayoutEditor();
-      if (tries > 20) { clearInterval(t); setWant(false); }
-    }, 150);
-    return () => clearInterval(t);
-  }, [want, layoutEditing]);
-  return { want, edit: () => setWant(true) };
-}
-
+// A goal page: its header, then its widget board (v0.338.0). The pixel
+// desk shows the mockup's fixed panes until the person lays the page out
+// themselves, then their board.
 function GoalPage({ page }) {
   const boardPage = useProfilePageState(GOAL_PAGE_PAGES);
   const desk = usePixelDesk();
