@@ -112,7 +112,7 @@ export function stepAnchor(view, anchor, dir) {
   return addDays(a, 7 * dir);
 }
 
-/** Does the stretch on screen hold today? (Today is greyed when it does.) */
+/** Does the stretch on screen hold today? (The Today button steps aside when it does.) */
 export function holdsToday(view, anchor, weekStart = 1, now = new Date()) {
   const { from, to } = rangeOf(view === "day" || view === "month" || view === "year" ? view : "week", anchor, weekStart);
   return now >= from && now < to;

@@ -398,5 +398,10 @@ test("Swatches keep their own class names (the frame's signing swatch, .hk-swatc
   for (const f of ["src/house/kit/frame/frameKit.css", "src/house/kit/panels.css"]) assert.ok(!/\.hk-swpick/.test(read(f)), f);
   assert.match(read("src/house/kit/kit.css"), /\.hk-swpick \{[^}]*background-color: var\(--hk-sw\)/);
 });
+test("The time columns and month grids keep their own class names (hk-tc-, hk-cal-), never in the frame's CSS", () => {
+  for (const f of ["src/house/kit/frame/frameKit.css", "src/house/kit/panels.css"]) assert.ok(!/\.hk-tc-|\.hk-cal-/.test(read(f)), f);
+  assert.ok(read("src/house/kit/TimeColumns.jsx").includes('import "@/house/kit/timeColumns.css"'));
+  assert.ok(read("src/house/kit/MonthGrid.jsx").includes('import "@/house/kit/monthGrid.css"'));
+});
 
 console.log(`\n${passed} passed.`);
