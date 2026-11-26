@@ -387,14 +387,14 @@ export function InsightsView({ terms, rangeLabel, totals, weekFrom, activities }
           </ErrorBoundary>
         </div>
       </Panel>
-      <Panel title="Plan follow-through" className="hpl-panel">
+      <Panel title="Plan follow-through" className="hpl-panel hpl-wide">
         <div className="hpl-old">
           <ErrorBoundary fallback={(err, reset) => <PanelError label="Plan follow-through" onRetry={reset} />} resetKeys={[activities.length]}>
             <PlanCompletionTracker />
           </ErrorBoundary>
         </div>
       </Panel>
-      <Panel title="All-time tally" className="hpl-panel">
+      <Panel title="All-time tally" className="hpl-panel hpl-wide">
         <div className="hpl-old">
           <ErrorBoundary fallback={(err, reset) => <ActivityNestingRecovery error={err} onReset={reset} />} resetKeys={[activities.length]}>
             <ActivityTallyTracker activities={activities} />

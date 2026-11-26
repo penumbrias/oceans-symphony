@@ -104,4 +104,4 @@
 [data-house] .hk-tc-empty {
   position: absolute; left: var(--hk-tc-gutter); right: 0; top: 5rem; z-index: 3; display: flex; justify-content: center; pointer-events: none;
 }
-[data-house] .hk-tc-empty > * { pointer-events: auto; }
+[data-house] .hk-tc-empty > * { pointer-events: auto; flex: 0 1 22rem; min-width: 0; }
