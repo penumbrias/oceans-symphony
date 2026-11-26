@@ -472,7 +472,7 @@ export default function HouseJournals({ size = "full", tokens }) {
         <p className="hw-muted">New folders are made from the folder list (⋯ on a folder, or + folder).</p>
       </Sheet>
       {phone && current ? (
-        <Sheet open={infoOpen} onClose={() => setInfoOpen(false)} title="Info: this entry" size="half">
+        <Sheet open={infoOpen} onClose={() => setInfoOpen(false)} title={current.title || "This entry"} size="half">
           <div className="hw-sheet-stack">{infoPanel}{didPanel}</div>
         </Sheet>
       ) : null}
