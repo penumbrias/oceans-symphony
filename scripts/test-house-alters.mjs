@@ -283,7 +283,7 @@ test("the Alters room is drawn by the house only on /Home and /alter/:id", () =>
     const t = read(f);
     assert.ok(t.includes("<HouseAlters ") && t.includes("<HouseAlterProfile "), `${f} draws both rooms`);
   }
-  assert.ok(/altersRoom( \|\| writeRoom)? \? "px-0"|plannerRoom \|\| altersRoom( \|\| writeRoom)? \? "px-0"/.test(read("src/house/phone/HousePhoneFrame.jsx")), "the phone room runs edge to edge");
+  assert.ok(/altersRoom( \|\| writeRoom)?( \|\| notebookRoom)? \? "px-0"|plannerRoom \|\| altersRoom( \|\| writeRoom)?( \|\| notebookRoom)? \? "px-0"/.test(read("src/house/phone/HousePhoneFrame.jsx")), "the phone room runs edge to edge");
 });
 
 test("the person's own layout stays reachable inside the room", () => {
