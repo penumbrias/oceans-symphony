@@ -41,7 +41,13 @@
 [data-house] .hal-find .hk-field { flex-direction: row; align-items: center; gap: 0.625rem; margin: 0; }
 [data-house] .hal-find .hk-field-head { margin: 0; }
 [data-house] .hal-find .hk-label { font-family: var(--house-font-label); font-weight: 400; }
-[data-house].hal--studio .hal-find .hk-input { width: 11.25rem; }
+[data-house].hal--studio .hal-find .hk-input { width: 100%; min-width: 6rem; }
+/* Board 03: Find · Sort · Grid List Tree · New alter on one row; Find gives way first. */
+[data-house].hal--studio:not([data-house-size="compact"]) .hal-toolbar { flex-wrap: nowrap; }
+[data-house].hal--studio .hal-find { flex: 1 1 13.75rem; max-width: 18rem; }
+[data-house].hal--studio .hal-find .hk-field { width: 100%; }
+[data-house].hal--studio .hal-toolbar .hk-btn { white-space: nowrap; }
+[data-house] .hal-card, [data-house] .hal-card * { user-select: none; -webkit-user-select: none; }
 [data-house] .hal-lbl { color: var(--house-muted); font-size: var(--house-px-label, var(--house-text-sm)); }
 [data-house] .hal-views .hk-field { margin: 0; }
 
@@ -208,3 +214,5 @@
 }
 [data-house].hal-pf--phone .hal-pf-scroll { overflow: visible; padding: 0.75rem 0.25rem; }
 [data-house].hal-pf--phone .hal-pf-bar { position: sticky; bottom: 0; margin: 0 calc(-1 * var(--house-space-2)); z-index: 2; }
+[data-house].hal--studio .hal-views { flex: 0 0 auto; }
+[data-house].hal--studio .hal-views .hk-seg { flex-wrap: nowrap; }
