@@ -21,7 +21,7 @@
 // house panel (AnalyticsTabBody, the one copy both houses draw), on the
 // old address (?tab=, ?alter=), with a square ‹ back to the board.
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, FileText, BarChart3, LayoutGrid } from "lucide-react";
 import { HouseScope, useHouse } from "@/house/tokens/HouseRoot";
@@ -105,6 +105,15 @@ export default function HouseAnalytics({ size = "full", tokens }) {
   const setCustom = (c) => { memory.custom = c; setCustomState(c); };
   const [whoseId, setWhoseId] = useState(alterParam);
   const [staleOpen, setStaleOpen] = useState(false);
+  // A view opens at its top, not where the board was scrolled to.
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    const main = el.closest("main");
+    if (main && main.scrollTop > 0) main.scrollTop = 0;
+  }, [view]);
 
   const now = Date.now();
   const customRange = custom || customFor("30d", new Date());
@@ -215,7 +224,7 @@ export default function HouseAnalytics({ size = "full", tokens }) {
   return (
     <HouseScope tokens={tokens} className={`han han--${phone ? "phone" : "studio"}`} data-house-size={size} data-analytics-room="">
       <div className="han-bar">{toolbar}{datesRow}</div>
-      <div className="han-scroll">{body}</div>
+      <div ref={scrollRef} className="han-scroll">{body}</div>
       {status}
       <StaleSessionsModal isOpen={staleOpen} onClose={() => setStaleOpen(false)} staleSessions={data.stale || []} altersById={altersById} />
     </HouseScope>
