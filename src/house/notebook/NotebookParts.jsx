@@ -165,7 +165,7 @@ function PageRow({ page, depth, currentId, expanded, toggle, onOpen, seen, ctx }
           </Button>
           {m.val ? <span className="hn-num">{m.val}</span> : null}
         </span>
-        <Bar pct={m.pct} color={color} />
+        {m.val ? <Bar pct={m.pct} color={color} /> : null}
       </div>
       {isOpen && has ? (
         <ul className="hn-plist">
