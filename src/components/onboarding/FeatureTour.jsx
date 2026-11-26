@@ -1137,6 +1137,31 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/reminders", target: "reminders-list",
     }),
     s("reminders", {
+      emoji: "⏰", title: "Due now",
+      body: `In the new house, Due now holds the reminders that have fired. Its own buttons come first, then Done, Snooze and Dismiss. Snoozed ones wait here too.`,
+      route: "/reminders", target: ["reminders-inbox", "reminders-list"], look: `the Due now panel`,
+    }),
+    s("reminders", {
+      emoji: "➕", title: "New reminder",
+      body: `New reminder (the + on a phone) opens the editor. On a computer it sits beside your list; tap a reminder in the list to change it.`,
+      route: "/reminders", target: ["reminders-new", "reminders-list"], look: `the New reminder button`,
+    }),
+    s("reminders", {
+      emoji: "🔎", title: "Show some",
+      body: `Show narrows the list to ${t.system}-wide reminders, per-${t.alter} ones, or the ones for one ${t.alter}.`,
+      route: "/reminders", target: ["reminders-filter", "reminders-list"], look: `the Show filter`,
+    }),
+    s("reminders", {
+      emoji: "🗓️", title: "When it fires",
+      body: `Pick when a reminder fires: set times, every so often, after a feeling, a symptom or sleep, when ${an(t.alter)} ${t.fronts}, no update for a while, or on a date. Its settings open just below.`,
+      route: "/reminders", target: ["reminders-when", "reminders-editor", "reminders-list"], look: `the "When should this fire?" grid`,
+    }),
+    s("reminders", {
+      emoji: "✏️", title: "The rest of a reminder",
+      body: `Under that: who it's for, up to three buttons, in the app or as a notification, quiet hours, clearing itself, and snooze lengths. Delete is under … at the foot.`,
+      route: "/reminders", target: ["reminders-editor", "reminders-list"], look: `the reminder editor`,
+    }),
+    s("reminders", {
       emoji: "📌", title: "Status bar",
       body: `On the Android app, Settings → Notifications & reminders → Status bar can keep who's ${t.fronting}, active symptoms and a running activity in your phone's status bar.`,
       route: "/reminders", look: `Settings → Notifications & reminders → "Status bar"`,

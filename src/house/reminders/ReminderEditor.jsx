@@ -349,17 +349,22 @@ export default function ReminderEditor({ existing, onClose, onSaved, onDelete, p
               <IconButton icon={X} label={`Remove the ${formatSnoozeLabel(o)} snooze`} onClick={() => set("snooze_options", snoozeOpts.filter((_, j) => j !== i))} />
             </span>
           ))}
+          {snoozeOpts.includes("tomorrow") ? null : <Button rank="secondary" className="hrm-chip" onClick={() => addSnooze("tomorrow")}>+ Tomorrow</Button>}
+          {snoozeOpts.includes("next_week") ? null : <Button rank="secondary" className="hrm-chip" onClick={() => addSnooze("next_week")}>+ Next week</Button>}
+          <Button rank="secondary" className="hrm-chip" aria-expanded={!!open.snooze} onClick={() => setOpen((o) => ({ ...o, snooze: !o.snooze }))}>{open.snooze ? "done" : "+ add"}</Button>
         </Line>
-        <div className="hrm-snz-add" role="group" aria-label="Add a snooze length">
-          <NumberField label="Add" value={snoozeAdd.amount} min={1} clearable onChange={(v) => setSnoozeAdd((s) => ({ ...s, amount: v }))} />
-          <Segmented label="Unit" value={snoozeAdd.unit} onChange={(v) => setSnoozeAdd((s) => ({ ...s, unit: v }))}
-            options={[{ value: "minutes", label: "min" }, { value: "hours", label: "hours" }]} />
-          <Button rank="secondary" icon={Plus} disabledReason={snoozeMinutes(snoozeAdd.amount, snoozeAdd.unit) ? undefined : "Type a length first"}
-            onClick={() => { addSnooze(snoozeMinutes(snoozeAdd.amount, snoozeAdd.unit)); setSnoozeAdd((s) => ({ ...s, amount: null })); }}>Add</Button>
-          <Button rank="quiet" disabledReason={snoozeOpts.includes("tomorrow") ? "Already there" : undefined} onClick={() => addSnooze("tomorrow")}>+ Tomorrow</Button>
-          <Button rank="quiet" disabledReason={snoozeOpts.includes("next_week") ? "Already there" : undefined} onClick={() => addSnooze("next_week")}>+ Next week</Button>
-          <Button rank="quiet" onClick={() => set("snooze_options", DEFAULT_SNOOZE_OPTIONS)}>Reset to the usual</Button>
-        </div>
+        {open.snooze ? (
+          <div className="hrm-ins" role="group" aria-label="Add a snooze length">
+            <NumberField label="Snooze for" value={snoozeAdd.amount} min={1} clearable onChange={(v) => setSnoozeAdd((x) => ({ ...x, amount: v }))} />
+            <Segmented label="Unit" value={snoozeAdd.unit} onChange={(v) => setSnoozeAdd((x) => ({ ...x, unit: v }))}
+              options={[{ value: "minutes", label: "min" }, { value: "hours", label: "hours" }]} />
+            <span className="hrm-row-acts">
+              <Button rank="quiet" onClick={() => set("snooze_options", DEFAULT_SNOOZE_OPTIONS)}>Reset to the usual</Button>
+              <Button rank="primary" icon={Plus} disabledReason={snoozeMinutes(snoozeAdd.amount, snoozeAdd.unit) ? undefined : "Type a length first"}
+                onClick={() => { addSnooze(snoozeMinutes(snoozeAdd.amount, snoozeAdd.unit)); setSnoozeAdd((x) => ({ ...x, amount: null })); }}>Add</Button>
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="hrm-ed-foot">

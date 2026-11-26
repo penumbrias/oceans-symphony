@@ -254,7 +254,7 @@ export default function HouseReminders({ size = "full", tokens }) {
   if (phone) {
     return (
       <HouseScope tokens={tokens} className="hrm hrm--phone" data-house-size="phone" data-reminders-room="">
-        <NotificationStatusCard onlyWhenIssues />
+        {editorOpen ? null : <NotificationStatusCard onlyWhenIssues />}
         {editorOpen ? <div className="hrm-floor">{editor}</div> : (
           <>
             <div className="hrm-tabs">
