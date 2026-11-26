@@ -302,9 +302,19 @@ export function houseFriendsRoom(pathname) {
   return p === "/friends";
 }
 
+// ── The house's Polls room (board 25-PollsPhone) ──────────────────────
+// With the new house on, /polls is drawn by the house itself
+// (src/house/polls/): the poll cards you vote on in place and the poll's
+// sheet. The old page is not mounted (HouseRoomGate); with the switch off
+// it runs exactly as before.
+export function housePollsRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/polls";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname) || houseRemindersRoom(pathname) || !!houseGroupsRoom(pathname) || houseFriendsRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname) || houseRemindersRoom(pathname) || !!houseGroupsRoom(pathname) || houseFriendsRoom(pathname) || housePollsRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────

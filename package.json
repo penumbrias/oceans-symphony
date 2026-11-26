@@ -40,7 +40,8 @@
     "test:house-analytics": "node scripts/test-house-analytics.mjs",
     "test:house-reminders": "node scripts/test-house-reminders.mjs",
     "test:house-groups": "node scripts/test-house-groups.mjs",
-    "test:house-friends": "node scripts/test-house-friends.mjs"
+    "test:house-friends": "node scripts/test-house-friends.mjs",
+    "test:house-polls": "node scripts/test-house-polls.mjs"
   },
   "dependencies": {
     "@base44/vite-plugin": "^1.0.13",

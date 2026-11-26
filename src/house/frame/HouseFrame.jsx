@@ -45,7 +45,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom, houseMapRoom, houseAnalyticsRoom, houseRemindersRoom, houseGroupsRoom, houseFriendsRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom, houseMapRoom, houseAnalyticsRoom, houseRemindersRoom, houseGroupsRoom, houseFriendsRoom, housePollsRoom } from "@/lib/houseSwitch";
 import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
@@ -95,6 +95,7 @@ const HouseAnalytics = React.lazy(() => import("@/house/analytics/HouseAnalytics
 const HouseReminders = React.lazy(() => import("@/house/reminders/HouseReminders"));
 const HouseGroups = React.lazy(() => import("@/house/groups/HouseGroups"));
 const HouseFriends = React.lazy(() => import("@/house/friends/HouseFriends"));
+const HousePolls = React.lazy(() => import("@/house/polls/HousePolls"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 const RAIL_REM = 3.5;
@@ -289,7 +290,9 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
   const groupsRoom = houseGroupsRoom(location.pathname);
   // The Friends room (board 22): Friends, the open friend, the sharing column.
   const friendsRoom = houseFriendsRoom(location.pathname);
-  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom || remindersRoom || !!groupsRoom || friendsRoom;
+  // The Polls room (board 25): poll cards voted on in place, the poll's sheet.
+  const pollsRoom = housePollsRoom(location.pathname);
+  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom || remindersRoom || !!groupsRoom || pollsRoom || friendsRoom;
   const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
@@ -528,6 +531,11 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
           {groupsRoom ? (
             <Suspense fallback={null}>
               <HouseGroups size={size} tokens={tokens} />
+            </Suspense>
+          ) : null}
+          {pollsRoom ? (
+            <Suspense fallback={null}>
+              <HousePolls size={size} tokens={tokens} />
             </Suspense>
           ) : null}
           {friendsRoom ? (

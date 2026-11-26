@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "feature", text: "New house: Polls is redrawn as cards you vote on right there, with an anonymous tally box and one sheet to change a poll or who's voting." },
+      { type: "fix", text: "New house on a phone: the header no longer slides sideways after closing a sheet." },
       { type: "feature", text: "New house: Groups is redrawn, with your group tree down the side (drag one onto another to nest it) and each group's page with its {{alters}}, nested groups and notes." },
       { type: "feature", text: "New house: Friends is redrawn, with your friends, what each one sees of you (with a live preview) and how sharing works on one screen." },
       { type: "improve", text: "New house: Analytics, Reminders and Notebook drop the title that repeated the page tab, and the Analytics toolbar is slimmer." },

@@ -498,3 +498,16 @@ Board 26-Groups, built in `src/house/groups/` and drawn by both frames on `/grou
 5. **Nothing lost.** `?view=manage` is the old manager inside the room (multi-select, reorder, member order and remove). `?view=info` and `?view=layout` (Info, Edit page) mount the old group page as it is, with its form, board, look and song. Every old `?tab=` lands: profile, board, journal, notes and fronting by name, a page the person added opens their layout. The group's song plays and Display options offers its look, as on the old page.
 6. **Still old.** The Board, Journal and {Fronting} pages, Manage, Info and the person's own layout keep their old insides.
 7. **Tests**: `node scripts/test-house-groups.mjs` (address and pages, tree rows, moves and drops, words, routing and gating, both frames and the phone's gutter and tools, nothing lost, writes only through the write paths, `hgr-` classes with thin edges).
+
+## 29. The Polls room (2026-11-26, branch claude/project-thread-2rz01s)
+
+Board 25-PollsPhone, built in `src/house/polls/` and drawn by both frames on `/polls` (`housePollsRoom`). With the switch off, the old Polls page is untouched (`HouseRoomGate`).
+
+1. **One write path.** Every vote, mark, new poll, edit, pin, close and delete goes through `src/lib/pollEntry.js`, the path the widgets and the board already use. Its pure maths moved to `src/lib/pollMaths.js` (re-exported), so the room's model and tests can count without a database.
+2. **The cards (board 25).** Open/Closed and a note (pinned, from the board, how long ago, or the closing date) on the title bar; each option a flat tick, its voters' colour squares, a count and an amber bar; the foot says who is voting ("Voting as Ash, who is in front", "Not voted yet: …", "This poll is closed") and "edit ..." opens the poll's sheet. Tapping an option votes as whoever is in front, or as the voters chosen in the sheet, and tapping again takes it back.
+3. **Anonymous tally.** A tally poll's ticks pick an option and the box under the options is "Anonymous tally count − n +" for it, as drawn. + and − are the old tap-to-add and subtract.
+4. **The poll's sheet.** Voting as (the Set front picker in selection mode, plus a {system}-wide vote), the question and up to 8 options (votes follow their option; removing one says its votes go on save), tally mode, made by (new polls), pinned to the board, Close poll (its maker, or anyone when it has none) and Delete under ⋯ (to the trash with Undo).
+5. **Computer.** The same cards on the checked floor, one slim toolbar (Show All · Open · Closed, New poll; the page name is a screen-reader heading) and a status line. On a phone + and ⋯ (New poll, show all / open / closed) sit in the header.
+6. **Links.** `/polls?id=` (the board, search, the timeline) scrolls to the card and pulses it.
+7. **Tests**: `node scripts/test-house-polls.mjs` (address, order, words, closing rules, the editor keeping votes, routing and gating, both frames and the phone's gutter and tools, nothing lost, writes only through the write path, `hpo-` classes with thin edges).
+

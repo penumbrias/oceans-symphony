@@ -335,7 +335,7 @@ const AuthenticatedApp = () => {
         <Route path="/safety-plan" element={<HouseRoomGate><SafetyPlan /></HouseRoomGate>} />
         <Route path="/therapy-report" element={<TherapyReport />} />
         <Route path="/reminders" element={<HouseRoomGate><Reminders /></HouseRoomGate>} />
-        <Route path="/polls" element={<Polls />} />
+        <Route path="/polls" element={<HouseRoomGate><Polls /></HouseRoomGate>} />
         <Route path="/checkin-log" element={<CheckInLog />} />
         <Route path="/system-history" element={<SystemHistory />} />
         <Route path="/history" element={<HistoryArchive />} />

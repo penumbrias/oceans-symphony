@@ -17,51 +17,13 @@
 // two surfaces) never undo each other from a stale copy.
 
 import { base44 } from "@/api/base44Client";
+import { nextVotes, votesAfterDecrement, pollCounts } from "@/lib/pollMaths";
 
 const P = () => base44.entities.Poll;
 
-// ── Pure maths ─────────────────────────────────────────────────────────
-
-export function nextVotes(poll, optionIdx, voterIds = []) {
-  const key = String(optionIdx);
-  const votes = JSON.parse(JSON.stringify(poll?.votes || {}));
-  if (!votes[key]) votes[key] = [];
-  if (poll?.tally_mode) {
-    votes[key].push("");
-    return votes;
-  }
-  const voters = voterIds.length > 0 ? voterIds : [""];
-  for (const voterId of voters) {
-    if (votes[key].includes(voterId)) {
-      votes[key] = votes[key].filter((id) => id !== voterId);
-    } else {
-      Object.keys(votes).forEach((k) => { votes[k] = votes[k].filter((id) => id !== voterId); });
-      votes[key].push(voterId);
-    }
-  }
-  return votes;
-}
-
-// One anonymous mark off an option: the last "" first, so per-person votes
-// from before a switch to tally mode stay. null when there's none to take.
-export function votesAfterDecrement(poll, optionIdx) {
-  const key = String(optionIdx);
-  const votes = JSON.parse(JSON.stringify(poll?.votes || {}));
-  if (!votes[key] || votes[key].length === 0) return null;
-  const lastAnon = votes[key].lastIndexOf("");
-  if (lastAnon >= 0) votes[key].splice(lastAnon, 1);
-  else votes[key].pop();
-  return votes;
-}
-
-// Votes per option, in option order — a vote is an array of voter ids
-// (older rows may hold a plain count).
-export function pollCounts(poll) {
-  return (poll?.options || []).map((_, i) => {
-    const v = poll?.votes?.[String(i)];
-    return Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
-  });
-}
+// ── Pure maths (src/lib/pollMaths.js: no database, so tests and the
+// house's Polls room can read it) ──────────────────────────────────────
+export { nextVotes, votesAfterDecrement, pollCounts };
 
 // ── The person's last voting mode (a backed-up preference) ─────────────
 

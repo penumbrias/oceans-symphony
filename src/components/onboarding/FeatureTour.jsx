@@ -1096,22 +1096,22 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── POLLS ──────────────────────────────────────────────────────────────
     s("polls", {
       emoji: "🗳️", title: "Polls",
-      body: `Polls let the whole ${t.system} decide together. Results show as bars, with the avatars of who voted for what. Closed polls stay for reference.`,
+      body: `Polls let the whole ${t.system} decide together. Each poll is a card you vote on right there: tap the box beside an option. Bars show the results, with who voted for what. Closed polls stay for reference.`,
       route: "/polls", target: "polls-list", look: `the highlighted list of polls`,
     }),
     s("polls", {
       emoji: "➕", title: "Make a poll",
-      body: `Tap Create, type a question and add 2 to 8 options. The pencil beside a poll's question edits it later.`,
-      route: "/polls", target: "polls-create", look: `the highlighted "Create" button`,
+      body: `Tap New poll (+ on a phone), type a question and add 2 to 8 options. "edit ..." on a poll changes it later.`,
+      route: "/polls", target: "polls-create", look: `the highlighted New poll button`,
     }),
     s("polls", {
       emoji: "🔢", title: "Two ways to vote",
-      body: `By ${t.alter}: each voter votes once, and tapping again takes it back. Anonymous tally: each tap adds one, with − to subtract. Switch modes when you create or on the poll.`,
+      body: `By ${t.alter}: each voter votes once, and tapping again takes it back. Anonymous tally: pick an option, then + adds one and − takes one off. Switch modes when you make or edit the poll.`,
       route: "/polls", target: "polls-create",
     }),
     s("polls", {
       emoji: "🙋", title: "Voting as",
-      body: `On a poll, "Voting As" picks who's voting: whoever is ${t.fronting}, or any mix. One tap then votes once for each of them. A poll posted to the board pins itself there.`,
+      body: `Votes count for whoever is ${t.fronting}. To vote as someone else, open "edit ..." and choose under Voting as. One tap then votes once for each of them.`,
       route: "/polls", target: "polls-list",
     }),
 
