@@ -300,8 +300,8 @@ const AuthenticatedApp = () => {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/Dashboard" element={<Navigate to="/" replace />} />
-        <Route path="/Home" element={<Home />} />
-        <Route path="/alter/:id" element={<AlterProfile />} />
+        <Route path="/Home" element={<HouseRoomGate><Home /></HouseRoomGate>} />
+        <Route path="/alter/:id" element={<HouseRoomGate><AlterProfile /></HouseRoomGate>} />
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/contacts/:id" element={<ContactProfile />} />
         <Route path="/settings" element={<Settings />} />

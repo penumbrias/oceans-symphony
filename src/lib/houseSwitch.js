@@ -195,7 +195,20 @@ export function housePlannerRoom(pathname) {
   return p === "/planner";
 }
 
+// ── The house's Alters room (boards 03 and 12) ──────────────────────────
+// With the new house on, /Home (the alters directory, NOT the home screen)
+// and /alter/:id (a profile) are drawn by the house itself
+// (src/house/alters/). The old pages are not mounted (HouseRoomGate); the
+// person's own profile layout stays reachable inside the room ("Your own
+// layout"). With the switch off both run exactly as before.
+export function houseAltersRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (p === "/Home") return "directory";
+  if (/^\/alter\/[^/]+$/.test(p)) return "profile";
+  return null;
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname);
 }

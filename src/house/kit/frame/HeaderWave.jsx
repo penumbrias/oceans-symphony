@@ -1,9 +1,12 @@
 // The stepped pixel wave behind the frame's header (boards 01-Main and
 // 08-Phone): the mockups' own path, drawn in the person's wave colour
 // (--house-wave, from their wave setting or theme) at 45%, drifting
-// slowly; still under reduced motion. Decorative only.
+// slowly; still under reduced motion. Decorative only. A profile that is
+// open may recolour it (board 12: the wave in the alter's own colour)
+// through the shared page-wave override (src/lib/pageWaveOverride.js).
 
-import React from "react";
+import React, { useSyncExternalStore } from "react";
+import { getPageWaveOverride, subscribePageWaveOverride } from "@/lib/pageWaveOverride";
 import "./headerWave.css";
 
 function wavePath() {
@@ -17,8 +20,9 @@ function wavePath() {
 const PATH = wavePath();
 
 export default function HeaderWave() {
+  const override = useSyncExternalStore(subscribePageWaveOverride, getPageWaveOverride, () => null);
   return (
-    <svg className="hk-wave" width="2560" height="40" viewBox="0 0 2560 40" shapeRendering="crispEdges" aria-hidden="true" focusable="false">
+    <svg className="hk-wave" style={override ? { "--house-wave": override } : undefined} width="2560" height="40" viewBox="0 0 2560 40" shapeRendering="crispEdges" aria-hidden="true" focusable="false">
       <path d={PATH} />
     </svg>
   );
