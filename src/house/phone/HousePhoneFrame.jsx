@@ -38,7 +38,7 @@ import { ALL_PAGES, navAreaGroups, pageLabel } from "@/utils/navigationConfig";
 import { openPageTour, openFullTour } from "@/lib/pageTutorials";
 import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
-import { setHouseSwitch, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom, houseMapRoom, houseAnalyticsRoom, houseRemindersRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom, houseMapRoom, houseAnalyticsRoom, houseRemindersRoom, houseFriendsRoom } from "@/lib/houseSwitch";
 import { useRoomToolsValue } from "@/house/frame/roomTools";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
 import { activateHouseZones, useZoneItems } from "@/lib/houseZones";
@@ -81,6 +81,7 @@ const HouseNotebook = React.lazy(() => import("@/house/notebook/HouseNotebook"))
 const HouseMap = React.lazy(() => import("@/house/map/HouseMap"));
 const HouseAnalytics = React.lazy(() => import("@/house/analytics/HouseAnalytics"));
 const HouseReminders = React.lazy(() => import("@/house/reminders/HouseReminders"));
+const HouseFriends = React.lazy(() => import("@/house/friends/HouseFriends"));
 const HouseSettings = React.lazy(() => import("@/house/settings/HouseSettings"));
 // The bar's pixel icons (board 08-Phone), by place.
 const PLACE_GLYPHS = { home: PixelHome, alters: PixelAlters, day: PixelTimeline, write: PixelPen, support: PixelSupport, do: PixelPlus };
@@ -266,9 +267,11 @@ export default function HousePhoneFrame({ children, mainRef, tail = null }) {
   const analyticsRoom = houseAnalyticsRoom(location.pathname);
   // The Reminders room (boards 23 and 24): Inbox · Manage, the editor on its own address.
   const remindersRoom = houseRemindersRoom(location.pathname);
+  // The Friends room (board 22): Friends · Sharing, one friend on its own history entry.
+  const friendsRoom = houseFriendsRoom(location.pathname);
   // A rebuilt room's own header tools (board 12: Back · name · Info · ⋯, Search moves into ⋯).
   const published = useRoomToolsValue();
-  const roomTools = altersRoom || writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom || remindersRoom ? published : null;
+  const roomTools = altersRoom || writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom || remindersRoom || friendsRoom ? published : null;
 
   useEffect(() => activateHouseZones(), []);
   useEffect(() => { document.title = documentTitleFor(page.title); }, [page.title]);
@@ -381,7 +384,7 @@ export default function HousePhoneFrame({ children, mainRef, tail = null }) {
       <main ref={mainRef} id="main-content" tabIndex={-1} role="main" aria-label={page.title}
         className={homeRoom
           ? "app-content-main hp-canvas hp-canvas--room focus:outline-none relative isolate flex-1 min-w-0 overflow-hidden"
-          : `app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 ${supportRoom || timelineRoom || plannerRoom || altersRoom || writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom || remindersRoom ? "px-0" : "px-4"} py-0 overflow-y-auto overflow-x-hidden`}>
+          : `app-content-main hp-canvas focus:outline-none relative isolate flex-1 min-w-0 ${supportRoom || timelineRoom || plannerRoom || altersRoom || writeRoom || notebookRoom || settingsRoom || mapRoom || analyticsRoom || remindersRoom || friendsRoom ? "px-0" : "px-4"} py-0 overflow-y-auto overflow-x-hidden`}>
         {location.pathname === "/" && lastTime && !homeRoom ? (
           <HouseScope {...scope()}>
             <LastTimeCard lastTime={lastTime} onDismiss={dismissLastTime} terms={terms} formatAlter={formatAlter} />
@@ -446,6 +449,11 @@ export default function HousePhoneFrame({ children, mainRef, tail = null }) {
         {remindersRoom ? (
           <Suspense fallback={null}>
             <HouseReminders size="phone" tokens={tokens} />
+          </Suspense>
+        ) : null}
+        {friendsRoom ? (
+          <Suspense fallback={null}>
+            <HouseFriends size="phone" tokens={tokens} />
           </Suspense>
         ) : null}
         {homeRoom ? (

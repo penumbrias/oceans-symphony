@@ -1,0 +1,154 @@
+/* The house's Friends room (HouseFriends.jsx): board 22-Friends — three
+   columns on a computer (Friends · the open friend · sharing), two on a
+   tablet (sharing under the friend), and Friends · Sharing tabs on a phone.
+   House tokens only; every class is hfr-. Imported by the room itself, so
+   the phone (which does not load frameKit.css) has it too. Edges are the
+   thin pixel line (--house-px-line). The old insides (.hfr-old: the relay
+   explainer, the encryption card, the "not shown" notice, the {alter} trees)
+   keep their own look until each is rebuilt. */
+
+[data-house].hfr { color: var(--house-text); font-family: var(--house-font-body); background: var(--house-page); }
+[data-house] .hfr-old { min-width: 0; }
+[data-house] .hfr-notice:empty { display: none; }
+[data-house] .hfr-pad { padding: 0.875rem; }
+[data-house] .hfr-note { color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); white-space: nowrap; }
+[data-house] .hfr-dim { color: var(--house-muted); }
+[data-house] .hfr-small { font-size: var(--house-text-xs); }
+[data-house] .hfr-p { margin: 0; font-size: var(--house-text-sm); line-height: var(--house-lh-sm, 1.4); }
+[data-house] .hfr-empty { margin: 0; padding: 0.5rem 0.625rem; color: var(--house-muted); font-size: var(--house-text-sm); }
+[data-house] .hfr-warn {
+  font-size: var(--house-text-xs); padding: 0.25rem 0.375rem;
+  background: color-mix(in srgb, var(--house-accent) 14%, var(--house-sunken));
+  box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-accent);
+}
+[data-house] .hfr-acts { display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: center; }
+[data-house] .hfr-acts--col { flex-direction: column; align-items: stretch; }
+
+/* ── Studio: three columns, each scrolls on its own ── */
+[data-house].hfr--studio { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; min-height: 0; }
+[data-house] .hfr-cols {
+  flex: 1 1 auto; min-height: 0; display: grid; gap: 0;
+  grid-template-columns: minmax(15rem, 17rem) minmax(0, 1fr) minmax(16rem, 19rem);
+}
+[data-house] .hfr-cols[data-house-size="compact"] { grid-template-columns: minmax(14rem, 16rem) minmax(0, 1fr); }
+[data-house] .hfr-cols.hfr-cols--setup { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); }
+[data-house] .hfr-col {
+  min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 0;
+  box-shadow: inset calc(-1 * var(--house-px-line, 1px)) 0 0 var(--house-outline);
+}
+[data-house] .hfr-col:last-child { box-shadow: none; }
+[data-house] .hfr-col--list { overflow: hidden; }
+[data-house] .hfr-pn { margin: 0; min-width: 0; border-radius: 0; }
+[data-house].hfr--studio .hfr-pn { border-left-width: 0; border-right-width: 0; border-top-width: 0; }
+[data-house] .hfr-pn > .hk-panel-body { padding: 0; }
+[data-house] .hfr-body { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem 0.625rem 0.625rem; min-width: 0; }
+[data-house] .hfr-body--tight { gap: 0.375rem; }
+
+/* The Friends column: rows grow, Add a friend sits at the column's foot. */
+[data-house] .hfr-listpn { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+[data-house] .hfr-listpn > .hk-panel-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+[data-house] .hfr-rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.375rem; display: flex; flex-direction: column; gap: 0.25rem; }
+[data-house] .hfr-poll { font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); min-height: 0; padding: 0 0.25rem; }
+[data-house] .hfr-frow.hk-btn {
+  width: 100%; justify-content: flex-start; text-align: left; min-height: 2.75rem; padding: 0.25rem 0.375rem;
+  border: var(--house-px-line, 1px) solid transparent; box-shadow: none; background: transparent; border-radius: 0; font-weight: 400;
+}
+[data-house] .hfr-frow.hk-btn > span { flex: 1 1 auto; min-width: 0; }
+[data-house] .hfr-frow[data-selected] { border-color: var(--house-accent); background: color-mix(in srgb, var(--house-accent) 12%, transparent); }
+[data-house] .hfr-frow-in { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+[data-house] .hfr-frow-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; gap: 0.0625rem; }
+[data-house] .hfr-frow-name { font-size: var(--house-text-sm); white-space: normal; overflow-wrap: anywhere; }
+[data-house] .hfr-frow-sub { font-size: var(--house-text-xs); color: var(--house-muted); white-space: normal; overflow-wrap: anywhere; }
+[data-house] .hfr-ok { flex: 0 0 auto; font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-good-text, var(--house-good, var(--house-text))); }
+[data-house] .hfr-req { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.375rem; box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-divider); }
+[data-house] .hfr-req .hfr-acts { margin-top: 0.25rem; }
+[data-house] .hfr-sq { width: 1.625rem; height: 1.625rem; flex: 0 0 auto; box-shadow: 0 0 0 var(--house-px-line, 1px) var(--house-outline); }
+[data-house] .hfr-sq--md { width: 1.75rem; height: 1.75rem; }
+[data-house] .hfr-sq--sm { width: 0.75rem; height: 0.75rem; }
+[data-house] .hfr-sq--new { background: var(--house-accent); }
+[data-house] .hfr-sq--wait { background: var(--house-sunken); }
+[data-house] .hfr-add {
+  flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.375rem 0.5rem;
+  padding: 0.5rem 0.625rem 0.625rem; box-shadow: inset 0 var(--house-px-line, 1px) 0 var(--house-outline); background: var(--house-panel);
+}
+[data-house] .hfr-add .hk-field { margin: 0; min-width: 0; }
+[data-house] .hfr-add .hk-label { font-family: var(--house-font-label); }
+[data-house] .hfr-add .hk-input { font-family: var(--house-font-label); letter-spacing: 0.08em; }
+[data-house] .hfr-add-btn { align-self: end; }
+[data-house] .hfr-add > .hk-btn-wrap { align-self: end; }
+[data-house] .hfr-code { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 0.375rem; font-size: var(--house-text-xs); min-width: 0; }
+[data-house] .hfr-code .hk-btn { min-height: 0; padding: 0 0.25rem; }
+[data-house] .hfr-codeval { font-family: var(--house-font-label); font-weight: 400; letter-spacing: 0.06em; }
+
+/* ── The open friend ── */
+[data-house] .hfr-headpn > .hk-panel-head { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+[data-house] .hfr-headrow { display: flex; align-items: center; gap: 0.625rem; min-width: 0; }
+[data-house] .hfr-bigsq { width: 3rem; height: 3rem; flex: 0 0 auto; box-shadow: 0 0 0 var(--house-px-line, 1px) var(--house-outline); }
+[data-house] .hfr-headtext { display: flex; flex-direction: column; min-width: 0; gap: 0.125rem; }
+[data-house] .hfr-name { font-family: var(--house-font-label); font-size: var(--house-text-lg); font-weight: 400; overflow-wrap: anywhere; }
+[data-house] .hfr-headtext .hfr-small { font-family: var(--house-font-body); font-weight: 400; }
+[data-house] .hfr-headnote { margin: 0; padding: 0.25rem 0.625rem 0.375rem; }
+[data-house] .hfr-headpn > .hk-panel-body:empty { display: none; }
+[data-house] .hfr-fronters { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+[data-house] .hfr-fronter { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+[data-house] .hfr-fronter-text { display: flex; flex-direction: column; font-size: var(--house-text-sm); }
+[data-house] .hfr-prefs { display: flex; flex-direction: column; gap: 0.25rem; }
+[data-house] .hfr-prefs .hfr-small { margin: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+[data-house] .hfr-pref { padding: 0 0.25rem; box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-divider); }
+[data-house] .hfr-line { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); align-items: center; gap: 0.5rem; min-width: 0; }
+[data-house] .hfr-key { font-size: var(--house-text-sm); }
+[data-house] .hfr-val { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; font-size: var(--house-text-sm); min-width: 0; }
+[data-house] .hfr-line .hk-field { margin: 0; }
+[data-house] .hfr-line .hk-seg { flex-wrap: wrap; }
+[data-house] .hfr-sunk {
+  margin: 0; padding: 0.375rem 0.5rem; font-size: var(--house-text-sm); background: var(--house-sunken);
+  box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-outline); overflow-wrap: anywhere;
+}
+[data-house] .hfr-mono { font-family: var(--house-font-label); letter-spacing: 0.08em; user-select: all; }
+[data-house] .hfr-sub { display: flex; flex-direction: column; gap: 0.375rem; padding-top: 0.5rem; box-shadow: inset 0 var(--house-px-line, 1px) 0 var(--house-divider); }
+[data-house] .hfr-subttl { font-family: var(--house-font-label); font-size: var(--house-text-xs); color: var(--house-muted); }
+[data-house] .hfr-line2 { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+[data-house] .hfr-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+[data-house] .hfr-chip.hk-btn { min-height: 1.75rem; padding: 0 0.5rem; font-size: var(--house-text-xs); }
+[data-house] .hfr-mini { list-style: none; margin: 0; padding: 0.25rem; max-height: 12rem; overflow-y: auto; overscroll-behavior: contain; background: var(--house-sunken); box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-divider); }
+[data-house] .hfr-mini li { display: flex; align-items: center; gap: 0.375rem; font-size: var(--house-text-xs); padding: 0.125rem 0.25rem; }
+[data-house] .hfr-kv { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 0.25rem 0.5rem; margin: 0; font-size: var(--house-text-sm); }
+[data-house] .hfr-kv dt { color: var(--house-muted); }
+[data-house] .hfr-kv dd { margin: 0; overflow-wrap: anywhere; }
+[data-house] .hfr-kv--small { grid-template-columns: minmax(5rem, auto) minmax(0, 1fr); font-size: var(--house-text-xs); }
+[data-house] .hfr-members { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+[data-house] .hfr-member { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.375rem; box-shadow: inset 0 0 0 var(--house-px-line, 1px) var(--house-divider); }
+[data-house] .hfr-member-text { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; font-size: var(--house-text-sm); }
+[data-house] .hfr-bio { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* The flat tick: a 1px square, ✓ when on (board 22's ticks). */
+[data-house] .hfr-tick.hk-btn {
+  flex: 0 0 auto; min-width: 1.5rem; width: 1.5rem; height: 1.5rem; min-height: 1.5rem; padding: 0;
+  border: var(--house-px-line, 1px) solid var(--house-outline); box-shadow: none; border-radius: 0;
+}
+[data-house] .hfr-tick[aria-pressed="false"] { background: var(--house-sunken); }
+[data-house] .hfr-tick-glyph { width: 0.875rem; height: 0.875rem; stroke-width: 3; }
+
+/* ── The sharing column ── */
+[data-house] .hfr-lvls { list-style: none; margin: 0; padding: 0.25rem 0; }
+[data-house] .hfr-lvl { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.25rem 0.625rem; font-size: var(--house-text-sm); }
+[data-house] .hfr-lvl > .hfr-dim { font-size: var(--house-text-xs); text-align: right; }
+[data-house] .hfr-lvl[data-on] > span:first-child { font-weight: 700; }
+[data-house] .hfr-body .hfr-lvls { padding: 0; }
+[data-house] .hfr-lvlbtn.hk-btn { width: 100%; justify-content: flex-start; min-height: 2rem; padding: 0 0.375rem; border-radius: 0; font-weight: 400; }
+[data-house] .hfr-lvlbtn.hk-btn > span { flex: 1 1 auto; }
+[data-house] .hfr-lvl-in { display: flex; justify-content: space-between; gap: 0.5rem; font-size: var(--house-text-sm); }
+[data-house] .hfr-show { list-style: none; margin: 0; padding: 0; max-height: 16rem; overflow-y: auto; overscroll-behavior: contain; }
+[data-house] .hfr-showrow { display: flex; align-items: center; gap: 0.5rem; padding: 0.1875rem 0; min-width: 0; }
+[data-house] .hfr-showname { flex: 1 1 auto; min-width: 0; font-size: var(--house-text-sm); overflow-wrap: anywhere; }
+
+/* ── Phone: tabs, then the panels in one column with the slim gutter ── */
+[data-house].hfr--phone { min-height: 100%; display: flex; flex-direction: column; }
+[data-house].hfr--phone .hfr-tabs { padding: 0.375rem var(--house-space-2, 0.5rem) 0; background: var(--house-page); }
+[data-house].hfr--phone .hfr-floor { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem var(--house-space-2, 0.5rem); flex: 1 1 auto; }
+[data-house].hfr--phone .hfr-listpn > .hk-panel-body { min-height: 0; }
+[data-house].hfr--phone .hfr-rows { overflow: visible; }
+[data-house].hfr--phone .hfr-line { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+[data-house].hfr--phone .hfr-kv { grid-template-columns: 7rem minmax(0, 1fr); }
+[data-house].hfr--phone .hfr-show { max-height: none; }
