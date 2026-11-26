@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "feature", text: "New house: the System map is now a map editor, with tools down the side, your maps as tabs, and Layers and Info beside the map. Deleting a place can be undone." },
       { type: "improve", text: "The pixel look's default colours swap the bright teal for the mockups' warm amber and soft periwinkle." },
       { type: "feature", text: "New house: Settings is redrawn as the approved design, with every page listed beside it, Find, and a live preview of your look." },
       { type: "feature", text: "New house: the Notebook is rebuilt as the approved design, with page balances, a ledger of what moved each page (tap By to change who did it), and weekly targets with a pace tick." },
