@@ -1,0 +1,210 @@
+/* The house's Alters room (HouseAlters.jsx, HouseAlterProfile.jsx,
+   AlterParts.jsx): boards 03-Alters and 12-AlterProfilePhone, with board
+   26-Groups' language for the desktop profile. House tokens only; every
+   class is hal-. Imported by the room itself, so the phone (which does not
+   load frameKit.css) has it too. */
+
+[data-house].hal { color: var(--house-text); font-family: var(--house-font-body); background: var(--house-page); }
+[data-house] .hal-muted { color: var(--house-muted); }
+[data-house] .hal-flex { flex: 1 1 auto; }
+[data-house] .hal-blur { filter: blur(6px); }
+[data-house] .hal-p { margin: 0 0 var(--house-space-2); line-height: var(--house-lh-md); }
+[data-house] .hal-p:last-child { margin-bottom: 0; }
+/* Old insides reused inside house panels keep their own look until rebuilt. */
+[data-house] .hal-old { min-width: 0; overflow-x: auto; }
+
+/* ── The directory, studio (board 03: 230 · rest · 280, status line) ── */
+[data-house].hal--studio {
+  position: absolute; inset: 0; z-index: 1;
+  display: grid; gap: 2px; min-height: 0; min-width: 0;
+  grid-template-columns: 14.375rem minmax(0, 1fr) 17.5rem;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+[data-house] .hal-left, [data-house] .hal-right { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+[data-house] .hal-left > .hk-panel, [data-house] .hal-right > .hk-panel { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; margin: 0; }
+[data-house] .hal-left .hk-panel-body { flex: 1 1 auto; display: flex; flex-direction: column; padding: 0.375rem; min-height: 0; }
+[data-house] .hal-groups-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; gap: var(--house-space-2); }
+[data-house] .hal-groups-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+[data-house] .hal-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 2px; }
+[data-house] .hal-foot { grid-column: 1 / -1; }
+[data-house].hal--studio[data-house-size="compact"] { grid-template-columns: 12.5rem minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; }
+[data-house].hal--studio[data-house-size="compact"] .hal-right { grid-column: 1 / -1; grid-row: 2; max-height: 22rem; }
+[data-house].hal--studio[data-house-size="compact"] .hal-foot { grid-row: 3; }
+
+[data-house] .hal-bar {
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+  padding: 0.5rem 0.625rem;
+}
+[data-house] .hal-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--house-space-2) 0.625rem; }
+[data-house] .hal-find { min-width: 0; }
+[data-house] .hal-find .hk-field { display: flex; align-items: center; gap: 0.625rem; margin: 0; }
+[data-house] .hal-find .hk-field-head { margin: 0; }
+[data-house] .hal-find .hk-label { font-family: var(--house-font-label); font-weight: 400; }
+[data-house].hal--studio .hal-find .hk-input { width: 13.75rem; }
+[data-house] .hal-lbl { color: var(--house-muted); font-size: var(--house-px-label, var(--house-text-sm)); }
+[data-house] .hal-views .hk-field { margin: 0; }
+
+/* The floor: the mockups' checked floor under the cards. */
+[data-house] .hal-floor {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1rem;
+  display: flex; flex-direction: column; gap: 0.875rem;
+  background-color: var(--house-page);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--house-panel) 45%, var(--house-page)) 0 25%, var(--house-page) 0 50%);
+  background-size: 16px 16px;
+}
+[data-house] .hal-grid { display: grid; grid-template-columns: repeat(var(--hal-cols, 5), minmax(0, 1fr)); grid-auto-rows: min-content; gap: 0.875rem; }
+[data-house] .hal-card-wrap { display: flex; flex-direction: column; min-width: 0; }
+[data-house] .hal-card.hk-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.375rem;
+  width: 100%; min-height: 0; padding: 0.75rem 0.5rem; border-radius: 0;
+  background: var(--house-panel); color: var(--house-text);
+  border: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+  font-family: var(--house-font-body); font-weight: 400; text-decoration: none;
+  user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
+}
+[data-house] .hal-card.hk-btn > span { display: contents; }
+[data-house] .hal-card[data-selected], [data-house] .hal-card[data-picked] { outline: 2px solid var(--house-accent); outline-offset: 0; }
+[data-house] .hal-card[data-picked] { background: color-mix(in srgb, var(--house-accent) 14%, var(--house-panel)); }
+[data-house] .hal-card-name { font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hal-card-sub { color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hal-card-foot { color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hal-front-on { font-family: var(--house-font-label); font-size: var(--house-text-xs); background: var(--house-accent); color: var(--house-on-accent); padding: 1px 6px; }
+[data-house] .hal-card-subs { display: flex; flex-wrap: wrap; justify-content: center; }
+[data-house] .hal-sublink.hk-btn { min-height: 0; padding: 0.125rem 0.25rem; font-size: var(--house-text-xs); }
+
+[data-house] .hal-av { position: relative; display: inline-block; flex: 0 0 auto; overflow: hidden; outline: 2px solid var(--house-outline); box-shadow: inset 3px 3px 0 rgba(255, 255, 255, 0.3), inset -3px -3px 0 rgba(0, 0, 0, 0.35); }
+[data-house] .hal-av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+[data-house] .hal-av--sm { width: 2rem; height: 2rem; }
+[data-house] .hal-av--md { width: 3rem; height: 3rem; }
+[data-house] .hal-av--lg { width: 4rem; height: 4rem; }
+[data-house] .hal-av--xl { width: 4.5rem; height: 4.5rem; }
+[data-house] .hal-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+[data-house] .hal-chip { font-family: var(--house-font-label); font-size: var(--house-text-xs); background: var(--house-title); padding: 1px 6px; outline: 1px solid var(--house-outline); white-space: nowrap; }
+[data-house] .hal-chip--on { background: var(--house-accent); color: var(--house-on-accent); }
+[data-house] .hal-sq { display: inline-block; flex: 0 0 auto; width: 0.625rem; height: 0.625rem; outline: 2px solid var(--house-outline); }
+[data-house] .hal-sq--lg { width: 1rem; height: 1rem; }
+
+/* List rows. */
+[data-house] .hal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+[data-house] .hal-row { display: flex; align-items: center; gap: var(--house-space-2); background: var(--house-panel); outline: 2px solid var(--house-outline); padding-right: 0.375rem; }
+[data-house] .hal-row[data-selected], [data-house] .hal-row[data-picked] { outline-color: var(--house-accent); }
+[data-house] .hal-row-main.hk-btn { flex: 1 1 auto; justify-content: flex-start; gap: 0.625rem; padding: 0.375rem 0.5rem; color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; text-align: left; text-decoration: none; user-select: none; -webkit-touch-callout: none; }
+[data-house] .hal-row-main.hk-btn > span { display: contents; }
+[data-house] .hal-row-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+[data-house] .hal-row-name { font-weight: 700; }
+[data-house] .hal-row-sub { color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hal-row-front.hk-btn { flex: 0 0 auto; }
+
+/* The groups tree. */
+[data-house] .hal-tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+[data-house] .hal-tree-row { display: flex; align-items: center; gap: 2px; min-height: max(28px, 1.75rem); }
+[data-house] .hal-tree-row[data-selected] { background: var(--house-bevel-light, var(--house-raised)); }
+[data-house] .hal-tree-arrow { flex: 0 0 auto; width: 1.25rem; min-width: 1.25rem; }
+[data-house] .hal-tree-arrow.hk-btn { padding: 0; min-height: 1.5rem; }
+[data-house] .hal-tree-pick.hk-btn {
+  flex: 1 1 auto; justify-content: flex-start; gap: 0.375rem; min-width: 0; min-height: max(28px, 1.75rem);
+  padding: 0 0.375rem; color: var(--house-text); font-family: var(--house-font-label); font-weight: 400; font-size: var(--house-px-label, var(--house-text-sm)); text-decoration: none;
+}
+[data-house] .hal-tree-pick.hk-btn > span { display: contents; }
+[data-house] .hal-tree-name { flex: 1 1 auto; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-house] .hal-count { color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hal-tree-open.hk-btn { flex: 0 0 auto; min-height: 1.5rem; opacity: 0.7; }
+[data-house] .hal-doors { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.25rem; }
+
+/* Info. */
+[data-house] .hal-info-body { display: flex; flex-direction: column; gap: 0.5625rem; padding: 0.375rem 0.25rem; }
+[data-house] .hal-info-head { display: flex; gap: 0.75rem; align-items: center; }
+[data-house] .hal-info-who { display: flex; flex-direction: column; min-width: 0; }
+[data-house] .hal-info-name { font-family: var(--house-font-label); font-size: var(--house-text-xl, 1.25rem); }
+[data-house] .hal-facts { margin: 0; display: flex; flex-direction: column; gap: 0.5625rem; }
+[data-house] .hal-facts > div { display: flex; justify-content: space-between; gap: 0.625rem; }
+[data-house] .hal-facts dt { color: var(--house-muted); }
+[data-house] .hal-facts dd { margin: 0; text-align: right; }
+[data-house] .hal-info-week-ttl { display: flex; justify-content: space-between; margin-top: 0.25rem; }
+[data-house] .hal-week-bars { display: flex; align-items: flex-end; gap: 4px; height: 3rem; }
+[data-house] .hal-week-bars > span { flex: 1 1 0; outline: 2px solid var(--house-outline); }
+[data-house] .hal-week-days { display: flex; gap: 4px; }
+[data-house] .hal-week-days > span { flex: 1 1 0; text-align: center; color: var(--house-muted); font-size: var(--house-text-xs); }
+[data-house] .hal-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.375rem; }
+
+/* Status line (board 03's foot). */
+[data-house] .hal-status {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 1.125rem; min-height: 1.5rem; padding: 0 0.625rem;
+  background: var(--house-title, var(--house-raised)); box-shadow: inset 0 2px 0 var(--house-outline);
+  font-family: var(--house-font-label); font-size: var(--house-text-xs);
+}
+[data-house] .hal-status .hk-btn { min-height: 1.5rem; padding: 0 0.25rem; font-size: inherit; background: transparent; border: 0; box-shadow: none; color: inherit; font-weight: 400; }
+
+/* ── The directory, phone: the boards' slim gutter, edge to edge ── */
+[data-house].hal--phone { min-height: 100%; padding: 0 var(--house-space-2); overflow-x: hidden; }
+[data-house] .hal-stack { display: flex; flex-direction: column; gap: var(--house-space-3); padding: var(--house-space-3) 0; }
+[data-house] .hal-panelish { background: var(--house-panel); outline: 2px solid var(--house-outline); padding: 0.5rem; }
+[data-house].hal--phone .hal-find { flex: 1 1 100%; }
+[data-house].hal--phone .hal-find .hk-field { flex: 1 1 auto; }
+[data-house].hal--phone .hal-find .hk-input { flex: 1 1 auto; min-width: 0; width: 100%; }
+[data-house].hal--phone .hal-floor { padding: 0.5rem; overflow: visible; }
+[data-house].hal--phone .hal-grid { gap: 0.5rem; }
+[data-house].hal--phone .hal-card.hk-btn { padding: 0.5rem 0.25rem; }
+[data-house].hal--phone .hal-av--lg { width: 3.5rem; height: 3.5rem; }
+[data-house].hal--phone .hal-groups { margin: 0; }
+[data-house].hal--phone .hal-status { padding: 0.25rem 0.5rem; }
+
+/* ── The profile (board 12 on a phone; board 26's language on a computer) ── */
+[data-house].hal-pf { display: flex; flex-direction: column; }
+[data-house].hal-pf--studio { position: absolute; inset: 0; z-index: 1; min-height: 0; }
+[data-house] .hal-pf-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 0.75rem; padding: 0.75rem; }
+[data-house].hal-pf--studio .hal-pf-scroll { padding: 0.5rem; gap: 2px; }
+[data-house] .hal-pf-head {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem;
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hal-pf-who { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; flex: 1 1 auto; }
+[data-house] .hal-pf-name { margin: 0; font-weight: 400; font-size: var(--house-text-xl, 1.25rem); line-height: 1.2; overflow-wrap: anywhere; }
+[data-house] .hal-pf-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.375rem; }
+[data-house] .hal-pf-tabs { display: flex; align-items: flex-end; gap: 0.25rem; min-width: 0; }
+[data-house] .hal-pf-tabs > .hk-tabs-wrap { flex: 1 1 auto; min-width: 0; }
+[data-house].hal-pf--studio .hal-pf-tabs { padding-top: 0.5rem; }
+[data-house] .hal-pf-editbar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.375rem 0.5rem; background: var(--house-title); outline: 2px solid var(--house-outline); }
+[data-house] .hal-pf-body { min-width: 0; }
+[data-house] .hal-pf-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem; align-items: start; }
+[data-house] .hal-pf-col { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+[data-house].hal-pf--studio .hal-pf-col { gap: 0.5rem; }
+[data-house] .hal-pf-panel { margin: 0; min-width: 0; }
+[data-house] .hal-pf-panel .hk-panel-tools .hk-btn { color: var(--house-muted); font-family: var(--house-font-label); font-weight: 400; }
+[data-house] .hal-kv { margin: 0; display: flex; flex-direction: column; }
+[data-house] .hal-kv > div { display: flex; justify-content: space-between; gap: 0.625rem; padding: 0.375rem 0; box-shadow: inset 0 -2px 0 var(--house-page); }
+[data-house] .hal-kv dt { color: var(--house-muted); }
+[data-house] .hal-kv dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+[data-house] .hal-lanes { display: flex; flex-direction: column; gap: 4px; }
+[data-house] .hal-lane { display: flex; align-items: center; gap: 0.5rem; height: 0.75rem; }
+[data-house] .hal-lane-day { width: 1.75rem; flex: 0 0 auto; color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hal-lane-track { position: relative; flex: 1 1 auto; height: 0.625rem; background: color-mix(in srgb, var(--house-panel) 55%, var(--house-page)); }
+[data-house] .hal-lane-track > span { position: absolute; top: 0; bottom: 0; }
+[data-house] .hal-rels { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+[data-house] .hal-rel.hk-btn { width: 100%; justify-content: flex-start; gap: 0.5rem; padding: 0.125rem 0; min-height: max(28px, 1.75rem); color: var(--house-text); font-family: var(--house-font-body); font-weight: 400; text-decoration: none; }
+[data-house] .hal-rel.hk-btn > span { display: contents; }
+[data-house] .hal-rel-name { flex: 1 1 auto; text-align: left; }
+[data-house] .hal-rel-type { color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hal-pf-layout { display: flex; flex-direction: column; gap: 0.5rem; }
+[data-house] .hal-pf-layout-bar { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; padding: 0.375rem 0.5rem; background: var(--house-title); outline: 2px solid var(--house-outline); font-size: var(--house-text-sm); }
+[data-house] .hal-pf-oldpage { padding: 0 0.25rem; }
+[data-house] .hal-pf-edit { background: var(--house-panel); outline: 2px solid var(--house-outline); padding: 0.5rem; }
+[data-house] .hal-pf-bar {
+  display: flex; gap: 0.5rem; padding: 0.5rem 0.75rem; flex: 0 0 auto;
+  background: var(--house-panel); outline: 2px solid var(--house-outline);
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+}
+[data-house] .hal-pf-bar > * { flex: 1 1 0; min-width: 0; }
+[data-house] .hal-pf-bar .hk-btn { min-height: 44px; }
+
+/* Phone profile: the floor is the mockups' checked floor, edge to edge with the slim gutter. */
+[data-house].hal-pf--phone {
+  min-height: 100%; padding: 0 var(--house-space-2);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--house-panel) 45%, var(--house-page)) 0 25%, var(--house-page) 0 50%);
+  background-size: 16px 16px;
+}
+[data-house].hal-pf--phone .hal-pf-scroll { overflow: visible; padding: 0.75rem 0.25rem; }
+[data-house].hal-pf--phone .hal-pf-bar { position: sticky; bottom: 0; margin: 0 calc(-1 * var(--house-space-2)); z-index: 2; }
