@@ -45,7 +45,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom, houseAltersRoom, houseWriteRoom, houseNotebookRoom, houseSettingsRoom, houseMapRoom } from "@/lib/houseSwitch";
 import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
@@ -89,6 +89,7 @@ const HouseJournals = React.lazy(() => import("@/house/write/HouseJournals"));
 const HouseChat = React.lazy(() => import("@/house/write/HouseChat"));
 const HouseNotebook = React.lazy(() => import("@/house/notebook/HouseNotebook"));
 const HouseSettings = React.lazy(() => import("@/house/settings/HouseSettings"));
+const HouseMap = React.lazy(() => import("@/house/map/HouseMap"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 const RAIL_REM = 3.5;
@@ -273,7 +274,9 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
   const notebookRoom = houseNotebookRoom(location.pathname);
   // The Settings room (board 07): the section list, the page, the Preview.
   const settingsRoom = houseSettingsRoom(location.pathname);
-  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom || notebookRoom || settingsRoom;
+  // The System map room (board 02): tools, the maps over the canvas, Layers and Info.
+  const mapRoom = houseMapRoom(location.pathname);
+  const ownDocks = homeRoom || timelineRoom || plannerRoom || !!altersRoom || !!writeRoom || notebookRoom || settingsRoom || mapRoom;
   const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
@@ -492,6 +495,11 @@ export default function HouseFrame({ children, mainRef, tail = null }) {
           {settingsRoom ? (
             <Suspense fallback={null}>
               <HouseSettings size={size} tokens={tokens} />
+            </Suspense>
+          ) : null}
+          {mapRoom ? (
+            <Suspense fallback={null}>
+              <HouseMap size={size} tokens={tokens} />
             </Suspense>
           ) : null}
           {homeRoom ? (

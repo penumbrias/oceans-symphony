@@ -43,6 +43,7 @@ import MapImageNode from "./MapImageNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 import { useInnerWorldMaps, useInnerWorld } from "@/hooks/useInnerWorld";
 import { TRASH_HINT_MANY } from "@/lib/trashSettings";
+import { deleteWithUndo } from "@/lib/undoDelete";
 import { useUiLook, usePixelDesk } from "@/lib/uiLook";
 import "@/styles/pixel/systemmap.css";
 import RichText from "@/components/shared/RichText";
@@ -85,7 +86,7 @@ function SelectedAlterAvatar({ alter }) {
   );
 }
 
-function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd, zoom, pixel = false }) {
+function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd, zoom, pixel = false, thin = false }) {
   const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
   const dragRef = useRef(null);
   const tapRef = useRef({ time: 0, timer: null });
@@ -163,18 +164,18 @@ function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDouble
     return (
       <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: locked ? "default" : "grab", touchAction: "none" }} shapeRendering="crispEdges">
         <rect x={x - S - 14} y={y - S - 14} width={(S + 14) * 2} height={(S + 14) * 2 + 14} fill="transparent" />
-        {(isSelected || isRelMode) && <rect x={x - S - 4} y={y - S - 4} width={(S + 4) * 2} height={(S + 4) * 2} fill="none" stroke={isRelMode ? "#f59e0b" : "var(--px-accent, #e8a65d)"} strokeWidth={2} />}
-        <rect x={x - S} y={y - S} width={S * 2} height={S * 2} fill={alter.color || "#8b5cf6"} stroke="#0d0f10" strokeWidth={2} />
+        {(isSelected || isRelMode) && <rect x={x - S - 4} y={y - S - 4} width={(S + 4) * 2} height={(S + 4) * 2} fill="none" stroke={isRelMode ? "#f59e0b" : "var(--house-accent, var(--px-accent, #e8a65d))"} strokeWidth={thin ? 1.5 : 2} />}
+        <rect x={x - S} y={y - S} width={S * 2} height={S * 2} fill={alter.color || "#8b5cf6"} stroke={thin ? "var(--house-outline, #0d0f10)" : "#0d0f10"} strokeWidth={thin ? 1 : 2} />
         {resolvedAvatar ? (
           <image x={x - S + 1} y={y - S + 1} width={S * 2 - 2} height={S * 2 - 2} href={resolvedAvatar} preserveAspectRatio="xMidYMid slice" />
-        ) : (
+        ) : thin ? null : (
           <>
             <path d={`M${x - S + 2} ${y + S - 2} V${y - S + 2} H${x + S - 2}`} stroke="rgba(255,255,255,.35)" strokeWidth={3} fill="none" />
             <path d={`M${x + S - 2} ${y - S + 2} V${y + S - 2} H${x - S + 2}`} stroke="rgba(0,0,0,.35)" strokeWidth={3} fill="none" />
           </>
         )}
-        <rect x={x - tagW / 2} y={y + S + 3} width={tagW} height={14} fill="#1a1c2b" />
-        <text x={x} y={y + S + 14} textAnchor="middle" fontSize={11} fill="#e9e7f5" pointerEvents="none" style={{ userSelect: "none", fontFamily: "var(--px-font)" }}>{label}</text>
+        <rect x={x - tagW / 2} y={y + S + 3} width={tagW} height={14} fill={thin ? "var(--house-page, #1a1c2b)" : "#1a1c2b"} />
+        <text x={x} y={y + S + 14} textAnchor="middle" fontSize={11} fill={thin ? "var(--house-text, #e9e7f5)" : "#e9e7f5"} pointerEvents="none" style={{ userSelect: "none", fontFamily: thin ? "var(--house-font-label, var(--px-font))" : "var(--px-font)" }}>{label}</text>
         {locked && <text x={x + S - 2} y={y + S - 3} textAnchor="middle" fontSize={9} pointerEvents="none">🔒</text>}
       </g>
     );
@@ -298,7 +299,12 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
 // widget's default — it used to open zoomed in on a corner, owner report).
 // `onViewChange` reports the transform (debounced) so a host can offer
 // "save this view".
-export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships, initialMapId = null, initialLayerId = null, initialSolo = false, embedded = false, initialView = null, onViewChange = null }) {
+// `renderHouse(api)`: the new house's System map room draws its own frame
+// (board 02's tools, maps tabs, Layers, Info and status line; board 11's
+// phone column) around this one canvas. The canvas, its maths, its state and
+// every write stay here; the room gets them through `api` and only draws.
+// `houseSize` is the house's size class ("phone" | "compact" | "full").
+export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships, initialMapId = null, initialLayerId = null, initialSolo = false, embedded = false, initialView = null, onViewChange = null, renderHouse = null, houseSize = null }) {
   const terms = useTerms();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -314,9 +320,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   // Seed the active map from a deep-link (e.g. a location's "open on map" /
   // layer-link from its profile page) so it opens focused, not on map[0].
   // Pixel look: the mockup's editor layout (desk) or phone layout.
-  const px = useUiLook() === "pixel" && !embedded;
+  const house = typeof renderHouse === "function";
+  const lookPx = useUiLook() === "pixel";
   const pxDesk = usePixelDesk();
-  const desk = px && pxDesk;
+  const px = house || (lookPx && !embedded);
+  const desk = house ? houseSize !== "phone" : px && pxDesk;
   const [activeMapId, setActiveMapId] = useState(initialMapId || null);
   useEffect(() => { if (maps.length && !maps.find((m) => m.id === activeMapId)) setActiveMapId(maps[0].id); }, [maps, activeMapId]);
 
@@ -356,26 +364,28 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   // screen. Runs each render until it succeeds (data arrives async), then
   // never again — the user's own pans/zooms are theirs.
   const fitDone = useRef(initialView !== "fit");
+  // Zoom so everything on the map is on screen. True when it could.
+  const fitToContent = useCallback(() => {
+    try {
+      const g = contentRef.current;
+      const svg = svgRef.current;
+      if (!g || !svg) return false;
+      const bb = g.getBBox();
+      const cw = svg.clientWidth;
+      const ch = svg.clientHeight;
+      if (!bb.width || !bb.height || !cw || !ch) return false;
+      const scale = Math.max(0.2, Math.min(4, Math.min(cw / bb.width, ch / bb.height) * 0.9));
+      setTransform({
+        x: (cw - bb.width * scale) / 2 - bb.x * scale,
+        y: (ch - bb.height * scale) / 2 - bb.y * scale,
+        scale,
+      });
+      return true;
+    } catch { return false; /* empty map — nothing to fit */ }
+  }, []);
   useEffect(() => {
     if (fitDone.current) return undefined;
-    const id = requestAnimationFrame(() => {
-      try {
-        const g = contentRef.current;
-        const svg = svgRef.current;
-        if (!g || !svg) return;
-        const bb = g.getBBox();
-        const cw = svg.clientWidth;
-        const ch = svg.clientHeight;
-        if (!bb.width || !bb.height || !cw || !ch) return;
-        const scale = Math.max(0.2, Math.min(4, Math.min(cw / bb.width, ch / bb.height) * 0.9));
-        fitDone.current = true;
-        setTransform({
-          x: (cw - bb.width * scale) / 2 - bb.x * scale,
-          y: (ch - bb.height * scale) / 2 - bb.y * scale,
-          scale,
-        });
-      } catch { /* empty map — nothing to fit */ }
-    });
+    const id = requestAnimationFrame(() => { if (fitToContent()) fitDone.current = true; });
     return () => cancelAnimationFrame(id);
   });
   // Report where the user has panned/zoomed to (debounced), so the host
@@ -706,10 +716,10 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       </div>}
   </>);
   const canvasEl = (
-        <div ref={mapContainerRef} className="px-iw-canvas relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
+        <div ref={mapContainerRef} className={house ? "hmp-canvas relative flex-1 min-w-0 h-full overflow-hidden" : "px-iw-canvas relative flex-1 min-w-0 h-full bg-card overflow-hidden"} style={house ? { touchAction: "none" } : { touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
           {/* Active layer / view-mode indicator — doubles as the layers &
               alters panel toggle (the floating corner button was removed). */}
-          <div className="px-iw-layerchip absolute top-3 left-3 z-20 flex items-center gap-1.5 max-w-[80%]">
+          {!house && <div className="px-iw-layerchip absolute top-3 left-3 z-20 flex items-center gap-1.5 max-w-[80%]">
             <button
               onClick={() => (px ? setPxSheet((s) => (s === "layers" ? null : "layers")) : setPanelOpen((v) => !v))}
               aria-expanded={panelOpen}
@@ -722,7 +732,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               <ChevronDown className={`w-3 h-3 text-muted-foreground flex-shrink-0 transition-transform ${panelOpen ? "rotate-180" : ""}`} />
             </button>
             {effectiveSolo && <button onClick={() => setSoloLayerId(null)} className="text-primary hover:underline text-xs flex-shrink-0 px-1">show all</button>}
-          </div>
+          </div>}
 
           <svg ref={svgRef} className="w-full h-full" style={{ cursor: isDragging ? "grabbing" : relModeAlter || placingAlter ? "crosshair" : "grab", touchAction: "none" }}
             onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
@@ -756,7 +766,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                     {/* Locations */}
                     {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
                       <g key={loc.id}>
-                        <LocationNode location={loc} layerName={px ? layer.name : null} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={layerLocked}
+                        <LocationNode location={loc} layerName={px ? layer.name : null} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={layerLocked} pixel={house ? true : undefined} thin={house}
                           onInteractStart={() => { panMovedRef.current = false; }}
                           onSelect={() => { if (panMovedRef.current || viewOnly) return; setSelectedLocation(loc); }}
                           onDoubleSelect={() => {
@@ -785,7 +795,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                       const canRemove = !layerLocked && selectedAlter?.id === alter.id;
                       return (
                         <g key={p.id}>
-                          <AlterNode pixel={px} alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={locked} isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
+                          <AlterNode pixel={px} thin={house} alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={locked} isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
                             onTap={() => handleAlterTap(alter)} onDoubleTap={() => handleAlterDoubleTap(alter)} onDragEnd={(nx, ny) => movePlacement(p, nx, ny)} />
                           {/* Remove × only once the alter is selected — stops accidental
                               deletes when you just tap to select, especially zoomed out. */}
@@ -806,13 +816,13 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             </g>
           </svg>
 
-          {linkArmed && !relModeAlter && (
+          {linkArmed && !relModeAlter && !house && (
             <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg z-20 flex items-center gap-2">
               Link: tap the first {terms.alter} <button onClick={() => setLinkArmed(false)} aria-label="Cancel"><X className="w-3 h-3" /></button>
             </div>
           )}
-          {desk && <PixelOverview locations={locations} images={images} placements={placements} visibleLayerIds={visibleLayerIds} alterMap={alterMap} transform={transform} containerRef={mapContainerRef} onCenter={(wx, wy, cw, ch) => setTransform((t) => ({ ...t, x: cw / 2 - wx * t.scale, y: ch / 2 - wy * t.scale }))} />}
-          {relModeAlter && (
+          {desk && !house && <PixelOverview locations={locations} images={images} placements={placements} visibleLayerIds={visibleLayerIds} alterMap={alterMap} transform={transform} containerRef={mapContainerRef} onCenter={(wx, wy, cw, ch) => setTransform((t) => ({ ...t, x: cw / 2 - wx * t.scale, y: ch / 2 - wy * t.scale }))} />}
+          {relModeAlter && !house && (
             <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg z-20">
               Relationship mode: tap another {terms.alter} — Esc to cancel
             </div>
@@ -841,14 +851,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           </div>}
 
           {/* Zoom controls */}
-          {!embedded && !desk && <div className="px-iw-zoom absolute bottom-4 right-3 flex flex-col gap-1 z-20">
+          {!embedded && !desk && !house && <div className="px-iw-zoom absolute bottom-4 right-3 flex flex-col gap-1 z-20">
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom("in")}><ZoomIn className="w-3.5 h-3.5" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom("out")}><ZoomOut className="w-3.5 h-3.5" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={handleReset}><RotateCcw className="w-3.5 h-3.5" /></Button>
           </div>}
 
           {/* Backdrop image edit — bottom sheet (data-iw-panel lets its sliders slide) */}
-          {editingImage && !viewOnly && (
+          {editingImage && !viewOnly && !house && (
             <div data-iw-panel className="absolute left-2 right-2 bottom-2 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-2xl max-h-[55%] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-foreground">Edit Backdrop Image</p>
@@ -1032,7 +1042,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           })()}
 
           {/* Relationship popover */}
-          {relPopover && (() => {
+          {relPopover && !house && (() => {
             const rel = relPopover.rel;
             const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
             return (
@@ -1339,6 +1349,99 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     if (selectedAlter && !relModeAlter) return <div className="px-iw-sheet" data-iw-panel onClick={(e) => e.stopPropagation()}><div className="px-iw-grip" />{pxInfo}</div>;
     return null;
   })();
+
+  if (house) {
+    // The new house's room draws everything around the canvas; every action
+    // here is one of the handlers above (the same writes as both looks).
+    const toWorld = (clientX, clientY) => {
+      const r = svgRef.current?.getBoundingClientRect();
+      if (!r) return null;
+      return { x: (clientX - r.left - transform.x) / transform.scale, y: (clientY - r.top - transform.y) / transform.scale };
+    };
+    const layerName = (effectiveSolo ? layerById[effectiveSolo]?.name : activeLayer?.name) || "";
+    return renderHouse({
+      // the canvas and its dialogs (asset picker, colour, relationships)
+      canvas: canvasEl, modals,
+      // maps
+      maps, activeMap, activeMapId,
+      selectMap: (id) => { setActiveMapId(id); setSoloLayerId(null); },
+      newMap: async () => { const name = await promptText({ title: "New map", placeholder: "Map name", defaultValue: "New map" }); if (name) { const m = await createMap(name); setActiveMapId(m.id); } },
+      renameMap: async () => { if (!activeMap) return; const n = await promptText({ title: "Rename map", defaultValue: activeMap.name }); if (n) await renameMap(activeMap.id, n); },
+      deleteMap: maps.length > 1 && activeMap ? async () => { if ((await confirm(`Delete map "${activeMap.name}" and everything on it? ${TRASH_HINT_MANY}`))) { await deleteMap(activeMap.id); setActiveMapId(null); } } : null,
+      // layers (top first, as the panel lists them)
+      layersTopFirst: [...layersBottomToTop].reverse(), layerById, activeLayer, activeLayerId, layerName,
+      soloLayer: effectiveSolo ? layerById[effectiveSolo] : null, clearSolo: () => setSoloLayerId(null),
+      selectLayer: (id) => { setActiveLayerId(id); setSoloLayerId(null); },
+      placesOn: (layerId) => locations.filter((l) => l.layer_id === layerId).length,
+      setLayerVisible: (layer, v) => { setSoloLayerId(null); iw.setLayerVisible(layer.id, v); },
+      setLayerLocked: (layer, v) => iw.setLayerLocked(layer.id, v),
+      moveLayer: (layer, dir) => {
+        const ids = layersBottomToTop.map((l) => l.id);
+        const idx = ids.indexOf(layer.id);
+        const to = dir === "up" ? idx + 1 : idx - 1;
+        if (idx < 0 || to < 0 || to >= ids.length) return;
+        iw.reorderLayers(swap(ids, idx, to));
+      },
+      renameLayer: async (layer) => { const nn = await promptText({ title: "Rename layer", defaultValue: layer.name }); if (nn) iw.renameLayer(layer.id, nn); },
+      deleteLayer: layers.length > 1 ? async (layer) => { if ((await confirm(`Delete layer "${layer.name}" and everything on it?`))) iw.deleteLayer(layer.id); } : null,
+      newLayer: async () => { const n = await promptText({ title: "New layer", placeholder: "Layer name", defaultValue: `Layer ${layers.length + 1}` }); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } },
+      // what's on the map
+      locations, placements, images, alterMap, relCount: pxRelCount, placedCount: pxPlacedCount, alterCount: pxAlterCount,
+      imagesOnLayer: (layerId) => images.filter((im) => im.layer_id === layerId),
+      relMode, cycleRelMode: () => setRelMode((m) => (m === "all" ? "selected" : m === "selected" ? "none" : "all")),
+      // view
+      transform, zoom: handleZoom, resetView: handleReset, fit: fitToContent, toWorld,
+      centerOn: (wx, wy) => { const el = mapContainerRef.current; const cw = el?.clientWidth || 800, ch = el?.clientHeight || 600; setTransform((t) => ({ ...t, x: cw / 2 - wx * t.scale, y: ch / 2 - wy * t.scale })); },
+      canvasSize: () => ({ w: mapContainerRef.current?.clientWidth || 800, h: mapContainerRef.current?.clientHeight || 600 }),
+      visibleLayerIds, snap: snapToGrid, snapPx: SNAP, toggleSnap: () => setSnapToGrid((v) => !v),
+      viewOnly, toggleViewOnly,
+      // tools
+      tool: placingAlter ? "place" : (linkArmed || relModeAlter) ? "link" : "move",
+      placingAlter, relModeAlter, linkArmed,
+      move: pxMove, link: pxLink, place: () => { setLinkArmed(false); setRelModeAlter(null); setSelectedLocation(null); setEditingLocation(null); setSelectedAlter(null); setSelectedImage(null); setEditingImage(null); setRelPopover(null); },
+      pickToPlace: (a) => setPlacingAlter(a), cancelPlace: () => setPlacingAlter(null), cancelLink: () => { setLinkArmed(false); setRelModeAlter(null); },
+      alterIdsOnActiveLayer: [...alterIdsOnActiveLayer],
+      addPlace: addLocation, addPicture: addImage,
+      // selection
+      selectedLocation: pxLoc, editingLocation: pxCanEditLoc ? editingLocation : null, canEditLocation: !!pxCanEditLoc,
+      openLocationEditor: (loc) => openLocationEditor(loc),
+      closeLocation: () => { setSelectedLocation(null); setEditingLocation(null); },
+      setLocationFields: (fields) => { if (!pxCanEditLoc || !editingLocation) return; setEditingLocation((l) => ({ ...l, ...fields })); updateLocation(editingLocation, fields); },
+      pickLocationColour: () => setShowLocColor(true),
+      pickLocationPicture: () => setAssetPicker({ open: true, mode: "locationBg" }),
+      // One place goes to the trash at once with Undo (it's one batch with
+      // its profile layout); a whole map or layer still asks first.
+      deleteLocation: async () => {
+        const ed = editingLocation; if (!ed) return;
+        setEditingLocation(null); setSelectedLocation(null);
+        await deleteWithUndo({ label: `${ed.name || "Place"} deleted`, run: () => iw.deleteLocation(ed.id), refresh: () => queryClient.invalidateQueries() });
+      },
+      linkOptions, linkValue,
+      setLocationLink: (v) => {
+        const ed = editingLocation; if (!ed) return;
+        if (!v) { setEditingLocation((l) => ({ ...l, link_target_type: null, link_target_id: null })); iw.clearLocationLink(ed.id); return; }
+        const [type, id] = v.split(":");
+        setEditingLocation((l) => ({ ...l, link_target_type: type, link_target_id: id })); iw.setLocationLink(ed.id, type, id);
+      },
+      linkName: (loc) => (loc?.link_target_type === "map" ? maps.find((m) => m.id === loc.link_target_id)?.name
+        : loc?.link_target_type === "layer" ? allLayers.find((l) => l.id === loc.link_target_id)?.name : null) || null,
+      jumpToLink,
+      whoIsHere: pxWhoIsHere, placeInto: pxPlaceAlterInto,
+      selectedAlter: relModeAlter ? null : selectedAlter, closeAlter: () => setSelectedAlter(null),
+      placementOf: (a) => placements.find((p) => p.alter_id === a.id && p.layer_id === activeLayerId) || placements.find((p) => p.alter_id === a.id) || null,
+      takeOffMap: (p) => { if (!p || layerById[p.layer_id]?.is_locked) return; iw.removePlacement(p.id); setSelectedAlter(null); },
+      startLinkFrom: (a) => { setLinkArmed(false); setRelModeAlter(a); setSelectedAlter(null); },
+      relationshipsOf: (a) => relationships.filter((r) => r.alter_id_a === a.id || r.alter_id_b === a.id),
+      // a relationship line that was tapped
+      selectedRel: relPopover?.rel || null, closeRel: () => setRelPopover(null), editRel: (rel) => { setEditingRelFromPopover(rel); setRelPopover(null); },
+      // a backdrop picture
+      editingImage: viewOnly ? null : editingImage,
+      closeImage: () => { setEditingImage(null); setSelectedImage(null); },
+      setImageFields: (fields) => { const im = editingImage; if (!im) return; setEditingImage((x) => ({ ...x, ...fields })); iw.updateImage(im.id, fields); },
+      replaceImage: () => setAssetPicker({ open: true, mode: "replaceImage" }),
+      removeImage: () => { const im = editingImage; if (!im) return; iw.deleteImage(im.id); setEditingImage(null); setSelectedImage(null); },
+    });
+  }
 
   if (px) {
     return (

@@ -35,7 +35,8 @@
     "test:house-write": "node scripts/test-house-write.mjs",
     "test:house-checkin": "node scripts/test-house-checkin.mjs",
     "test:house-notebook": "node scripts/test-house-notebook.mjs",
-    "test:house-settings": "node scripts/test-house-settings.mjs"
+    "test:house-settings": "node scripts/test-house-settings.mjs",
+    "test:house-map": "node scripts/test-house-map.mjs"
   },
   "dependencies": {
     "@base44/vite-plugin": "^1.0.13",

@@ -86,7 +86,7 @@ test("both frames mount the room; the phone runs it edge to edge with its tools 
     assert.ok(/<HouseSettings /.test(t), `${f} mounts it`);
   }
   const phone = read("src/house/phone/HousePhoneFrame.jsx");
-  assert.ok(/\|\| settingsRoom \? "px-0"/.test(phone), "the phone runs it edge to edge");
+  assert.ok(/\|\| settingsRoom( \|\| mapRoom)? \? "px-0"/.test(phone), "the phone runs it edge to edge");
   assert.ok(/roomTools = [^;]*settingsRoom/.test(phone), "the phone frame reads the room's tools");
   assert.ok(/ownDocks[^;]*settingsRoom/.test(read("src/house/frame/HouseFrame.jsx")), "the room draws its own side panels");
   const room = read("src/house/settings/HouseSettings.jsx");
@@ -128,7 +128,7 @@ test("hst- classes are the room's own and the CSS is the room's", () => {
     "src/house/kit/frame/frameKit.css", "src/house/kit/panels.css", "src/house/kit/kit.css", "src/house/kit/pixel.css",
     "src/house/alters/alters.css", "src/house/write/write.css", "src/house/planner/planner.css", "src/house/home/home.css",
     "src/house/day/day.css", "src/house/checkin/checkin.css", "src/house/support/support.css", "src/house/frame/frame.css",
-    "src/house/phone/phone.css", "src/house/notebook/notebook.css",
+    "src/house/phone/phone.css", "src/house/notebook/notebook.css", "src/house/map/map.css",
   ];
   for (const f of others) {
     let t = ""; try { t = read(f); } catch { continue; }

@@ -26,7 +26,7 @@ Phase key: **0.4** one settings writer · **0.5** paint translator · **0.6** pl
 | Relationships | Typed edges, direction, strength, type catalogue [1.2.3] | AlterRelationship, RelationshipType | `alterRelationships.js`, `relationshipTypes.js` | 5.3 | old |
 | System history / lineage (`/system-history`) | Fusion, split, dormancy, return, emergence; year-only dates; splits create relationships; absorption [1.3.1, 1.3.2] | SystemChangeEvent (+ Alter, AlterRelationship) | MISSING: page writes directly (`RecordSystemChangeModal`, 7 direct Alter writes) → 0.6 | 0.6, then 5.3 | old |
 | New presences (`/presences`) | Record sightings, similarity suggestions, merge, promote to member [1.3.3] | Presence | `presenceEntry.js` (`createPresence`, `notePresenceSighting` onto a fresh read, `updatePresence`) | 5.3 (an unblend "someone new" answer can record one, 3.1) | old |
-| Inner world (`/system-map`, `/location/:id`) | Maps and layers, places, links between maps, place profiles, member placement, list equivalent [1.4.1–1.4.4] | InnerWorld* (InnerWorldLocation, maps, layers, placements) | `innerWorldModel.js` | 5.3 | old |
+| Inner world (`/system-map`, `/location/:id`) | Maps and layers, places, links between maps, place profiles, member placement, list equivalent [1.4.1–1.4.4] | InnerWorld* (InnerWorldLocation, maps, layers, placements) | `innerWorldModel.js` | 5.3 | rebuilt (5.3: System map room on `/system-map`, board 02: tool column with keys, maps as tabs, view switch (Inner world · Who {fronts} together · List), canvas line, Overview, Layers and Info panels, status line; board 11 on the phone: map tabs, Viewing chip, + − Fit, Move · Place · Room · Link · Layers bar, place panel. The one InnerWorldMapV2 canvas keeps every write; Who {fronts} together, the list, relationships and the pickers are the old insides; `/location/:id` is still the old page) |
 | System identity, multiple systems | Name, bio, avatar, banner, birth date; independent systems on one device [1.2.4, 13.3] | SystemSettings, registry | `systems.js`; settings fields via the one look writer (0.4) | 5.5 | old |
 | Assets (`/assets`) | Picture and file library, folders, owned folders, reuse [12.5, 13.6] | ImageAsset, AssetFolder | `assetFolders.js`, `alterImageUpload.js`, `songUpload.js`; 4 UI files still write ImageAsset → check in 0.6 | 5.3 | old |
 
@@ -172,7 +172,7 @@ Storage modes and encryption, unlock, recovery, multiple systems, backups and au
 | `/activities` | Activities | 5.1 |
 | `/sleep` | Sleep | 3.2 / 3.3 |
 | `/timeline` | Timeline | 3.3 |
-| `/system-map` | Inner world | 5.3 |
+| `/system-map` | System map room (rebuilt: board 02, board 11) | 5.3 |
 | `/presences` | New presences | 5.3 |
 | `/bulletins`, `/bulletin/:id` | Bulletins | 5.2 |
 | `/unblend` | Help me unblend | 3.1 |

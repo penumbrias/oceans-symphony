@@ -30,17 +30,11 @@ const db = localMode ? localEntities : base44.entities;
 // bounded number of nodes. The error boundary below stays as
 // defense-in-depth for genuine render crashes.
 
-export default function SystemMapPage() {
-  const terms = useTerms();
-  // Deep-link support: a location's "open on map" / layer-link from its profile
-  // navigates here with ?view=inner&map=…&layer=…&solo=1 so it opens on the
-  // Inner World tab focused on that map/layer (instead of the Analytics tab).
-  const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.get("view") === "inner" ? "inner" : "analytics");
-  const initialMapId = searchParams.get("map") || null;
-  const initialLayerId = searchParams.get("layer") || null;
-  const initialSolo = searchParams.get("solo") === "1";
-
+// The map's records, read once for both houses (the new house's System map
+// room, src/house/map/, reads them through this same hook). Reads only.
+// Group config: members of a group flagged "hide_from_system_maps" don't
+// appear on any of the map tabs.
+export function useSystemMapData() {
   const { data: allAlters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => db.Alter.list(),
@@ -49,8 +43,6 @@ export default function SystemMapPage() {
     queryKey: ["groups"],
     queryFn: () => db.Group.list(),
   });
-  // Group config: members of a group flagged "hide_from_system_maps" don't
-  // appear on any of the map tabs.
   const alters = useMemo(() => {
     const hidden = getAlterIdsByGroupFlag(mapGroups, allAlters, "hide_from_system_maps");
     return hidden.size ? allAlters.filter((a) => !hidden.has(a.id)) : allAlters;
@@ -73,6 +65,21 @@ export default function SystemMapPage() {
     queryKey: ["innerWorldLayers"],
     queryFn: () => base44.entities.InnerWorldLayer.list(),
   });
+  return { alters, relationships, refetchRelationships, locations, maps, layers };
+}
+
+export default function SystemMapPage() {
+  const terms = useTerms();
+  // Deep-link support: a location's "open on map" / layer-link from its profile
+  // navigates here with ?view=inner&map=…&layer=…&solo=1 so it opens on the
+  // Inner World tab focused on that map/layer (instead of the Analytics tab).
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("view") === "inner" ? "inner" : "analytics");
+  const initialMapId = searchParams.get("map") || null;
+  const initialLayerId = searchParams.get("layer") || null;
+  const initialSolo = searchParams.get("solo") === "1";
+
+  const { alters, relationships, refetchRelationships, locations, maps, layers } = useSystemMapData();
 
   // Canvas vs accessible List view for the Inner World tab. Defaults to the
   // list when Accessibility mode is on (the SVG canvas is hard to use with a
@@ -171,7 +178,7 @@ export default function SystemMapPage() {
 // Inner World tab needs to stay reachable for users whose analytics
 // map can't render. Errors are logged so we can find the root cause
 // later; the user just sees the friendly fallback.
-class AnalyticsMapErrorBoundary extends React.Component {
+export class AnalyticsMapErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false };
@@ -190,7 +197,7 @@ class AnalyticsMapErrorBoundary extends React.Component {
   }
 }
 
-function AnalyticsMapTooLargeFallback({ systemTerm, altersTerm, alterCount, onUseInnerWorld }) {
+export function AnalyticsMapTooLargeFallback({ systemTerm, altersTerm, alterCount, onUseInnerWorld }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12 rounded-xl border border-dashed border-border/60 bg-muted/15">
       <Map className="w-10 h-10 text-muted-foreground/50 mb-3" />

@@ -322,7 +322,7 @@ const AuthenticatedApp = () => {
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/sleep" element={<SleepTracker />} />
         <Route path="/timeline" element={<HouseRoomGate><Timeline /></HouseRoomGate>} />
-        <Route path="/system-map" element={<SystemMapPage />} />
+        <Route path="/system-map" element={<HouseRoomGate><SystemMapPage /></HouseRoomGate>} />
         <Route path="/presences" element={<NewPresencesPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/bulletins" element={<BulletinsPage />} />

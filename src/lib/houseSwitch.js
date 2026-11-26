@@ -243,9 +243,20 @@ export function houseSettingsRoom(pathname) {
   return p === "/settings";
 }
 
+// ── The house's System map room (boards 02 and 11) ──────────────────────
+// With the new house on, /system-map (the inner world, Who fronts together
+// and the list of places) is drawn by the house itself (src/house/map/),
+// around the one inner-world canvas. Place profiles (/location/:id) stay
+// the old page in the frame. The old page is not mounted (HouseRoomGate);
+// with the switch off it runs exactly as before.
+export function houseMapRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/system-map";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────
