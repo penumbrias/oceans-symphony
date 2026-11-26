@@ -113,10 +113,10 @@
 [data-house] .hrm-pair > .hk-field > :not(.hk-field-head),
 [data-house] .hrm-time > .hk-field > :not(.hk-field-head) { grid-column: 2; }
 [data-house] .hrm-ins .hrm-line { grid-template-columns: 7.5rem minmax(0, 1fr); }
-[data-house] .hrm-ins .hrm-line--days { grid-template-columns: minmax(0, 1fr); }
+[data-house] .hrm-ins .hrm-line.hrm-line--days, [data-house].hrm--phone .hrm-ins .hrm-line.hrm-line--days { grid-template-columns: minmax(0, 1fr); }
 [data-house] .hrm-line--days > .hrm-line-label { padding-top: 0; }
 [data-house] .hrm-line--days > .hrm-line-field { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.25rem; }
-[data-house] .hrm-line--days .hrm-chip { width: 100%; min-width: 0; padding: 0; justify-content: center; }
+[data-house] .hrm-ins .hrm-line--days .hrm-chip.hk-btn { width: 100%; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; justify-content: center; }
 [data-house] .hrm-times { display: flex; flex-direction: column; gap: 0.375rem; align-items: stretch; }
 [data-house] .hrm-time { display: flex; align-items: center; gap: 0.25rem; }
 [data-house] .hrm-time > .hk-field { flex: 1 1 auto; }
