@@ -189,10 +189,11 @@ export const THEME_PRESETS = {
 export const CUSTOM_PRESETS = {
   // The pixel look's own colours (owner, 2026-11-25): a deep-sea base drawn
   // from Penumblob's sprite (#26293e shade, #343853 body, #454b6c highlight)
-  // with an ocean teal for actions and a sea blue beside it.
+  // with the mockups' warm amber for actions and selected things and a soft
+  // periwinkle beside it (owner, 2026-11-26: the bright teal was "cheap gum").
   pixel: {
-    light: { bg: '#E3E8F1', surface: '#F1F4F9', primary: '#1C7A8A', secondary: '#D2D9E7', accent: '#3E5F99', muted: '#B8C0D6', 'text-primary': '#1A1C2B', 'text-secondary': '#3B405D' },
-    dark: { bg: '#1C1F31', surface: '#26293E', primary: '#4CC3CF', secondary: '#343853', accent: '#6E9BE0', muted: '#454B6C', 'text-primary': '#E7EAF6', 'text-secondary': '#C4CAE3' }
+    light: { bg: '#E3E8F1', surface: '#F1F4F9', primary: '#A8692B', secondary: '#D2D9E7', accent: '#565D86', muted: '#B8C0D6', 'text-primary': '#1A1C2B', 'text-secondary': '#3B405D' },
+    dark: { bg: '#1C1F31', surface: '#26293E', primary: '#E8A65D', secondary: '#343853', accent: '#6D73B0', muted: '#454B6C', 'text-primary': '#E7EAF6', 'text-secondary': '#C4CAE3' }
   },
   antiquePeach: { 
     light: { bg: '#FFE8D1', surface: '#FFE8D1', primary: '#F4A460', secondary: '#FFE8D1', accent: '#D2691E', muted: '#DEB887', 'text-primary': '#5C4033', 'text-secondary': '#8B6F47' },

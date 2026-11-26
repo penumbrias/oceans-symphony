@@ -163,8 +163,8 @@ test("house defaults are the mockups' look; the person's picks win", () => {
   assert.equal(R.houseLookFromRow({ ui_look: "smooth" }), "smooth");
   const p = T.translatePaint({}, { device: {}, houseDefault: "pixel" });
   assert.equal(p.tokens.swatches.deep.toUpperCase(), "#1C1F31");
-  assert.equal(p.tokens.swatches.accent.toUpperCase(), "#4CC3CF");
-  assert.equal(p.tokens.swatches.wave.toUpperCase(), "#6E9BE0");
+  assert.equal(p.tokens.swatches.accent.toUpperCase(), "#E8A65D");
+  assert.equal(p.tokens.swatches.wave.toUpperCase(), "#6D73B0");
   const picked = T.translatePaint({}, { device: { selectedTheme: "cool" }, houseDefault: "pixel" });
   assert.equal(picked.tokens.source.name, "cool");
   const t = R.houseTokens(p, { look: "pixel" });
