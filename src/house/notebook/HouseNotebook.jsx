@@ -81,7 +81,7 @@ import {
   PagesList, NewPageSheet, StatCards, TimeChart, LedgerTable, WhoSheet, TargetsPanel, DuePanel, RepeatsPanel,
   MeasureRow, PointsPanel, RangeRow, Swatch, Bar, usePageColors, useNumbers, useLedger, useMeasures, useWhoOf,
 } from "@/house/notebook/NotebookParts";
-import { notebookView, ledgerCsv, whenLabel, amountOf, isRange, RANGE_WORDS, VS_WORDS, plusMinutes, LIST_COLOR, DECK_COLOR } from "@/house/notebook/notebookModel";
+import { notebookView, ledgerCsv, whoShares, whenLabel, amountOf, isRange, RANGE_WORDS, VS_WORDS, plusMinutes, LIST_COLOR, DECK_COLOR } from "@/house/notebook/notebookModel";
 import "@/house/kit/kit.css";
 import "@/house/kit/panels.css";
 import "@/house/notebook/notebook.css";
@@ -512,20 +512,7 @@ function PageRoom({ page, phone, onWho, onLayout }) {
   const viewId = ["outline", "board", "map"].includes(page.view) ? page.view : "outline";
   const status = page.status ? goalStatusLabel(page.status) : "No status";
   const filedHere = notesFiledIn(lists, page.id, index);
-  const shares = useMemo(() => {
-    const m = new Map();
-    let total = 0;
-    for (const { a } of ledger) {
-      const mins = Number(a.duration_minutes) || 0;
-      if (!mins) continue;
-      total += mins;
-      const w = whoOf(a);
-      const k = w?.id || "__none";
-      const cur = m.get(k) || { id: k, label: w?.label || "not signed", color: w?.color || null, mins: 0 };
-      cur.mins += mins; m.set(k, cur);
-    }
-    return { total, rows: [...m.values()].sort((a, b) => b.mins - a.mins).slice(0, 4) };
-  }, [ledger, whoOf]);
+  const shares = useMemo(() => { const r = whoShares(ledger, whoOf); return { total: r.total, rows: r.rows.slice(0, 4) }; }, [ledger, whoOf]);
   const pageXp = useMemo(() => {
     if (!xp.on) return null;
     const ids = new Set(pageIds);
