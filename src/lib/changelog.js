@@ -18,6 +18,12 @@
 
 export const CHANGELOG = [
   {
+    date: "November 26, 2026",
+    changes: [
+      { type: "feature", text: "New house: the Planner is rebuilt as the approved design: one row of views, a week grid where you drag to plan, move or resize, and This week, Goals and Needs a decision beside it." },
+    ],
+  },
+  {
     date: "November 25, 2026",
     changes: [
       { type: "feature", text: "New house: the Timeline is rebuilt as the approved design: see a day, six hours or a week layer by layer, and fix a fronting record right from Info." },
