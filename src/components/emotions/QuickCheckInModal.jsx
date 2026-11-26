@@ -407,7 +407,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         <button type="button" onClick={() => toggleSection(id)} aria-expanded={open}
           className="px-ci-head">
           <span className="px-ci-chev" aria-hidden>{open ? "v" : ">"}</span>
-          <span className="px-ci-label">{id === "fronting" ? `Who's ${terms.fronting}` : label}</span>
+          <span className="px-ci-label">{id === "fronting" ? `Who's ${terms.fronting}` : houseSheet && id === "symptoms" ? "Symptoms and habits" : label}</span>
           <span className="px-ci-sum">{sectionSummary(id)}</span>
         </button>
       );

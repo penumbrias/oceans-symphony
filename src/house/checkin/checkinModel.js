@@ -49,7 +49,8 @@ export function whoRowNote(alterId, { fronting, levelOf, topLevel, terms }) {
   if (!set.has(alterId)) return null;
   const word = terms?.fronting || "fronting";
   const lvl = typeof levelOf === "function" ? levelOf(alterId) : null;
-  return lvl && lvl !== topLevel ? `${word}, ${lvl}` : word;
+  if (!lvl || lvl === topLevel) return word;
+  return `${word}, ${lvl.charAt(0).toLowerCase()}${lvl.slice(1)}`;
 }
 
 // Board 17's closing line: whose a feeling is when nobody is held, said
