@@ -277,9 +277,21 @@ export function houseRemindersRoom(pathname) {
   return p === "/reminders";
 }
 
+// ── The house's Friends room (board 22) ────────────────────────────────
+// With the new house on, /friends is drawn by the house itself
+// (src/house/friends/): the Friends list with Add a friend and your code,
+// the open friend, and the sharing column (on a phone, Friends · Sharing and
+// one friend on its own history entry). Every read, relay call and write is
+// the old page's (useFriendsPage, useFriendView). The old page is not mounted
+// (HouseRoomGate); with the switch off it runs exactly as before.
+export function houseFriendsRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/friends";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname) || houseRemindersRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname) || !!houseAltersRoom(pathname) || !!houseWriteRoom(pathname) || houseNotebookRoom(pathname) || houseSettingsRoom(pathname) || houseMapRoom(pathname) || houseAnalyticsRoom(pathname) || houseRemindersRoom(pathname) || houseFriendsRoom(pathname);
 }
 
 // ── The house's check-in sheets (boards 16, 17 and 47) ─────────────────

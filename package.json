@@ -38,7 +38,8 @@
     "test:house-settings": "node scripts/test-house-settings.mjs",
     "test:house-map": "node scripts/test-house-map.mjs",
     "test:house-analytics": "node scripts/test-house-analytics.mjs",
-    "test:house-reminders": "node scripts/test-house-reminders.mjs"
+    "test:house-reminders": "node scripts/test-house-reminders.mjs",
+    "test:house-friends": "node scripts/test-house-friends.mjs"
   },
   "dependencies": {
     "@base44/vite-plugin": "^1.0.13",
