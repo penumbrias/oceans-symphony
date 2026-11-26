@@ -216,6 +216,9 @@ test("a drag's patch: the same length field, reschedule history for a plan, noth
   assert.equal(kept.reschedule_history.length, 2);
   assert.equal(P.movePatch(plan, { start: new Date("nope"), minutes: 60 }), null);
   assert.equal(P.movePatch(plan, { start: at(21, 9), minutes: 10 ** 9 }).duration_minutes, P.MOVE_MAX_MINUTES);
+  const undo = P.restorePatch(plan);
+  assert.deepEqual(undo, { timestamp: plan.timestamp, duration_minutes: 60, reschedule_history: [] }, "Undo puts it back, history and all");
+  assert.deepEqual(P.restorePatch(logged), { timestamp: logged.timestamp, actual_duration_minutes: 40, reschedule_history: [] });
 });
 
 test("the Planner room is drawn by the house only on /planner", () => {

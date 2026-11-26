@@ -18,9 +18,9 @@
 import { base44 } from "@/api/base44Client";
 import { syncLinkedSleep } from "@/lib/planner/linkedSleep";
 
-import { movePatch } from "@/lib/planner/movePatch";
+import { movePatch, restorePatch } from "@/lib/planner/movePatch";
 
-export { movePatch, MOVE_MAX_MINUTES } from "@/lib/planner/movePatch";
+export { movePatch, restorePatch, MOVE_MAX_MINUTES } from "@/lib/planner/movePatch";
 
 /** Move and/or resize one entry. Returns the patch written, or null when nothing changed. */
 export async function moveActivityTime(activity, { start, minutes }) {
@@ -31,5 +31,14 @@ export async function moveActivityTime(activity, { start, minutes }) {
   if (same) return null;
   await base44.entities.Activity.update(activity.id, patch);
   await syncLinkedSleep(activity, patch);
+  return patch;
+}
+
+/** Undo a drag: put the entry back as it was (`before` is the record before the move). */
+export async function restoreActivityTime(before) {
+  const patch = restorePatch(before);
+  if (!patch) return null;
+  await base44.entities.Activity.update(before.id, patch);
+  await syncLinkedSleep(before, patch);
   return patch;
 }

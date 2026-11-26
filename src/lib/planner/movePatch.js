@@ -21,3 +21,15 @@ export function movePatch(activity, { start, minutes }, now = new Date()) {
   }
   return patch;
 }
+
+/** The patch that puts an entry back exactly as it was before a drag (Undo):
+ *  its time, its length field and its reschedule history (so an undone move
+ *  isn't counted as a reschedule). `before` is the record as it was. */
+export function restorePatch(before) {
+  if (!before?.timestamp) return null;
+  const patch = { timestamp: before.timestamp };
+  if (Number(before.actual_duration_minutes) > 0) patch.actual_duration_minutes = Number(before.actual_duration_minutes);
+  else patch.duration_minutes = Number(before.duration_minutes) || 0;
+  patch.reschedule_history = Array.isArray(before.reschedule_history) ? before.reschedule_history : [];
+  return patch;
+}

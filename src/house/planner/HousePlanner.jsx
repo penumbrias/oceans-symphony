@@ -48,7 +48,7 @@ import { collectAlterDates } from "@/lib/importantDates";
 import { indexById } from "@/lib/categoryTreeUtils";
 import { checkInIsDistress } from "@/lib/emotionDistress";
 import { ENTRY_MODES } from "@/lib/activityEntry";
-import { moveActivityTime } from "@/lib/planner/moveEntry";
+import { moveActivityTime, restoreActivityTime } from "@/lib/planner/moveEntry";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import {
   PLANNER_PICKS, readPlannerState, writePlannerState, pickOf, stateForPick, rangeOf, rangeWords, stepAnchor,
@@ -257,7 +257,6 @@ export default function HousePlanner({ size = "full", tokens }) {
     const col = columns[dayIndex];
     if (!item || !col) return;
     const start = new Date(col.day); start.setMinutes(startMin);
-    const before = { start: new Date(item.timestamp), minutes: (Number(item.actual_duration_minutes) > 0 ? Number(item.actual_duration_minutes) : Number(item.duration_minutes)) || (block.endMin - block.startMin) };
     const name = item.activity_name || "It";
     try {
       const patch = await moveActivityTime(item, { start, minutes: endMin - startMin });
@@ -265,7 +264,7 @@ export default function HousePlanner({ size = "full", tokens }) {
       if (patch) {
         showToast({
           message: `${name}: ${format(start, "EEE")} ${clockWords(startMin, fmt)} to ${clockWords(endMin, fmt)}.`,
-          action: { label: "Undo", onClick: async () => { try { await moveActivityTime({ ...item, ...patch }, before); refresh(); } catch (e) { showToast({ tone: "failed", message: "Couldn't move it back.", detail: e?.message || "" }); } } },
+          action: { label: "Undo", onClick: async () => { try { await restoreActivityTime(item); refresh(); } catch (e) { showToast({ tone: "failed", message: "Couldn't move it back.", detail: e?.message || "" }); } } },
         });
       }
     } catch (e) {
