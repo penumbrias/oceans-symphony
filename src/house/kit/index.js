@@ -20,3 +20,6 @@ export { ToastHost, ToastCard, showToast, dismissToast, trashWithUndo } from "@/
 export { Sheet, ConfirmSheet, SafetySheet, useBackToClose } from "@/house/kit/Sheet";
 export { HousePopups } from "@/house/kit/KitLayer";
 // The chart set is its own import (it brings recharts): import Chart from "@/house/kit/Charts".
+// Step 5.1 (the Planner room): time columns and month grids.
+export { default as TimeColumns } from "@/house/kit/TimeColumns";
+export { MiniMonth, MonthBoard, YearBoard } from "@/house/kit/MonthGrid";

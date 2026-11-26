@@ -342,7 +342,7 @@ const AuthenticatedApp = () => {
         <Route path="/location-history" element={<LocationHistory />} />
         <Route path="/friends" element={<FriendsPage />} />
         {/* New planner — lives alongside the old tracker until it replaces it. */}
-        <Route path="/planner" element={<PlannerPage />} />
+        <Route path="/planner" element={<HouseRoomGate><PlannerPage /></HouseRoomGate>} />
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/needs" element={<NeedsPage />} />

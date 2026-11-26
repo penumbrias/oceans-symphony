@@ -184,7 +184,18 @@ export function houseTimelineRoom(pathname) {
   return p === "/timeline";
 }
 
+// ── The house's Planner room (plan step 5.1, boards 04 and 48) ───────────
+// With the new house on, /planner is drawn by the house itself
+// (src/house/planner/): the week with Day · Week · Month · Year · Plans
+// list and Insights, the month, the categories, this week, goals and the
+// plans that need a decision. The old page is not mounted (HouseRoomGate);
+// with the switch off it runs exactly as before.
+export function housePlannerRoom(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  return p === "/planner";
+}
+
 /** Is this route one of the rooms the house has rebuilt (not an old page in the frame)? */
 export function houseRebuiltRoom(pathname) {
-  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname);
+  return !!houseSupportRoom(pathname) || houseTimelineRoom(pathname) || housePlannerRoom(pathname);
 }

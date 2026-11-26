@@ -1,0 +1,107 @@
+/* The kit's time columns (TimeColumns.jsx): board 04-Planner's week.
+   House tokens only; every class is hk-tc- (never in frameKit.css). */
+
+[data-house] .hk-tc {
+  --hk-tc-gutter: 3.375rem;
+  position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 auto;
+  font-size: var(--house-text-sm); color: var(--house-text);
+}
+[data-house] .hk-tc[data-compact] { --hk-tc-gutter: 2.75rem; }
+[data-house] .hk-tc[data-compact] .hk-tc-allday-label { padding: 0.3125rem 0.125rem; white-space: nowrap; overflow: hidden; }
+/* Narrow phone columns: the name only (the time is in the block's name for screen readers). */
+[data-house] .hk-tc[data-compact] .hk-tc-time { display: none; }
+[data-house] .hk-tc[data-compact] .hk-tc-block { padding: 1px 2px; }
+[data-house] .hk-tc[data-compact] .hk-tc-block[data-one] { white-space: normal; }
+[data-house] .hk-tc[data-compact] .hk-tc-mark { margin-right: 0.1em; }
+
+[data-house] .hk-tc-head,
+[data-house] .hk-tc-allday {
+  display: grid; grid-template-columns: var(--hk-tc-gutter) repeat(var(--hk-tc-n), minmax(0, 1fr));
+  box-shadow: inset 0 -2px 0 var(--house-outline);
+}
+[data-house] .hk-tc-head { font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hk-tc-dayname { padding: 0.3125rem 0.375rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-house] .hk-tc-dayname[data-today] { background: var(--house-accent); color: var(--house-on-accent); }
+[data-house] .hk-tc[data-compact] .hk-tc-dayname { padding: 0.25rem 0.125rem; text-align: center; }
+
+[data-house] .hk-tc-allday { min-height: 1.5rem; background: var(--house-sunken); font-size: var(--house-text-xs); }
+[data-house] .hk-tc-allday-label { padding: 0.3125rem 0.375rem; color: var(--house-muted); font-family: var(--house-font-label); }
+[data-house] .hk-tc-allday-cell { display: flex; flex-direction: column; gap: 2px; padding: 3px; min-width: 0; }
+[data-house] .hk-tc-chip {
+  display: block; max-width: 100%; min-height: 1.125rem; padding: 0 0.25rem; margin: 0;
+  border: 2px solid var(--hk-tc-c, var(--house-accent)); background: var(--house-panel);
+  color: var(--hk-tc-c, var(--house-accent)); font: inherit; font-family: var(--house-font-label); text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+}
+[data-house] .hk-tc-chip[data-kind="todo"] { border-style: dotted; color: var(--house-text); border-color: var(--house-muted); }
+[data-house] .hk-tc-chip[data-kind="todo"]::before { content: "☐ "; }
+[data-house] .hk-tc-chip[data-kind="date"]::before { content: "★ "; }
+[data-house] .hk-tc-chip[data-kind="untimed"] { border-style: dashed; }
+[data-house] .hk-tc-chip[data-tone="done"],
+[data-house] .hk-tc-chip[data-tone="logged"] { border-style: solid; background: var(--hk-tc-c, var(--house-accent)); color: var(--house-page); }
+[data-house] .hk-tc-chip[data-tone="skipped"],
+[data-house] .hk-tc-chip[data-tone="cancelled"] { text-decoration: line-through; color: var(--house-muted); border-color: var(--house-muted); }
+[data-house] .hk-tc-chip:focus-visible { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: 1px; }
+
+[data-house] .hk-tc-scroll { position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+[data-house] .hk-tc-body {
+  position: relative; display: grid;
+  grid-template-columns: var(--hk-tc-gutter) repeat(var(--hk-tc-n), minmax(0, 1fr));
+}
+[data-house] .hk-tc-hours { position: relative; color: var(--house-muted); font-family: var(--house-font-label); font-size: var(--house-text-xs); }
+[data-house] .hk-tc-hour { position: absolute; left: 0.375rem; transform: translateY(-0.375rem); white-space: nowrap; }
+[data-house] .hk-tc[data-compact] .hk-tc-hour { left: 0.125rem; }
+
+[data-house] .hk-tc-col {
+  position: relative; min-width: 0; touch-action: pan-y;
+  box-shadow: inset 2px 0 0 var(--house-page);
+  background-image: repeating-linear-gradient(180deg, var(--house-divider) 0 1px, transparent 1px var(--hk-tc-hour));
+  cursor: crosshair;
+}
+[data-house] .hk-tc-col[data-today] { background-color: color-mix(in srgb, var(--house-accent) 4%, transparent); }
+
+[data-house] .hk-tc-block {
+  position: absolute; z-index: 1; margin: 0; padding: 2px 5px; overflow: hidden;
+  font: inherit; font-size: var(--house-text-xs); line-height: 1.25; text-align: left; cursor: pointer;
+  background: var(--hk-tc-c, var(--house-accent)); color: var(--house-page);
+  border: 2px solid var(--house-outline);
+  touch-action: pan-y;
+}
+[data-house] .hk-tc-block[data-one] { white-space: nowrap; text-overflow: ellipsis; }
+[data-house] .hk-tc-time { font-family: var(--house-font-label); font-size: 0.92em; }
+[data-house] .hk-tc-name { font-size: var(--house-text-sm); }
+[data-house] .hk-tc-block[data-one] .hk-tc-name { font-size: var(--house-text-xs); }
+[data-house] .hk-tc-mark { margin-right: 0.25em; }
+/* Plans still to come: dashed in their colour, on the dark page. */
+[data-house] .hk-tc-block[data-tone="plan"] { background: var(--house-page); color: var(--hk-tc-c, var(--house-accent)); border: 2px dashed var(--hk-tc-c, var(--house-accent)); }
+/* A plan whose time has passed with nobody saying how it went. */
+[data-house] .hk-tc-block[data-tone="open"] { background: var(--house-page); color: var(--house-danger); border: 2px dashed var(--house-danger); }
+[data-house] .hk-tc-block[data-tone="skipped"],
+[data-house] .hk-tc-block[data-tone="cancelled"] { background: var(--house-raised); color: var(--house-muted); text-decoration: line-through; }
+[data-house] .hk-tc-block[data-tone="cancelled"] { opacity: 0.7; }
+[data-house] .hk-tc-block[data-tone="todo"] { background: var(--house-panel); color: var(--house-text); border: 2px dotted var(--house-muted); }
+[data-house] .hk-tc-block[data-tone="running"] { box-shadow: inset 3px 0 0 var(--house-text); }
+[data-house] .hk-tc-block[data-dragging] { z-index: 3; opacity: 0.85; outline: 2px solid var(--house-focus); pointer-events: none; }
+[data-house] .hk-tc-block:focus-visible { outline: var(--house-focus-w) solid var(--house-focus); outline-offset: 1px; z-index: 2; }
+[data-house] .hk-tc-edge { position: absolute; left: 0; right: 0; bottom: 0; height: 0.5rem; cursor: ns-resize; }
+
+[data-house] .hk-tc-band {
+  position: absolute; width: 3px; z-index: 0; pointer-events: none;
+  background: var(--hk-tc-c, var(--house-muted)); opacity: 0.85;
+}
+[data-house] .hk-tc-markdot {
+  position: absolute; right: 2px; z-index: 2; width: 0.625rem; height: 0.625rem; padding: 0; margin: 0;
+  transform: translateY(-50%); border: 1px solid var(--house-outline); border-radius: 50%;
+  background: var(--hk-tc-c, var(--house-muted)); cursor: pointer;
+}
+[data-house] .hk-tc-markdot[data-kind="place"] { border-radius: 0; transform: translateY(-50%) rotate(45deg); right: 0.875rem; }
+[data-house] .hk-tc-markdot::after { content: ""; position: absolute; inset: -0.5rem; }
+[data-house] .hk-tc-draft {
+  position: absolute; left: 3px; right: 3px; z-index: 2; pointer-events: none;
+  background: color-mix(in srgb, var(--house-accent) 30%, transparent); border: 2px dashed var(--house-accent);
+}
+[data-house] .hk-tc-now { position: absolute; left: 0; right: 0; height: 2px; background: var(--house-accent); z-index: 2; pointer-events: none; }
+[data-house] .hk-tc-empty {
+  position: absolute; left: var(--hk-tc-gutter); right: 0; top: 5rem; z-index: 3; display: flex; justify-content: center; pointer-events: none;
+}
+[data-house] .hk-tc-empty > * { pointer-events: auto; }

@@ -45,7 +45,7 @@ import { openSystemSwitcher } from "@/components/systems/SystemSwitcherSheet";
 import { exitPreview } from "@/lib/previewMode";
 import { retrySave } from "@/lib/localDb";
 import { clockOpts } from "@/lib/timeFormat";
-import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom } from "@/lib/houseSwitch";
+import { setHouseSwitch, useHouseSizeClass, announceSupportJump, isHouseHomeRoom, houseSupportRoom, houseTimelineRoom, housePlannerRoom } from "@/lib/houseSwitch";
 import { APP_VERSION } from "@/lib/appVersion";
 import { isSupportRoute } from "@/house/phone/phonePlaces";
 import { lazyWhenOpen } from "@/lib/lazyWhenOpen";
@@ -81,6 +81,7 @@ const GlobalSearch = React.lazy(() => import("@/components/dashboard/GlobalSearc
 const HouseHome = React.lazy(() => import("@/house/home/HouseHome"));
 const HouseSupport = React.lazy(() => import("@/house/support/HouseSupport"));
 const HouseTimeline = React.lazy(() => import("@/house/timeline/HouseTimeline"));
+const HousePlanner = React.lazy(() => import("@/house/planner/HousePlanner"));
 const SetFrontSheet = lazyWhenOpen(() => import("@/components/fronting/SetFrontSheet"), (p) => p.open);
 
 const RAIL_REM = 3.5;
@@ -255,7 +256,9 @@ export default function HouseFrame({ children, mainRef }) {
   const supportRoom = houseSupportRoom(location.pathname);
   // The Timeline room draws its own Info and Layers too (board 01's right dock).
   const timelineRoom = houseTimelineRoom(location.pathname);
-  const ownDocks = homeRoom || timelineRoom;
+  // The Planner room draws its own side columns (board 04).
+  const plannerRoom = housePlannerRoom(location.pathname);
+  const ownDocks = homeRoom || timelineRoom || plannerRoom;
   const preview = usePreviewOn();
 
   // Real names in the browser title (and back to the app's name on leaving).
@@ -438,6 +441,11 @@ export default function HouseFrame({ children, mainRef }) {
           {timelineRoom ? (
             <Suspense fallback={null}>
               <HouseTimeline size={size} tokens={tokens} onSetFront={() => setFrontOpen(true)} />
+            </Suspense>
+          ) : null}
+          {plannerRoom ? (
+            <Suspense fallback={null}>
+              <HousePlanner size={size} tokens={tokens} />
             </Suspense>
           ) : null}
           {homeRoom ? (
