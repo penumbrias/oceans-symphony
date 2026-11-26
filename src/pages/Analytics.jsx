@@ -102,58 +102,11 @@ function computeStats(sessions, alters, from, to) {
   return { alterMap, filtered: filteredRaw, normalised: filtered, slices, stale };
 }
 
-export default function Analytics() {
-  const terms = useTerms();
-  const pixel = useUiLook() === UI_LOOKS.PIXEL;
-  const navigate = useNavigate();
-
-  // ── New IA: four tabs replace the old 14-tile landing grid.
-  //    Overview is the rebuilt engine-driven view; the other tabs
-  //    temporarily house the existing section components (grouped by
-  //    domain) until their phase of the rebuild replaces them — see the
-  //    analytics-rebuild plan. Old section ids are preserved so nothing
-  //    is lost in the cutover.
-  // Deep-linkable: /analytics?tab=alters&alter=<id> (used by alter profiles).
-  const [searchParams] = useSearchParams();
-  const VALID_TABS = ["overview", "fronting", "wellbeing", "life", "alters"];
-  const [activeTab, setActiveTab] = useState(() => {
-    const t = searchParams.get("tab");
-    return VALID_TABS.includes(t) ? t : "overview";
-  });
-  const [selectedAlterId, setSelectedAlterId] = useState(() => searchParams.get("alter") || null);
-
-  const [preset, setPreset] = useState("30d");
-  const [from, setFrom] = useState(subDays(new Date(), 30));
-  const [to, setTo] = useState(new Date());
-  const [staleModalOpen, setStaleModalOpen] = useState(false);
-
-  const PRESETS = [
-    { id: "7d",   label: "7d",       from: () => subDays(new Date(), 7) },
-    { id: "30d",  label: "30d",      from: () => subDays(new Date(), 30) },
-    { id: "90d",  label: "90d",      from: () => subDays(new Date(), 90) },
-    { id: "1y",   label: "1y",       from: () => subDays(new Date(), 365) },
-    { id: "all",  label: "All Time", from: () => new Date(0) },
-    { id: "custom", label: "Custom", from: null },
-  ];
-
-  const applyPreset = (id) => {
-    setPreset(id);
-    const p = PRESETS.find(x => x.id === id);
-    if (p?.from) { setFrom(p.from()); setTo(new Date()); }
-  };
-
-  // Pixel toolbar's < > : move the same-length window back or forward,
-  // never past today.
-  const stepRange = (dir) => {
-    const span = to.getTime() - from.getTime();
-    if (span <= 0) return;
-    let nextTo = to.getTime() + dir * span;
-    const now = Date.now();
-    if (nextTo > now) nextTo = now;
-    setFrom(new Date(nextTo - span));
-    setTo(new Date(nextTo));
-  };
-
+// The page's reads, shared with the new house's Analytics room
+// (src/house/analytics/) so both houses count from the same records, keep
+// the same {alters} out (groups flagged "hide from analytics") and fold the
+// same absorbed {alters}. Reads only.
+export function useAnalyticsData({ from, to }) {
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
     ...sharedList("frontHistory"),
   });
@@ -280,23 +233,27 @@ export default function Analytics() {
     });
   }, [filtered, absorptionMap]);
 
-  if (sessionsLoading) {
-    return (
-      <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
 
-  const TABS = [
-    { id: "overview", label: "Overview" },
-    { id: "fronting", label: terms.Fronting },
-    { id: "wellbeing", label: "Wellbeing" },
-    { id: "life", label: "Life" },
-    { id: "alters", label: terms.Alters },
-  ];
+  return {
+    sessionsLoading, allAlters, hiddenFromAnalytics, alters, sessions, altersById,
+    cards, activities, activityCategories, emotionCheckIns, systemCheckIns,
+    symptomSessions, symptomCheckIns, symptoms, sleepRecords, journals, bulletins,
+    mentionLogs, tasks, statusNotes, contactEncounters, goals, locations, contacts,
+    chatMessages, systemChangeEvents, filtered, stale, foldedSessions,
+  };
+}
 
-  const tabContent = (
+// One tab's body: the old page and the new house's Analytics room both
+// draw the five views through this, so neither keeps a copy.
+export function AnalyticsTabBody({ tab: activeTab, data, from, to, selectedAlterId, onSelectAlter: setSelectedAlterId, onNavigateTab: setActiveTab, onReviewStale }) {
+  const terms = useTerms();
+  const {
+    sessions, alters, altersById, emotionCheckIns, symptomCheckIns, activities, sleepRecords,
+    journals, cards, bulletins, systemCheckIns, tasks, statusNotes, stale, foldedSessions,
+    symptoms, activityCategories, contactEncounters, systemChangeEvents, symptomSessions,
+    goals, locations, contacts, mentionLogs, chatMessages,
+  } = data;
+  return (
     <>
         {/* ── OVERVIEW ── */}
         {activeTab === "overview" && (
@@ -327,7 +284,7 @@ export default function Analytics() {
             from={from}
             to={to}
             stale={stale}
-            onReviewStale={() => setStaleModalOpen(true)}
+            onReviewStale={onReviewStale}
             timeOfDayNode={
               <TimeOfDayFronters sessions={foldedSessions} alters={alters.filter(a => !a.is_archived)} />
             }
@@ -428,6 +385,91 @@ export default function Analytics() {
         )}
     </>
   );
+}
+
+export default function Analytics() {
+  const terms = useTerms();
+  const pixel = useUiLook() === UI_LOOKS.PIXEL;
+  const navigate = useNavigate();
+
+  // ── New IA: four tabs replace the old 14-tile landing grid.
+  //    Overview is the rebuilt engine-driven view; the other tabs
+  //    temporarily house the existing section components (grouped by
+  //    domain) until their phase of the rebuild replaces them — see the
+  //    analytics-rebuild plan. Old section ids are preserved so nothing
+  //    is lost in the cutover.
+  // Deep-linkable: /analytics?tab=alters&alter=<id> (used by alter profiles).
+  const [searchParams] = useSearchParams();
+  const VALID_TABS = ["overview", "fronting", "wellbeing", "life", "alters"];
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = searchParams.get("tab");
+    return VALID_TABS.includes(t) ? t : "overview";
+  });
+  const [selectedAlterId, setSelectedAlterId] = useState(() => searchParams.get("alter") || null);
+
+  const [preset, setPreset] = useState("30d");
+  const [from, setFrom] = useState(subDays(new Date(), 30));
+  const [to, setTo] = useState(new Date());
+  const [staleModalOpen, setStaleModalOpen] = useState(false);
+
+  const PRESETS = [
+    { id: "7d",   label: "7d",       from: () => subDays(new Date(), 7) },
+    { id: "30d",  label: "30d",      from: () => subDays(new Date(), 30) },
+    { id: "90d",  label: "90d",      from: () => subDays(new Date(), 90) },
+    { id: "1y",   label: "1y",       from: () => subDays(new Date(), 365) },
+    { id: "all",  label: "All Time", from: () => new Date(0) },
+    { id: "custom", label: "Custom", from: null },
+  ];
+
+  const applyPreset = (id) => {
+    setPreset(id);
+    const p = PRESETS.find(x => x.id === id);
+    if (p?.from) { setFrom(p.from()); setTo(new Date()); }
+  };
+
+  // Pixel toolbar's < > : move the same-length window back or forward,
+  // never past today.
+  const stepRange = (dir) => {
+    const span = to.getTime() - from.getTime();
+    if (span <= 0) return;
+    let nextTo = to.getTime() + dir * span;
+    const now = Date.now();
+    if (nextTo > now) nextTo = now;
+    setFrom(new Date(nextTo - span));
+    setTo(new Date(nextTo));
+  };
+
+  const data = useAnalyticsData({ from, to });
+  const { sessionsLoading, hiddenFromAnalytics, alters, stale, altersById } = data;
+
+  if (sessionsLoading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const TABS = [
+    { id: "overview", label: "Overview" },
+    { id: "fronting", label: terms.Fronting },
+    { id: "wellbeing", label: "Wellbeing" },
+    { id: "life", label: "Life" },
+    { id: "alters", label: terms.Alters },
+  ];
+
+  const tabContent = (
+    <AnalyticsTabBody
+      tab={activeTab}
+      data={data}
+      from={from}
+      to={to}
+      selectedAlterId={selectedAlterId}
+      onSelectAlter={setSelectedAlterId}
+      onNavigateTab={setActiveTab}
+      onReviewStale={() => setStaleModalOpen(true)}
+    />
+  );
 
   if (pixel) {
     return (
@@ -448,13 +490,13 @@ export default function Analytics() {
         <div className="px-an-floor">
           {activeTab === "overview" && (
             <PixelAnalyticsBoard
-              sessions={sessions}
+              sessions={data.sessions}
               alters={alters}
               altersById={altersById}
-              emotionCheckIns={emotionCheckIns}
-              symptomCheckIns={symptomCheckIns}
-              sleepRecords={sleepRecords}
-              activities={activities}
+              emotionCheckIns={data.emotionCheckIns}
+              symptomCheckIns={data.symptomCheckIns}
+              sleepRecords={data.sleepRecords}
+              activities={data.activities}
               from={from}
               to={to}
               preset={preset}
