@@ -173,7 +173,7 @@ export function weekOf(alterId, sessions = [], now = Date.now()) {
     const d = new Date(today); d.setDate(d.getDate() - (6 - i));
     const start = d.getTime();
     const e = new Date(d); e.setDate(e.getDate() + 1);
-    return { start, end: e.getTime(), name: WEEKDAY[d.getDay()], ms: 0, bars: [] };
+    return { start, end: e.getTime(), name: WEEKDAY[d.getDay()], bars: [] };
   });
   for (const s of sessions || []) {
     if (!s?.start_time || !membersOf(s).includes(alterId)) continue;
@@ -183,12 +183,17 @@ export function weekOf(alterId, sessions = [], now = Date.now()) {
     for (const d of days) {
       const lo = Math.max(a, d.start); const hi = Math.min(b, d.end);
       if (hi <= lo) continue;
-      d.ms += hi - lo;
       const span = d.end - d.start;
       d.bars.push({ from: (lo - d.start) / span, to: (hi - d.start) / span });
     }
   }
-  return days.map((d) => ({ name: d.name, start: d.start, hours: d.ms / H, bars: mergeBars(d.bars) }));
+  // Hours come from the merged bars, so two overlapping rows (a duplicate,
+  // or a legacy grouped row beside a per-alter one) are never counted twice.
+  return days.map((d) => {
+    const bars = mergeBars(d.bars);
+    const span = d.end - d.start;
+    return { name: d.name, start: d.start, hours: bars.reduce((n, b) => n + (b.to - b.from) * span, 0) / H, bars };
+  });
 }
 
 function mergeBars(bars) {
