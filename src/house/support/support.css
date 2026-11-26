@@ -36,7 +36,7 @@
 [data-house] .hs-opts { display: flex; flex-wrap: wrap; gap: var(--house-space-2); }
 [data-house] .hs-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 [data-house] .hs-tools { display: inline-flex; align-items: center; gap: var(--house-space-1); }
-[data-house] .hs-sq { display: inline-block; flex: 0 0 auto; width: 0.875rem; height: 0.875rem; border: 2px solid var(--house-outline); }
+[data-house] .hs-sq { display: inline-block; flex: 0 0 auto; width: 0.875rem; height: 0.875rem; border: var(--house-px-line, 1px) solid var(--house-outline); }
 
 /* Old pieces embedded in a house panel (the crisis lines, a technique's
    steps, the Soundscape, Learn) keep their own drawing; they get the
@@ -80,9 +80,9 @@
   position: sticky; bottom: 0; z-index: 2;
   display: flex; align-items: center; gap: var(--house-space-2);
   padding: var(--house-space-2) var(--house-space-3);
-  background: var(--house-panel); border: 2px solid var(--house-outline); box-shadow: var(--house-px-raise, none);
+  background: var(--house-panel); border: var(--house-px-line, 1px) solid var(--house-outline); box-shadow: var(--house-px-raise, none);
 }
-[data-house] .hs-player-art { flex: 0 0 auto; width: 2.25rem; height: 2.25rem; background: var(--house-info, var(--house-accent)); border: 2px solid var(--house-outline); }
+[data-house] .hs-player-art { flex: 0 0 auto; width: 2.25rem; height: 2.25rem; background: var(--house-info, var(--house-accent)); border: var(--house-px-line, 1px) solid var(--house-outline); }
 [data-house] .hk-btn.hs-player-open { flex: 1 1 auto; min-width: 0; justify-content: flex-start; text-align: left; color: var(--house-text); padding-left: 0; }
 [data-house] .hs-player-open > span { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 [data-house] .hs-player-title { font-family: var(--house-font-body); font-weight: 700; font-size: var(--house-text-md); }
@@ -105,7 +105,7 @@
 [data-house] .hk-btn.hs-big { min-height: 3.25rem; font-size: var(--house-text-md); }
 [data-house] .hs-q { display: flex; flex-direction: column; gap: var(--house-space-3); }
 [data-house] .hs-prompt { margin: 0; font-size: var(--house-text-lg); line-height: var(--house-lh-lg); }
-[data-house] .hs-qfoot { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--house-space-2); padding-top: var(--house-space-2); border-top: 2px solid var(--house-outline); }
+[data-house] .hs-qfoot { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--house-space-2); padding-top: var(--house-space-2); border-top: var(--house-px-line, 1px) solid var(--house-outline); }
 [data-house] .hs-qfoot > * { width: 100%; }
 [data-house] .hs-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--house-space-2); }
 [data-house] .hs-foot > .hs-hint { flex: 1 1 12rem; }
@@ -143,7 +143,7 @@
 [data-house] .hs-ecard { border: 3px solid var(--house-danger); background: var(--house-panel); max-width: 44rem; width: 100%; margin: 0 auto; }
 [data-house] .hs-ecard-head {
   display: flex; align-items: center; gap: var(--house-space-2); min-height: 2.75rem; padding: 0 var(--house-space-2) 0 var(--house-space-3);
-  background: color-mix(in srgb, var(--house-danger) 55%, var(--house-page)); box-shadow: inset 0 -2px 0 var(--house-outline);
+  background: color-mix(in srgb, var(--house-danger) 55%, var(--house-page)); box-shadow: inset 0 -1px 0 var(--house-outline);
 }
 [data-house] .hs-ecard-title { flex: 1 1 auto; margin: 0; font-size: var(--house-text-lg); font-weight: 400; color: var(--house-text); }
 [data-house] .hs-ecard-head .hk-btn { min-width: 2.5rem; }

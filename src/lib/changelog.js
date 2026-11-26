@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "improve", text: "New house: edges and bevels are thinner and lighter everywhere, closer to the approved design." },
       { type: "improve", text: "Pixel look: tick boxes have thinner, flatter edges." },
       { type: "feature", text: "New house: Quick check-in, \"Who feels it?\" and Set front open as the approved design's sheets on phones and computers." },
       { type: "feature", text: "New house: Journals and System chat are redrawn as the approved design, with folders, the entry and its info side by side, and chat tabs above a tidy message box on phones." },

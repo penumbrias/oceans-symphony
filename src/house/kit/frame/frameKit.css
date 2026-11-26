@@ -141,7 +141,7 @@
 [data-house] .hk-area-menu {
   position: absolute; left: 0; top: 100%; z-index: 60; min-width: 13rem; padding: var(--house-space-1) 0;
   background: var(--house-panel); color: var(--house-text);
-  border: 2px solid var(--house-outline); box-shadow: var(--house-px-raise, none);
+  border: var(--house-px-line, 1px) solid var(--house-outline); box-shadow: var(--house-px-raise, none);
 }
 [data-house] .hk-area-row { display: flex; align-items: stretch; }
 [data-house] .hk-area-row[data-current] { background: var(--house-bevel-light); }
@@ -156,7 +156,7 @@
 [data-house] .hk-area-newtab { flex: 0 0 auto; width: var(--house-target); border: 0; background: transparent; color: var(--house-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 [data-house] .hk-area-newtab svg { width: 0.875rem; height: 0.875rem; }
 [data-house] .hk-area-item:focus,
-[data-house] .hk-area-item:focus-visible { background: var(--house-bevel-light); outline: none; box-shadow: inset 2px 0 0 var(--house-accent); }
+[data-house] .hk-area-item:focus-visible { background: var(--house-bevel-light); outline: none; box-shadow: inset 1px 0 0 var(--house-accent); }
 @media (hover: hover) {
   [data-house] .hk-area-item:hover { background: var(--house-bevel-light); }
   [data-house] .hk-area-newtab:hover { color: var(--house-text); box-shadow: inset 0 0 0 2px currentColor; }

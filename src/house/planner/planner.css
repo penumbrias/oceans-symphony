@@ -31,12 +31,12 @@
 [data-house] .hpl-cal {
   flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; min-width: 0;
   background: var(--house-panel);
-  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-bevel-dark, var(--house-page));
-  outline: 2px solid var(--house-outline);
+  box-shadow: inset 1px 1px 0 var(--house-bevel-light, var(--house-raised)), inset -1px -1px 0 var(--house-bevel-dark, var(--house-page));
+  outline: var(--house-px-line, 1px) solid var(--house-outline);
 }
 [data-house] .hpl-toolbar {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--house-space-2);
-  padding: 0.375rem 0.5rem; background: var(--house-panel); box-shadow: inset 0 -2px 0 var(--house-outline);
+  padding: 0.375rem 0.5rem; background: var(--house-panel); box-shadow: inset 0 -1px 0 var(--house-outline);
 }
 [data-house] .hpl-views { min-width: 0; }
 [data-house] .hpl-views .hk-field { margin: 0; }
@@ -52,12 +52,12 @@
 [data-house] .hpl-range-words { font-family: var(--house-font-label); white-space: nowrap; padding: 0 0.25rem; }
 [data-house] .hpl-flex { flex: 1 1 auto; }
 [data-house] .hpl-adds { display: inline-flex; align-items: center; gap: var(--house-space-2); }
-[data-house] .hpl-running { display: flex; flex-wrap: wrap; gap: var(--house-space-1); padding: 0.25rem 0.5rem; box-shadow: inset 0 -2px 0 var(--house-outline); }
+[data-house] .hpl-running { display: flex; flex-wrap: wrap; gap: var(--house-space-1); padding: 0.25rem 0.5rem; box-shadow: inset 0 -1px 0 var(--house-outline); }
 [data-house] .hpl-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 [data-house] .hpl-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 [data-house] .hpl-status {
   display: flex; align-items: center; gap: 1.125rem; min-height: 1.5rem; padding: 0 0.625rem;
-  background: var(--house-title, var(--house-raised)); box-shadow: inset 0 2px 0 var(--house-outline);
+  background: var(--house-title, var(--house-raised)); box-shadow: inset 0 1px 0 var(--house-outline);
   font-family: var(--house-font-label); font-size: var(--house-text-xs); white-space: nowrap; overflow: hidden;
 }
 [data-house] .hpl-status .hpl-status-btn { min-height: 1.5rem; padding: 0 0.25rem; font-size: inherit; }
@@ -74,14 +74,14 @@
 [data-house] .hpl-stack-s { display: flex; flex-direction: column; gap: 0.375rem; }
 [data-house] .hpl-between { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
 [data-house] .hpl-trunc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-house] .hpl-meter { position: relative; height: 0.875rem; background: var(--house-sunken); box-shadow: inset 2px 2px 0 var(--house-outline); }
+[data-house] .hpl-meter { position: relative; height: 0.875rem; background: var(--house-sunken); box-shadow: inset 1px 1px 0 var(--house-outline); }
 [data-house] .hpl-meter > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--house-wave, #8a90d6); }
 [data-house] .hpl-total { display: flex; align-items: center; gap: 0.5rem; }
 [data-house] .hpl-total-name { width: 4.75rem; flex: 0 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-house] .hpl-bar { flex: 1 1 auto; position: relative; height: 0.75rem; background: var(--house-sunken); }
 [data-house] .hpl-bar > span { position: absolute; left: 0; top: 0; bottom: 0; outline: 1px solid var(--house-outline); }
 [data-house] .hpl-total-h { width: 2.75rem; flex: 0 0 auto; font-size: var(--house-text-xs); }
-[data-house] .hpl-sq { display: inline-block; flex: 0 0 auto; width: 0.625rem; height: 0.625rem; outline: 2px solid var(--house-outline); }
+[data-house] .hpl-sq { display: inline-block; flex: 0 0 auto; width: 0.625rem; height: 0.625rem; outline: var(--house-px-line, 1px) solid var(--house-outline); }
 
 [data-house] .hpl-cats { list-style: none; margin: 0; padding: 0.375rem; display: flex; flex-direction: column; }
 [data-house] .hpl-cat .hk-check { min-height: max(26px, 1.625rem); }

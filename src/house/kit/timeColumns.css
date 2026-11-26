@@ -17,7 +17,7 @@
 [data-house] .hk-tc-head,
 [data-house] .hk-tc-allday {
   display: grid; grid-template-columns: var(--hk-tc-gutter) repeat(var(--hk-tc-n), minmax(0, 1fr));
-  box-shadow: inset 0 -2px 0 var(--house-outline);
+  box-shadow: inset 0 -1px 0 var(--house-outline);
 }
 [data-house] .hk-tc-head { font-family: var(--house-font-label); font-size: var(--house-text-xs); }
 [data-house] .hk-tc-dayname { padding: 0.3125rem 0.375rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -54,7 +54,7 @@
 
 [data-house] .hk-tc-col {
   position: relative; min-width: 0; touch-action: pan-y;
-  box-shadow: inset 2px 0 0 var(--house-page);
+  box-shadow: inset 1px 0 0 var(--house-page);
   background-image: repeating-linear-gradient(180deg, var(--house-divider) 0 1px, transparent 1px var(--hk-tc-hour));
   cursor: crosshair;
 }
@@ -64,7 +64,7 @@
   position: absolute; z-index: 1; margin: 0; padding: 2px 5px; overflow: hidden;
   font: inherit; font-size: var(--house-text-xs); line-height: 1.25; text-align: left; cursor: pointer;
   background: var(--hk-tc-c, var(--house-accent)); color: var(--house-page);
-  border: 2px solid var(--house-outline);
+  border: var(--house-px-line, 1px) solid var(--house-outline);
   touch-action: pan-y;
 }
 [data-house] .hk-tc-block[data-one] { white-space: nowrap; text-overflow: ellipsis; }

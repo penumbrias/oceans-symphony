@@ -21,7 +21,7 @@
   font-size: var(--house-text-md);
   line-height: var(--house-lh-md);
 }
-[data-house][data-house-look="pixel"][data-shared-pop] { border-color: var(--house-outline); border-width: 2px; }
+[data-house][data-house-look="pixel"][data-shared-pop] { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
 
 /* Words: nothing under 12 px (the shared lists use 9–11 px captions), no
    tiny uppercase labels, muted and accent words in the house's readable

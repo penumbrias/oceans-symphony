@@ -20,7 +20,7 @@
 [data-house] .ht-timeline-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 [data-house] .ht-side {
   display: flex; flex-direction: column; min-height: 0; overflow-y: auto;
-  background: var(--house-panel); border-left: 2px solid var(--house-outline);
+  background: var(--house-panel); border-left: var(--house-px-line, 1px) solid var(--house-outline);
 }
 /* Compact studio: one column, the side panels under the timeline. */
 [data-house].ht--studio[data-house-size="compact"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; overflow-y: auto; }

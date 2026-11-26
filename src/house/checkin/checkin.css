@@ -17,7 +17,7 @@
   --hcs-sink-thin: var(--house-px-sink-thin, none);
   --hcs-on-thin: var(--house-px-on-thin, none);
   --hcs-label: var(--house-px-label, var(--house-text-sm));
-  --hcs-line: 2px;
+  --hcs-line: 1px;
   color: var(--house-text); font-family: var(--house-font-body);
   border-radius: 0;
 }
@@ -275,7 +275,7 @@
   font-family: var(--house-font-label); font-size: var(--hcs-label); color: var(--house-muted);
   background: var(--house-page); border: var(--hcs-line) solid var(--house-outline); border-radius: var(--house-corner-sm, 0); cursor: pointer;
 }
-[data-house].hcs-sf .psh-tab.sel { background: var(--house-title); color: var(--house-text); box-shadow: inset 2px 2px 0 var(--house-bevel-raised, transparent); }
+[data-house].hcs-sf .psh-tab.sel { background: var(--house-title); color: var(--house-text); box-shadow: inset 1px 1px 0 var(--house-bevel-raised, transparent); }
 [data-house].hcs-sf .psh-body {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: var(--house-space-2); padding: var(--house-space-2) var(--house-space-3);
@@ -371,3 +371,11 @@
   color: var(--house-text); background: var(--house-title);
   border: var(--hcs-line) solid var(--house-outline); box-shadow: var(--hcs-btn);
 }
+
+/* The older pixel sheet styles (src/styles/pixel/sheets.css) draw a 2px
+   outline round every part; inside the house the parts' own 1px borders are
+   the edge (Penumbra 2026-11-25: "more elegant", like the boards). Focus rings
+   still come from the :focus-visible rules. */
+[data-house].hcs-sf [class*="psh-"]:not(:focus-visible),
+[data-house].hcs-ci [class*="px-"]:not(:focus-visible),
+[data-house].hcs-who [class*="px-"]:not(:focus-visible) { outline: 0; }

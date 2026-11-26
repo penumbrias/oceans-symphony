@@ -324,7 +324,7 @@ html.a11y-reduce-motion [data-house] .hk-spin { animation: none; }
   padding: var(--house-space-1);
   font-family: var(--house-font-body); font-size: var(--house-text-md); line-height: var(--house-lh-md);
 }
-[data-house][data-house-look="pixel"] .hk-pop { border-color: var(--house-outline); border-width: 2px; }
+[data-house][data-house-look="pixel"] .hk-pop { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
 [data-house] .hk-menuitem,
 [data-house] .hk-option {
   display: flex; align-items: center; gap: var(--house-space-2); width: 100%; min-height: var(--house-target);

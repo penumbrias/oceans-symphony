@@ -10,7 +10,7 @@
   border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner);
   box-shadow: var(--house-surface-shadow), var(--house-raise);
 }
-[data-house][data-house-look="pixel"] .hk-panel { border-color: var(--house-outline); border-width: 2px; }
+[data-house][data-house-look="pixel"] .hk-panel { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
 /* Heads wrap when narrow: the title keeps the first line (at least 6 rem
    of it), tools and the fold go under it, never a title a letter wide. */
 [data-house] .hk-panel-head {
@@ -154,7 +154,7 @@
   background: var(--house-panel); border: var(--house-border-w) solid var(--house-divider); border-radius: var(--house-corner);
   box-shadow: var(--house-surface-shadow), var(--house-raise);
 }
-[data-house][data-house-look="pixel"] .hk-card { border-color: var(--house-outline); border-width: 2px; }
+[data-house][data-house-look="pixel"] .hk-card { border-color: var(--house-outline); border-width: var(--house-px-line, 1px); }
 [data-house] .hk-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--house-space-2); padding: var(--house-space-2) var(--house-space-1) 0 var(--house-space-4); min-height: var(--house-h-control); }
 [data-house] .hk-card-title { flex: 1 1 6rem; min-width: 0; margin: 0; font-size: var(--house-text-md); line-height: var(--house-lh-md); overflow-wrap: break-word; }
 [data-house] .hk-card-tools { display: flex; gap: var(--house-space-1); margin-left: auto; }
@@ -311,7 +311,7 @@ html.a11y-reduce-motion [data-house] .hk-ph { animation: none; }
   padding-bottom: env(safe-area-inset-bottom, 0px);
   transition: height var(--house-dur-base) var(--house-ease-out);
 }
-[data-house][data-house-look="pixel"] .hk-sheet { border: 2px solid var(--house-outline); border-bottom: 0; }
+[data-house][data-house-look="pixel"] .hk-sheet { border: var(--house-px-line, 1px) solid var(--house-outline); border-bottom: 0; }
 [data-house] .hk-sheet:focus-visible { outline-offset: calc(var(--house-focus-w) * -1); }
 [data-house] .hk-sheet[data-size="peek"] { height: calc(7.5rem + var(--house-h-control)); }
 [data-house] .hk-sheet[data-size="half"] { height: min(50dvh, calc(100dvh - var(--house-sheet-bottom, 0px) - 3rem)); min-height: min(20rem, 80dvh); }

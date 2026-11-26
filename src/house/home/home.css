@@ -29,7 +29,7 @@
 [data-house] .hh-pagetabs {
   flex: 0 0 auto; display: flex; align-items: center; gap: var(--house-space-2);
   padding: 0 var(--house-space-2); background: var(--house-panel);
-  border-top: 2px solid var(--house-outline);
+  border-top: var(--house-px-line, 1px) solid var(--house-outline);
 }
 [data-house] .hh-pagetabs-label { color: var(--house-muted); font-size: var(--house-px-label, var(--house-text-sm)); }
 [data-house] .hh-pagetabs .hk-tabs-wrap { flex: 1 1 auto; min-width: 0; }
@@ -41,7 +41,7 @@
 
 [data-house] .hh-side {
   display: flex; flex-direction: column; gap: 0; min-height: 0; overflow-y: auto;
-  background: var(--house-panel); border-left: 2px solid var(--house-outline);
+  background: var(--house-panel); border-left: var(--house-px-line, 1px) solid var(--house-outline);
 }
 [data-house][data-house-size="compact"] .hh-side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 0; overflow: visible; }
 
