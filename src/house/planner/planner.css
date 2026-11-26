@@ -40,6 +40,8 @@
 }
 [data-house] .hpl-views { min-width: 0; }
 [data-house] .hpl-views .hk-field { margin: 0; }
+/* Board 04 draws the views as tight joined buttons, so the toolbar keeps one row. */
+[data-house].hpl--studio .hpl-views .hk-seg-opt { padding: 0 var(--house-space-2); }
 [data-house] .hpl-range { display: inline-flex; align-items: center; gap: 2px; margin-left: var(--house-space-2); }
 [data-house] .hpl-range-words { font-family: var(--house-font-label); white-space: nowrap; padding: 0 0.25rem; }
 [data-house] .hpl-flex { flex: 1 1 auto; }
@@ -115,3 +117,4 @@
 [data-house].hpl--phone .hpl-cal-phone[data-view="day"] .hpl-body { height: min(62vh, 34rem); flex: 0 0 auto; }
 [data-house].hpl--phone .hpl-scroll { overflow: visible; }
 [data-house].hpl--phone .hpl-status { gap: 0.75rem; }
+[data-house].hpl--phone .hk-cal-year { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--house-space-2); padding: var(--house-space-2); }

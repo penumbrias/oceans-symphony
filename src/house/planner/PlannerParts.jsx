@@ -219,7 +219,7 @@ export function DecisionsPanel({ items = [], fmt, onOpen, limit = 6, collapsible
 }
 
 // ── Month and year views ───────────────────────────────────────────────
-export function MonthView({ anchor, weekStart, activities, events, dates, byId, fmt, onPickDay, onOpenEntry, onOpenAllDay, nameOfDate }) {
+export function MonthView({ anchor, weekStart, activities, events, dates, byId, fmt, compact, onPickDay, onOpenEntry, onOpenAllDay, nameOfDate }) {
   const cells = useMemo(() => monthCells(new Date(anchor.getFullYear(), anchor.getMonth(), 1), weekStart), [anchor, weekStart]);
   const byDay = useMemo(() => entriesByDay(activities), [activities]);
   const now = new Date();
@@ -236,8 +236,8 @@ export function MonthView({ anchor, weekStart, activities, events, dates, byId, 
       const when = a.timestamp ? new Date(a.timestamp) : null;
       list.push({
         key: a.id, kind: a._isTask ? "todo" : "entry", tone, item: a, colour: a._isTask ? null : colourOf(a, byId),
-        label: `${when && !a._dueOnly ? `${format(when, fmt === "ampm" ? "h:mm" : "HH:mm")} ` : ""}${a.activity_name || "Activity"}`,
-        words: TONE_WORDS[tone],
+        label: `${when && !a._dueOnly && !compact ? `${format(when, fmt === "ampm" ? "h:mm" : "HH:mm")} ` : ""}${a.activity_name || "Activity"}`,
+        words: compact && when && !a._dueOnly ? `${format(when, fmt === "ampm" ? "h:mm a" : "HH:mm")}, ${TONE_WORDS[tone]}` : TONE_WORDS[tone],
       });
     }
     return list;

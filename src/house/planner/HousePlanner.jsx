@@ -309,7 +309,7 @@ export default function HousePlanner({ size = "full", tokens }) {
           <IconButton icon={ChevronLeft} label={`Back a ${unit}`} onClick={() => setAnchor((a) => stepAnchor(calView, a, -1))} />
           <span className="hpl-range-words" aria-live="polite">{rangeLabel}</span>
           <IconButton icon={ChevronRight} label={`Forward a ${unit}`} onClick={() => setAnchor((a) => stepAnchor(calView, a, 1))} />
-          <Button rank="quiet" onClick={() => setAnchor(new Date())} aria-current={holdsToday(calView, anchor, weekStart, now) ? "date" : undefined}>Today</Button>
+          {holdsToday(calView, anchor, weekStart, now) ? null : <Button rank="quiet" onClick={() => setAnchor(new Date())}>Today</Button>}
         </span>
       ) : null}
       <span className="hpl-flex" />
@@ -344,7 +344,7 @@ export default function HousePlanner({ size = "full", tokens }) {
     body = <InsightsView terms={terms} rangeLabel={rangeWords("week", anchor, weekStart)} totals={weekTotals} weekFrom={week.from} activities={activities} />;
   } else if (calView === "month") {
     body = (
-      <MonthView anchor={anchor} weekStart={weekStart} activities={[...shown, ...taskItems]} events={monthEvents} dates={dates} byId={byId} fmt={fmt}
+      <MonthView anchor={anchor} weekStart={weekStart} activities={[...shown, ...taskItems]} events={monthEvents} dates={dates} byId={byId} fmt={fmt} compact={phone}
         nameOfDate={nameOfDate} onPickDay={(d) => goDay(d)} onOpenEntry={openEntry} onOpenAllDay={openAllDay} />
     );
   } else if (calView === "year") {
@@ -356,7 +356,7 @@ export default function HousePlanner({ size = "full", tokens }) {
     body = (
       <TimeColumns label={`${rangeLabel}: plans and logs`} days={columns} hourPx={prefs.hourPx}
         hourLabel={(h) => (phone ? formatHourLabel(h, fmt) : hourWords(h, fmt))} compact={phone}
-        scrollToHour={now.getHours() < 7 || now.getHours() > 18 ? Math.max(0, now.getHours() - 2) : 7}
+        scrollToHour={now.getHours() >= 9 && now.getHours() <= 21 ? now.getHours() - 2 : 7}
         onSelect={(b) => openEntry(b.item)} onSelectAllDay={openAllDay}
         onCreate={(i, a, b) => openCreate(columns[i].day, a, b)}
         onTapEmpty={(i, m) => { const s = Math.floor(m / 60) * 60; openCreate(columns[i].day, s, s + 60); }}
