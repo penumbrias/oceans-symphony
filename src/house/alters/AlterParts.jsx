@@ -190,7 +190,7 @@ export function WeekBars({ week, colour, label }) {
   );
 }
 
-// ── Board 12's "Fronting, last 7 days": one lane a day ──────────────────
+// ── Board 12's week (Mon to Sun): one lane a day ──────────────────
 export function WeekLanes({ week, colour, label }) {
   return (
     <div className="hal-lanes" role="img" aria-label={`${label}: ${week.map((d) => `${d.name} ${hoursWords(d.hours)}`).join(", ")}`}>

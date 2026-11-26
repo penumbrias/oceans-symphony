@@ -325,7 +325,7 @@ export default function HouseAlters({ size = "full", tokens }) {
     info = (
       <AlterInfoPanel alter={selected} anonymize={anonymize} front={!!mySession}
         facts={infoFacts(selected, { groups: myGroups, session: mySession, feels: feelsLately(checkIns, selected.id), terms: t })}
-        week={weekOf(selected.id, allSessions)}
+        week={weekOf(selected.id, allSessions, Date.now(), { from: "monday" })}
         onOpen={() => open(selected)} onEdit={() => open(selected, "?edit=1")} onFront={() => front(selected)}
         onMessage={() => message(selected)} onMenu={() => setMenuFor(selected)} />
     );

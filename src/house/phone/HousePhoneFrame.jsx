@@ -402,6 +402,10 @@ export default function HousePhoneFrame({ children, mainRef }) {
       <HouseScope {...scope()} className="hp-bottom" data-keyboard={keyboard || undefined}>
         <div ref={bottomRef} className="hp-bottom-in">
         {hideLine ? null : <AttentionLine item={item} rest={rest} onNext={() => setAt((n) => n + 1)} />}
+        {/* A room's own bar (board 12's Edit page · Profile style · Write note):
+            docked under the attention line and right above the frame's bar,
+            so the page never scrolls under it and Support stays one tap away. */}
+        {hideBar || !roomTools?.bar ? null : <div className="hp-roombar">{roomTools.bar}</div>}
         {hideBar ? null : (
           <PhoneBar places={places} pathname={location.pathname} openSheet={sheet}
             onSheet={(p) => setSheet((s) => (s === p.sheet ? null : p.sheet))} />

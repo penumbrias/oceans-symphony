@@ -149,6 +149,14 @@ test("the week: seven days, today last, bars as parts of each day, a night split
   assert.ok(Math.abs(w[4].hours - 2) < 1e-9);
   assert.ok(Math.abs(w[5].hours - 2) < 1e-9);
   assert.equal(w[4].bars[0].to, 1);
+  const mon = M.weekOf("a", sessions, now, { from: "monday" });
+  assert.deepEqual(mon.map((d) => d.name), ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], "boards 03 and 12 run Mon to Sun");
+  assert.ok(Math.abs(mon[4].hours - 1.5) < 1e-9, "Friday is today");
+  assert.ok(Math.abs(mon[2].hours - 2) < 1e-9);
+  assert.equal(mon[5].future, true);
+  assert.equal(mon[5].hours, 0, "days still to come are empty");
+  const live = M.weekOf("a", [{ alter_id: "a", start_time: iso(now - H) }], now, { from: "monday" });
+  assert.equal(live[5].hours, 0, "a live session never runs into tomorrow");
   assert.equal(M.hoursWords(0), "0 h");
   assert.equal(M.hoursWords(0.5), "30 min");
   assert.equal(M.hoursWords(31.4), "31 h");
@@ -297,6 +305,15 @@ test("the room writes only through the write paths", () => {
   for (const fn of ["changeFront", "toggleFrontFor", "addGroupMember", "setAlterFields", "refreshAlter", "saveRelationship", "writeSettings"]) {
     assert.ok(room.includes(fn), `the room uses ${fn}`);
   }
+});
+
+test("the phone docks the profile's bar in its bottom zone, above its own bar", () => {
+  const f = read("src/house/phone/HousePhoneFrame.jsx");
+  const at = f.indexOf("<AttentionLine"); const bar = f.indexOf("roomTools.bar}"); const phoneBar = f.indexOf("<PhoneBar");
+  assert.ok(at > 0 && bar > at && phoneBar > bar, "attention line, then the room's bar, then the frame's bar");
+  const p = read("src/house/alters/HouseAlterProfile.jsx");
+  assert.ok(/items: menuItems, bar \}/.test(p), "the profile hands its bar to the frame");
+  assert.ok(!/position: sticky/.test(read("src/house/alters/alters.css").split("\n").filter((l) => l.includes("hal-pf-bar")).join("\n")), "the bar is not sticky inside the page");
 });
 
 test("room tools: published while on screen, cleared when it leaves", () => {

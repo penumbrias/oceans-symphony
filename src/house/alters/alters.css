@@ -173,6 +173,18 @@
 [data-house] .hal-pf-tabs { display: flex; align-items: flex-end; gap: 0.25rem; min-width: 0; }
 [data-house] .hal-pf-tabs > .hk-tabs-wrap { flex: 1 1 auto; min-width: 0; }
 [data-house].hal-pf--studio .hal-pf-tabs { padding-top: 0.5rem; }
+/* Board 12's boxed tabs: the kit's PageTabs (same roles and keys), drawn as bevelled boxes. */
+[data-house] .hal-pf-tabs { align-items: stretch; }
+[data-house] .hal-pf-tabs > .hk-tabs-wrap { border-bottom: 0; }
+[data-house] .hal-pf-tabs .hk-tabs { gap: 2px; padding: 2px; }
+[data-house] .hal-pf-tabs .hk-tab {
+  background: var(--house-panel); color: var(--house-text); outline: 2px solid var(--house-outline); outline-offset: -2px;
+  box-shadow: inset 2px 2px 0 var(--house-bevel-light, var(--house-raised)), inset -2px -2px 0 var(--house-page);
+  padding: 0 0.75rem;
+}
+[data-house] .hal-pf-tabs .hk-tab::after { display: none; }
+[data-house] .hal-pf-tabs .hk-tab[aria-selected="true"] { background: var(--house-title); font-weight: 400; box-shadow: inset 2px 2px 0 var(--house-page), inset -2px -2px 0 var(--house-bevel-light, var(--house-raised)); }
+[data-house] .hal-pf-tabs .hk-tab:focus-visible { outline: 2px solid var(--house-accent); }
 [data-house] .hal-pf-editbar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.375rem 0.5rem; background: var(--house-title); outline: 2px solid var(--house-outline); }
 [data-house] .hal-pf-body { min-width: 0; }
 [data-house] .hal-pf-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem; align-items: start; }
@@ -213,6 +225,7 @@
   background-size: 16px 16px;
 }
 [data-house].hal-pf--phone .hal-pf-scroll { overflow: visible; padding: 0.75rem 0.25rem; }
-[data-house].hal-pf--phone .hal-pf-bar { position: sticky; bottom: 0; margin: 0 calc(-1 * var(--house-space-2)); z-index: 2; }
+/* Docked by the phone frame in its bottom zone (roomTools.bar), above its own bar. */
+[data-house] .hp-roombar .hal-pf-bar { padding: 0.5rem var(--house-space-2); outline: 0; border-top: 2px solid var(--house-outline); }
 [data-house].hal--studio .hal-views { flex: 0 0 auto; }
 [data-house].hal--studio .hal-views .hk-seg { flex-wrap: nowrap; }

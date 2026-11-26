@@ -211,8 +211,17 @@ export default function HouseAlterProfile({ size = "full", tokens }) {
     { id: "options", label: "Archive, merge or delete…", onSelect: () => setTab("options") },
   ] : []), [alter, prev, next, fronting, t, front, message, togglePin, tab, setTab, editPage, navigate, formatAlter]);
 
-  // The phone frame's header: Back · name · Info · ⋯ (board 12).
-  const roomTools = useMemo(() => (alter ? { info: { label: editMode ? "Done" : "Info", pressed: !!editMode, onSelect: toggleInfo }, items: menuItems } : null), [alter, editMode, toggleInfo, menuItems]);
+  // The phone frame's header: Back · name · Info · ⋯, and board 12's bar
+  // (Edit page · Profile style · Write note), which the frame docks in its
+  // bottom zone right above its own bar, so nothing on the page runs under it.
+  const bar = useMemo(() => (editMode ? null : (
+    <div className="hal-pf-bar" data-tour="alter-profile-actions">
+      <span data-tour="alter-profile-layout-btn"><Button rank="secondary" block onClick={editPage}>Edit page</Button></span>
+      <Button rank="secondary" block onClick={openProfileLook}>Profile style</Button>
+      <Button rank="primary" block onClick={writeNote}>Write note</Button>
+    </div>
+  )), [editMode, editPage, writeNote]);
+  const roomTools = useMemo(() => (alter ? { info: { label: editMode ? "Done" : "Info", pressed: !!editMode, onSelect: toggleInfo }, items: menuItems, bar } : null), [alter, editMode, toggleInfo, menuItems, bar]);
   useRoomTools(phone ? roomTools : null);
 
   // ── Relationships (+ add) ──
@@ -247,7 +256,7 @@ export default function HouseAlterProfile({ size = "full", tokens }) {
   }
 
   const label = formatAlter(alter) || "Unnamed";
-  const week = weekOf(alter.id, allSessions);
+  const week = weekOf(alter.id, allSessions, Date.now(), { from: "monday" });
   const weekTotal = week.reduce((n, d) => n + d.hours, 0);
   const fields = filledFields(alter, systemFields, { orderKey: PS.FIELD_ORDER });
   const bio = bioParagraphs(alter.description);
@@ -273,8 +282,8 @@ export default function HouseAlterProfile({ size = "full", tokens }) {
     </Panel>
   );
   const frontWeek = (
-    <Panel key="week" className="hal-pf-panel" title={`${t.Fronting}, last 7 days`} tools={<span className="hal-muted">{hoursWords(weekTotal)}</span>}>
-      <WeekLanes week={week} colour={colourOf(alter)} label={`${t.Fronting}, last 7 days`} />
+    <Panel key="week" className="hal-pf-panel" title={`${t.Fronting}, this week`} tools={<span className="hal-muted">{hoursWords(weekTotal)}</span>}>
+      <WeekLanes week={week} colour={colourOf(alter)} label={`${t.Fronting}, this week`} />
     </Panel>
   );
   const rels = (
@@ -383,13 +392,6 @@ export default function HouseAlterProfile({ size = "full", tokens }) {
       <Menu label={`More pages of ${label}`} rank="quiet" items={moreItems}>More ▾</Menu>
     </div>
   );
-  const actionBar = phone && !editMode ? (
-    <div className="hal-pf-bar" data-tour="alter-profile-actions">
-      <span data-tour="alter-profile-layout-btn"><Button rank="secondary" block onClick={editPage}>Edit page</Button></span>
-      <Button rank="secondary" block onClick={openProfileLook}>Profile style</Button>
-      <Button rank="primary" block onClick={writeNote}>Write note</Button>
-    </div>
-  ) : null;
   const song = alterSongOf(alter, lookCf);
 
   return (
@@ -406,7 +408,6 @@ export default function HouseAlterProfile({ size = "full", tokens }) {
         ) : null}
         <div className="hal-pf-body">{body}</div>
       </div>
-      {actionBar}
       {relOpen ? (
         <CreateRelationshipModal allAlters={alters.filter((a) => !a.is_archived || a.id === alter.id)} alterA={alter} alterB={null}
           onSave={saveRel} onClose={() => setRelOpen(false)} />

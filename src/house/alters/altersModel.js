@@ -167,10 +167,13 @@ const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
  * the stretches they were in front as fractions of the day (board 12's
  * "Fronting, last 7 days" bars; board 03's week chart reads `hours`).
  */
-export function weekOf(alterId, sessions = [], now = Date.now()) {
+export function weekOf(alterId, sessions = [], now = Date.now(), { from = "rolling" } = {}) {
   const today = startOfDay(now);
+  // "monday": this calendar week, Mon to Sun (boards 03 and 12); days still
+  // to come are empty. "rolling": the last seven days, today last.
+  const back = from === "monday" ? (new Date(today).getDay() + 6) % 7 : 6;
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today); d.setDate(d.getDate() - (6 - i));
+    const d = new Date(today); d.setDate(d.getDate() - back + i);
     const start = d.getTime();
     const e = new Date(d); e.setDate(e.getDate() + 1);
     return { start, end: e.getTime(), name: WEEKDAY[d.getDay()], bars: [] };
@@ -178,7 +181,7 @@ export function weekOf(alterId, sessions = [], now = Date.now()) {
   for (const s of sessions || []) {
     if (!s?.start_time || !membersOf(s).includes(alterId)) continue;
     const a = new Date(s.start_time).getTime();
-    const b = s.end_time ? new Date(s.end_time).getTime() : now;
+    const b = Math.min(s.end_time ? new Date(s.end_time).getTime() : now, now);
     if (!(b > a)) continue;
     for (const d of days) {
       const lo = Math.max(a, d.start); const hi = Math.min(b, d.end);
@@ -192,7 +195,7 @@ export function weekOf(alterId, sessions = [], now = Date.now()) {
   return days.map((d) => {
     const bars = mergeBars(d.bars);
     const span = d.end - d.start;
-    return { name: d.name, start: d.start, hours: bars.reduce((n, b) => n + (b.to - b.from) * span, 0) / H, bars };
+    return { name: d.name, start: d.start, future: d.start > now, hours: bars.reduce((n, b) => n + (b.to - b.from) * span, 0) / H, bars };
   });
 }
 
