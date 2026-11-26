@@ -399,6 +399,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       route: "/Home", target: "alters-groups-panel",
     }),
     s("alters", {
+      emoji: "🪪", title: `Info beside the ${t.alters}`,
+      body: `In the new house on a computer, click a card to see that ${t.alter} in Info on the right: their facts, this week's ${t.fronting} and buttons to open the profile or add them to ${t.front}. Shift-click picks several.`,
+      route: "/Home", target: ["alters-info-panel", "alters-grid"],
+    }),
+    s("alters", {
       emoji: "📌", title: `Pinned ${t.alters}`,
       body: `Pin ${an(t.alter)} from their profile and they show here and in the pinned bar. Tap a chip for their menu; hold it for the level rail. The ⚙ picks who's pinned and how they look.`,
       route: "/Home", target: "pinned-alters", look: `the Pinned row — it shows once you've pinned someone`,
@@ -410,7 +415,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     }),
     s("alters", {
       emoji: "🔲", title: "View",
-      body: `View picks a list or a 2–5 column grid, hides grouped ${t.alters}, and turns on screenshot mode, which blurs names or pictures.`,
+      body: `View (⋯ beside the views in the new house) picks a 2–5 column grid, hides grouped ${t.alters}, and turns on screenshot mode, which blurs names or pictures.`,
       route: "/Home", target: "alter-view-toggle", look: `the highlighted View button`,
     }),
     s("alters", {
@@ -523,6 +528,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       body: `Edit page (the pencil) is the only way into editing; reading a profile never moves anything. While editing, hold a widget to move it, drag its edges to resize, and tap its corner button for options.`,
       route: profile(), target: onProfile("alter-profile-layout-btn"),
       look: ai ? `the highlighted Edit page button` : `open a profile and look for Edit page at the top-right`,
+    }),
+    s("profile", {
+      emoji: "📱", title: "The profile's buttons on a phone",
+      body: `In the new house on a phone, the bar at the bottom of a profile holds Edit page, Profile style and Write note. Info sits at the top, and ⋯ has the rest.`,
+      route: profile(), target: onProfile(["alter-profile-actions", "alter-profile-edit-btn"]),
     }),
     s("profile", {
       emoji: "🗂️", title: "Prefer the older form?",
