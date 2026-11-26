@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "November 26, 2026",
     changes: [
+      { type: "feature", text: "New house: Settings is redrawn as the approved design, with every page listed beside it, Find, and a live preview of your look." },
       { type: "feature", text: "New house: the Notebook is rebuilt as the approved design, with page balances, a ledger of what moved each page (tap By to change who did it), and weekly targets with a pace tick." },
       { type: "improve", text: "New house: Set front is easier to use, with slim rows for who's in front, a tighter footer and the pixel back button and title." },
       { type: "improve", text: "Preview Mode now shows the house's own colours and pixel font." },
